@@ -128,6 +128,8 @@
     <ClInclude Include="External\SphereCast\Include\SphereCast.h" />
     <ClInclude Include="Source\AnimationController.h" />
     <ClInclude Include="Source\BitmapFont.h" />
+    <ClInclude Include="Source\Button.h" />
+    <ClInclude Include="Source\ButtonManager.h" />
     <ClInclude Include="Source\Camera.h" />
     <ClInclude Include="Source\CameraController.h" />
     <ClInclude Include="Source\Character.h" />
@@ -192,6 +194,8 @@
     <ClCompile Include="External\ImGuizmo\ImSequencer.cpp" />
     <ClCompile Include="Source\AnimationController.cpp" />
     <ClCompile Include="Source\BitmapFont.cpp" />
+    <ClCompile Include="Source\Button.cpp" />
+    <ClCompile Include="Source\ButtonManager.cpp" />
     <ClCompile Include="Source\Camera.cpp" />
     <ClCompile Include="Source\CameraController.cpp" />
     <ClCompile Include="Source\Character.cpp" />
