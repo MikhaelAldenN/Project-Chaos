@@ -55,7 +55,7 @@ void Camera::SetRotation(const XMFLOAT3& rot)
     this->rotation = rot;
 
     // Clamp Pitch to prevent gimbal lock
-    constexpr float limit = XMConvertToRadians(89.0f);
+    constexpr float limit = XMConvertToRadians(90.0f);
     if (this->rotation.x > limit) this->rotation.x = limit;
     if (this->rotation.x < -limit) this->rotation.x = -limit;
 

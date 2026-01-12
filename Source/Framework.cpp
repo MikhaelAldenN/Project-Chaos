@@ -92,10 +92,10 @@ void Framework::Render(float elapsedTime)
 {
     if (mainWindow)
     {
-        // 1. Tentukan warna default (Abu-abu seperti sebelumnya)
-        float bgR = 0.5f;
-        float bgG = 0.5f;
-        float bgB = 0.5f;
+        // 1. Tentukan warna default 
+        float bgR = 0.0f;
+        float bgG = 0.0f;
+        float bgB = 0.0f;
 
         // 2. Cek apakah scene yang aktif sekarang adalah SceneIntro?
         // Jika IYA, ubah warna background jadi HITAM (0,0,0)

@@ -14,43 +14,41 @@ void BlockManager::Initialize(Player* player)
 {
     blocks.clear();
 
-    int rows = 7;
-    int columns = 7;
+    float startX = -((m_columns - 1) * m_xSpacing) / 2.0f;
+    float startZ = -((m_rows - 1) * m_zSpacing) / 2.0f;
 
-    float xSpacing = 0.7f;
-    float zSpacing = 0.7f;
-    float zOffsetWorld = 2.5f;
+    int centerCol = m_columns / 2;
+    int centerRow = m_rows / 2;
 
-    float startX = -((columns - 1) * xSpacing) / 2.0f;
-    float startZ = -((rows - 1) * zSpacing) / 2.0f;
-
-    int centerCol = columns / 2;
-    int centerRow = rows / 2;
-
-    for (int z = 0; z < rows; ++z)
+    for (int z = 0; z < m_rows; ++z)
     {
-        for (int x = 0; x < columns; ++x)
+        for (int x = 0; x < m_columns; ++x)
         {
-            // Handle the Hole for the Player
+            // ---------------------------------------------------------
+            // HANDLE PLAYER (The Hole)
+            // ---------------------------------------------------------
             if (x == centerCol && z == centerRow)
             {
                 if (player)
                 {
-                    float px = startX + (x * xSpacing);
-                    float pz = startZ + (z * zSpacing) + zOffsetWorld;
+                    // Apply offset to Player
+                    float px = startX + (x * m_xSpacing) + m_playerSpawnOffsetX;
+                    float pz = startZ + (z * m_zSpacing) + m_zOffsetWorld;
+
                     player->GetMovement()->SetPosition({ px, 0, pz });
                 }
                 continue; 
             }
 
-            // Create the Block
+            // ---------------------------------------------------------
+            // HANDLE BLOCKS
+            // ---------------------------------------------------------
             auto newBlock = std::make_unique<Block>();
 
-            float posX = startX + (x * xSpacing);
-            float posZ = startZ + (z * zSpacing) + zOffsetWorld;
-
+            // Apply offset to Blocks too (so they move with player)
+            float posX = startX + (x * m_xSpacing) + m_playerSpawnOffsetX;
+            float posZ = startZ + (z * m_zSpacing) + m_zOffsetWorld;
             newBlock->GetMovement()->SetPosition({ posX, 0.0f, posZ });
-
             blocks.push_back(std::move(newBlock));
         }
     }
@@ -85,8 +83,8 @@ void BlockManager::CheckCollision(Ball* ball)
     DirectX::XMFLOAT3 ballPos = ball->GetMovement()->GetPosition();
     DirectX::XMFLOAT3 ballVel = ball->GetVelocity();
 
-    float ballRadius = 0.1f;
-    float blockHalfSize = 0.3f;
+    float ballRadius = ball->GetRadius();
+    float blockHalfSize = m_blockHalfSize;
 
     for (auto& block : blocks)
     {

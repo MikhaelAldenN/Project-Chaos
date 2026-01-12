@@ -34,7 +34,10 @@ public:
     void SetTarget(const DirectX::XMFLOAT3& target);
     void SetTargetOffset(const DirectX::XMFLOAT3& offset) { m_targetOffset = offset; }
 
+    // Set fixed Static 
     void SetFixedSetting(const DirectX::XMFLOAT3& value);
+    void SetFixedYawOffset(float radians) { fixedYawOffset = radians; }
+    float GetFixedYawOffset() const { return fixedYawOffset; }
 
     // Switch control modes
     void SetControlMode(CameraControlMode mode);
@@ -62,6 +65,9 @@ private:
     DirectX::XMFLOAT3 eye = { 0.0f, 5.0f, -10.0f };
     float moveSpeed = 15.0f;
     float rollSpeed = DirectX::XMConvertToRadians(90);
+
+    // Static Fixed setting 
+    float fixedYawOffset = 0.0f;
 
     // Orbit Camera settings
     float range = 10.0f;

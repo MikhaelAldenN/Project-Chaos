@@ -1,15 +1,18 @@
 #pragma once
 
+#include <DirectXMath.h>
 #include <memory>
+#include <string>
 #include <vector>
-#include "GameWindow.h"
-#include "Scene.h"
-#include "Camera.h"
-#include "CameraController.h"
-#include "Player.h"
-#include "Paddle.h"
 #include "Ball.h"
 #include "BlockManager.h"
+#include "Camera.h"
+#include "CameraController.h"
+#include "GameWindow.h"
+#include "Paddle.h"
+#include "Player.h"
+#include "Scene.h"
+#include "System/Sprite.h"
 
 class SceneGameBreaker : public Scene
 {
@@ -28,28 +31,71 @@ public:
 private:
     void RenderScene(float elapsedTime, Camera* camera);
     void UpdateGameTriggers(float elapsedTime);
-    bool m_isCameraRotated = false;
+    void UpdateAnimation(float elapsedTime);
 
-    // --- Main Assets ---
+    // =========================================================
+    // ASSETS & OBJECTS
+    // =========================================================
+    // --- Main Game Objects ---
+    Ball* ball = nullptr;
+    Paddle* paddle = nullptr;
+    Player* player = nullptr;
+    std::unique_ptr<BlockManager> blockManager;
+
+    // --- Cameras ---
     Camera* mainCamera = nullptr;
     Camera* subCamera = nullptr;
-    Player* player = nullptr;
-    Paddle* paddle = nullptr;
-    Ball* ball = nullptr;
-    std::unique_ptr<BlockManager> blockManager;
     std::vector<Camera*> additionalCameras;
 
-    // --- Tracking Window (Auto-follows player) ---
+    // --- Windows ---
     GameWindow* trackingWindow = nullptr;
-    Camera* trackingCamera = nullptr;
-
-    // --- Lens Window (Draggable by user) ---
     GameWindow* lensWindow = nullptr;
+    Camera* trackingCamera = nullptr;
     Camera* lensCamera = nullptr;
 
-    // --- ANIMATION VARIABLES ---
-    bool m_hasTriggeredRotation = false;
-    bool m_isAnimatingCamera = false;
-    float m_animationTimer = 0.0f;
-    const float m_animationDuration = 2.0f;
+    // --- Graphics ---
+    std::unique_ptr<Sprite> m_backgroundSprite;
+
+    // =========================================================
+    // SCENE SETTINGS 
+    // =========================================================
+
+    // ---------------------------------------------------------
+    // CAMERA CONFIGURATION
+    // ---------------------------------------------------------
+    float initialFOV = 45.0f;                       // Field of View in Degrees
+    float cameraNearZ = 0.1f;                       // Near Clipping Plane
+    float cameraFarZ = 1000.0f;                     // Far Clipping Plane
+
+    DirectX::XMFLOAT3 cameraPosition = { 0.0f, 18.0f, 0.0f };   // Top-down view
+    DirectX::XMFLOAT3 cameraTarget = { 0.0f, 0.0f, 0.0f };
+
+    // ---------------------------------------------------------
+    // GAMEPLAY SETTINGS
+    // ---------------------------------------------------------
+    int triggerBlockCount = 40;                     // Remaining blocks to trigger Breakout
+    float ballSpawnZOffset = 0.3f;                  // How far in front of paddle the ball sits before launch
+
+    // ---------------------------------------------------------
+    // ANIMATION SETTINGS
+    // ---------------------------------------------------------
+    float animDuration = 2.0f;                      // How long the spin takes
+    float animTargetBgRotation = -180.0f;           // Total background rotation (degrees)
+    float animCameraRotationTotal = DirectX::XM_PI; // Total camera spin (radians)
+
+    // ---------------------------------------------------------
+    // RENDER SETTINGS
+    // ---------------------------------------------------------
+    DirectX::XMFLOAT4 bgSpriteColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // Tint (RGBA)
+    const char* backgroundPath = "Data/Sprite/Scene Breaker/Sprite_BorderBreakertransparent.png";
+
+    // ---------------------------------------------------------
+    // INTERNAL STATE 
+    // ---------------------------------------------------------
+    bool m_isAnimating = false;         
+    bool m_hasTriggered = false;        
+    float m_animTimer = 0.0f;
+
+    float m_bgRotation = 0.0f;
+    DirectX::XMFLOAT2 m_bgPosition = { 0.0f, 0.0f };
 };

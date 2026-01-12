@@ -17,18 +17,31 @@ public:
     DirectX::XMFLOAT3 GetVelocity() const { return velocity; }
 
     float GetRadius() const { return radius; }
-
     bool IsActive() const { return isActive; }
 
 private:
     DirectX::XMFLOAT3 velocity = { 0, 0, 0 };
+
+    // ----------------------------------------------------
+    // PHYSICS & MOVEMENT SETTINGS
+    // ----------------------------------------------------
     float speed = 7.0f;             // Speed of the ball
-    float radius = 0.5f;            // Approximate size for collision
+    float radius = 0.1f;            // Collision radius 
 
-    // Arena Boundaries 
-    float xLimit = 8.1f;            // Left/Right Walls
-    float zLimitTop = 6.0f;         // Top Wall
-    float zLimitBottom = -6.0f;     // Bottom (Game Over trigger)
+    // Launch Settings 
+    float launchDirX = 0.3f;        // Initial X direction
+    float launchDirZ = 1.0f;        // Initial Z direction (Forward)
 
-    bool isActive = true;
+    // ----------------------------------------------------
+    // ARENA BOUNDARIES
+    // ----------------------------------------------------
+    float xLimitLeft = -9.1f;       // Left Wall collision point
+    float xLimitRight = 8.3f;       // Right Wall collision point
+    float zLimitTop = 5.8f;         // Top Wall
+    float zLimitBottom = -4.7f;     // Bottom (Game Over trigger)
+
+    // ----------------------------------------------------
+    // INTERNAL STATE
+    // ----------------------------------------------------
+    bool isActive = false;
 };

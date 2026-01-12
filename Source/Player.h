@@ -3,7 +3,7 @@
 #include <memory>
 #include <DirectXMath.h>
 
-// Forward Declaration (Biar hemat compile time dan cegah circular dependency)
+// Forward Declaration
 class StateMachine;
 class AnimationController;
 class Camera;
@@ -22,20 +22,13 @@ public:
     AnimationController* GetAnimator() const { return animator; }
     std::shared_ptr<Model> GetModel() const { return model; }
 
-    // --- Input Helpers (Dipanggil oleh State) ---
-    // Hapus parameter Camera* karena kita pakai activeCamera
+    // --- Input & Control ---
     void HandleMovementInput();
-
-    // Fungsi ini wajib ada implementasinya di cpp
     bool CheckJumpInput();
-
-    // Control Switch 
     void SetInputEnabled(bool enable) { isInputEnabled = enable; }
-
-    // Set Camera reference
     void SetCamera(Camera* cam) { activeCamera = cam; }
 
-    // Breakout Mechanic
+    // --- Breakout Mechanic ---
     void SetBreakoutMode(bool enable);
 
     struct BreakoutSettings
@@ -51,10 +44,15 @@ public:
 private:
     void UpdateBreakoutLogic(float elapsedTime);
 
+    // --- CONFIGURATION ---
+    DirectX::XMFLOAT3 defaultScale = { 3.0f, 3.0f, 3.0f }; // Player Model Scale
+
+    // --- INTERNAL STATE ---
     StateMachine* stateMachine;
     AnimationController* animator;
     Camera* activeCamera = nullptr;
     bool isInputEnabled = true;
+
     // --- Breakout State ---
     bool isBreakoutActive = false;
     bool wasSpacePressed = false;                               

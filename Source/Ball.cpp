@@ -29,9 +29,7 @@ void Ball::Launch()
     if (isActive) return;
 
     isActive = true;
-
-    velocity = { 0.3f, 0.0f, 1.0f };
-
+    velocity = { launchDirX, 0.0f, launchDirZ };
     XMVECTOR v = XMLoadFloat3(&velocity);
     v = XMVector3Normalize(v) * speed;
     XMStoreFloat3(&velocity, v);
@@ -53,16 +51,16 @@ void Ball::Update(float elapsedTime, Camera* camera)
     pos.x += velocity.x * elapsedTime;
     pos.z += velocity.z * elapsedTime;
 
-    // Right Wall
-    if (pos.x > xLimit)
+    // Right Wall Bounce
+    if (pos.x > xLimitRight)
     {
-        pos.x = xLimit;
-        velocity.x *= -1; 
+        pos.x = xLimitRight;
+        velocity.x *= -1;
     }
-    // Left Wall
-    else if (pos.x < -xLimit)
+    // Left Wall Bounce
+    else if (pos.x < xLimitLeft)
     {
-        pos.x = -xLimit;
+        pos.x = xLimitLeft;
         velocity.x *= -1;
     }
 
@@ -70,7 +68,7 @@ void Ball::Update(float elapsedTime, Camera* camera)
     if (pos.z > zLimitTop)
     {
         pos.z = zLimitTop;
-        velocity.z *= -1; 
+        velocity.z *= -1;
     }
 
     // Bottom Boundary 

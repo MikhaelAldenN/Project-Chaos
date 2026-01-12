@@ -2,7 +2,8 @@
 #include "System/Graphics.h"
 #include <algorithm>
 #include <cmath>
-#include <Windows.h> 
+#include <Windows.h>
+#include <limits>
 
 using namespace DirectX;
 
@@ -10,7 +11,7 @@ Paddle::Paddle()
 {
     ID3D11Device* device = Graphics::Instance().GetDevice();
     model = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_mdl_Paddle.glb");
-    movement->SetPosition({ 0.0f, 0.0f, -4.0f });
+    movement->SetPosition({ startX, 0.0f, fixedZ });
 }
 
 Paddle::~Paddle()
@@ -31,52 +32,135 @@ void Paddle::Update(float elapsedTime, Camera* camera)
 
     pos.x += vel.x * elapsedTime;
 
-    if (pos.x > xLimit) pos.x = xLimit;
-    if (pos.x < -xLimit) pos.x = -xLimit;
+    // Clamp Position
+    if (pos.x > xLimitRight) pos.x = xLimitRight;
+    if (pos.x < xLimitLeft)  pos.x = xLimitLeft;
 
     pos.y = 0.0f;
-    pos.z = -4.0f;
+    pos.z = fixedZ;
 
     movement->SetPosition(pos);
     SyncData();
 }
 
-void Paddle::UpdateAI(float elapsedTime, Ball* ball)
+void Paddle::UpdateAI(float elapsedTime, Ball* ball, BlockManager* blockManager)
 {
     if (!isAIEnabled || !ball) return;
 
+    // LAUNCH LOGIC
     if (!ball->IsActive())
     {
         launchTimer += elapsedTime;
-
-        if (launchTimer >= 1.0f)
+        if (launchTimer >= aiLaunchDelay)
         {
-            float randX = ((float)(rand() % 100) / 100.0f) * 2.0f - 1.0f; 
-
-            ball->SetVelocity({ randX, 0.0f, 8.0f });
+            float randX = GetRandomFloat(aiLaunchRandomX);
+            ball->SetVelocity({ randX, 0.0f, aiLaunchSpeed });
             ball->SetActive(true);
-
-            launchTimer = 0.0f; 
+            launchTimer = 0.0f;
         }
         return;
     }
-    else
-    {
-        launchTimer = 0.0f;
-    }
+    launchTimer = 0.0f;
 
+    // DATA GATHERING
     XMFLOAT3 ballPos = ball->GetPosition();
+    XMFLOAT3 ballVel = ball->GetVelocity();
     XMFLOAT3 myPos = movement->GetPosition();
 
-    float diffX = ballPos.x - myPos.x;
-    float velocityX = 0.0f;
-    float safeZone = 0.5f;
+    float targetX = myPos.x;
 
-    if (fabs(diffX) > safeZone)
+    // Is ball coming towards us?
+    bool isIncoming = (ballVel.z < 0.0f) && (ballPos.z > fixedZ);
+
+    if (isIncoming)
+    {
+        // Active Mode: Sniper Targeting
+        float distZ = ballPos.z - fixedZ;
+        float timeToImpact = (ballVel.z != 0.0f) ? (distZ / fabsf(ballVel.z)) : 0.0f;
+        float predictedBallX = ballPos.x + (ballVel.x * timeToImpact);
+
+        // Wall Bounce Prediction
+        int safety = 0;
+        while ((predictedBallX < xLimitLeft || predictedBallX > xLimitRight) && safety < aiPredictionSteps)
+        {
+            if (predictedBallX < xLimitLeft)
+                predictedBallX = xLimitLeft + (xLimitLeft - predictedBallX);
+            else if (predictedBallX > xLimitRight)
+                predictedBallX = xLimitRight - (predictedBallX - xLimitRight);
+
+            safety++;
+        }
+
+        // Find Closest Block
+        XMFLOAT3 targetBlockPos = { 0, 0, 10.0f };
+        bool foundTarget = false;
+
+        if (blockManager)
+        {
+            float closestDist = (std::numeric_limits<float>::max)();
+
+            for (const auto& block : blockManager->GetBlocks())
+            {
+                if (!block->IsActive()) continue;
+
+                XMFLOAT3 bPos = block->GetMovement()->GetPosition();
+                float dx = bPos.x - myPos.x;
+                float dz = bPos.z - myPos.z;
+                float dist = (dx * dx) + (dz * dz);
+
+                if (dist < closestDist)
+                {
+                    closestDist = dist;
+                    targetBlockPos = bPos;
+                    foundTarget = true;
+                }
+            }
+        }
+
+        // Aim Calculation
+        float aimOffset = 0.0f;
+        if (foundTarget)
+        {
+            float dx = targetBlockPos.x - predictedBallX;
+            float dz = targetBlockPos.z - fixedZ;
+            float desiredAngle = atan2f(dx, dz);
+            float relativeIntersect = desiredAngle / maxBounceAngle;
+
+            if (relativeIntersect > 1.0f) relativeIntersect = 1.0f;
+            if (relativeIntersect < -1.0f) relativeIntersect = -1.0f;
+
+            aimOffset = relativeIntersect * paddleHalfWidth;
+        }
+        targetX = predictedBallX - aimOffset;
+    }
+    else
+    {
+        // Idle Mode
+        static float idleTimer = 0.0f;
+        static float idleTargetX = 0.0f;
+
+        idleTimer -= elapsedTime;
+        if (idleTimer <= 0.0f)
+        {
+            idleTargetX = GetRandomFloat(aiIdlePatrolRange);
+            idleTimer = aiIdleBaseWait + ((float)(rand() % 100) / 100.0f * aiIdleRandomWait);
+        }
+        targetX = idleTargetX;
+    }
+
+    // APPLY MOVEMENT
+    if (targetX < xLimitLeft) targetX = xLimitLeft;
+    if (targetX > xLimitRight) targetX = xLimitRight;
+
+    float diffX = targetX - myPos.x;
+    float velocityX = 0.0f;
+
+    if (fabs(diffX) > aiMoveTolerance)
     {
         if (diffX > 0) velocityX = paddleSpeed;
-        else velocityX = -paddleSpeed;
+        else           velocityX = -paddleSpeed;
     }
+
     movement->SetMoveInput(velocityX, 0.0f);
 }
 
@@ -99,28 +183,28 @@ void Paddle::CheckCollision(Ball* ball)
     auto ballPos = ball->GetPosition();
     auto padPos = movement->GetPosition();
 
-    // Define Hitboxes
-    float ballRadius = 0.1f;
-    float paddleWidthHalf = 0.8f;
-    float paddleDepthHalf = 0.1f;
-
-    // Collision Logic 
+    float ballRadius = ball->GetRadius();
     float zDist = fabs(ballPos.z - padPos.z);
-    if (zDist < (paddleDepthHalf + ballRadius))
+
+    // Check Depth Collision
+    if (zDist < (paddleHalfDepth + ballRadius))
     {
         float xDist = fabs(ballPos.x - padPos.x);
-        if (xDist < (paddleWidthHalf + ballRadius))
+
+        // Check Width Collision
+        if (xDist < (paddleHalfWidth + ballRadius))
         {
             XMVECTOR vVel = XMLoadFloat3(&ball->GetVelocity());
             float speed = XMVectorGetX(XMVector3Length(vVel));
-            float relativeIntersectX = (ballPos.x - padPos.x) / paddleWidthHalf;
-            float maxBounceAngle = 1.3f;
-            float bounceAngle = relativeIntersectX * maxBounceAngle;
+
+            // Calculate bounce angle based on where it hit the paddle
+            float relativeIntersectX = (ballPos.x - padPos.x) / paddleHalfWidth;
+            float bounceAngle = relativeIntersectX * maxBounceAngle; 
 
             float newVx = speed * sinf(bounceAngle);
             float newVz = speed * cosf(bounceAngle);
 
-            newVz = fabsf(newVz);
+            newVz = fabsf(newVz); 
 
             ball->SetVelocity({ newVx, 0.0f, newVz });
         }

@@ -1,6 +1,8 @@
 #pragma once
-#include "Character.h"
+
 #include "Ball.h"
+#include "BlockManager.h"
+#include "Character.h"
 
 class Ball;
 
@@ -11,7 +13,7 @@ public:
     ~Paddle() override;
 
     void Update(float elapsedTime, Camera* camera) override;
-    void UpdateAI(float elapsedTime, Ball* ball);
+    void UpdateAI(float elapsedTime, Ball* ball, BlockManager* blockManager);
     void CheckCollision(Ball* ball);
     void SetAIEnabled(bool enable) { isAIEnabled = enable; }
 
@@ -19,10 +21,50 @@ public:
 
 private:
     void HandleInput();
+    // Helper for random float generation 
+    float GetRandomFloat(float range)
+    {
+        return ((float)(rand() % 100) / 100.0f) * (2.0f * range) - range;
+    }
 
-    // Settings
+    // ----------------------------------------------------
+    // MOVEMENT & POSITION SETTINGS
+    // ----------------------------------------------------
     float paddleSpeed = 1.5f;
-    float xLimit = 7.3f;        // How far left/right it can go
-    float launchTimer = 0.0f;   // Timer for AI launch the ball
-	bool isAIEnabled = false;
+    float startX = -0.5f;        // Initial spawn X position
+    float fixedZ = -4.0f;        // The fixed depth line where paddle stays
+    float xLimitLeft = -8.4f;    // Maximum Left position 
+    float xLimitRight = 7.6f;    // Maximum Right position
+
+    // ----------------------------------------------------
+    // PHYSICS & COLLISION SETTINGS
+    // ----------------------------------------------------
+    // Adjust these to match your 3D model size
+    float paddleHalfWidth = 0.8f;
+    float paddleHalfDepth = 0.1f;
+
+    // Controls how wide the ball bounces when hitting the edge
+    float maxBounceAngle = 1.3f;
+
+    // ----------------------------------------------------
+    // AI SETTINGS
+    // ----------------------------------------------------
+    float aiLaunchDelay = 1.0f;   // How long AI waits before serving ball
+    float aiLaunchSpeed = 8.0f;   // Speed of ball when AI serves
+    float aiLaunchRandomX = 1.0f;   // Random X variance on serve (+/-)
+
+    // Prediction & Targeting
+    int   aiPredictionSteps = 10;   // Safety limit for wall bounce loops
+    float aiMoveTolerance = 0.2f;   // Deadzone to stop jittering
+
+    // Idle / Patrol Behavior
+    float aiIdlePatrolRange = 3.0f; // +/- X range to move when idling
+    float aiIdleBaseWait = 0.5f;    // Minimum time to wait at a spot
+    float aiIdleRandomWait = 1.0f;  // Additional random wait time
+
+    // ----------------------------------------------------
+    // INTERNAL STATE
+    // ----------------------------------------------------
+    float launchTimer = 0.0f;
+    bool isAIEnabled = false;
 };

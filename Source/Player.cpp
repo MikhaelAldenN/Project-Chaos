@@ -1,14 +1,12 @@
-#include "Player.h"
-#include "System/Graphics.h" 
-#include "Camera.h"
 #include "System/Input.h"
-
-// PENTING: Include Header State Konkret di sini agar 'PlayerIdle' dikenali
-#include "PlayerStates.h" 
+#include "System/Graphics.h" 
 #include "AnimationController.h"
+#include "Camera.h"
+#include "Player.h"
+#include "PlayerStates.h" 
 #include "StateMachine.h"
-
 #include <cmath>
+
 
 using namespace DirectX;
 
@@ -17,7 +15,7 @@ Player::Player()
     // 1. Init Model
     ID3D11Device* device = Graphics::Instance().GetDevice();
     model = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_mdl_Block.glb");
-    scale = { 3.0f, 3.0f, 3.0f };
+    scale = defaultScale;
 
     // 2. Init Animation Controller
     animator = new AnimationController();
@@ -25,7 +23,6 @@ Player::Player()
 
     // 3. Init State Machine
     stateMachine = new StateMachine();
-    // Memulai dengan State Idle
     stateMachine->Initialize(new PlayerIdle(), this);
 }
 
@@ -107,8 +104,6 @@ void Player::UpdateBreakoutLogic(float elapsedTime)
     }
 }
 
-// Perbaikan nama fungsi agar sesuai header: HandleMovementInput
-// Hapus parameter Camera* karena kita pakai this->activeCamera
 void Player::HandleMovementInput()
 {
     float x = 0.0f;
@@ -159,9 +154,7 @@ void Player::HandleMovementInput()
     // Itu tugas State PlayerJump::Enter().
 }
 
-// Implementasi fungsi cek lompat
 bool Player::CheckJumpInput()
 {
-    // Cek apakah spasi ditekan
     return (GetAsyncKeyState(VK_SPACE) & 0x8000);
 }

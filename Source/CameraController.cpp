@@ -83,6 +83,12 @@ void CameraController::Update(float elapsedTime)
 
         activeCamera->SetPosition(fixedPosition);
         activeCamera->LookAt(finalTargetPos);
+        if (fixedYawOffset != 0.0f)
+        {
+            XMFLOAT3 currentRot = activeCamera->GetRotation();
+            currentRot.y += fixedYawOffset; 
+            activeCamera->SetRotation(currentRot);
+        }
     }
     break;
 

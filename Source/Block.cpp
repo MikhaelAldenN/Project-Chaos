@@ -7,7 +7,7 @@ Block::Block()
 {
     auto device = Graphics::Instance().GetDevice();
     model = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_mdl_Block.glb");
-    scale = { 3.0f, 3.0f, 3.0f };
+    scale = defaultScale;
 }
 
 Block::~Block()
