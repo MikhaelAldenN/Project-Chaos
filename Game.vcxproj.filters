@@ -37,6 +37,12 @@
     <FxCompile Include="Shader\SpriteVS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="Shader\VignetteVS.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shader\VignettePS.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\System\BasicShader.cpp">
@@ -191,6 +197,9 @@
     </ClCompile>
     <ClCompile Include="Source\BlockManager.cpp">
       <Filter>Source\Character</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\VignetteShader.cpp">
+      <Filter>Source\Shaders\Vignette</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -380,6 +389,9 @@
     <ClInclude Include="Source\BlockManager.h">
       <Filter>Source\Character</Filter>
     </ClInclude>
+    <ClInclude Include="Source\VignetteShader.h">
+      <Filter>Source\Shaders\Vignette</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Basic.hlsli">
@@ -446,6 +458,12 @@
     </Filter>
     <Filter Include="Source\Window">
       <UniqueIdentifier>{842d1260-4159-4ebb-bccb-9cbb87897538}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Shaders">
+      <UniqueIdentifier>{9305fe09-e6fa-4d28-a574-7cb568d9c056}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Shaders\Vignette">
+      <UniqueIdentifier>{e1c398f8-662e-4039-ad83-7d00ccff0d35}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

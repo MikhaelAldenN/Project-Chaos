@@ -47,6 +47,12 @@ SceneGameBreaker::SceneGameBreaker()
     player->SetInputEnabled(false);
     blockManager = std::make_unique<BlockManager>();
     blockManager->Initialize(player);
+
+    // --------------------------------------------------------
+    // Initialize Shaders
+    // --------------------------------------------------------
+    vignetteShader = std::make_unique<VignetteShader>(Graphics::Instance().GetDevice());
+    CreateRenderTarget();
 }
 
 SceneGameBreaker::~SceneGameBreaker()
@@ -141,7 +147,7 @@ void SceneGameBreaker::UpdateAnimation(float elapsedTime)
     float t = (std::min)(m_animTimer / animDuration, 1.0f);
     float smoothT = t * t * (3.0f - 2.0f * t);
 
-    // Camera Rotation (Existing code)
+    // Camera Rotation 
     float currentOffset = animCameraRotationTotal * smoothT;
     CameraController::Instance().SetFixedYawOffset(currentOffset);
 
@@ -171,56 +177,122 @@ void SceneGameBreaker::UpdateAnimation(float elapsedTime)
 
 void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
 {
+    // ---------------------------------------------------------
+    // 1. SETUP & STATE SAVING
+    // ---------------------------------------------------------
     Camera* targetCam = camera ? camera : mainCamera;
-
-    // Setup Render State
     auto dc = Graphics::Instance().GetDeviceContext();
     auto rs = Graphics::Instance().GetRenderState();
 
+    // Save the current Back Buffer (Screen) and Depth Buffer
+    ID3D11RenderTargetView* originalRTV = nullptr;
+    ID3D11DepthStencilView* originalDSV = nullptr;
+    dc->OMGetRenderTargets(1, &originalRTV, &originalDSV);
+
+    // Unbind all shader resources (Textures) to prevent "Read-While-Writing" hazards
+    ID3D11ShaderResourceView* nullSRVs[16] = { nullptr };
+    dc->PSSetShaderResources(0, 16, nullSRVs);
+
     // ---------------------------------------------------------
-    // RENDER BACKGROUND (2D)
+    // 2. DETERMINE RENDER TARGET
     // ---------------------------------------------------------
-    float screenW = 1280.0f;
-    float screenH = 720.0f;
-    if (auto window = Framework::Instance()->GetMainWindow())
+    ID3D11RenderTargetView* currentRTV = nullptr;
+    ID3D11DepthStencilView* currentDSV = nullptr;
+
+    if (vignetteParams.enabled)
     {
-        screenW = static_cast<float>(window->GetWidth());
-        screenH = static_cast<float>(window->GetHeight());
+        // Post-Process Enabled
+        currentRTV = renderTargetView.Get();
+        currentDSV = depthStencilView.Get();
+    }
+    else
+    {
+        // Post-Process Disabled
+        currentRTV = originalRTV;
+        currentDSV = originalDSV;
     }
 
-    // Set Render States for 2D Sprite (Transparency + No Depth Test)
-    dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
-    dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
-    dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullNone));
+    // Bind the chosen target
+    dc->OMSetRenderTargets(1, &currentRTV, currentDSV);
 
+    // If using the Off-Screen Texture, clear it manually
+    if (vignetteParams.enabled)
+    {
+        // Clear to Opaque Black
+        float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+        dc->ClearRenderTargetView(currentRTV, clearColor);
+        dc->ClearDepthStencilView(currentDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+    }
+
+    // ---------------------------------------------------------
+    // 3. RENDER GAME SCENE (Background & 3D Objects)
+    // ---------------------------------------------------------
+
+    // --- Background Sprite (2D) ---
     if (m_backgroundSprite)
     {
+        // Setup states for 2D transparency
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+        dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullNone));
+
+        // Get current screen dimensions
+        float screenW = 1280.0f;
+        float screenH = 720.0f;
+        if (auto window = Framework::Instance()->GetMainWindow())
+        {
+            screenW = static_cast<float>(window->GetWidth());
+            screenH = static_cast<float>(window->GetHeight());
+        }
+
         m_backgroundSprite->Render(
-            dc,
-            0, 0,                           // X, Y
-            0,                              // Z
-            screenW, screenH,               // Fit to Screen
-            m_bgRotation,                   // Angle
-            bgSpriteColor.x, bgSpriteColor.y, bgSpriteColor.z, bgSpriteColor.w 
+            dc, 0, 0, 0, screenW, screenH, m_bgRotation,
+            bgSpriteColor.x, bgSpriteColor.y, bgSpriteColor.z, bgSpriteColor.w
         );
     }
 
-    // ---------------------------------------------------------
-    // RENDER 3D SCENE
-    // ---------------------------------------------------------
-
-    // Restore Render States for 3D
+    // --- Pass 2: 3D Objects ---
+    // Restore states for standard 3D rendering
     dc->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), nullptr, 0xFFFFFFFF);
     dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestAndWrite), 0);
     dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullBack));
 
     RenderScene(elapsedTime, targetCam);
 
-    // Render Debug Shapes (Main Camera Only)
+    // --- Debug Shapes (Main Camera Only) ---
     if (targetCam == mainCamera)
     {
         Graphics::Instance().GetShapeRenderer()->Render(dc, targetCam->GetView(), targetCam->GetProjection());
     }
+
+    // ---------------------------------------------------------
+    // 4. POST-PROCESSING 
+    // ---------------------------------------------------------
+    // Only execute this pass if the effect is enabled
+    if (vignetteParams.enabled)
+    {
+        // Switch back to the Screen (Back Buffer)
+        dc->OMSetRenderTargets(0, nullptr, nullptr); // Unbind current target
+        dc->OMSetRenderTargets(1, &originalRTV, originalDSV);
+
+        // Setup states for full-screen copy
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+        dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullNone));
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), nullptr, 0xFFFFFFFF);
+
+        // Draw the Off-Screen Texture using the Vignette Shader
+        vignetteShader->Draw(dc, shaderResourceView.Get(), vignetteParams);
+
+        // Cleanup resources
+        dc->PSSetShaderResources(0, 1, nullSRVs);
+    }
+
+    // ---------------------------------------------------------
+    // 5. CLEANUP
+    // ---------------------------------------------------------
+    // Release references incremented by OMGetRenderTargets
+    if (originalRTV) originalRTV->Release();
+    if (originalDSV) originalDSV->Release();
 }
 
 void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
@@ -239,10 +311,68 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
     modelRenderer->Render(rc);
 }
 
+void SceneGameBreaker::CreateRenderTarget()
+{
+    auto device = Graphics::Instance().GetDevice();
+
+    float screenW = 1280.0f;
+    float screenH = 720.0f;
+    if (auto window = Framework::Instance()->GetMainWindow())
+    {
+        screenW = static_cast<float>(window->GetWidth());
+        screenH = static_cast<float>(window->GetHeight());
+    }
+
+    // Create Texture
+    D3D11_TEXTURE2D_DESC textureDesc = {};
+    textureDesc.Width = static_cast<UINT>(screenW);
+    textureDesc.Height = static_cast<UINT>(screenH);
+    textureDesc.MipLevels = 1;
+    textureDesc.ArraySize = 1;
+    textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.Usage = D3D11_USAGE_DEFAULT;
+    textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+
+    device->CreateTexture2D(&textureDesc, nullptr, renderTargetTexture.ReleaseAndGetAddressOf());
+
+    // Create RTV & SRV
+    device->CreateRenderTargetView(renderTargetTexture.Get(), nullptr, renderTargetView.ReleaseAndGetAddressOf());
+    device->CreateShaderResourceView(renderTargetTexture.Get(), nullptr, shaderResourceView.ReleaseAndGetAddressOf());
+
+    // Create Depth Buffer
+    textureDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    textureDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+
+    device->CreateTexture2D(&textureDesc, nullptr, depthStencilTexture.ReleaseAndGetAddressOf());
+    device->CreateDepthStencilView(depthStencilTexture.Get(), nullptr, depthStencilView.ReleaseAndGetAddressOf());
+}
+
 void SceneGameBreaker::DrawGUI()
 {
     CameraController::Instance().DrawDebugGUI();
-    ImGui::Begin("Scene Info");
+    ImGui::Begin("Scene Debug");
+    
+    if (ImGui::CollapsingHeader("Vignette Settings", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Checkbox("Use Vignette", &vignetteParams.enabled);
+        
+        // Disable editing if effect is off
+        if (vignetteParams.enabled)
+        {
+            ImGui::ColorEdit3("Color", &vignetteParams.color.x);
+            ImGui::SliderFloat2("Center", &vignetteParams.center.x, 0.0f, 1.0f);
+            ImGui::SliderFloat("Intensity", &vignetteParams.intensity, 0.0f, 1.0f);
+            ImGui::SliderFloat("Smoothness", &vignetteParams.smoothness, 0.0f, 1.0f);
+            ImGui::Checkbox("Rounded", &vignetteParams.rounded);
+            ImGui::SliderFloat("Roundness", &vignetteParams.roundness, 0.0f, 1.0f);
+        }
+        else
+        {
+            ImGui::TextDisabled("Settings are hidden while disabled.");
+        }
+    }
+    
     ImGui::End();
 }
 
@@ -253,4 +383,5 @@ void SceneGameBreaker::OnResize(int width, int height)
     {
         mainCamera->SetAspectRatio((float)width / (float)height);
     }
+    CreateRenderTarget();
 }

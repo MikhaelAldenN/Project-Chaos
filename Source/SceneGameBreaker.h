@@ -12,6 +12,7 @@
 #include "Paddle.h"
 #include "Player.h"
 #include "Scene.h"
+#include "VignetteShader.h"
 #include "System/Sprite.h"
 
 class SceneGameBreaker : public Scene
@@ -32,6 +33,7 @@ private:
     void RenderScene(float elapsedTime, Camera* camera);
     void UpdateGameTriggers(float elapsedTime);
     void UpdateAnimation(float elapsedTime);
+    void CreateRenderTarget();
 
     // =========================================================
     // ASSETS & OBJECTS
@@ -87,7 +89,20 @@ private:
     // RENDER SETTINGS
     // ---------------------------------------------------------
     DirectX::XMFLOAT4 bgSpriteColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // Tint (RGBA)
-    const char* backgroundPath = "Data/Sprite/Scene Breaker/Sprite_BorderBreakertransparent.png";
+    const char* backgroundPath = "Data/Sprite/Scene Breaker/Sprite_BorderBreaker.png";
+
+    // =========================================================
+    // POST PROCESS RESOURCES
+    // =========================================================
+    std::unique_ptr<VignetteShader> vignetteShader;
+    VignetteShader::VignetteData vignetteParams;
+
+    // Render Target Resources (To draw the scene into a texture)
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> renderTargetTexture;
+    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> depthStencilTexture; 
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
 
     // ---------------------------------------------------------
     // INTERNAL STATE 

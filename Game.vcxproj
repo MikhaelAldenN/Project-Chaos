@@ -174,6 +174,7 @@
     <ClInclude Include="Source\System\Sprite.h" />
     <ClInclude Include="Source\System\TransformUtils.h" />
     <ClInclude Include="Source\Typewriter.h" />
+    <ClInclude Include="Source\VignetteShader.h" />
     <ClInclude Include="Source\WindowManager.h" />
   </ItemGroup>
   <ItemGroup>
@@ -227,6 +228,7 @@
     <ClCompile Include="Source\System\Sprite.cpp" />
     <ClCompile Include="Source\System\TransformUtils.cpp" />
     <ClCompile Include="Source\Typewriter.cpp" />
+    <ClCompile Include="Source\VignetteShader.cpp" />
     <ClCompile Include="Source\WindowManager.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -285,6 +287,14 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
     </FxCompile>
     <FxCompile Include="Shader\SpriteVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shader\VignettePS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shader\VignetteVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
