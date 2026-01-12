@@ -1,73 +1,79 @@
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-
-# Executables
-*.exe
-*.out
-*.app
-
-# debug information files
-*.dwo
-
-# Shader Compiled Objects
-*.cso
-
-# Folder internal Visual Studio
+# =================================
+# Visual Studio & IntelliSense Cache
+# =================================
 .vs/
-out/
-Debug/
-Release/
-x64/
-
-# File hasil build dan log
 *.user
 *.suo
 *.db
 *.opendb
-*.log
+*.sdf
+*.ipch
+*.aps
+*.ncb
+
+# =================================
+# Build Output & Intermediate Files
+# =================================
+# Folder output utama
+[Bb]in/
+[Oo]bj/
+out/
+x64/
+Debug/
+Release/
+
+# File hasil compile C++
+*.obj
+*.iobj
+*.pdb
+*.ipdb
+*.idb
+*.ilk
 *.tlog
 *.lastbuildstate
-*.recipe
-*.lib
-*.FileListAbsolute.txt
-*.idb
-*.ini
+*.log
+*.res
+*.pch
+*.exp
 
-# Mengabaikan folder build global
-[Oo]bj/
-[Bb]in/
+# =================================
+# Game & DirectX Specifics
+# =================================
+# Compiled Shader Objects (dibuat dari .hlsl saat build)
+*.cso
+*.cso.recipe
 
-# Mengabaikan folder build di dalam folder External secara spesifik
+# Image/Asset Thumbnails (Windows)
+Thumbs.db
+ehthumbs.db
+
+# =================================
+# External Library Builds
+# =================================
+# Kita mau track source codenya, tapi ABAIKAN hasil build di dalam folder External
 External/**/x64/
 External/**/Debug/
 External/**/Release/
-/obj/x64/Debug/vc143.idb
+External/**/bin/
+External/**/obj/
+External/**/.vs/
+
+# =================================
+# Local Configuration
+# =================================
+# File setting window ImGui (beda tiap komputer, bikin conflict kalau dicommit)
+imgui.ini
+
+# =================================
+# Library Files (.lib / .dll)
+# =================================
+# Abaikan .lib hasil compile sendiri
+*.lib
+*.dll
+*.exe
+
+# PENGECUALIAN:
+# Jika kamu punya file .lib mentahan (Pre-built) yang WAJIB ada di folder External,
+# hapus tanda pagar (#) di baris bawah ini:
+# !External/**/*.lib
+# !External/**/*.dll
