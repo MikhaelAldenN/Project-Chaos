@@ -5,14 +5,14 @@
 #include "Camera.h"
 #include "System/Sprite.h" 
 #include "BitmapFont.h"
-#include "imgui.h"
 #include "Typewriter.h"
+#include "ResourceManager.h"
 
-class SceneIntro : public Scene
+class SceneIntroBios : public Scene
 {
 public:
-    SceneIntro();
-    ~SceneIntro() override = default;
+    SceneIntroBios();
+    ~SceneIntroBios() override = default;
 
     void Update(float elapsedTime) override;
     void Render(float dt, Camera* camera = nullptr) override;
@@ -22,17 +22,16 @@ public:
     Camera* GetCamera() const { return camera.get(); }
 
 private:
-    std::unique_ptr<Camera> camera;
-    std::unique_ptr<BitmapFont> biosFont;
-    Microsoft::WRL::ComPtr<ID3D11BlendState> blendState;
+    void SetupBiosLog();
 
-    std::unique_ptr<Sprite> bgSpriteIntro;
+    std::unique_ptr<Camera> camera;
+
+    // Resources
     std::unique_ptr<Sprite> spriteLogoBoot;
     std::unique_ptr<Typewriter> biosLogSystem;
 
-    // --- Variabel Debug Font ---
-    float debugFontPosX = 298.0f; 
-    float debugFontPosY = 175.74f;
-    float debugFontSize = 0.417f;
-    float debugFontColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f }; // Default Kuning (RGBA)
+    // Logic Variables
+    bool isExiting = false;       // Flag untuk fase black screen
+    float exitTimer = 0.0f;       // Timer durasi black screen
+    float finishDelayTimer = 0.0f; // Timer jeda setelah text selesai ketik
 };

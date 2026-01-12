@@ -132,9 +132,6 @@
     <ClCompile Include="Source\System\TransformUtils.cpp">
       <Filter>System</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Typewriter.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="Source\AnimationController.cpp">
       <Filter>Source\Animation</Filter>
     </ClCompile>
@@ -177,9 +174,6 @@
     <ClCompile Include="Source\SceneGameBreaker.cpp">
       <Filter>Source\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="Source\SceneIntro.cpp">
-      <Filter>Source\Scene</Filter>
-    </ClCompile>
     <ClCompile Include="Source\SceneTitle.cpp">
       <Filter>Source\Scene</Filter>
     </ClCompile>
@@ -188,6 +182,27 @@
     </ClCompile>
     <ClCompile Include="Source\BitmapFont.cpp">
       <Filter>System</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\SceneGame.cpp">
+      <Filter>Source\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\SceneIntroBios.cpp">
+      <Filter>Source\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\SceneIntroOS.cpp">
+      <Filter>Source\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Primitive.cpp">
+      <Filter>System</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ResourceManager.cpp">
+      <Filter>System</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Typewriter.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\UIComponents.cpp">
+      <Filter>Source\UI</Filter>
     </ClCompile>
     <ClCompile Include="Source\Ball.cpp">
       <Filter>Source\Character</Filter>
@@ -314,9 +329,6 @@
     <ClInclude Include="Source\System\TransformUtils.h">
       <Filter>System</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Typewriter.h">
-      <Filter>Source</Filter>
-    </ClInclude>
     <ClInclude Include="Source\AnimationController.h">
       <Filter>Source\Animation</Filter>
     </ClInclude>
@@ -365,9 +377,6 @@
     <ClInclude Include="Source\SceneGameBreaker.h">
       <Filter>Source\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="Source\SceneIntro.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
     <ClInclude Include="Source\SceneTitle.h">
       <Filter>Source\Scene</Filter>
     </ClInclude>
@@ -379,6 +388,42 @@
     </ClInclude>
     <ClInclude Include="Source\BitmapFont.h">
       <Filter>System</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\SceneIntroOS.h">
+      <Filter>Source\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\SceneGame.h">
+      <Filter>Source\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\SceneIntroBios.h">
+      <Filter>Source\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\MathUtils.h">
+      <Filter>System</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Primitive.h">
+      <Filter>System</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ResourceManager.h">
+      <Filter>System</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Typewriter.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UIComponents.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UIButton.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ButtonManager.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UIButtonSprite.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UIButtonPrimitive.h">
+      <Filter>Source\UI</Filter>
     </ClInclude>
     <ClInclude Include="Source\Ball.h">
       <Filter>Source\Character</Filter>
@@ -458,6 +503,9 @@
     </Filter>
     <Filter Include="Source\Window">
       <UniqueIdentifier>{842d1260-4159-4ebb-bccb-9cbb87897538}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\UI">
+      <UniqueIdentifier>{3378e46e-63d3-48e5-b5a6-6558c1efe819}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Shaders">
       <UniqueIdentifier>{9305fe09-e6fa-4d28-a574-7cb568d9c056}</UniqueIdentifier>

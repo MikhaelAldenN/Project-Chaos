@@ -10,8 +10,9 @@
 #include "WindowManager.h"
 #include "SceneGame.h"
 #include "SceneTitle.h"
-#include "SceneIntro.h"
+#include "SceneIntroBios.h"
 #include "SceneGameBreaker.h"
+#include "SceneIntroOS.h"
 
 Framework* Framework::pInstance = nullptr;
 
@@ -24,12 +25,13 @@ Framework::Framework()
 
     Input::Instance().Initialize(mainWindow->GetHWND());
     ImGuiRenderer::Initialize(mainWindow->GetHWND(), Graphics::Instance().GetDevice(), Graphics::Instance().GetDeviceContext());
+    ResourceManager::Instance().LoadFont("VGA_FONT", "Data/Font/IBM_VGA_32px_0.png", "Data/Font/IBM_VGA_32px.fnt");
 
-    // 1. Inisialisasi scene awal menjadi SceneTitle (bukan SceneGame)
-    scene = std::make_unique<SceneIntro>();
+    // Initialize starting scene (SceneTitle)
+    scene = std::make_unique<SceneTitle>();
 
-    // 2. Set kamera awal berdasarkan SceneTitle
-    if (auto introScene = dynamic_cast<SceneIntro*>(scene.get()))
+    // Set initial camera if applicable
+    if (auto introScene = dynamic_cast<SceneIntroBios*>(scene.get()))
     {
         mainWindow->SetCamera(introScene->GetCamera());
     }
@@ -55,13 +57,13 @@ void Framework::ChangeScene(std::unique_ptr<Scene> newScene)
 
 void Framework::Update(float elapsedTime)
 {
-    // [BARU] Cek apakah ada request ganti scene?
+    // Handle scene transition requests
     if (nextScene)
     {
-        // std::move akan otomatis men-delete scene lama dan memindahkan ownership scene baru
+        // Move ownership (automatically deletes the old scene)
         scene = std::move(nextScene);
 
-        // Reset logika kamera jika diperlukan (tergantung scene baru)
+        // Update the main window's camera reference based on the new scene type
         if (auto gameScene = dynamic_cast<SceneGame*>(scene.get()))
         {
             mainWindow->SetCamera(gameScene->GetMainCamera());
@@ -70,10 +72,8 @@ void Framework::Update(float elapsedTime)
         {
             mainWindow->SetCamera(breakerScene->GetMainCamera());
         }
-        // Jika Title scene punya kamera sendiri, kita bisa set di sini atau biarkan default
         else if (auto titleScene = dynamic_cast<SceneTitle*>(scene.get()))
         {
-            // Opsional: Set kamera title ke window utama jika perlu
             mainWindow->SetCamera(titleScene->GetCamera());
         }
     }
@@ -92,21 +92,15 @@ void Framework::Render(float elapsedTime)
 {
     if (mainWindow)
     {
-        // 1. Tentukan warna default 
-        float bgR = 0.0f;
-        float bgG = 0.0f;
-        float bgB = 0.0f;
+        // Determine background color (Black for Intro scenes, Gray for others)
+        float bgR = 0.0f, bgG = 0.0f, bgB = 0.0f;
 
-        // 2. Cek apakah scene yang aktif sekarang adalah SceneIntro?
-        // Jika IYA, ubah warna background jadi HITAM (0,0,0)
-        if (dynamic_cast<SceneIntro*>(scene.get()))
+        if (dynamic_cast<SceneIntroBios*>(scene.get()) || dynamic_cast<SceneGameBreaker*>(scene.get()))
         {
-            bgR = 0.0f;
-            bgG = 0.0f;
-            bgB = 0.0f;
+            bgR = 0.5f; bgG = 0.5f; bgB = 0.5f;
         }
 
-        // 3. Masukkan variabel warna ke BeginRender
+        // Render Main Window
         mainWindow->BeginRender(bgR, bgG, bgB);
         if (scene)
         {
@@ -116,14 +110,16 @@ void Framework::Render(float elapsedTime)
         }
 
         ImGuiRenderer::Render(Graphics::Instance().GetDeviceContext());
-        mainWindow->EndRender(1); // Sync interval 1
+        mainWindow->EndRender(1); // VSync On
     }
 
+    // Render Sub-windows
     WindowManager::Instance().RenderAll(elapsedTime, scene.get());
 }
 
 void Framework::ForceUpdateRender()
 {
+    // Calculate delta time manually since the main loop is paused by message processing
     static Uint64 lastTime = 0;
     if (lastTime == 0) lastTime = SDL_GetPerformanceCounter();
 
@@ -131,6 +127,7 @@ void Framework::ForceUpdateRender()
     float dt = (float)(currentTime - lastTime) / (float)SDL_GetPerformanceFrequency();
     lastTime = currentTime;
 
+    // Cap delta time to prevent large jumps
     if (dt > 0.05f) dt = 0.05f;
 
     Update(dt);
@@ -145,6 +142,7 @@ void Framework::CalculateFrameStats(float dt)
     frames++;
     timeAccumulator += dt;
 
+    // Update window title every second
     if (timeAccumulator >= 1.0f)
     {
         float fps = static_cast<float>(frames);
@@ -164,6 +162,7 @@ void Framework::CalculateFrameStats(float dt)
 
 LRESULT CALLBACK Framework::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    // Pass input to ImGui first
     if (mainWindow && hWnd == mainWindow->GetHWND())
     {
         if (ImGuiRenderer::HandleMessage(hWnd, msg, wParam, lParam))

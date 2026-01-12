@@ -3,6 +3,7 @@
 #include <wrl.h>
 #include <d3d11.h>
 #include <DirectXMath.h>
+#include "Camera.h"
 
 // スプライト
 class Sprite
@@ -19,7 +20,7 @@ public:
 		DirectX::XMFLOAT2	texcoord;
 	};
 
-	// 描画実行
+	// 描画実行 (Screen Space)
 	void Render(ID3D11DeviceContext* dc,
 		float dx, float dy,					// 左上位置
 		float dz,							// 奥行
@@ -28,6 +29,15 @@ public:
 		float sw, float sh,					// 画像切り抜きサイズ
 		float angle,						// 角度
 		float r, float g, float b, float a	// 色
+	) const;
+
+	// 描画実行（World Space）
+	void Render(ID3D11DeviceContext* dc,
+		const Camera* camera,
+		float wx, float wy, float wz,       // ワールド座標位置
+		float w, float h,                   // 幅、高さ
+		float pitch, float yaw, float roll, // 回転（ピッチ、ヨー、ロール）
+		float r, float g, float b, float a  // 色
 	) const;
 
 	// 描画実行（テクスチャ切り抜き指定なし）

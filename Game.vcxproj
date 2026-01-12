@@ -131,6 +131,8 @@
     <ClInclude Include="Source\BitmapFont.h" />
     <ClInclude Include="Source\Block.h" />
     <ClInclude Include="Source\BlockManager.h" />
+    <ClInclude Include="Source\UIButton.h" />
+    <ClInclude Include="Source\ButtonManager.h" />
     <ClInclude Include="Source\Camera.h" />
     <ClInclude Include="Source\CameraController.h" />
     <ClInclude Include="Source\Character.h" />
@@ -139,14 +141,19 @@
     <ClInclude Include="Source\Framework.h" />
     <ClInclude Include="Source\FreeCameraController.h" />
     <ClInclude Include="Source\GameWindow.h" />
+    <ClInclude Include="Source\MathUtils.h" />
     <ClInclude Include="Source\Paddle.h" />
     <ClInclude Include="Source\Player.h" />
     <ClInclude Include="Source\PlayerState.h" />
     <ClInclude Include="Source\PlayerStates.h" />
+    <ClInclude Include="Source\Primitive.h" />
+    <ClInclude Include="Source\ResourceManager.h" />
     <ClInclude Include="Source\Scene.h" />
+    <ClInclude Include="Source\SceneGame.h" />
     <ClInclude Include="Source\SceneGameBeyond.h" />
     <ClInclude Include="Source\SceneGameBreaker.h" />
-    <ClInclude Include="Source\SceneIntro.h" />
+    <ClInclude Include="Source\SceneIntroBios.h" />
+    <ClInclude Include="Source\SceneIntroOS.h" />
     <ClInclude Include="Source\SceneTitle.h" />
     <ClInclude Include="Source\StateMachine.h" />
     <ClInclude Include="Source\System\BasicShader.h" />
@@ -174,6 +181,9 @@
     <ClInclude Include="Source\System\Sprite.h" />
     <ClInclude Include="Source\System\TransformUtils.h" />
     <ClInclude Include="Source\Typewriter.h" />
+    <ClInclude Include="Source\UIButtonPrimitive.h" />
+    <ClInclude Include="Source\UIButtonSprite.h" />
+    <ClInclude Include="Source\UIComponents.h" />
     <ClInclude Include="Source\VignetteShader.h" />
     <ClInclude Include="Source\WindowManager.h" />
   </ItemGroup>
@@ -204,7 +214,13 @@
     <ClCompile Include="Source\Main.cpp" />
     <ClCompile Include="Source\Paddle.cpp" />
     <ClCompile Include="Source\Player.cpp" />
+    <ClCompile Include="Source\Primitive.cpp" />
+    <ClCompile Include="Source\ResourceManager.cpp" />
+    <ClCompile Include="Source\SceneGame.cpp" />
     <ClCompile Include="Source\SceneGameBeyond.cpp" />
+    <ClCompile Include="Source\SceneGameBreaker.cpp" />
+    <ClCompile Include="Source\SceneIntroBios.cpp" />
+    <ClCompile Include="Source\SceneIntroOS.cpp" />
     <ClCompile Include="Source\SceneGameBreaker.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
@@ -231,6 +247,7 @@
     <ClCompile Include="Source\System\Sprite.cpp" />
     <ClCompile Include="Source\System\TransformUtils.cpp" />
     <ClCompile Include="Source\Typewriter.cpp" />
+    <ClCompile Include="Source\UIComponents.cpp" />
     <ClCompile Include="Source\VignetteShader.cpp" />
     <ClCompile Include="Source\WindowManager.cpp" />
   </ItemGroup>

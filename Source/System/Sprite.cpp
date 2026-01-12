@@ -2,6 +2,7 @@
 #include "Sprite.h"
 #include "Misc.h"
 #include "GpuResourceUtils.h"
+#include <vector>
 
 // コンストラクタ
 Sprite::Sprite(ID3D11Device* device)
@@ -17,8 +18,9 @@ Sprite::Sprite(ID3D11Device* device, const char* filename)
 	// 頂点バッファの生成
 	{
 		// 頂点バッファを作成するための設定オプション
+		const int MAX_VERTICES = 10000;
 		D3D11_BUFFER_DESC buffer_desc = {};
-		buffer_desc.ByteWidth = sizeof(Vertex) * 4;
+		buffer_desc.ByteWidth = sizeof(Vertex) * MAX_VERTICES;
 		buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
 		buffer_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -200,4 +202,116 @@ void Sprite::Render(ID3D11DeviceContext* dc,
 	) const
 {
 	Render(dc, dx, dy, dz, dw, dh, 0, 0, textureWidth, textureHeight, angle, r, g, b, a);
+}
+
+// 描画実行（3D空間にスプライトを描画、細分割バージョン）
+void Sprite::Render(ID3D11DeviceContext* dc,
+	const Camera* camera,
+	float wx, float wy, float wz,
+	float w, float h,
+	float pitch, float yaw, float roll,
+	float r, float g, float b, float a) const
+{
+	using namespace DirectX;
+
+	// 分割設定
+	const int divX = 40;
+	const int divY = 40;
+
+	std::vector<Vertex> vertices;
+	vertices.reserve(divX * divY * 6);
+
+	// 行列計算
+	XMMATRIX matWorld = XMMatrixRotationRollPitchYaw(pitch, yaw, roll) * XMMatrixTranslation(wx, wy, wz);
+	XMMATRIX matVP = XMLoadFloat4x4(&camera->GetView()) * XMLoadFloat4x4(&camera->GetProjection());
+
+	float cellW = w / divX;
+	float cellH = h / divY;
+	float startX = -w / 2.0f;
+	float startY = h / 2.0f;
+
+	for (int y = 0; y < divY; ++y)
+	{
+		for (int x = 0; x < divX; ++x)
+		{
+			// 座標とUVの計算
+			float x0 = startX + x * cellW;
+			float y0 = startY - y * cellH;
+			float x1 = startX + (x + 1) * cellW;
+			float y1 = startY - (y + 1) * cellH;
+
+			float u0 = (float)x / divX;
+			float v0 = (float)y / divY;
+			float u1 = (float)(x + 1) / divX;
+			float v1 = (float)(y + 1) / divY;
+
+			// ローカル頂点定義
+			XMFLOAT3 localPos[6] = {
+				{ x0, y0, 0 }, { x1, y0, 0 }, { x0, y1, 0 },
+				{ x1, y0, 0 }, { x1, y1, 0 }, { x0, y1, 0 }
+			};
+			XMFLOAT2 localUV[6] = {
+				{ u0, v0 }, { u1, v0 }, { u0, v1 },
+				{ u1, v0 }, { u1, v1 }, { u0, v1 }
+			};
+
+			XMVECTOR clipPos[6];
+			bool isValid[6];
+
+			// 座標変換とクリッピング判定
+			for (int i = 0; i < 6; ++i)
+			{
+				XMVECTOR vPos = XMVector3TransformCoord(XMLoadFloat3(&localPos[i]), matWorld);
+				clipPos[i] = XMVector3Transform(vPos, matVP); // W成分が必要なためTransformを使用
+
+				// カメラ手前(NearZ)の判定
+				isValid[i] = (XMVectorGetW(clipPos[i]) > 0.1f);
+			}
+
+			// 三角形生成ラムダ式
+			auto AddTriangle = [&](int i0, int i1, int i2)
+				{
+					if (isValid[i0] && isValid[i1] && isValid[i2])
+					{
+						int indices[] = { i0, i1, i2 };
+						for (int idx : indices)
+						{
+							XMVECTOR finalPos = clipPos[idx] / XMVectorGetW(clipPos[idx]); // 透視除算
+							Vertex vert;
+							XMStoreFloat3(&vert.position, finalPos);
+							vert.color = XMFLOAT4(r, g, b, a);
+							vert.texcoord = localUV[idx];
+							vertices.push_back(vert);
+						}
+					}
+				};
+
+			// 2つの三角形を追加
+			AddTriangle(0, 1, 2);
+			AddTriangle(3, 4, 5);
+		}
+	}
+
+	if (vertices.empty()) return;
+
+	// GPUバッファ更新
+	D3D11_MAPPED_SUBRESOURCE ms;
+	if (SUCCEEDED(dc->Map(vertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms)))
+	{
+		memcpy(ms.pData, vertices.data(), sizeof(Vertex) * vertices.size());
+		dc->Unmap(vertexBuffer.Get(), 0);
+	}
+
+	// 描画設定
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	dc->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
+	dc->IASetInputLayout(inputLayout.Get());
+	dc->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // LISTを使用
+
+	dc->VSSetShader(vertexShader.Get(), nullptr, 0);
+	dc->PSSetShader(pixelShader.Get(), nullptr, 0);
+	dc->PSSetShaderResources(0, 1, shaderResourceView.GetAddressOf());
+
+	dc->Draw(static_cast<UINT>(vertices.size()), 0);
 }

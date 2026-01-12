@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include "System/Sprite.h" // Menggunakan Sprite milikmu
+#include <DirectXMath.h>
 
 // Struktur data untuk menyimpan info huruf dari file .fnt
 struct CharData {
@@ -23,6 +24,7 @@ public:
 
     // Fungsi untuk menggambar teks
     void Draw(const std::string& text, float x, float y, float scale, float r = 1.0f, float g = 1.0f, float b = 1.0f, float a = 1.0f);
+    DirectX::XMFLOAT2 MeasureText(const std::string& text, float scale);
 
 private:
     std::unique_ptr<Sprite> sprite; // Pointer ke Sprite sistem kamu
