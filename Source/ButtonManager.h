@@ -1,26 +1,30 @@
 #pragma once
-
 #include <vector>
-#include <memory> // Penting untuk unique_ptr
-#include "Button.h"
+#include <memory>
+#include "UIButton.h"
 
 class ButtonManager
 {
 public:
-    ButtonManager() = default;
-    ~ButtonManager() = default; // Default destructor sudah cukup karena unique_ptr membersihkan dirinya sendiri
+    // Polymorphism magic: Kita simpan pointer ke Base Class (UIButton)
+    void AddButton(std::unique_ptr<UIButton> button)
+    {
+        buttons.push_back(std::move(button));
+    }
 
-    // Terima unique_ptr (move ownership)
-    void AddButton(std::unique_ptr<Button> button);
+    void Update()
+    {
+        for (auto& btn : buttons) btn->Update();
+    }
 
-    void Update();
+    void Render(ID3D11DeviceContext* dc, Camera* camera)
+    {
+        for (auto& btn : buttons) btn->Render(dc, camera);
+    }
 
-    // Render butuh context & camera
-    void Render(ID3D11DeviceContext* dc, Camera* camera = nullptr);
-
-    // Hapus semua tombol (misal saat ganti scene)
-    void Clear();
+    void Clear() { buttons.clear(); }
 
 private:
-    std::vector<std::unique_ptr<Button>> buttons;
+    // Vector ini bisa menampung SpriteButton MAUPUN PrimitiveButton
+    std::vector<std::unique_ptr<UIButton>> buttons;
 };

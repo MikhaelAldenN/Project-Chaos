@@ -198,12 +198,6 @@
     <ClCompile Include="Source\UIComponents.cpp">
       <Filter>Source\UI</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Button.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\ButtonManager.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -401,10 +395,16 @@
     <ClInclude Include="Source\UIComponents.h">
       <Filter>Source\UI</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Button.h">
+    <ClInclude Include="Source\UIButton.h">
       <Filter>Source\UI</Filter>
     </ClInclude>
     <ClInclude Include="Source\ButtonManager.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UIButtonSprite.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UIButtonPrimitive.h">
       <Filter>Source\UI</Filter>
     </ClInclude>
   </ItemGroup>

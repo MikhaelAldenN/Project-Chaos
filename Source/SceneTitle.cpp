@@ -4,6 +4,7 @@
 #include "System/Input.h"
 #include "System/Graphics.h"
 #include <imgui.h>
+#include "ResourceManager.h"
 
 SceneTitle::SceneTitle()
 {
@@ -12,6 +13,23 @@ SceneTitle::SceneTitle()
     camera->SetOrthographic(1920.0f, 1080.0f, 0.1f, 1000.0f);
     camera->SetPosition(0.0f, 0.0f, -10.0f);
     camera->SetRotation(0.0f, 0.0f, 0.0f);
+
+    primitiveBatcher = std::make_unique<Primitive>(Graphics::Instance().GetDevice());
+    uiManager = std::make_unique<ButtonManager>();
+    auto btnExit = std::make_unique<UIButtonPrimitive>(
+        primitiveBatcher.get(),
+        "Quit.exe",
+        50.0f, 600.0f, 200.0f, 40.0f
+    );
+
+    debugBtnExit = btnExit.get();
+
+    // Style warna custom (Opsional) - Misal tema Merah Error
+    btnExit->SetColors({ 0.5f, 0.0f, 0.0f }, { 0.8f, 0.0f, 0.0f }, { 0.3f, 0.0f, 0.0f });
+
+    btnExit->SetOnClick([]() {  });
+
+    uiManager->AddButton(std::move(btnExit));
 
     // 2. Load Resources
     bgSprite = std::make_unique<Sprite>(
@@ -67,6 +85,8 @@ void SceneTitle::SetupContent()
 
 void SceneTitle::Update(float elapsedTime)
 {
+    uiManager->Update();
+
     // Scene Switching
     if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN))
     {
@@ -111,6 +131,9 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
             1.0f, 1.0f, 1.0f, 1.0f
         );
     }
+    
+    uiManager->Render(Graphics::Instance().GetDeviceContext(), targetCamera);
+
 
     // 2. Render Text UI
     BitmapFont* text = ResourceManager::Instance().GetFont("VGA_FONT");
@@ -125,6 +148,8 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
         DrawListInPanel(directoryFiles, dirPanel);
         DrawListInPanel(systemLogs, logPanel);
     }
+
+    primitiveBatcher->Render(Graphics::Instance().GetDeviceContext());
 }
 
 void SceneTitle::OnResize(int width, int height)
@@ -160,6 +185,69 @@ void SceneTitle::DrawGUI()
         ImGuiEditPanel(statusPanel);
         ImGuiEditPanel(dirPanel);
         ImGuiEditPanel(logPanel);
+    }
+
+    if (ImGui::CollapsingHeader("Button Inspector", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (debugBtnExit)
+        {
+            ImGui::Text("Target: BeyondBreaker.exe");
+
+            // 1. Edit Transform (Posisi & Ukuran)
+            // Kita pakai static array sementara untuk menampung nilai dari Getter
+            float pos[2] = { debugBtnExit->GetX(), debugBtnExit->GetY() };
+            float size[2] = { debugBtnExit->GetWidth(), debugBtnExit->GetHeight() };
+
+            // Jika slider digeser, kita panggil Setter
+            if (ImGui::DragFloat2("Position", pos))
+            {
+                debugBtnExit->SetPosition(pos[0], pos[1]);
+            }
+            // Karena UIButton belum punya SetSize, kita skip resize atau kamu bisa tambah SetSize di UIButton.h
+
+            if (ImGui::DragFloat2("Size", size, 1.0f, 10.0f, 1000.0f))
+            {
+                debugBtnExit->SetSize(size[0], size[1]);
+            }
+
+            if (ImGui::DragFloat2("Size", size, 1.0f, 10.0f, 1000.0f))
+            {
+                debugBtnExit->SetSize(size[0], size[1]);
+            }
+
+            // --- TAMBAHKAN INI ---
+            // Edit Text Scale (Min 0.1, Max 5.0)
+            ImGui::DragFloat("Text Scale", &debugBtnExit->GetTextScale(), 0.01f, 0.1f, 5.0f);
+
+            // --- TAMBAHKAN INI (Alignment & Padding) ---
+            ImGui::Separator();
+            ImGui::Text("Text Layout");
+
+            // 1. Padding Slider
+            ImGui::DragFloat("Padding X", &debugBtnExit->GetPadding(), 1.0f, 0.0f, 500.0f);
+            ImGui::DragFloat("V-Adjust (Y)", &debugBtnExit->GetVerticalAdjustment(), 0.5f, -50.0f, 50.0f);
+            // 2. Alignment Dropdown
+            // Kita butuh variabel int sementara untuk menampung state Combo box
+            int alignState = (int)debugBtnExit->GetAlignment();
+            const char* items[] = { "Center", "Left", "Right" };
+
+            if (ImGui::Combo("Alignment", &alignState, items, IM_ARRAYSIZE(items)))
+            {
+                // Kembalikan int ke Enum saat user memilih
+                debugBtnExit->SetAlignment((TextAlignment)alignState);
+            }
+            // -------------------------------------------
+
+            ImGui::Separator();
+            ImGui::Text("Color Pallete (RGB)");
+
+            // 2. Edit Warna (Langsung tembak ke reference memory via Getter tadi)
+            // Kita perlu casting dari XMFLOAT3 ke float* array agar dimengerti ImGui
+            ImGui::ColorEdit3("Normal", &debugBtnExit->GetColorNormal().x);
+            ImGui::ColorEdit3("Hover", &debugBtnExit->GetColorHover().x);
+            ImGui::ColorEdit3("Pressed", &debugBtnExit->GetColorPress().x);
+            ImGui::ColorEdit3("Border", &debugBtnExit->GetColorBorder().x);
+        }
     }
 
     ImGui::Separator();

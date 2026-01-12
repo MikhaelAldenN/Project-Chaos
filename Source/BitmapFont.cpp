@@ -97,3 +97,27 @@ void BitmapFont::Draw(const std::string& text, float startX, float startY, float
         cursorX += data.xadvance * scale;
     }
 }
+
+DirectX::XMFLOAT2 BitmapFont::MeasureText(const std::string& text, float scale)
+{
+    float width = 0.0f;
+    float lineHeight = 38.0f * scale; // Hardcoded sesuai Draw() kamu. Idealnya ini dibaca dari file .fnt ("common lineHeight")
+
+    // Kalau kosong, return 0
+    if (text.empty()) return { 0.0f, 0.0f };
+
+    // Hitung Lebar
+    for (char c : text)
+    {
+        int id = (unsigned char)c;
+        if (chars.find(id) != chars.end())
+        {
+            // xadvance adalah jarak kursor berpindah ke huruf selanjutnya
+            width += chars[id].xadvance * scale;
+        }
+    }
+
+    // Untuk tinggi, tombol biasanya cuma 1 baris, jadi kita return tinggi font default
+    // Kalau mau support multiline, logicnya harus hitung berapa kali '\n' muncul.
+    return { width, lineHeight };
+}

@@ -103,94 +103,85 @@ void Primitive::Circle(float x, float y, float radius, float r, float g, float b
 
 void Primitive::DrawRectInternal(const VECTOR2& pos, const VECTOR2& size, const VECTOR2& center, float angle, const VECTOR4& color)
 {
-    // Kalkulasi 4 titik sudut kotak (Local Space -> World Space -> Screen Space nanti di Shader/CPU)
-    // Disini kita hitung CPU transform sederhana ke Pixel Coordinates
-
     float cosA = cosf(angle);
     float sinA = sinf(angle);
 
-    // Definisi Quad relative terhadap titik pusat (center)
-    // Urutan: TopLeft, TopRight, BottomLeft, BottomRight (Triangle Strip)
-    struct Point { float x, y; };
-    Point offsets[4] = {
-        { -center.x,          -center.y },           // TL
-        { -center.x + size.x, -center.y },           // TR
-        { -center.x,          -center.y + size.y },  // BL
-        { -center.x + size.x, -center.y + size.y }   // BR
-    };
+    // Hitung posisi relatif 4 sudut (Top-Left, Top-Right, Bottom-Left, Bottom-Right)
+    // TL
+    float x1 = -center.x;           float y1 = -center.y;
+    // TR
+    float x2 = -center.x + size.x;  float y2 = -center.y;
+    // BL
+    float x3 = -center.x;           float y3 = -center.y + size.y;
+    // BR
+    float x4 = -center.x + size.x;  float y4 = -center.y + size.y;
 
-    for (int i = 0; i < 4; ++i)
-    {
-        // Rotasi
-        float rx = offsets[i].x * cosA - offsets[i].y * sinA;
-        float ry = offsets[i].x * sinA + offsets[i].y * cosA;
-
-        // Translasi
+    auto Transform = [&](float x, float y) -> Vertex {
         Vertex v;
-        v.position = { pos.x + rx, pos.y + ry, 0.0f };
+        v.position = {
+            pos.x + (x * cosA - y * sinA),
+            pos.y + (x * sinA + y * cosA),
+            0.0f
+        };
         v.color = color;
+        return v;
+        };
 
-        batchVertices.push_back(v);
-    }
+    Vertex vTL = Transform(x1, y1);
+    Vertex vTR = Transform(x2, y2);
+    Vertex vBL = Transform(x3, y3);
+    Vertex vBR = Transform(x4, y4);
 
-    // Tambahkan 2 vertex degenerate/dummy jika kita menyambung strip (opsional untuk advanced batching)
-    // Untuk simplifikasi Primitive.cpp ini, kita asumsikan Render() dipanggil per primitive atau menggunakan Topology List.
-    // Agar bisa batching Triangle Strip, kita perlu teknik restart index atau degenerate triangle.
-    // Disini saya ubah jadi Topology TRIANGLE LIST (6 vertices per quad) biar mudah dibatch:
+    // PUSH 6 VERTEX (TRIANGLE LIST)
+    // Segitiga 1 (TL -> TR -> BL)
+    batchVertices.push_back(vTL);
+    batchVertices.push_back(vTR);
+    batchVertices.push_back(vBL);
 
-    // REVISI LOGIC: Gunakan Triangle List (lebih aman buat batching manual)
-    // Hapus 4 push_back di atas, ganti dengan 6 push_back (2 segitiga)
-    // ... (Code logic disederhanakan di bawah ini)
+    // Segitiga 2 (TR -> BR -> BL)
+    batchVertices.push_back(vTR);
+    batchVertices.push_back(vBR);
+    batchVertices.push_back(vBL);
 }
 
-// Versi sederhana Render langsung (Immediate Mode style) agar tidak pusing batching
 void Primitive::Render(ID3D11DeviceContext* context)
 {
     if (batchVertices.empty()) return;
 
-    // 1. Setup Screen Size untuk Normalisasi Koordinat (Pixel ke -1..1)
-    // Dapatkan viewport dari context
     UINT num = 1;
     D3D11_VIEWPORT vp;
     context->RSGetViewports(&num, &vp);
     float screenW = vp.Width;
     float screenH = vp.Height;
 
-    // 2. Map Buffer
     D3D11_MAPPED_SUBRESOURCE msr;
     if (SUCCEEDED(context->Map(vertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &msr)))
     {
         Vertex* ptr = (Vertex*)msr.pData;
-
-        // Convert Pixel Coords to NDC (-1 to 1) disini
         for (const auto& v : batchVertices)
         {
             Vertex finalV = v;
-            // Rumus: (x / w) * 2 - 1. Y dibalik karena DX Y+ naik, Screen Y+ turun.
+            // Konversi ke NDC
             finalV.position.x = (v.position.x / screenW) * 2.0f - 1.0f;
             finalV.position.y = -((v.position.y / screenH) * 2.0f - 1.0f);
             *ptr++ = finalV;
         }
-
         context->Unmap(vertexBuffer.Get(), 0);
     }
 
-    // 3. Set Pipeline
     UINT stride = sizeof(Vertex);
     UINT offset = 0;
     context->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
     context->IASetInputLayout(inputLayout.Get());
-    // Gunakan Triangle Strip karena urutan vertex di DrawRectInternal cocok utk Strip
-    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+    // UBAH DARI TRIANGLESTRIP KE TRIANGLELIST
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     context->VSSetShader(vertexShader.Get(), nullptr, 0);
     context->PSSetShader(pixelShader.Get(), nullptr, 0);
     context->RSSetState(rasterizerState.Get());
     context->OMSetDepthStencilState(depthStencilState.Get(), 0);
 
-    // 4. Draw
     context->Draw((UINT)batchVertices.size(), 0);
-
-    // 5. Clear Batch
     batchVertices.clear();
 }

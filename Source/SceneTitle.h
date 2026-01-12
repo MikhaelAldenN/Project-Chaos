@@ -9,6 +9,9 @@
 #include "System/Sprite.h" 
 #include "Camera.h"
 #include "imgui.h"
+#include "Primitive.h"
+#include "ButtonManager.h"
+#include "UIButtonPrimitive.h"
 
 // Struct sederhana untuk data Layout
 struct PanelLayout {
@@ -37,6 +40,9 @@ private:
     std::unique_ptr<Sprite> bgSprite;
     std::unique_ptr<Camera> camera;
 
+    std::unique_ptr<Primitive> primitiveBatcher;
+    std::unique_ptr<ButtonManager> uiManager;
+
     // --- Layout Configuration ---
     PanelLayout statusPanel;
     PanelLayout dirPanel;
@@ -56,4 +62,6 @@ private:
 
     // Fungsi helper ImGui untuk mengurangi duplikasi kode UI
     void ImGuiEditPanel(PanelLayout& layout);
+
+    UIButtonPrimitive* debugBtnExit = nullptr;
 };
