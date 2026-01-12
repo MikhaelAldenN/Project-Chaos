@@ -43,6 +43,7 @@ public:
         float             smoothness    = DEFAULT_SMOOTHNESS;
         bool              rounded       = DEFAULT_ROUNDED;
         float             roundness     = DEFAULT_ROUNDNESS;
+        float             blurStrength  = 0.0f;
     };
 
     // =========================================================
@@ -71,7 +72,8 @@ private:
         float smoothness;
         float rounded;
         float roundness;
-        DirectX::XMFLOAT2 padding;
+        float blurStrength;
+        float padding;
     };
 
     Microsoft::WRL::ComPtr<ID3D11VertexShader>  vertexShader;

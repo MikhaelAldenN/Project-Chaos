@@ -366,6 +366,7 @@ void SceneGameBreaker::DrawGUI()
             ImGui::SliderFloat("Smoothness", &vignetteParams.smoothness, 0.0f, 1.0f);
             ImGui::Checkbox("Rounded", &vignetteParams.rounded);
             ImGui::SliderFloat("Roundness", &vignetteParams.roundness, 0.0f, 1.0f);
+            ImGui::SliderFloat("Blur Strength", &vignetteParams.blurStrength, 0.0f, 0.05f);
         }
         else
         {

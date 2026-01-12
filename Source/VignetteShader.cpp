@@ -51,6 +51,8 @@ void VignetteShader::Draw(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* tex
         // Calculate Roundness Curve (Lerp Logic)
         cb.roundness = ROUNDNESS_POWER * (1.0f - data.roundness) + data.roundness;
 
+        cb.blurStrength = std::clamp(data.blurStrength, 0.0f, 0.1f);
+
         dc->UpdateSubresource(constantBuffer.Get(), 0, 0, &cb, 0, 0);
 
         // Update Cache
