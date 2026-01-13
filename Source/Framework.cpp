@@ -28,7 +28,7 @@ Framework::Framework()
     ResourceManager::Instance().LoadFont("VGA_FONT", "Data/Font/IBM_VGA_32px_0.png", "Data/Font/IBM_VGA_32px.fnt");
 
     // Initialize starting scene (SceneTitle)
-    scene = std::make_unique<SceneTitle>();
+    scene = std::make_unique<SceneIntroBios>();
 
     // Set initial camera if applicable
     if (auto introScene = dynamic_cast<SceneIntroBios*>(scene.get()))
@@ -97,7 +97,7 @@ void Framework::Render(float elapsedTime)
 
         if (dynamic_cast<SceneIntroBios*>(scene.get()) || dynamic_cast<SceneGameBreaker*>(scene.get()))
         {
-            bgR = 0.5f; bgG = 0.5f; bgB = 0.5f;
+            bgR = 0.0f; bgG = 0.0f; bgB = 0.0f;
         }
 
         // Render Main Window
