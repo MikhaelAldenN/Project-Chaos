@@ -33,40 +33,39 @@ SceneGameBreaker::SceneGameBreaker()
     camCtrl.SetTarget(cameraTarget);
 
     // --------------------------------------------------------
-    // SETUP 2 KAMERA (ANCHORS)
-    // --------------------------------------------------------
+        // SETUP SEQUENCE: A (Start) -> B (Mid) -> C (End)
+        // --------------------------------------------------------
 
-// --- Camera A (Posisi Normal) ---
+        // 1. Camera A (Start / Normal)
     camSettingA = new Camera();
-
-    // [FIX 1] Hindari posisi (0, X, 0) pas. Geser 0.01f biar matematika aman (Gimbal Lock Prevention)
-    XMFLOAT3 safePosA = cameraPosition;
-    safePosA.z = -0.01f;
-    camSettingA->SetPosition(safePosA);
-
+    XMFLOAT3 posA = cameraPosition;
+    posA.z = -2.0f; // Safety Gimbal Lock
+    camSettingA->SetPosition(posA);
     targetA = cameraTarget;
-    camSettingA->LookAt(targetA); // Roll otomatis 0
+    camSettingA->LookAt(targetA);
 
-    // --- Camera B (Custom View) ---
+    // 2. Camera C (Tujuan Akhir - Bekas posisi B yang lama)
+    camSettingC = new Camera();
+    // [POSISI CUSTOM KAMU]
+    XMFLOAT3 posC = cameraPosition;
+    posC.x = -8.0f; posC.y = 12.0f; posC.z = -6.0f;
+    camSettingC->SetPosition(posC);
+    targetC = cameraTarget;
+    camSettingC->LookAt(targetC);
+    // Set Roll 0 (Lurus)
+    { XMFLOAT3 r = camSettingC->GetRotation(); r.z = 0.0f; camSettingC->SetRotation(r); }
+
+    // 3. Camera B (Titik Tengah Otomatis)
+    // Rumus: (A + C) / 2 + Offset Y (Supaya melengkung ke atas sedikit)
     camSettingB = new Camera();
+    XMFLOAT3 posB;
+    posB.x = (posA.x + posC.x) * 0.5f;
+    posB.y = (posA.y + posC.y) * 0.5f + 2.0f; // Naik 2 unit biar nge-arc
+    posB.z = (posA.z + posC.z) * 0.5f;
 
-    // [FIX 2] Jangan main Roll kalau cuma mau ganti angle pandang.
-    // Mainkan Posisi X dan Y-nya.
-    XMFLOAT3 posB = cameraPosition;
-    posB.x = -8.0f;       // Geser ke kiri
-    posB.y = 12.0f;       // Turun sedikit
-    posB.z = -6.0f;       // Mundur sedikit
     camSettingB->SetPosition(posB);
-
     targetB = cameraTarget;
     camSettingB->LookAt(targetB);
-
-    // [PENTING] HAPUS ATAU UBAH BAGIAN INI
-    // Roll 90 derajat bikin dunia jadi vertikal (seperti screenshot kamu).
-    // Kalau mau normal (lantai di bawah), pastikan Roll 0.
-    XMFLOAT3 rotB = camSettingB->GetRotation();
-    rotB.z = 0.0f; // <--- Set ke 0 agar tidak miring aneh
-    camSettingB->SetRotation(rotB);
 
     // --------------------------------------------------------
     // Initialize Assets
@@ -399,44 +398,65 @@ void SceneGameBreaker::DrawGUI()
 {
     auto& camCtrl = CameraController::Instance();
 
-    // Render Debug Global (Posisi kamera asli, dll)
+    // Render Debug Global
     camCtrl.DrawDebugGUI();
 
     ImGui::Begin("Game Breaker Debug");
 
     if (ImGui::CollapsingHeader("Camera Control Center", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        // Status Indikator
+        // --------------------------------------------------------
+        // STATUS & SETTINGS
+        // --------------------------------------------------------
         bool isBusy = camCtrl.IsTransitioning();
-        ImGui::Text("Status: %s", isBusy ? "TRANSITIONING..." : (isCameraInverted ? "IDLE AT B" : "IDLE AT A"));
+        ImGui::TextColored(isBusy ? ImVec4(1, 1, 0, 1) : ImVec4(1, 1, 1, 1),
+            "Status: %s", isBusy ? "TRANSITIONING..." : "IDLE");
 
-        // Disable controls kalau lagi gerak biar gak bug
-
-        // --------------------------------------------------------
-        // 1. SWITCH BUTTON & SETTINGS
-        // --------------------------------------------------------
+        // Settings Transisi
         ImGui::SliderFloat("Transition Time", &transitionDuration, 0.1f, 5.0f);
         const char* easingItems[] = { "Linear", "EaseIn", "EaseOut", "SmoothStep" };
         ImGui::Combo("Easing", &currentEasingIndex, easingItems, IM_ARRAYSIZE(easingItems));
 
+        ImGui::Separator();
         ImGui::Spacing();
 
-        if (camSettingA && camSettingB)
+        // --------------------------------------------------------
+        // CAMERA SELECTOR (A / B / C)
+        // --------------------------------------------------------
+        // Gunakan static agar pilihan tersimpan antar frame
+        static int selectedCamIdx = 0;
+
+        ImGui::Text("Select Target Camera:");
+        ImGui::RadioButton("Cam A (Start)", &selectedCamIdx, 0); ImGui::SameLine();
+        ImGui::RadioButton("Cam B (Mid)", &selectedCamIdx, 1); ImGui::SameLine();
+        ImGui::RadioButton("Cam C (End)", &selectedCamIdx, 2);
+
+        ImGui::Spacing();
+
+        // Safety Check pointer
+        if (camSettingA && camSettingB && camSettingC)
         {
-            const char* btnLabel = isCameraInverted ? "Move to Camera A (Normal)" : "Move to Camera B (Custom)";
-            if (ImGui::Button(btnLabel, ImVec2(-1, 40)))
+            // Tombol Transisi ke Kamera Terpilih
+            if (ImGui::Button("Go To Selected Camera", ImVec2(-1, 30)))
             {
                 EasingType type = static_cast<EasingType>(currentEasingIndex);
-                if (isCameraInverted)
-                {
-                    camCtrl.StartTransition(camSettingA, transitionDuration, type);
-                    isCameraInverted = false;
+                Camera* targetCam = nullptr;
+
+                switch (selectedCamIdx) {
+                case 0: targetCam = camSettingA; break;
+                case 1: targetCam = camSettingB; break;
+                case 2: targetCam = camSettingC; break;
                 }
-                else
-                {
-                    camCtrl.StartTransition(camSettingB, transitionDuration, type);
-                    isCameraInverted = true;
-                }
+
+                if (targetCam) camCtrl.StartTransition(targetCam, transitionDuration, type);
+            }
+
+            // Tombol Cinematic Sequence
+            if (ImGui::Button("Play Sequence: A -> B -> C", ImVec2(-1, 30)))
+            {
+                std::vector<Camera*> path = { camSettingA, camSettingB, camSettingC };
+                camCtrl.StartPathTransition(path, transitionDuration, static_cast<EasingType>(currentEasingIndex));
+                selectedCamIdx = 2; // Auto select C (akhir) agar editor siap di C
             }
         }
 
@@ -444,69 +464,69 @@ void SceneGameBreaker::DrawGUI()
         ImGui::Spacing();
 
         // --------------------------------------------------------
-        // 2. LIVE CAMERA EDITOR (Hanya muncul saat tidak transisi)
+        // LIVE CAMERA EDITOR
         // --------------------------------------------------------
-        if (!isBusy && camSettingA && camSettingB)
+        if (camSettingA && camSettingB && camSettingC)
         {
-            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "LIVE EDITING: %s", isCameraInverted ? "CAMERA B" : "CAMERA A");
+            // Tentukan pointer berdasarkan Radio Button di atas
+            Camera* targetCamSetting = nullptr;
+            XMFLOAT3* targetLookAt = nullptr;
+            const char* label = "Unknown";
 
-            bool changed = false;
-
-            // Pointer sementara untuk menunjuk data mana yang mau diedit
-            Camera* targetCamSetting = isCameraInverted ? camSettingB : camSettingA;
-            XMFLOAT3* targetLookAt = isCameraInverted ? &targetB : &targetA;
-
-            // A. Edit POSISI
-            XMFLOAT3 currentPos = targetCamSetting->GetPosition();
-            if (ImGui::DragFloat3("Position", &currentPos.x, 0.1f))
-            {
-                targetCamSetting->SetPosition(currentPos);
-                changed = true;
+            switch (selectedCamIdx) {
+            case 0: targetCamSetting = camSettingA; targetLookAt = &targetA; label = "CAMERA A"; break;
+            case 1: targetCamSetting = camSettingB; targetLookAt = &targetB; label = "CAMERA B"; break;
+            case 2: targetCamSetting = camSettingC; targetLookAt = &targetC; label = "CAMERA C"; break;
             }
 
-            // B. Edit LOOK AT TARGET
-            if (ImGui::DragFloat3("Look At Target", &targetLookAt->x, 0.1f))
+            if (targetCamSetting && targetLookAt)
             {
-                changed = true;
-            }
+                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "LIVE EDITING: %s", label);
 
-            // C. Edit ROLL (Khusus Camera B atau jika ingin custom roll)
-            // Kita baca Roll dari settingan saat ini
-            XMFLOAT3 currentRot = targetCamSetting->GetRotation();
-            float rollDeg = XMConvertToDegrees(currentRot.z);
+                bool changed = false;
 
-            if (ImGui::SliderFloat("Roll (Tilt)", &rollDeg, -180.0f, 180.0f))
-            {
-                currentRot.z = XMConvertToRadians(rollDeg);
-                targetCamSetting->SetRotation(currentRot);
-                changed = true;
-            }
+                // A. Edit POSISI
+                XMFLOAT3 currentPos = targetCamSetting->GetPosition();
+                if (ImGui::DragFloat3("Position", &currentPos.x, 0.1f)) {
+                    targetCamSetting->SetPosition(currentPos);
+                    changed = true;
+                }
 
-            // --- APLY CHANGES TO LIVE CAMERA ---
-            if (changed)
-            {
-                // 1. Update Simpanan Data (Anchor)
-                // Recalculate LookAt tapi pertahankan Roll yang baru diedit
-                float savedRoll = currentRot.z;
-                targetCamSetting->LookAt(*targetLookAt);
+                // B. Edit LOOK AT TARGET
+                if (ImGui::DragFloat3("Look At Target", &targetLookAt->x, 0.1f)) {
+                    changed = true;
+                }
 
-                // Kembalikan Roll (karena LookAt mereset roll ke 0)
-                XMFLOAT3 finalRot = targetCamSetting->GetRotation();
-                finalRot.z = savedRoll;
-                targetCamSetting->SetRotation(finalRot);
+                // C. Edit ROLL (Tilt)
+                XMFLOAT3 currentRot = targetCamSetting->GetRotation();
+                float rollDeg = XMConvertToDegrees(currentRot.z);
+                if (ImGui::SliderFloat("Roll (Tilt)", &rollDeg, -180.0f, 180.0f)) {
+                    currentRot.z = XMConvertToRadians(rollDeg);
+                    targetCamSetting->SetRotation(currentRot);
+                    changed = true;
+                }
 
-                // 2. Update Tampilan Layar (Controller)
-                // Paksa controller untuk ikut update posisi SEKARANG JUGA
-                camCtrl.SetFixedSetting(currentPos); // Update posisi kamera
-                camCtrl.SetTarget(*targetLookAt);    // Update target mata
-                camCtrl.SetFixedRollOffset(savedRoll); // Update kemiringan
+                // --- LIVE SYNC LOGIC ---
+                // Jika slider digeser, paksa kamera utama nempel ke settingan ini
+                // supaya kita bisa lihat hasilnya langsung (WYSIWYG)
+                if (changed || ImGui::IsItemActive())
+                {
+                    // Update Data Anchor (biar tersimpan)
+                    float savedRoll = currentRot.z;
+                    targetCamSetting->LookAt(*targetLookAt);
+
+                    // Restore Roll (karena LookAt mereset roll)
+                    XMFLOAT3 finalRot = targetCamSetting->GetRotation();
+                    finalRot.z = savedRoll;
+                    targetCamSetting->SetRotation(finalRot);
+
+                    // Update Viewport (Controller) Instant
+                    camCtrl.SetFixedSetting(currentPos);
+                    camCtrl.SetTarget(*targetLookAt);
+                    camCtrl.SetFixedRollOffset(savedRoll);
+                }
             }
         }
-        else if (isBusy)
-        {
-            ImGui::TextDisabled("Controls disabled during transition...");
-        }
-
     }
     
 

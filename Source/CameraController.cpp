@@ -47,31 +47,50 @@ void CameraController::StartTransition(Camera* targetCamSettings, float duration
 {
     if (!activeCamera || !targetCamSettings) return;
 
-    // Simpan mode sebelumnya jika kita belum dalam mode transisi
+    // 1. Buat daftar jalur (path) sementara
+    std::vector<Camera*> path;
+    path.push_back(activeCamera);      // Titik Awal (Kamera saat ini)
+    path.push_back(targetCamSettings); // Titik Akhir (Target)
+
+    // 2. Oper ke fungsi utama 'StartPathTransition'
+    StartPathTransition(path, duration, easing);
+}
+
+void CameraController::StartPathTransition(const std::vector<Camera*>& keyframes, float duration, EasingType easing)
+{
+    if (!activeCamera || keyframes.size() < 2) return;
+
     if (controlMode != CameraControlMode::Transition)
     {
         previousMode = controlMode;
     }
 
-    fixedRollOffset = targetCamSettings->GetRotation().z;
-    fixedYawOffset = 0.0f;
-
-    // Set Mode ke Transition
     controlMode = CameraControlMode::Transition;
 
-    // Setup Data Transisi
-    transition.duration = duration > 0.0f ? duration : 0.001f; // Cegah divide by zero
-    transition.currentTime = 0.0f;
-    transition.easingType = easing;
+    // Reset State
     transition.active = true;
+    transition.currentTime = 0.0f;
+    transition.duration = duration > 0.0f ? duration : 0.001f;
+    transition.easingType = easing;
+    transition.keyframes.clear();
 
-    // Capture Start State (Current Active Camera)
-    transition.startPos = activeCamera->GetPosition();
-    XMStoreFloat4(&transition.startRotQuat, EulerToQuat(activeCamera->GetRotation()));
+    // 1. Snapshot Data dari semua kamera input
+    for (Camera* cam : keyframes)
+    {
+        TransitionState::KeyframeData data;
+        data.pos = cam->GetPosition();
+        XMStoreFloat4(&data.rotQuat, EulerToQuat(cam->GetRotation()));
+        data.roll = cam->GetRotation().z;
+        transition.keyframes.push_back(data);
+    }
 
-    // Capture End State (Target Camera Settings)
-    transition.endPos = targetCamSettings->GetPosition();
-    XMStoreFloat4(&transition.endRotQuat, EulerToQuat(targetCamSettings->GetRotation()));
+    // Simpan target lookat dari kamera terakhir untuk safety saat finish
+    if (!keyframes.empty())
+    {
+        transition.finalTargetLookAt = keyframes.back()->GetFocus();
+        fixedRollOffset = keyframes.back()->GetRotation().z; // Set roll offset target
+        fixedYawOffset = 0.0f;
+    }
 }
 
 void CameraController::Update(float elapsedTime)
@@ -109,48 +128,71 @@ void CameraController::Update(float elapsedTime)
     {
     case CameraControlMode::Transition:
     {
-        if (!transition.active) return;
+        if (!transition.active || transition.keyframes.empty()) return;
 
+        // 1. Update Global Time (0.0 sampai 1.0)
         transition.currentTime += elapsedTime;
         float t = std::clamp(transition.currentTime / transition.duration, 0.0f, 1.0f);
-        float smoothT = ApplyEasing(t, transition.easingType);
 
-        // 1. Interpolasi Posisi (Lerp)
-        XMVECTOR vStartPos = XMLoadFloat3(&transition.startPos);
-        XMVECTOR vEndPos = XMLoadFloat3(&transition.endPos);
-        XMVECTOR vCurrentPos = XMVectorLerp(vStartPos, vEndPos, smoothT);
+        // [GLOBAL EASING] Ini kuncinya! Easing diterapkan pada total durasi.
+        // Jadi B tidak akan kena "slow in/slow out", dia akan dilewati dengan cepat.
+        float globalT = ApplyEasing(t, transition.easingType);
 
-        // 2. Interpolasi Rotasi (Slerp - Spherical Linear Interpolation)
-        XMVECTOR qStart = XMLoadFloat4(&transition.startRotQuat);
-        XMVECTOR qEnd = XMLoadFloat4(&transition.endRotQuat);
-        XMVECTOR qCurrent = XMQuaternionSlerp(qStart, qEnd, smoothT);
+        // 2. Tentukan Segmen Mana Kita Berada
+        // Contoh: A->B->C (3 titik = 2 segmen). Segmen 1 (0-0.5), Segmen 2 (0.5-1.0)
+        size_t numSegments = transition.keyframes.size() - 1;
+        float segmentDuration = 1.0f / numSegments;
 
-        // Apply ke Kamera Aktif
+        size_t currentSegment = static_cast<size_t>(globalT / segmentDuration);
+        if (currentSegment >= numSegments) currentSegment = numSegments - 1;
+
+        // 3. Hitung Local T (0.0 - 1.0) di dalam segmen tersebut
+        float segmentStartT = currentSegment * segmentDuration;
+        float localT = (globalT - segmentStartT) / segmentDuration;
+
+        // 4. Interpolasi Antara Keyframe[i] dan Keyframe[i+1]
+        const auto& startFrame = transition.keyframes[currentSegment];
+        const auto& endFrame = transition.keyframes[currentSegment + 1];
+
+        // --- Lerp Position ---
+        XMVECTOR vStartPos = XMLoadFloat3(&startFrame.pos);
+        XMVECTOR vEndPos = XMLoadFloat3(&endFrame.pos);
+        XMVECTOR vCurrentPos = XMVectorLerp(vStartPos, vEndPos, localT);
+
+        // --- Slerp Rotation ---
+        XMVECTOR qStart = XMLoadFloat4(&startFrame.rotQuat);
+        XMVECTOR qEnd = XMLoadFloat4(&endFrame.rotQuat);
+        XMVECTOR qCurrent = XMQuaternionSlerp(qStart, qEnd, localT);
+
+        // --- Lerp Roll (Manual agar presisi) ---
+        float currentRoll = startFrame.roll + (endFrame.roll - startFrame.roll) * localT;
+
+        // 5. Apply to Active Camera
         XMFLOAT3 finalPos;
         XMStoreFloat3(&finalPos, vCurrentPos);
         activeCamera->SetPosition(finalPos);
 
-        // Convert Quaternion back to Euler untuk disimpan di Camera Class
-        // (Camera class kamu menyimpan Euler, jadi kita harus konversi balik)
         XMFLOAT4X4 matRot;
         XMStoreFloat4x4(&matRot, XMMatrixRotationQuaternion(qCurrent));
 
-        // Ekstrak Pitch, Yaw, Roll dari Matrix
-        float pitch = asinf(-matRot._32);
+        // Math Safety Clamp
+        float sinPitch = std::clamp(-matRot._32, -1.0f, 1.0f);
+        float pitch = asinf(sinPitch);
         float yaw = atan2f(matRot._31, matRot._33);
-        float roll = atan2f(matRot._12, matRot._22);
 
-        activeCamera->SetRotation(pitch, yaw, roll);
+        activeCamera->SetRotation(pitch, yaw, currentRoll);
 
-        // Selesai Transisi?
+        // 6. Finish Logic
         if (t >= 1.0f)
         {
             controlMode = CameraControlMode::FixedStatic;
             fixedPosition = finalPos;
-            target = activeCamera->GetFocus(); // Hacky tapi oke untuk sekarang
+            target = transition.finalTargetLookAt;
 
-            // [BARU] Pastikan rotasi akhir tersinkronisasi
-            // Tidak perlu set 'angle' manual karena FixedStatic akan pakai LookAt + Offset
+            // Simpan Roll akhir ke offset agar tidak reset saat masuk FixedStatic
+            fixedRollOffset = endFrame.roll;
+            fixedYawOffset = 0.0f;
+
             transition.active = false;
         }
         break;

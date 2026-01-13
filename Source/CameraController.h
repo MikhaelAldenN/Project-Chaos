@@ -1,10 +1,11 @@
 #pragma once
 #include <DirectXMath.h>
 #include <functional>
+#include <vector> // [BARU] Wajib include ini
 
 class Camera;
 
-// Tambahkan Enum untuk Easing agar fleksibel
+// Enum Easing
 enum class EasingType
 {
     Linear,
@@ -20,7 +21,7 @@ enum class CameraControlMode
     FixedFollow,
     FixedStatic,
     Free,
-    Transition // Mode khusus saat kamera sedang blending
+    Transition
 };
 
 class CameraController
@@ -44,11 +45,14 @@ public:
     CameraControlMode GetControlMode() const { return controlMode; }
     void ClearCamera() { activeCamera = nullptr; }
 
-    // --- NEW: Transition System ---
-    // Fungsi ini akan memulai blending dari posisi kamera saat ini ke target kamera
+    // --- NEW: Sequence System ---
+    // Fungsi lama (StartTransition) bisa kita overload atau hapus, tapi untuk kompatibilitas
+    // kita biarkan, tapi di dalamnya nanti memanggil sistem path.
     void StartTransition(Camera* targetCamSettings, float duration, EasingType easing = EasingType::SmoothStep);
 
-    // Cek apakah sedang transisi
+    // [BARU] Fungsi Utama: Menerima daftar kamera (Jalur)
+    void StartPathTransition(const std::vector<Camera*>& keyframes, float duration, EasingType easing = EasingType::SmoothStep);
+
     bool IsTransitioning() const { return controlMode == CameraControlMode::Transition; }
 
 private:
@@ -57,12 +61,11 @@ private:
     CameraController(const CameraController&) = delete;
     void operator=(const CameraController&) = delete;
 
-    // Helper Math
     float ApplyEasing(float t, EasingType type);
 
     Camera* activeCamera = nullptr;
     CameraControlMode controlMode = CameraControlMode::GamePad;
-    CameraControlMode previousMode = CameraControlMode::FixedStatic; // Mengingat mode sebelum transisi
+    CameraControlMode previousMode = CameraControlMode::FixedStatic;
 
     // --- State Variables ---
     DirectX::XMFLOAT3 target = { 0.0f, 0.0f, 0.0f };
@@ -79,18 +82,25 @@ private:
     float minAngleX = DirectX::XMConvertToRadians(-85);
     bool toggleCursor = true;
 
-    // --- Transition Data ---
+    // --- [UPDATE] Transition Data ---
     struct TransitionState
     {
-        DirectX::XMFLOAT3 startPos;
-        DirectX::XMFLOAT4 startRotQuat; // Menggunakan Quaternion untuk rotasi yang mulus
+        // Struct kecil untuk menyimpan snapshot data setiap keyframe
+        struct KeyframeData {
+            DirectX::XMFLOAT3 pos;
+            DirectX::XMFLOAT4 rotQuat; // Quaternion
+            float roll;                // Roll disimpan terpisah
+        };
 
-        DirectX::XMFLOAT3 endPos;
-        DirectX::XMFLOAT4 endRotQuat;
+        // List Keyframe (Jalur Kamera)
+        std::vector<KeyframeData> keyframes;
 
         float currentTime = 0.0f;
         float duration = 1.0f;
         EasingType easingType = EasingType::SmoothStep;
         bool active = false;
+
+        // Data target akhir (untuk setup FixedStatic setelah selesai)
+        DirectX::XMFLOAT3 finalTargetLookAt;
     } transition;
 };

@@ -49,10 +49,12 @@ private:
     // --- NEW: Camera Anchors (Titik Patokan) ---
     Camera* camSettingA = nullptr; // Posisi Awal
     Camera* camSettingB = nullptr; // Posisi Modifikasi (Roll 90, dll)
+    Camera* camSettingC = nullptr; // NEW
 
     // Data Target LookAt (Agar bisa diedit terpisah)
     DirectX::XMFLOAT3 targetA;
     DirectX::XMFLOAT3 targetB;
+    DirectX::XMFLOAT3 targetC;
 
     // State GUI
     bool isCameraInverted = false; // False = A, True = B
