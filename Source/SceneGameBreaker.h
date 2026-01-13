@@ -6,8 +6,7 @@
 #include <vector>
 #include "Ball.h"
 #include "BlockManager.h"
-#include "Camera.h"
-#include "CameraController.h"
+#include "CameraController.h" 
 #include "GameWindow.h"
 #include "Paddle.h"
 #include "Player.h"
@@ -26,7 +25,8 @@ public:
     void DrawGUI() override;
     void OnResize(int width, int height) override;
 
-    Camera* GetMainCamera() const { return mainCamera; }
+    // Return raw pointer untuk kompatibilitas, tapi ownership tetap di shared_ptr
+    Camera* GetMainCamera() const { return mainCamera.get(); }
 
 private:
     void RenderScene(float elapsedTime, Camera* camera);
@@ -37,35 +37,26 @@ private:
     // =========================================================
     // ASSETS & OBJECTS
     // =========================================================
-    // --- Main Game Objects ---
     Ball* ball = nullptr;
     Paddle* paddle = nullptr;
     Player* player = nullptr;
     std::unique_ptr<BlockManager> blockManager;
 
-    // --- Cameras ---
-    Camera* mainCamera = nullptr; // Kamera aktif (The Eye)
+    // =========================================================
+    // CAMERA SYSTEM (REFACTORED)
+    // =========================================================
+    // [UPDATE] Menggunakan Smart Pointer (Ownership jelas)
+    std::shared_ptr<Camera> mainCamera;
 
-    // --- NEW: Camera Anchors (Titik Patokan) ---
-    Camera* camSettingA = nullptr; // Posisi Awal
-    Camera* camSettingB = nullptr; // Posisi Modifikasi (Roll 90, dll)
-    Camera* camSettingC = nullptr; // NEW
-
-    // Data Target LookAt (Agar bisa diedit terpisah)
-    DirectX::XMFLOAT3 targetA;
-    DirectX::XMFLOAT3 targetB;
-    DirectX::XMFLOAT3 targetC;
+    // [UPDATE] Menggunakan Struct Data (Hemat Memori), bukan Objek Camera dummy
+    // Kita inisialisasi dengan data default (0,0,0)
+    CameraKeyframe m_poseA{ {0,0,0}, {0,0,0} };
+    CameraKeyframe m_poseB{ {0,0,0}, {0,0,0} };
+    CameraKeyframe m_poseC{ {0,0,0}, {0,0,0} };
 
     // State GUI
-    bool isCameraInverted = false; // False = A, True = B
     float transitionDuration = 1.5f;
     int currentEasingIndex = 3; // SmoothStep
-
-    // --- Windows ---
-    GameWindow* trackingWindow = nullptr;
-    GameWindow* lensWindow = nullptr;
-    Camera* trackingCamera = nullptr;
-    Camera* lensCamera = nullptr;
 
     // --- Graphics ---
     std::unique_ptr<Sprite> m_backgroundSprite;
@@ -73,55 +64,39 @@ private:
     // =========================================================
     // SCENE SETTINGS 
     // =========================================================
+    float initialFOV = 45.0f;
+    float cameraNearZ = 0.1f;
+    float cameraFarZ = 1000.0f;
 
-    // ---------------------------------------------------------
-    // CAMERA CONFIGURATION
-    // ---------------------------------------------------------
-    float initialFOV = 45.0f;                       // Field of View in Degrees
-    float cameraNearZ = 0.1f;                       // Near Clipping Plane
-    float cameraFarZ = 1000.0f;                     // Far Clipping Plane
-
-    DirectX::XMFLOAT3 cameraPosition = { 0.0f, 18.0f, 0.0f };   // Top-down view
+    DirectX::XMFLOAT3 cameraPosition = { 0.0f, 18.0f, 0.0f };
     DirectX::XMFLOAT3 cameraTarget = { 0.0f, 0.0f, 0.0f };
 
-    // ---------------------------------------------------------
-    // GAMEPLAY SETTINGS
-    // ---------------------------------------------------------
-    int triggerBlockCount = 40;                     // Remaining blocks to trigger Breakout
-    float ballSpawnZOffset = 0.3f;                  // How far in front of paddle the ball sits before launch
+    int triggerBlockCount = 40;
+    float ballSpawnZOffset = 0.3f;
 
-    // ---------------------------------------------------------
-    // ANIMATION SETTINGS
-    // ---------------------------------------------------------
-    float animDuration = 2.0f;                      // How long the spin takes
-    float animTargetBgRotation = -180.0f;           // Total background rotation (degrees)
-    float animCameraRotationTotal = DirectX::XM_PI; // Total camera spin (radians)
+    // Animation settings
+    float animDuration = 2.0f;
+    float animTargetBgRotation = -180.0f;
+    float animCameraRotationTotal = DirectX::XM_PI;
 
-    // ---------------------------------------------------------
-    // RENDER SETTINGS
-    // ---------------------------------------------------------
-    DirectX::XMFLOAT4 bgSpriteColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // Tint (RGBA)
+    // Render settings
+    DirectX::XMFLOAT4 bgSpriteColor = { 1.0f, 1.0f, 1.0f, 1.0f };
     const char* backgroundPath = "Data/Sprite/Placeholder/[PLACEHOLDER]Back_Title.png";
 
-    // =========================================================
-    // POST PROCESS RESOURCES
-    // =========================================================
+    // Post Process
     std::unique_ptr<VignetteShader> vignetteShader;
     VignetteShader::VignetteData vignetteParams;
 
-    // Render Target Resources (To draw the scene into a texture)
     Microsoft::WRL::ComPtr<ID3D11Texture2D> renderTargetTexture;
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> depthStencilTexture; 
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> depthStencilTexture;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
 
-    // ---------------------------------------------------------
-    // INTERNAL STATE 
-    // ---------------------------------------------------------
-    bool m_isAnimating = false; 
+    // Internal State
+    bool m_isAnimating = false;
     bool m_isGlitching = false;
-    bool m_hasTriggered = false;        
+    bool m_hasTriggered = false;
     float m_animTimer = 0.0f;
     float m_globalTime = 0.0f;
     float m_bgRotation = 0.0f;

@@ -2,6 +2,7 @@
 #include <DirectXMath.h>
 #include <functional>
 #include <vector> // [BARU] Wajib include ini
+#include <memory>
 
 class Camera;
 
@@ -24,13 +25,24 @@ enum class CameraControlMode
     Transition
 };
 
+struct CameraKeyframe
+{
+    DirectX::XMFLOAT3 Position;
+    DirectX::XMFLOAT3 Rotation; // Euler Angles (Pitch, Yaw, Roll)
+    DirectX::XMFLOAT3 TargetLookAt; // Opsional, jika ingin transisi fokus
+
+    // Constructor helper biar gampang pakainya
+    CameraKeyframe(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 rot)
+        : Position(pos), Rotation(rot), TargetLookAt({ 0,0,0 }) {}
+};
+
 class CameraController
 {
 public:
     static CameraController& Instance();
 
-    void SetActiveCamera(Camera* camera);
-    Camera* GetActiveCamera() const { return activeCamera; }
+    void SetActiveCamera(std::weak_ptr<Camera> camera);
+    std::shared_ptr<Camera> GetActiveCamera() const { return m_activeCamera.lock(); }
 
     void Update(float elapsedTime);
     void DrawDebugGUI();
@@ -43,7 +55,7 @@ public:
     void SetFixedRollOffset(float radians) { fixedRollOffset = radians; }
     void SetControlMode(CameraControlMode mode);
     CameraControlMode GetControlMode() const { return controlMode; }
-    void ClearCamera() { activeCamera = nullptr; }
+    void ClearCamera() { m_activeCamera.reset(); }
 
     // --- NEW: Sequence System ---
     // Fungsi lama (StartTransition) bisa kita overload atau hapus, tapi untuk kompatibilitas
@@ -51,8 +63,7 @@ public:
     void StartTransition(Camera* targetCamSettings, float duration, EasingType easing = EasingType::SmoothStep);
 
     // [BARU] Fungsi Utama: Menerima daftar kamera (Jalur)
-    void StartPathTransition(const std::vector<Camera*>& keyframes, float duration, EasingType easing = EasingType::SmoothStep);
-
+    void StartPathTransition(const std::vector<CameraKeyframe>& keyframes, float duration, EasingType easing = EasingType::SmoothStep);
     bool IsTransitioning() const { return controlMode == CameraControlMode::Transition; }
 
 private:
@@ -63,7 +74,7 @@ private:
 
     float ApplyEasing(float t, EasingType type);
 
-    Camera* activeCamera = nullptr;
+    std::weak_ptr<Camera> m_activeCamera;
     CameraControlMode controlMode = CameraControlMode::GamePad;
     CameraControlMode previousMode = CameraControlMode::FixedStatic;
 

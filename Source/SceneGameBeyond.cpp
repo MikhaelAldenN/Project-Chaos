@@ -10,55 +10,59 @@ SceneGameBeyond::SceneGameBeyond()
     float screenW = 1280.0f;
     float screenH = 720.0f;
 
-    // 1. Initialize Main Assets
-    mainCamera = new Camera();
+    // 1. Initialize Main Assets (std::make_sharedを使用)
+    mainCamera = std::make_shared<Camera>();
     mainCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(45), screenW / screenH, 0.1f, 1000.0f);
     mainCamera->SetPosition(0, 5, -5);
     mainCamera->LookAt({ 0, 0, 0 });
 
+    // エラー修正: shared_ptr を渡すのでコンパイルが通ります
     CameraController::Instance().SetActiveCamera(mainCamera);
     CameraController::Instance().SetControlMode(CameraControlMode::GamePad);
 
-    player = new Player();
+    player = std::make_unique<Player>();
 
     // 2. Initialize Secondary Camera (CCTV)
-    subCamera = new Camera();
+    subCamera = std::make_shared<Camera>();
     subCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(60), 400.0f / 300.0f, 0.1f, 1000.0f);
     subCamera->SetPosition(5, 5, 5);
     subCamera->LookAt({ 0, 0, 0 });
 
     // 3. Initialize Windows
     trackingWindow = WindowManager::Instance().CreateGameWindow("Tracking View", 300, 300);
-    trackingCamera = new Camera();
+    trackingCamera = std::make_shared<Camera>();
     trackingCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(60), 1.0f, 0.1f, 1000.0f);
-    trackingWindow->SetCamera(trackingCamera);
+
+    // Windowには生ポインタを渡す (.get())
+    trackingWindow->SetCamera(trackingCamera.get());
 
     lensWindow = WindowManager::Instance().CreateGameWindow("Lens View (Drag Me!)", 300, 300);
-    lensCamera = new Camera();
+    lensCamera = std::make_shared<Camera>();
     lensCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(60), 1.0f, 0.1f, 1000.0f);
     lensCamera->SetRotation(90.0f, 0.0f, 0.0f); // Top-down
-    lensWindow->SetCamera(lensCamera);
+    lensWindow->SetCamera(lensCamera.get());
 }
 
 SceneGameBeyond::~SceneGameBeyond()
 {
-    if (mainCamera) delete mainCamera;
-    if (subCamera) delete subCamera;
-    if (player) delete player;
+    // [重要] スマートポインタにしたので delete は不要です！
+    // WindowManagerへの破棄リクエストと、Controllerのクリアだけ行います。
 
-    for (Camera* cam : additionalCameras) delete cam;
+    CameraController::Instance().ClearCamera();
 
+    // WindowManagerがWindowのポインタを管理しているならDestroyを呼ぶ
     WindowManager::Instance().DestroyWindow(trackingWindow);
-    if (trackingCamera) delete trackingCamera;
-
     WindowManager::Instance().DestroyWindow(lensWindow);
-    if (lensCamera) delete lensCamera;
+
+    // vector内のカメラもshared_ptrなら自動解放されます
+    additionalCameras.clear();
 }
 
 void SceneGameBeyond::Update(float elapsedTime)
 {
-    // Update Player & Camera Controller
-    Camera* activeCam = CameraController::Instance().GetActiveCamera();
+    // エラー修正: Controllerから戻ってくるshared_ptrから生ポインタを取り出す (.get())
+    Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
+
     if (player)
     {
         player->Update(elapsedTime, activeCam);
@@ -81,7 +85,8 @@ void SceneGameBeyond::Update(float elapsedTime)
 
 void SceneGameBeyond::Render(float elapsedTime, Camera* camera)
 {
-    Camera* targetCam = camera ? camera : mainCamera;
+    // 引数がnullなら自分のmainCameraを使う (.get()で生ポインタ化)
+    Camera* targetCam = camera ? camera : mainCamera.get();
 
     // Setup Render State
     auto dc = Graphics::Instance().GetDeviceContext();
@@ -93,8 +98,8 @@ void SceneGameBeyond::Render(float elapsedTime, Camera* camera)
 
     RenderScene(elapsedTime, targetCam);
 
-    // Render Debug Shapes (Main Camera Only)
-    if (targetCam == mainCamera)
+    // エラー修正: ポインタ同士の比較 (.get()同士ならOK)
+    if (targetCam == mainCamera.get())
     {
         Graphics::Instance().GetShapeRenderer()->Render(dc, targetCam->GetView(), targetCam->GetProjection());
     }
@@ -205,7 +210,9 @@ void SceneGameBeyond::HandleDebugInput()
     if (Input::Instance().GetKeyboard().IsTriggered('N'))
     {
         GameWindow* addWin = WindowManager::Instance().CreateGameWindow("AdditionalWin", 300, 300);
-        Camera* addCam = new Camera();
+
+        // make_shared で作成
+        auto addCam = std::make_shared<Camera>();
 
         addCam->SetPerspectiveFov(DirectX::XMConvertToRadians(60), 1.0f, 0.1f, 1000.0f);
         if (player)
@@ -215,7 +222,7 @@ void SceneGameBeyond::HandleDebugInput()
             addCam->LookAt(pPos);
         }
 
-        addWin->SetCamera(addCam);
+        addWin->SetCamera(addCam.get());
         additionalCameras.push_back(addCam);
     }
 
@@ -223,7 +230,8 @@ void SceneGameBeyond::HandleDebugInput()
     if (player)
     {
         auto pPos = player->GetPosition();
-        for (Camera* cam : additionalCameras)
+        // shared_ptr なので範囲for文でOK
+        for (auto& cam : additionalCameras)
         {
             cam->SetPosition(pPos.x + 5.0f, pPos.y + 5.0f, pPos.z - 5.0f);
             cam->LookAt(pPos);

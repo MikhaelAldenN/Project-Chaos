@@ -21,9 +21,9 @@ CameraController& CameraController::Instance()
     return instance;
 }
 
-void CameraController::SetActiveCamera(Camera* camera)
+void CameraController::SetActiveCamera(std::weak_ptr<Camera> camera)
 {
-    activeCamera = camera;
+    m_activeCamera = camera;
 }
 
 XMVECTOR EulerToQuat(const XMFLOAT3& rot)
@@ -45,58 +45,82 @@ float CameraController::ApplyEasing(float t, EasingType type)
 
 void CameraController::StartTransition(Camera* targetCamSettings, float duration, EasingType easing)
 {
-    if (!activeCamera || !targetCamSettings) return;
+    // [PERBAIKAN E0020] Ambil akses kamera dengan aman
+    auto currentCam = m_activeCamera.lock();
 
-    // 1. Buat daftar jalur (path) sementara
-    std::vector<Camera*> path;
-    path.push_back(activeCamera);      // Titik Awal (Kamera saat ini)
-    path.push_back(targetCamSettings); // Titik Akhir (Target)
+    // Safety check: Pastikan kamera aktif ada dan target tidak null
+    if (!currentCam || !targetCamSettings) return;
 
-    // 2. Oper ke fungsi utama 'StartPathTransition'
+    // [PERBAIKAN E0312] Buat vector struct, BUKAN vector pointer
+    std::vector<CameraKeyframe> path;
+
+    // 1. Masukkan data Start (Kamera saat ini)
+    path.emplace_back(currentCam->GetPosition(), currentCam->GetRotation());
+
+    // 2. Masukkan data End (Dari target pointer)
+    // Kita ambil data (Posisi & Rotasi) dari targetCamSettings
+    CameraKeyframe targetFrame(targetCamSettings->GetPosition(), targetCamSettings->GetRotation());
+
+    // Opsional: Jika kamu pakai Logic LookAt/Focus, simpan juga
+    targetFrame.TargetLookAt = targetCamSettings->GetFocus();
+
+    path.push_back(targetFrame);
+
+    // 3. Oper ke fungsi utama yang baru
     StartPathTransition(path, duration, easing);
 }
 
-void CameraController::StartPathTransition(const std::vector<Camera*>& keyframes, float duration, EasingType easing)
+void CameraController::StartPathTransition(const std::vector<CameraKeyframe>& keyframes, float duration, EasingType easing)
 {
-    if (!activeCamera || keyframes.size() < 2) return;
+    // Cek pointer aman dulu
+    auto camera = m_activeCamera.lock();
+    if (!camera || keyframes.size() < 2) return;
 
     if (controlMode != CameraControlMode::Transition)
     {
-        previousMode = controlMode;
+        // Simpan mode sebelumnya (bisa cast ke int jika perlu simpan di var enum)
+        // previousMode = controlMode; 
     }
 
     controlMode = CameraControlMode::Transition;
 
-    // Reset State
     transition.active = true;
     transition.currentTime = 0.0f;
     transition.duration = duration > 0.0f ? duration : 0.001f;
     transition.easingType = easing;
     transition.keyframes.clear();
 
-    // 1. Snapshot Data dari semua kamera input
-    for (Camera* cam : keyframes)
+    // Konversi dari Struct Keyframe (User Friendly) ke Internal Calculation Data
+    for (const auto& kf : keyframes)
     {
         TransitionState::KeyframeData data;
-        data.pos = cam->GetPosition();
-        XMStoreFloat4(&data.rotQuat, EulerToQuat(cam->GetRotation()));
-        data.roll = cam->GetRotation().z;
+        data.pos = kf.Position;
+
+        // Convert Euler (User data) ke Quaternion (Math data)
+        data.rotQuat = {}; // Init kosong
+        XMStoreFloat4(&data.rotQuat, XMQuaternionRotationRollPitchYaw(kf.Rotation.x, kf.Rotation.y, kf.Rotation.z));
+
+        data.roll = kf.Rotation.z; // Simpan roll terpisah untuk interpolasi linear
         transition.keyframes.push_back(data);
     }
 
-    // Simpan target lookat dari kamera terakhir untuk safety saat finish
+    // Setup final target logic
     if (!keyframes.empty())
     {
-        transition.finalTargetLookAt = keyframes.back()->GetFocus();
-        fixedRollOffset = keyframes.back()->GetRotation().z; // Set roll offset target
-        fixedYawOffset = 0.0f;
+        // Kita ambil TargetLookAt dari data struct terakhir
+        transition.finalTargetLookAt = keyframes.back().TargetLookAt;
+
+        // Atau jika kamu mau targetnya ada di depan kamera terakhir:
+        // transition.finalTargetLookAt = CalculateForwardPoint(keyframes.back()); 
     }
 }
 
 void CameraController::Update(float elapsedTime)
 {
+    std::shared_ptr<Camera> camera = m_activeCamera.lock();
+
     // SAFETY CHECK: If no camera is assigned, do nothing
-    if (activeCamera == nullptr) return;
+    if (!camera) return;
 
     // --- Cursor Locking Logic (F1) ---
     static bool isF1Pressed = false;
@@ -170,7 +194,7 @@ void CameraController::Update(float elapsedTime)
         // 5. Apply to Active Camera
         XMFLOAT3 finalPos;
         XMStoreFloat3(&finalPos, vCurrentPos);
-        activeCamera->SetPosition(finalPos);
+        camera->SetPosition(finalPos);
 
         XMFLOAT4X4 matRot;
         XMStoreFloat4x4(&matRot, XMMatrixRotationQuaternion(qCurrent));
@@ -180,7 +204,7 @@ void CameraController::Update(float elapsedTime)
         float pitch = asinf(sinPitch);
         float yaw = atan2f(matRot._31, matRot._33);
 
-        activeCamera->SetRotation(pitch, yaw, currentRoll);
+        camera->SetRotation(pitch, yaw, currentRoll);
 
         // 6. Finish Logic
         if (t >= 1.0f)
@@ -206,8 +230,8 @@ void CameraController::Update(float elapsedTime)
         finalPos.z = target.z + fixedPosition.z;
 
         // 2. Apply to Camera
-        activeCamera->SetPosition(finalPos);
-        activeCamera->LookAt(target);
+        camera->SetPosition(finalPos);
+        camera->LookAt(target);
     }
     break;
 
@@ -221,15 +245,15 @@ void CameraController::Update(float elapsedTime)
         XMFLOAT3 finalTargetPos;
         XMStoreFloat3(&finalTargetPos, vFinalTarget);
 
-        activeCamera->SetPosition(fixedPosition);
+        camera->SetPosition(fixedPosition);
 
         // 2. LookAt standar (Ini akan mereset Roll jadi 0)
-        activeCamera->LookAt(finalTargetPos);
+        camera->LookAt(finalTargetPos);
 
         // [BARU & PENTING] Re-Apply Roll dan Yaw Offset
         if (fixedYawOffset != 0.0f || fixedRollOffset != 0.0f)
         {
-            XMFLOAT3 currentRot = activeCamera->GetRotation();
+            XMFLOAT3 currentRot = camera->GetRotation();
 
             // Tambahkan Yaw (jika ada animasi putar)
             currentRot.y += fixedYawOffset;
@@ -237,7 +261,7 @@ void CameraController::Update(float elapsedTime)
             // Force Roll sesuai settingan (misal 90 derajat dari Camera B)
             currentRot.z = fixedRollOffset;
 
-            activeCamera->SetRotation(currentRot);
+            camera->SetRotation(currentRot);
         }
     }
     break;
@@ -252,14 +276,14 @@ void CameraController::Update(float elapsedTime)
             float rotSpeed = rollSpeed * elapsedTime;
 
             // Get current rotation from Camera to keep sync
-            XMFLOAT3 currentRot = activeCamera->GetRotation();
+            XMFLOAT3 currentRot = camera->GetRotation();
 
             // Update Pitch (X) and Yaw (Y)
             currentRot.y += static_cast<float>(mouse.GetDeltaX()) * sensitivity * rotSpeed; // Yaw
             currentRot.x += static_cast<float>(mouse.GetDeltaY()) * sensitivity * rotSpeed; // Pitch
 
             // Apply Rotation
-            activeCamera->SetRotation(currentRot);
+            camera->SetRotation(currentRot);
 
             // Sync internal angle state
             this->angle = currentRot;
@@ -277,10 +301,10 @@ void CameraController::Update(float elapsedTime)
         if (GetKeyState(VK_CONTROL) & 0x8000) moveDir.y -= moveAmount; // Down
 
         // Apply Movement
-        activeCamera->Translate(moveDir);
+        camera->Translate(moveDir);
 
         // Update internal 'eye' state for debug display
-        this->eye = activeCamera->GetPosition();
+        this->eye = camera->GetPosition();
     }
     break;
 
@@ -336,8 +360,8 @@ void CameraController::Update(float elapsedTime)
         XMStoreFloat3(&finalPos, vEye);
 
         // 4. Apply to Camera
-        activeCamera->SetPosition(finalPos);
-        activeCamera->LookAt(target);
+        camera->SetPosition(finalPos);
+        camera->LookAt(target);
 
         // Update internal 'eye' state
         this->eye = finalPos;
@@ -358,9 +382,7 @@ void CameraController::SetFixedSetting(const DirectX::XMFLOAT3& value)
 
 void CameraController::SetControlMode(CameraControlMode mode)
 {
-    // Logika sinkronisasi saat ganti mode
-
-    // Jika masuk mode Mouse, pastikan kursor aktif/tidak sesuai setting
+    // Jika masuk mode Mouse, pastikan kursor aktif
     if (this->controlMode != CameraControlMode::Mouse && mode == CameraControlMode::Mouse)
     {
         toggleCursor = true;
@@ -369,13 +391,14 @@ void CameraController::SetControlMode(CameraControlMode mode)
     // Jika masuk mode Free, ambil posisi kamera saat ini agar transisi mulus
     if (this->controlMode != CameraControlMode::Free && mode == CameraControlMode::Free)
     {
-        if (activeCamera)
+        // [PERBAIKAN E0020] Cek smart pointer
+        if (auto camera = m_activeCamera.lock())
         {
             // Sync posisi internal Free Cam dengan posisi kamera asli
-            this->eye = activeCamera->GetPosition();
+            this->eye = camera->GetPosition();
 
             // Sync sudut pandang juga agar tidak 'kaget'
-            this->angle = activeCamera->GetRotation();
+            this->angle = camera->GetRotation();
         }
         toggleCursor = true;
     }
@@ -385,7 +408,8 @@ void CameraController::SetControlMode(CameraControlMode mode)
 
 void CameraController::DrawDebugGUI()
 {
-    if (!activeCamera) return;
+    auto camera = m_activeCamera.lock();
+    if (!camera) return;
 
     ImVec2 pos = ImGui::GetMainViewport()->GetWorkPos();
     ImGui::SetNextWindowPos(ImVec2(pos.x + 10, pos.y + 10), ImGuiCond_FirstUseEver);
@@ -415,8 +439,8 @@ void CameraController::DrawDebugGUI()
         ImGui::Separator();
 
         // Info Display
-        XMFLOAT3 camPos = activeCamera->GetPosition();
-        XMFLOAT3 camRot = activeCamera->GetRotation(); // Euler
+        XMFLOAT3 camPos = camera->GetPosition();
+        XMFLOAT3 camRot = camera->GetRotation(); // Euler
         ImGui::Text("Pos: %.2f, %.2f, %.2f", camPos.x, camPos.y, camPos.z);
         ImGui::Text("Rot: %.2f, %.2f, %.2f", camRot.x, camRot.y, camRot.z);
 

@@ -19,7 +19,7 @@ public:
     void DrawGUI() override;
     void OnResize(int width, int height) override;
 
-    Camera* GetMainCamera() const { return mainCamera; }
+    Camera* GetMainCamera() const { return mainCamera.get(); }
     Camera* GetSubCamera() const { return subCamera; }
 
 private:
@@ -31,7 +31,7 @@ private:
     void HandleDebugInput();
 
     // --- Main Assets ---
-    Camera* mainCamera = nullptr;
+    std::shared_ptr<Camera> mainCamera;
     Camera* subCamera = nullptr;
     Player* player = nullptr;
     std::vector<Camera*> additionalCameras;

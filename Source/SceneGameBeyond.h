@@ -19,8 +19,9 @@ public:
     void DrawGUI() override;
     void OnResize(int width, int height) override;
 
-    Camera* GetMainCamera() const { return mainCamera; }
-    Camera* GetSubCamera() const { return subCamera; }
+    // 生ポインタを返す (互換性のため)
+    Camera* GetMainCamera() const { return mainCamera.get(); }
+    Camera* GetSubCamera() const { return subCamera.get(); }
 
 private:
     void RenderScene(float elapsedTime, Camera* camera);
@@ -30,17 +31,17 @@ private:
     void UpdateLensWindow();
     void HandleDebugInput();
 
-    // --- Main Assets ---
-    Camera* mainCamera = nullptr;
-    Camera* subCamera = nullptr;
-    Player* player = nullptr;
-    std::vector<Camera*> additionalCameras;
+    // --- Main Assets (Smart Pointers化) ---
+    std::shared_ptr<Camera> mainCamera;
+    std::shared_ptr<Camera> subCamera;
+    std::unique_ptr<Player> player; // PlayerはUniqueで十分
+    std::vector<std::shared_ptr<Camera>> additionalCameras;
 
     // --- Tracking Window (Auto-follows player) ---
-    GameWindow* trackingWindow = nullptr;
-    Camera* trackingCamera = nullptr;
+    GameWindow* trackingWindow = nullptr; // WindowManagerが管理するのでRaw Pointerのまま
+    std::shared_ptr<Camera> trackingCamera;
 
     // --- Lens Window (Draggable by user) ---
     GameWindow* lensWindow = nullptr;
-    Camera* lensCamera = nullptr;
+    std::shared_ptr<Camera> lensCamera;
 };

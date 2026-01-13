@@ -11,7 +11,7 @@ SceneGame::SceneGame()
     float screenH = 720.0f;
 
     // 1. Initialize Main Assets
-    mainCamera = new Camera();
+    mainCamera = std::make_shared<Camera>();
     mainCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(45), screenW / screenH, 0.1f, 1000.0f);
     mainCamera->SetPosition(0, 5, -5);
     mainCamera->LookAt({ 0, 0, 0 });
@@ -42,7 +42,7 @@ SceneGame::SceneGame()
 
 SceneGame::~SceneGame()
 {
-    if (mainCamera) delete mainCamera;
+    CameraController::Instance().ClearCamera();
     if (subCamera) delete subCamera;
     if (player) delete player;
 
@@ -58,7 +58,7 @@ SceneGame::~SceneGame()
 void SceneGame::Update(float elapsedTime)
 {
     // Update Player & Camera Controller
-    Camera* activeCam = CameraController::Instance().GetActiveCamera();
+    Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
     if (player)
     {
         player->Update(elapsedTime, activeCam);
@@ -81,7 +81,7 @@ void SceneGame::Update(float elapsedTime)
 
 void SceneGame::Render(float elapsedTime, Camera* camera)
 {
-    Camera* targetCam = camera ? camera : mainCamera;
+    Camera* targetCam = CameraController::Instance().GetActiveCamera().get();
 
     // Setup Render State
     auto dc = Graphics::Instance().GetDeviceContext();
@@ -94,7 +94,7 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
     RenderScene(elapsedTime, targetCam);
 
     // Render Debug Shapes (Main Camera Only)
-    if (targetCam == mainCamera)
+    if (targetCam == mainCamera.get())
     {
         Graphics::Instance().GetShapeRenderer()->Render(dc, targetCam->GetView(), targetCam->GetProjection());
     }
