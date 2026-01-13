@@ -3,6 +3,7 @@
 #include "System/Input.h" 
 #include <imgui.h>
 #include <cmath>
+#include <algorithm>
 
 using namespace DirectX;
 
@@ -23,6 +24,51 @@ CameraController& CameraController::Instance()
 void CameraController::SetActiveCamera(Camera* camera)
 {
     activeCamera = camera;
+}
+
+XMVECTOR EulerToQuat(const XMFLOAT3& rot)
+{
+    return XMQuaternionRotationRollPitchYaw(rot.x, rot.y, rot.z);
+}
+
+// Helper Easing
+float CameraController::ApplyEasing(float t, EasingType type)
+{
+    switch (type)
+    {
+    case EasingType::EaseInQuad: return t * t;
+    case EasingType::EaseOutQuad: return t * (2 - t);
+    case EasingType::SmoothStep: return t * t * (3 - 2 * t);
+    case EasingType::Linear: default: return t;
+    }
+}
+
+void CameraController::StartTransition(Camera* targetCamSettings, float duration, EasingType easing)
+{
+    if (!activeCamera || !targetCamSettings) return;
+
+    // Simpan mode sebelumnya jika kita belum dalam mode transisi
+    if (controlMode != CameraControlMode::Transition)
+    {
+        previousMode = controlMode;
+    }
+
+    // Set Mode ke Transition
+    controlMode = CameraControlMode::Transition;
+
+    // Setup Data Transisi
+    transition.duration = duration > 0.0f ? duration : 0.001f; // Cegah divide by zero
+    transition.currentTime = 0.0f;
+    transition.easingType = easing;
+    transition.active = true;
+
+    // Capture Start State (Current Active Camera)
+    transition.startPos = activeCamera->GetPosition();
+    XMStoreFloat4(&transition.startRotQuat, EulerToQuat(activeCamera->GetRotation()));
+
+    // Capture End State (Target Camera Settings)
+    transition.endPos = targetCamSettings->GetPosition();
+    XMStoreFloat4(&transition.endRotQuat, EulerToQuat(targetCamSettings->GetRotation()));
 }
 
 void CameraController::Update(float elapsedTime)
@@ -58,6 +104,55 @@ void CameraController::Update(float elapsedTime)
     // --- Main Control Logic ---
     switch (controlMode)
     {
+    case CameraControlMode::Transition:
+    {
+        if (!transition.active) return;
+
+        transition.currentTime += elapsedTime;
+        float t = std::clamp(transition.currentTime / transition.duration, 0.0f, 1.0f);
+        float smoothT = ApplyEasing(t, transition.easingType);
+
+        // 1. Interpolasi Posisi (Lerp)
+        XMVECTOR vStartPos = XMLoadFloat3(&transition.startPos);
+        XMVECTOR vEndPos = XMLoadFloat3(&transition.endPos);
+        XMVECTOR vCurrentPos = XMVectorLerp(vStartPos, vEndPos, smoothT);
+
+        // 2. Interpolasi Rotasi (Slerp - Spherical Linear Interpolation)
+        XMVECTOR qStart = XMLoadFloat4(&transition.startRotQuat);
+        XMVECTOR qEnd = XMLoadFloat4(&transition.endRotQuat);
+        XMVECTOR qCurrent = XMQuaternionSlerp(qStart, qEnd, smoothT);
+
+        // Apply ke Kamera Aktif
+        XMFLOAT3 finalPos;
+        XMStoreFloat3(&finalPos, vCurrentPos);
+        activeCamera->SetPosition(finalPos);
+
+        // Convert Quaternion back to Euler untuk disimpan di Camera Class
+        // (Camera class kamu menyimpan Euler, jadi kita harus konversi balik)
+        XMFLOAT4X4 matRot;
+        XMStoreFloat4x4(&matRot, XMMatrixRotationQuaternion(qCurrent));
+
+        // Ekstrak Pitch, Yaw, Roll dari Matrix
+        float pitch = asinf(-matRot._32);
+        float yaw = atan2f(matRot._31, matRot._33);
+        float roll = atan2f(matRot._12, matRot._22);
+
+        activeCamera->SetRotation(pitch, yaw, roll);
+
+        // Selesai Transisi?
+        if (t >= 1.0f)
+        {
+            // Kembalikan ke mode FixedStatic (atau biarkan Transition state jika ingin diam)
+            // Untuk kasus ini, kita set ke FixedStatic agar bisa dikontrol lagi jika perlu,
+            // tapi kita update 'fixedPosition' agar sinkron dengan posisi akhir.
+            controlMode = CameraControlMode::FixedStatic;
+            fixedPosition = finalPos;
+            target = activeCamera->GetFocus(); // Hacky, sebaiknya maintain target yang benar
+            angle = activeCamera->GetRotation();
+            transition.active = false;
+        }
+        break;
+    }
     case CameraControlMode::FixedFollow:
     {
         // 1. Calculate desired position (Target + Offset)
