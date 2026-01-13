@@ -13,7 +13,7 @@ public:
     static constexpr bool  DEFAULT_ENABLED      = false;
     static constexpr float DEFAULT_INTENSITY    = 0.38f;
     static constexpr float DEFAULT_SMOOTHNESS   = 0.2f;
-    static constexpr bool  DEFAULT_ROUNDED      = true;
+    static constexpr bool  DEFAULT_ROUNDED      = false;
     static constexpr float DEFAULT_ROUNDNESS    = 1.0f;
 
     // Color default (r, g, b, a)
@@ -43,14 +43,14 @@ public:
         float             smoothness        = DEFAULT_SMOOTHNESS;
         bool              rounded           = DEFAULT_ROUNDED;
         float             roundness         = DEFAULT_ROUNDNESS;
-        float             blurStrength      = 0.0f;
-        float             distortion        = 0.0f;
-        float             glitchStrength    = 0.0f; 
+        float             blurStrength      = 0.01f;
+        float             distortion        = 0.015f;
+        float             glitchStrength    = 0.02f; 
         float             time              = 0.0f; 
-        float             scanlineStrength  = 0.0f; 
-        float             scanlineSpeed     = 5.0f; 
-        float             scanlineSize      = 20.0f;
-        float             fineOpacity       = 0.5f;
+        float             scanlineStrength  = 0.2f; 
+        float             scanlineSpeed     = 40.0f; 
+        float             scanlineSize      = 150.0f;
+        float             fineOpacity       = 1.0f;
         float             fineDensity       = 30.0f;
     };
 

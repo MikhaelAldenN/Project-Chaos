@@ -93,8 +93,8 @@ SceneGameBreaker::SceneGameBreaker()
     // --------------------------------------------------------
     // Initialize Assets
     // --------------------------------------------------------
-    m_spriteBorderBreaker = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathBorderBreaker);
-	//m_spriteDEBUG_LAYOUT = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathDEBUG_LAYOUT);
+    //m_spriteBorderBreaker = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathBorderBreaker);
+	m_spriteDEBUG_LAYOUT = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathDEBUG_LAYOUT);
 
     ball = new Ball();
     paddle = new Paddle();
@@ -306,7 +306,7 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
             0.0f, 0.0f, 0.0f,       // Posisi (Kiri Atas)
             screenW, screenH,       // Ukuran (Full Screen)
             0.0f,                   // Rotasi
-            1.0f, 1.0f, 1.0f, 0.5f  // Warna (Putih/Normal)
+            1.0f, 1.0f, 1.0f, 1.0f  // Warna (Putih/Normal)
         );
     }
 
