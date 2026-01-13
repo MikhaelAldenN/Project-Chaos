@@ -52,6 +52,14 @@ void VignetteShader::Draw(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* tex
         cb.roundness = ROUNDNESS_POWER * (1.0f - data.roundness) + data.roundness;
 
         cb.blurStrength = std::clamp(data.blurStrength, 0.0f, 0.1f);
+        cb.distortion = std::clamp(data.distortion, -0.2f, 0.2f);
+        cb.glitchStrength = data.glitchStrength;
+        cb.scanlineStrength = data.scanlineStrength;
+        cb.time = data.time;
+        cb.scanlineSpeed = data.scanlineSpeed;
+        cb.scanlineSize = data.scanlineSize;
+        cb.fineOpacity = data.fineOpacity;
+        cb.fineDensity = data.fineDensity;
 
         dc->UpdateSubresource(constantBuffer.Get(), 0, 0, &cb, 0, 0);
 

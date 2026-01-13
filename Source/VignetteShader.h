@@ -36,14 +36,22 @@ public:
     // =========================================================
     struct VignetteData
     {
-        bool              enabled       = DEFAULT_ENABLED;
-        DirectX::XMFLOAT4 color         = { DEFAULT_COLOR_R, DEFAULT_COLOR_G, DEFAULT_COLOR_B, 1.0f };
-        DirectX::XMFLOAT2 center        = { 0.5f, 0.5f };
-        float             intensity     = DEFAULT_INTENSITY;
-        float             smoothness    = DEFAULT_SMOOTHNESS;
-        bool              rounded       = DEFAULT_ROUNDED;
-        float             roundness     = DEFAULT_ROUNDNESS;
-        float             blurStrength  = 0.0f;
+        bool              enabled           = DEFAULT_ENABLED;
+        DirectX::XMFLOAT4 color             = { DEFAULT_COLOR_R, DEFAULT_COLOR_G, DEFAULT_COLOR_B, 1.0f };
+        DirectX::XMFLOAT2 center            = { 0.5f, 0.5f };
+        float             intensity         = DEFAULT_INTENSITY;
+        float             smoothness        = DEFAULT_SMOOTHNESS;
+        bool              rounded           = DEFAULT_ROUNDED;
+        float             roundness         = DEFAULT_ROUNDNESS;
+        float             blurStrength      = 0.0f;
+        float             distortion        = 0.0f;
+        float             glitchStrength    = 0.0f; 
+        float             time              = 0.0f; 
+        float             scanlineStrength  = 0.0f; 
+        float             scanlineSpeed     = 5.0f; 
+        float             scanlineSize      = 20.0f;
+        float             fineOpacity       = 0.5f;
+        float             fineDensity       = 30.0f;
     };
 
     // =========================================================
@@ -73,7 +81,15 @@ private:
         float rounded;
         float roundness;
         float blurStrength;
-        float padding;
+        float glitchStrength;  
+        float distortion;
+        float scanlineStrength;         
+        float time;                     
+        float scanlineSpeed;            
+        float scanlineSize;
+        float fineOpacity;              
+        float fineDensity;              
+        float padding;      
     };
 
     Microsoft::WRL::ComPtr<ID3D11VertexShader>  vertexShader;

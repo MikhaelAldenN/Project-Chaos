@@ -65,6 +65,10 @@ SceneGameBreaker::~SceneGameBreaker()
 
 void SceneGameBreaker::Update(float elapsedTime)
 {
+    m_globalTime += elapsedTime;
+
+    if (m_globalTime > 1000.0f) m_globalTime -= 1000.0f;
+
     Camera* activeCam = CameraController::Instance().GetActiveCamera();
 
     // --------------------------------------------------------
@@ -144,6 +148,7 @@ void SceneGameBreaker::UpdateGameTriggers(float elapsedTime)
 void SceneGameBreaker::UpdateAnimation(float elapsedTime)
 {
     m_animTimer += elapsedTime;
+    if (m_animTimer > 100.0f) m_animTimer -= 100.0f;
     float t = (std::min)(m_animTimer / animDuration, 1.0f);
     float smoothT = t * t * (3.0f - 2.0f * t);
 
@@ -280,6 +285,9 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
         dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullNone));
         dc->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), nullptr, 0xFFFFFFFF);
 
+        // Pass the timer to shader
+        vignetteParams.time = m_globalTime;
+
         // Draw the Off-Screen Texture using the Vignette Shader
         vignetteShader->Draw(dc, shaderResourceView.Get(), vignetteParams);
 
@@ -352,12 +360,11 @@ void SceneGameBreaker::DrawGUI()
 {
     CameraController::Instance().DrawDebugGUI();
     ImGui::Begin("Scene Debug");
-    
+
     if (ImGui::CollapsingHeader("Vignette Settings", ImGuiTreeNodeFlags_DefaultOpen))
     {
         ImGui::Checkbox("Use Vignette", &vignetteParams.enabled);
-        
-        // Disable editing if effect is off
+
         if (vignetteParams.enabled)
         {
             ImGui::ColorEdit3("Color", &vignetteParams.color.x);
@@ -366,14 +373,51 @@ void SceneGameBreaker::DrawGUI()
             ImGui::SliderFloat("Smoothness", &vignetteParams.smoothness, 0.0f, 1.0f);
             ImGui::Checkbox("Rounded", &vignetteParams.rounded);
             ImGui::SliderFloat("Roundness", &vignetteParams.roundness, 0.0f, 1.0f);
-            ImGui::SliderFloat("Blur Strength", &vignetteParams.blurStrength, 0.0f, 0.05f);
+            ImGui::Separator();
+
+            ImGui::Text("Lens Effects");
+            ImGui::SliderFloat("Blur Amount", &vignetteParams.blurStrength, 0.0f, 0.05f);
+            ImGui::SliderFloat("Fish Eye (Distortion)", &vignetteParams.distortion, -0.1f, 0.15f);
+            ImGui::Separator();
+
+            ImGui::Text("CRT Effects");
+            ImGui::Checkbox("AUTO PLAY GLITCH", &m_isGlitching);
+            if (m_isGlitching)
+            {
+                // 1. SCANLINE / HUM BAR
+                // Set to a fixed high visibility.
+                // The movement is handled by "Time" in the shader, so we don't need to change this value.
+                vignetteParams.scanlineStrength = 0.8f;
+
+                // 2. DISABLE SHAKE (Clean Look)
+                // You requested "No shake at all", so we force this to 0.
+                vignetteParams.glitchStrength = 0.0f;
+
+                ImGui::SameLine();
+                ImGui::TextColored(ImVec4(0, 1, 0, 1), " << ROLLING >> ");
+            }
+
+            // Sliders 
+            ImGui::SliderFloat("Glitch Shake", &vignetteParams.glitchStrength, 0.0f, 1.0f);
+            // ROLLING BAR SETTINGS
+            ImGui::Separator();
+            ImGui::Text("Rolling Bar (Animation)");
+            ImGui::SliderFloat("Roll Opacity", &vignetteParams.scanlineStrength, 0.0f, 1.0f);
+            ImGui::SliderFloat("Roll Speed", &vignetteParams.scanlineSpeed, -10.0f, 10.0f);
+            ImGui::SliderFloat("Roll Sharpness", &vignetteParams.scanlineSize, 1.0f, 100.0f);
+
+            // FINE MESH SETTINGS
+            ImGui::Separator();
+            ImGui::Text("CRT Mesh (Background)");
+            ImGui::SliderFloat("Mesh Opacity", &vignetteParams.fineOpacity, 0.0f, 1.0f);
+            ImGui::SliderFloat("Mesh Density", &vignetteParams.fineDensity, 10.0f, 100.0f);
         }
         else
         {
             ImGui::TextDisabled("Settings are hidden while disabled.");
         }
     }
-    
+
     ImGui::End();
 }
 

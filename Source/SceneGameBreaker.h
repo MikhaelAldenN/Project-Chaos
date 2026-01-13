@@ -89,7 +89,7 @@ private:
     // RENDER SETTINGS
     // ---------------------------------------------------------
     DirectX::XMFLOAT4 bgSpriteColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // Tint (RGBA)
-    const char* backgroundPath = "Data/Sprite/Scene Breaker/Sprite_BorderBreaker.png";
+    const char* backgroundPath = "Data/Sprite/Placeholder/[PLACEHOLDER]Back_Title.png";
 
     // =========================================================
     // POST PROCESS RESOURCES
@@ -107,10 +107,11 @@ private:
     // ---------------------------------------------------------
     // INTERNAL STATE 
     // ---------------------------------------------------------
-    bool m_isAnimating = false;         
+    bool m_isAnimating = false; 
+    bool m_isGlitching = false;
     bool m_hasTriggered = false;        
     float m_animTimer = 0.0f;
-
+    float m_globalTime = 0.0f;
     float m_bgRotation = 0.0f;
     DirectX::XMFLOAT2 m_bgPosition = { 0.0f, 0.0f };
 };
