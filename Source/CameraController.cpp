@@ -155,8 +155,8 @@ void CameraController::Update(float elapsedTime)
         if (!transition.active || transition.keyframes.empty()) return;
 
         // 1. Update Global Time (0.0 sampai 1.0)
-        transition.currentTime += elapsedTime;
         float t = std::clamp(transition.currentTime / transition.duration, 0.0f, 1.0f);
+        transition.currentTime += elapsedTime;
 
         // [GLOBAL EASING] Ini kuncinya! Easing diterapkan pada total durasi.
         // Jadi B tidak akan kena "slow in/slow out", dia akan dilewati dengan cepat.

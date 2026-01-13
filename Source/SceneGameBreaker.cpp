@@ -28,6 +28,7 @@ SceneGameBreaker::SceneGameBreaker()
 
     // Setup Posisi Awal
     XMFLOAT3 startPos = cameraPosition;
+	startPos.x = 0.0f;
     startPos.z = 0.0f;
 	startPos.y = 20.0f;
 
@@ -51,7 +52,12 @@ SceneGameBreaker::SceneGameBreaker()
     // Trik: Set main camera ke posisi ini sebentar untuk ambil rotasinya
     mainCamera->SetPosition(startPos);
     mainCamera->LookAt(cameraTarget);
-    m_poseA.Rotation = mainCamera->GetRotation();
+    m_poseA.Rotation.x = DirectX::XM_PIDIV2 - 0.001f;
+    m_poseA.Rotation.y = 0.0f;
+    m_poseA.Rotation.z = 0.0f;
+
+    mainCamera->SetPosition(startPos);
+    mainCamera->SetRotation(m_poseA.Rotation);
 
     // --- POS C (End) ---
     XMFLOAT3 posC = cameraPosition;
@@ -543,7 +549,18 @@ void SceneGameBreaker::GUICameraTab()
 
         if (auto currentCam = camCtrl.GetActiveCamera())
         {
-            path.emplace_back(currentCam->GetPosition(), currentCam->GetRotation());
+            // [FIX] JANGAN pakai emplace_back(pos, rot) saja!
+            // Kita harus manual set TargetLookAt agar transisi mulus dari mode Idle.
+
+            CameraKeyframe startFrame;
+            startFrame.Position = currentCam->GetPosition();
+            startFrame.Rotation = currentCam->GetRotation();
+
+            // PENTING: Set target ke target yang sama dengan Pose tujuan (0,0,0)
+            // Ini mencegah 'snap' karena perubahan algoritma dari LookAt -> Euler
+            startFrame.TargetLookAt = cameraTarget;
+
+            path.push_back(startFrame);
         }
 
         switch (selectedCamIdx) {

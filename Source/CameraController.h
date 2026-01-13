@@ -31,7 +31,12 @@ struct CameraKeyframe
     DirectX::XMFLOAT3 Rotation; // Euler Angles (Pitch, Yaw, Roll)
     DirectX::XMFLOAT3 TargetLookAt; // Opsional, jika ingin transisi fokus
 
-    // Constructor helper biar gampang pakainya
+    // [BARU] Default Constructor (Penting agar tidak error E0291)
+    // Ini mengizinkan pembuatan variable: "CameraKeyframe startFrame;"
+    CameraKeyframe()
+        : Position({ 0,0,0 }), Rotation({ 0,0,0 }), TargetLookAt({ 0,0,0 }) {}
+
+    // Constructor helper yang sudah ada
     CameraKeyframe(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 rot)
         : Position(pos), Rotation(rot), TargetLookAt({ 0,0,0 }) {}
 };
