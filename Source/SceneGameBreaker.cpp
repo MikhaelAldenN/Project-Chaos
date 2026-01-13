@@ -10,8 +10,8 @@ using namespace DirectX;
 
 SceneGameBreaker::SceneGameBreaker()
 {
-    float screenW = 1280.0f;
-    float screenH = 720.0f;
+    float screenW = 1920;
+    float screenH = 1080;
     if (auto window = Framework::Instance()->GetMainWindow())
     {
         screenW = static_cast<float>(window->GetWidth());
@@ -28,7 +28,8 @@ SceneGameBreaker::SceneGameBreaker()
 
     // Setup Posisi Awal
     XMFLOAT3 startPos = cameraPosition;
-    startPos.z = -2.0f;
+    startPos.z = 0.0f;
+	startPos.y = 20.0f;
 
     // Init Camera State
     mainCamera->SetPosition(startPos);
@@ -39,10 +40,10 @@ SceneGameBreaker::SceneGameBreaker()
     camCtrl.SetTarget(cameraTarget);
 
     // --------------------------------------------------------------------
-        // SETUP SEQUENCE DATA (A -> B -> C)
-        // --------------------------------------------------------------------
-        // Kita memanfaatkan mainCamera untuk menghitung rotasi Quaternion/Euler yang benar
-        // lalu kita simpan datanya ke struct m_poseA/B/C.
+    // SETUP SEQUENCE DATA (A -> B -> C)
+    // --------------------------------------------------------------------
+    // Kita memanfaatkan mainCamera untuk menghitung rotasi Quaternion/Euler yang benar
+    // lalu kita simpan datanya ke struct m_poseA/B/C.
 
         // --- POS A (Start) ---
     m_poseA.Position = startPos;
@@ -86,7 +87,8 @@ SceneGameBreaker::SceneGameBreaker()
     // --------------------------------------------------------
     // Initialize Assets
     // --------------------------------------------------------
-    m_backgroundSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), backgroundPath);
+    m_spriteBorderBreaker = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathBorderBreaker);
+	//m_spriteDEBUG_LAYOUT = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathDEBUG_LAYOUT);
 
     ball = new Ball();
     paddle = new Paddle();
@@ -238,79 +240,117 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
     auto dc = Graphics::Instance().GetDeviceContext();
     auto rs = Graphics::Instance().GetRenderState();
 
-    // Simpan Back Buffer asli (Layar Monitor)
     ID3D11RenderTargetView* originalRTV = nullptr;
     ID3D11DepthStencilView* originalDSV = nullptr;
     dc->OMGetRenderTargets(1, &originalRTV, &originalDSV);
 
-    // Lepas texture dari shader resource slot agar tidak crash (Read-Write hazard)
     ID3D11ShaderResourceView* nullSRVs[16] = { nullptr };
     dc->PSSetShaderResources(0, 16, nullSRVs);
 
     // ---------------------------------------------------------
-    // 2. DETERMINE RENDER TARGET (LOGIC REFACTOR)
+    // 2. DETERMINE RENDER TARGET
     // ---------------------------------------------------------
-    // Kita gunakan boolean Master Switch dari struct m_fxState
     bool usePostProcess = m_fxState.MasterEnabled;
-
     ID3D11RenderTargetView* currentRTV = nullptr;
     ID3D11DepthStencilView* currentDSV = nullptr;
 
     if (usePostProcess)
     {
-        // Jika Efek NYALA: Gambar ke Texture Khusus (Off-Screen)
         currentRTV = renderTargetView.Get();
         currentDSV = depthStencilView.Get();
     }
     else
     {
-        // Jika Efek MATI: Gambar langsung ke Layar
         currentRTV = originalRTV;
         currentDSV = originalDSV;
     }
 
-    // Bind target yang sudah dipilih
     dc->OMSetRenderTargets(1, &currentRTV, currentDSV);
 
-    // Jika menggambar ke Texture Off-Screen, kita harus bersihkan dulu (Clear)
     if (usePostProcess)
     {
-        float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // Hitam transparan
+        float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
         dc->ClearRenderTargetView(currentRTV, clearColor);
         dc->ClearDepthStencilView(currentDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
     }
 
     // ---------------------------------------------------------
-    // 3. RENDER GAME SCENE (Background & 3D Objects)
+    // 3. RENDER GAME SCENE
     // ---------------------------------------------------------
 
-    // --- A. Background Sprite (2D) ---
-    if (m_backgroundSprite)
+    if (m_spriteDEBUG_LAYOUT)
     {
+        // 1. Setup State 2D (Transparan & Tanpa Depth Test)
         dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
         dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
         dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullNone));
 
-        float screenW = 1280.0f;
-        float screenH = 720.0f;
+        // 2. Ambil Ukuran Layar (Biar responsif 1920x1080 atau Fullscreen)
+        float screenW = 1920.0f;
+        float screenH = 1080.0f;
         if (auto window = Framework::Instance()->GetMainWindow())
         {
             screenW = static_cast<float>(window->GetWidth());
             screenH = static_cast<float>(window->GetHeight());
         }
 
-        m_backgroundSprite->Render(
-            dc, 0, 0, 0, screenW, screenH, m_bgRotation,
-            bgSpriteColor.x, bgSpriteColor.y, bgSpriteColor.z, bgSpriteColor.w
+        // 3. Render Full Screen (x=0, y=0, w=screenW, h=screenH)
+        m_spriteDEBUG_LAYOUT->Render(
+            dc,
+            0.0f, 0.0f, 0.0f,       // Posisi (Kiri Atas)
+            screenW, screenH,       // Ukuran (Full Screen)
+            0.0f,                   // Rotasi
+            1.0f, 1.0f, 1.0f, 0.5f  // Warna (Putih/Normal)
         );
     }
 
-    // --- B. 3D Objects ---
+    // --- A. 3D Objects (Opaque) ---
+    // Render objek solid duluan agar Depth Buffer terisi dengan benar
     dc->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), nullptr, 0xFFFFFFFF);
     dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestAndWrite), 0);
     dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullBack));
 
     RenderScene(elapsedTime, targetCam);
+
+    // --- B. World Space Sprite (Transparent) ---
+    // Render sprite 3D setelah objek solid karena dia transparan.
+    if (m_spriteBorderBreaker)
+    {
+        // Setup State untuk Transparansi 3D
+        // TestNoWrite: Cek kedalaman (biar ketutup tembok), tapi jangan tulis depth (biar transparan)
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestOnly), 0);
+        dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullNone)); // None biar kelihatan bolak-balik
+
+        // ---------------------------------------------------------
+        // [FIX] GUNAKAN VARIABEL MEMBER DARI IMGUI (JANGAN HARDCODED)
+        // ---------------------------------------------------------
+
+        float worldX = m_spritePos.x;
+        float worldY = m_spritePos.y;
+        float worldZ = m_spritePos.z;
+
+        // 2. HITUNG UKURAN FINAL (Size * Scale)
+        // Ini kuncinya! Rasio tetap terjaga, tapi ukuran berubah sesuai Scale.
+        float finalW = m_spriteSize.x * m_spriteScale;
+        float finalH = m_spriteSize.y * m_spriteScale;
+
+        // 3. Ambil Rotasi
+        float pitch = XMConvertToRadians(m_spritePitch);
+        float yaw = XMConvertToRadians(m_spriteYaw);
+        float totalRoll = m_spriteRoll + m_bgRotation;
+        float roll = XMConvertToRadians(totalRoll);
+
+        // 4. Render dengan Final Size
+        m_spriteBorderBreaker->Render(
+            dc,
+            targetCam,
+            worldX, worldY, worldZ,
+            finalW, finalH,         // <--- Pakai variabel hasil perkalian tadi
+            pitch, yaw, roll,
+            bgSpriteColor.x, bgSpriteColor.y, bgSpriteColor.z, bgSpriteColor.w
+        );
+    }
 
     // --- C. Debug Shapes ---
     if (targetCam == mainCamera.get())
@@ -319,71 +359,40 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
     }
 
     // ---------------------------------------------------------
-    // 4. POST-PROCESSING PASS (LOGIC REFACTOR)
+    // 4. POST-PROCESSING PASS
     // ---------------------------------------------------------
     if (usePostProcess)
     {
-        // A. Kembali ke Back Buffer Asli (Layar)
         dc->OMSetRenderTargets(0, nullptr, nullptr);
         dc->OMSetRenderTargets(1, &originalRTV, originalDSV);
 
-        // B. Setup State untuk menggambar Full Screen Quad
         dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
         dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullNone));
         dc->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), nullptr, 0xFFFFFFFF);
 
-        // =========================================================
-        // [IMPORTANT] DATA FILTERING LOGIC
-        // Disini kita memanipulasi data sebelum dikirim ke GPU
-        // tanpa merusak data asli di GUI.
-        // =========================================================
-
-        // 1. Salin data asli dari GUI ke variabel temporary
         VignetteShader::VignetteData finalParams = vignetteParams;
-        finalParams.time = m_globalTime; // Selalu update waktu
+        finalParams.time = m_globalTime;
 
-        // 2. Cek filter "Vignette"
-        if (!m_fxState.EnableVignette)
-        {
-            finalParams.intensity = 0.0f; // Matikan efek visualnya
-            // Note: Kita tidak mengubah vignetteParams.intensity, jadi slider aman!
-        }
+        if (!m_fxState.EnableVignette) finalParams.intensity = 0.0f;
 
-        // 3. Cek filter "Lens Distortion"
         if (!m_fxState.EnableLens)
         {
-            finalParams.glitchStrength = 0.0f; // Fisheye
-            finalParams.distortion = 0.0f; // Edge warp
-            finalParams.blurStrength = 0.0f; // Chromatic Ab.
+            finalParams.glitchStrength = 0.0f;
+            finalParams.distortion = 0.0f;
+            finalParams.blurStrength = 0.0f;
         }
 
-        // 4. Cek filter "CRT / Scanline"
         if (!m_fxState.EnableCRT)
         {
             finalParams.scanlineStrength = 0.0f;
             finalParams.fineOpacity = 0.0f;
         }
 
-        // 5. Override Logika Animasi (Rolling Bar)
-        //if (m_fxState.EnableCRTRolling && m_fxState.EnableCRT)
-        //{
-        //    // Saat mode "On Air/Glitch" aktif, paksa scanline jadi tebal
-        //    finalParams.scanlineStrength = 0.8f;
-        //}
-
-        // =========================================================
-
-        // C. Kirim data yang SUDAH DIFILTER (finalParams) ke Shader
-        // Texture hasil render scene tadi (renderTargetTexture) dipakai sebagai input shader.
         vignetteShader->Draw(dc, shaderResourceView.Get(), finalParams);
-
-        // D. Bersihkan input resource
         dc->PSSetShaderResources(0, 1, nullSRVs);
     }
 
-    // ---------------------------------------------------------
-    // 5. CLEANUP
-    // ---------------------------------------------------------
+    // 5. Cleanup
     if (originalRTV) originalRTV->Release();
     if (originalDSV) originalDSV->Release();
 }
@@ -408,8 +417,8 @@ void SceneGameBreaker::CreateRenderTarget()
 {
     auto device = Graphics::Instance().GetDevice();
 
-    float screenW = 1280.0f;
-    float screenH = 720.0f;
+    float screenW = 1920;
+    float screenH = 1080;
     if (auto window = Framework::Instance()->GetMainWindow())
     {
         screenW = static_cast<float>(window->GetWidth());
@@ -442,7 +451,6 @@ void SceneGameBreaker::CreateRenderTarget()
 }
 
 // SceneGameBreaker.cpp
-
 void SceneGameBreaker::DrawGUI()
 {
     // Render Debug external (jika ada)
@@ -471,6 +479,9 @@ void SceneGameBreaker::DrawGUI()
             ImGui::EndTabBar();
         }
     }
+
+    GUISpriteTab();
+
     ImGui::End();
 }
 
@@ -744,6 +755,65 @@ void SceneGameBreaker::GUISectionHeader(const char* label)
     ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "%s", label);
     ImGui::Separator();
     ImGui::Spacing();
+}
+
+void SceneGameBreaker::GUISpriteTab()
+{
+    ImGui::Begin("Sprite Inspector");
+
+    if (ImGui::CollapsingHeader("World Decoration (Sprite 3D)", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Indent();
+
+        // 1. TRANSFORM
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), "TRANSFORM");
+        ImGui::DragFloat3("Position", &m_spritePos.x, 0.1f);
+
+        ImGui::Spacing();
+
+        // 2. SCALING SYSTEM (YANG KAMU MINTA)
+        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SIZE & RATIO");
+
+        // A. Master Scale: Ubah ini untuk membesarkan/mengecilkan objek TANPA STRETCH
+        ImGui::DragFloat("Master Scale (Total Size)", &m_spriteScale, 0.1f, 0.0f, 100.0f);
+
+        // B. Base Ratio: Ubah ini hanya jika ingin mengganti bentuk (Gepeng/Kotak)
+        ImGui::Text("Base Aspect Ratio (Shape)");
+        ImGui::DragFloat2("W : H", &m_spriteSize.x, 0.1f);
+
+        // Helper Buttons untuk Rasio Umum
+        if (ImGui::Button("Set 16:9 (Wide)")) {
+            m_spriteSize = { 16.0f, 9.0f };
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Set 4:3 (Retro)")) {
+            m_spriteSize = { 4.0f, 3.0f };
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Set 1:1 (Square)")) {
+            m_spriteSize = { 10.0f, 10.0f };
+        }
+
+        // Info Ukuran Final (Read Only)
+        ImGui::TextDisabled("Final Size: %.1f x %.1f",
+            m_spriteSize.x * m_spriteScale,
+            m_spriteSize.y * m_spriteScale);
+
+        ImGui::Spacing();
+        ImGui::Separator();
+
+        // 3. ROTATION
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), "ORIENTATION");
+        ImGui::SliderFloat("Pitch (Tidur)", &m_spritePitch, -180.0f, 180.0f);
+        ImGui::SliderFloat("Yaw (Putar)", &m_spriteYaw, -180.0f, 180.0f);
+        ImGui::SliderFloat("Roll (Miring)", &m_spriteRoll, -180.0f, 180.0f);
+
+        ImGui::Checkbox("Auto-Spin Animation", &m_isAnimating);
+
+        ImGui::Unindent();
+    }
+
+    ImGui::End();
 }
 
 void SceneGameBreaker::OnResize(int width, int height)

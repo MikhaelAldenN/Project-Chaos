@@ -51,7 +51,20 @@ private:
     // --- GUI Helpers ---
     void GUICameraTab();       // Tab Inspector: Kamera & Animasi
     void GUIPostProcessTab();  // Tab Inspector: Efek Visual & Filter
+	void GUISpriteTab();       // Tab Inspector: Sprite Border Breaker
     void GUISectionHeader(const char* label);
+
+    // =========================================================
+    // SPRITE CONTROLS
+    // =========================================================
+    DirectX::XMFLOAT3 m_spritePos = { 0.110f, 15.0f, 0.0f }; // Y = -5 biar ada di bawah objek game
+    DirectX::XMFLOAT2 m_spriteSize = { 16.0f, 9.0f };
+
+    // [BARU] Ini untuk memperbesar/memperkecil total ukurannya
+    float m_spriteScale = 0.460f;
+    float m_spritePitch = 90.0f; // Rotasi X (90 derajat = Tidur)
+    float m_spriteYaw = 0.0f;  // Rotasi Y
+    float m_spriteRoll = 0.0f;  // Rotasi Z (Spinning)
 
     // =========================================================
     // INTERNAL DATA STRUCTURES
@@ -96,7 +109,8 @@ private:
     // =========================================================
     // 3. GRAPHICS & POST-PROCESSING
     // =========================================================
-    std::unique_ptr<Sprite> m_backgroundSprite;
+    std::unique_ptr<Sprite> m_spriteBorderBreaker;
+    std::unique_ptr<Sprite> m_spriteDEBUG_LAYOUT;
 
     // Shader System
     std::unique_ptr<VignetteShader> vignetteShader;
@@ -119,7 +133,8 @@ private:
 
     // Visual Config
     DirectX::XMFLOAT4 bgSpriteColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-    const char* backgroundPath = "Data/Sprite/Placeholder/[PLACEHOLDER]Back_Title.png";
+    const char* pathBorderBreaker = "Data/Sprite/Scene Breaker/Sprite_BorderBreakertransparent.png";
+    const char* pathDEBUG_LAYOUT = "Data/Sprite/Placeholder/[PLACEHOLDER]Back_Title.png";
 
     // Animation Config
     float animDuration = 2.0f;
