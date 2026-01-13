@@ -238,42 +238,44 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
     auto dc = Graphics::Instance().GetDeviceContext();
     auto rs = Graphics::Instance().GetRenderState();
 
-    // Save the current Back Buffer (Screen) and Depth Buffer
+    // Simpan Back Buffer asli (Layar Monitor)
     ID3D11RenderTargetView* originalRTV = nullptr;
     ID3D11DepthStencilView* originalDSV = nullptr;
     dc->OMGetRenderTargets(1, &originalRTV, &originalDSV);
 
-    // Unbind all shader resources (Textures) to prevent "Read-While-Writing" hazards
+    // Lepas texture dari shader resource slot agar tidak crash (Read-Write hazard)
     ID3D11ShaderResourceView* nullSRVs[16] = { nullptr };
     dc->PSSetShaderResources(0, 16, nullSRVs);
 
     // ---------------------------------------------------------
-    // 2. DETERMINE RENDER TARGET
+    // 2. DETERMINE RENDER TARGET (LOGIC REFACTOR)
     // ---------------------------------------------------------
+    // Kita gunakan boolean Master Switch dari struct m_fxState
+    bool usePostProcess = m_fxState.MasterEnabled;
+
     ID3D11RenderTargetView* currentRTV = nullptr;
     ID3D11DepthStencilView* currentDSV = nullptr;
 
-    if (vignetteParams.enabled)
+    if (usePostProcess)
     {
-        // Post-Process Enabled
+        // Jika Efek NYALA: Gambar ke Texture Khusus (Off-Screen)
         currentRTV = renderTargetView.Get();
         currentDSV = depthStencilView.Get();
     }
     else
     {
-        // Post-Process Disabled
+        // Jika Efek MATI: Gambar langsung ke Layar
         currentRTV = originalRTV;
         currentDSV = originalDSV;
     }
 
-    // Bind the chosen target
+    // Bind target yang sudah dipilih
     dc->OMSetRenderTargets(1, &currentRTV, currentDSV);
 
-    // If using the Off-Screen Texture, clear it manually
-    if (vignetteParams.enabled)
+    // Jika menggambar ke Texture Off-Screen, kita harus bersihkan dulu (Clear)
+    if (usePostProcess)
     {
-        // Clear to Opaque Black
-        float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+        float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // Hitam transparan
         dc->ClearRenderTargetView(currentRTV, clearColor);
         dc->ClearDepthStencilView(currentDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
     }
@@ -282,15 +284,13 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
     // 3. RENDER GAME SCENE (Background & 3D Objects)
     // ---------------------------------------------------------
 
-    // --- Background Sprite (2D) ---
+    // --- A. Background Sprite (2D) ---
     if (m_backgroundSprite)
     {
-        // Setup states for 2D transparency
         dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
         dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
         dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullNone));
 
-        // Get current screen dimensions
         float screenW = 1280.0f;
         float screenH = 720.0f;
         if (auto window = Framework::Instance()->GetMainWindow())
@@ -305,49 +305,85 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
         );
     }
 
-    // --- Pass 2: 3D Objects ---
-    // Restore states for standard 3D rendering
+    // --- B. 3D Objects ---
     dc->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), nullptr, 0xFFFFFFFF);
     dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestAndWrite), 0);
     dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullBack));
 
     RenderScene(elapsedTime, targetCam);
 
-    // --- Debug Shapes (Main Camera Only) ---
+    // --- C. Debug Shapes ---
     if (targetCam == mainCamera.get())
     {
         Graphics::Instance().GetShapeRenderer()->Render(dc, targetCam->GetView(), targetCam->GetProjection());
     }
 
     // ---------------------------------------------------------
-    // 4. POST-PROCESSING 
+    // 4. POST-PROCESSING PASS (LOGIC REFACTOR)
     // ---------------------------------------------------------
-    // Only execute this pass if the effect is enabled
-    if (vignetteParams.enabled)
+    if (usePostProcess)
     {
-        // Switch back to the Screen (Back Buffer)
-        dc->OMSetRenderTargets(0, nullptr, nullptr); // Unbind current target
+        // A. Kembali ke Back Buffer Asli (Layar)
+        dc->OMSetRenderTargets(0, nullptr, nullptr);
         dc->OMSetRenderTargets(1, &originalRTV, originalDSV);
 
-        // Setup states for full-screen copy
+        // B. Setup State untuk menggambar Full Screen Quad
         dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
         dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullNone));
         dc->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), nullptr, 0xFFFFFFFF);
 
-        // Pass the timer to shader
-        vignetteParams.time = m_globalTime;
+        // =========================================================
+        // [IMPORTANT] DATA FILTERING LOGIC
+        // Disini kita memanipulasi data sebelum dikirim ke GPU
+        // tanpa merusak data asli di GUI.
+        // =========================================================
 
-        // Draw the Off-Screen Texture using the Vignette Shader
-        vignetteShader->Draw(dc, shaderResourceView.Get(), vignetteParams);
+        // 1. Salin data asli dari GUI ke variabel temporary
+        VignetteShader::VignetteData finalParams = vignetteParams;
+        finalParams.time = m_globalTime; // Selalu update waktu
 
-        // Cleanup resources
+        // 2. Cek filter "Vignette"
+        if (!m_fxState.EnableVignette)
+        {
+            finalParams.intensity = 0.0f; // Matikan efek visualnya
+            // Note: Kita tidak mengubah vignetteParams.intensity, jadi slider aman!
+        }
+
+        // 3. Cek filter "Lens Distortion"
+        if (!m_fxState.EnableLens)
+        {
+            finalParams.glitchStrength = 0.0f; // Fisheye
+            finalParams.distortion = 0.0f; // Edge warp
+            finalParams.blurStrength = 0.0f; // Chromatic Ab.
+        }
+
+        // 4. Cek filter "CRT / Scanline"
+        if (!m_fxState.EnableCRT)
+        {
+            finalParams.scanlineStrength = 0.0f;
+            finalParams.fineOpacity = 0.0f;
+        }
+
+        // 5. Override Logika Animasi (Rolling Bar)
+        //if (m_fxState.EnableCRTRolling && m_fxState.EnableCRT)
+        //{
+        //    // Saat mode "On Air/Glitch" aktif, paksa scanline jadi tebal
+        //    finalParams.scanlineStrength = 0.8f;
+        //}
+
+        // =========================================================
+
+        // C. Kirim data yang SUDAH DIFILTER (finalParams) ke Shader
+        // Texture hasil render scene tadi (renderTargetTexture) dipakai sebagai input shader.
+        vignetteShader->Draw(dc, shaderResourceView.Get(), finalParams);
+
+        // D. Bersihkan input resource
         dc->PSSetShaderResources(0, 1, nullSRVs);
     }
 
     // ---------------------------------------------------------
     // 5. CLEANUP
     // ---------------------------------------------------------
-    // Release references incremented by OMGetRenderTargets
     if (originalRTV) originalRTV->Release();
     if (originalDSV) originalDSV->Release();
 }
@@ -405,179 +441,309 @@ void SceneGameBreaker::CreateRenderTarget()
     device->CreateDepthStencilView(depthStencilTexture.Get(), nullptr, depthStencilView.ReleaseAndGetAddressOf());
 }
 
+// SceneGameBreaker.cpp
+
 void SceneGameBreaker::DrawGUI()
 {
-    auto& camCtrl = CameraController::Instance();
-    camCtrl.DrawDebugGUI();
+    // Render Debug external (jika ada)
+    CameraController::Instance().DrawDebugGUI();
 
-    ImGui::Begin("Game Breaker Debug");
-
-    if (ImGui::CollapsingHeader("Camera Control Center", ImGuiTreeNodeFlags_DefaultOpen))
+    // Setup Window Utama
+    ImGui::SetNextWindowSize(ImVec2(400, 600), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Scene Inspector", nullptr, ImGuiWindowFlags_NoSavedSettings))
     {
-        bool isBusy = camCtrl.IsTransitioning();
-        ImGui::TextColored(isBusy ? ImVec4(1, 1, 0, 1) : ImVec4(1, 1, 1, 1),
-            "Status: %s", isBusy ? "TRANSITIONING..." : "IDLE");
-
-        ImGui::SliderFloat("Transition Time", &transitionDuration, 0.1f, 5.0f);
-        const char* easingItems[] = { "Linear", "EaseIn", "EaseOut", "SmoothStep" };
-        ImGui::Combo("Easing", &currentEasingIndex, easingItems, IM_ARRAYSIZE(easingItems));
-
-        ImGui::Separator();
-
-        static int selectedCamIdx = 0;
-        ImGui::Text("Select Target Data:");
-        ImGui::RadioButton("Pose A", &selectedCamIdx, 0); ImGui::SameLine();
-        ImGui::RadioButton("Pose B", &selectedCamIdx, 1); ImGui::SameLine();
-        ImGui::RadioButton("Pose C", &selectedCamIdx, 2);
-
-        ImGui::Spacing();
-
-        // [UPDATE] Menggunakan StartPathTransition dengan Vector of Structs
-        if (ImGui::Button("Go To Selected Pose", ImVec2(-1, 30)))
+        if (ImGui::BeginTabBar("InspectorTabs"))
         {
-            EasingType type = static_cast<EasingType>(currentEasingIndex);
-            std::vector<CameraKeyframe> path;
-
-            // Masukkan posisi awal (Current Camera) sebagai titik start
-            if (auto currentCam = camCtrl.GetActiveCamera())
+            // TAB 1: CAMERA CONTROLS
+            if (ImGui::BeginTabItem("Camera & Motion"))
             {
-                path.emplace_back(currentCam->GetPosition(), currentCam->GetRotation());
+                GUICameraTab();
+                ImGui::EndTabItem();
             }
 
-            // Masukkan target
-            switch (selectedCamIdx) {
-            case 0: path.push_back(m_poseA); break;
-            case 1: path.push_back(m_poseB); break;
-            case 2: path.push_back(m_poseC); break;
+            // TAB 2: POST PROCESSING
+            if (ImGui::BeginTabItem("Post-Process & FX"))
+            {
+                GUIPostProcessTab();
+                ImGui::EndTabItem();
             }
 
-            camCtrl.StartPathTransition(path, transitionDuration, type);
+            ImGui::EndTabBar();
         }
+    }
+    ImGui::End();
+}
 
-        if (ImGui::Button("Play Sequence: A -> B -> C", ImVec2(-1, 30)))
+// =========================================================
+// HELPER: CAMERA TAB
+// =========================================================
+void SceneGameBreaker::GUICameraTab()
+{
+    auto& camCtrl = CameraController::Instance();
+
+    // --- STATUS DISPLAY ---
+    ImGui::Spacing();
+    bool isBusy = camCtrl.IsTransitioning();
+    float progress = 0.0f; // Jika camCtrl punya GetProgress(), bisa dipasang disini
+
+    // Tampilan Status Bar
+    ImGui::BeginGroup();
+    {
+        ImGui::Text("Status:"); ImGui::SameLine();
+        if (isBusy)
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "[ TRANSITIONING ]");
+        else
+            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.2f, 1.0f), "[ IDLE ]");
+    }
+    ImGui::EndGroup();
+
+    ImGui::Separator();
+
+    // --- TRANSITION SETTINGS ---
+    GUISectionHeader("Transition Settings");
+
+    ImGui::DragFloat("Duration (s)", &transitionDuration, 0.1f, 0.1f, 10.0f, "%.1fs");
+
+    const char* easingItems[] = { "Linear", "EaseIn", "EaseOut", "SmoothStep" };
+    ImGui::Combo("Easing Type", &currentEasingIndex, easingItems, IM_ARRAYSIZE(easingItems));
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    // --- KEYFRAME SELECTOR ---
+    GUISectionHeader("Keyframe Targets");
+
+    static int selectedCamIdx = 0;
+
+    // Gunakan Button Grid daripada Radio Button biasa agar lebih rapi
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
+    if (ImGui::RadioButton("Pose A (Start)", &selectedCamIdx, 0)) {} ImGui::SameLine();
+    if (ImGui::RadioButton("Pose B (Mid)", &selectedCamIdx, 1)) {} ImGui::SameLine();
+    if (ImGui::RadioButton("Pose C (End)", &selectedCamIdx, 2)) {}
+    ImGui::PopStyleVar();
+
+    ImGui::Spacing();
+
+    // Action Buttons (Full Width)
+    if (ImGui::Button("Move To Selected Pose", ImVec2(-1, 0)))
+    {
+        EasingType type = static_cast<EasingType>(currentEasingIndex);
+        std::vector<CameraKeyframe> path;
+
+        if (auto currentCam = camCtrl.GetActiveCamera())
         {
-            // Kirim semua struct ke controller
-            std::vector<CameraKeyframe> path = { m_poseA, m_poseB, m_poseC };
-            camCtrl.StartPathTransition(path, transitionDuration, static_cast<EasingType>(currentEasingIndex));
-            selectedCamIdx = 2;
+            path.emplace_back(currentCam->GetPosition(), currentCam->GetRotation());
         }
-
-        ImGui::Separator();
-
-        // --------------------------------------------------------
-        // LIVE DATA EDITOR (Langsung edit Struct)
-        // --------------------------------------------------------
-        CameraKeyframe* targetPose = nullptr;
-        const char* label = "Unknown";
 
         switch (selectedCamIdx) {
-        case 0: targetPose = &m_poseA; label = "POSE A"; break;
-        case 1: targetPose = &m_poseB; label = "POSE B"; break;
-        case 2: targetPose = &m_poseC; label = "POSE C"; break;
+        case 0: path.push_back(m_poseA); break;
+        case 1: path.push_back(m_poseB); break;
+        case 2: path.push_back(m_poseC); break;
         }
-
-        if (targetPose)
-        {
-            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "EDITING DATA: %s", label);
-            bool changed = false;
-
-            // A. Edit Position
-            if (ImGui::DragFloat3("Position", &targetPose->Position.x, 0.1f)) changed = true;
-
-            // B. Edit Target LookAt (Data only)
-            if (ImGui::DragFloat3("Look At Target", &targetPose->TargetLookAt.x, 0.1f)) changed = true;
-
-            // C. Edit Roll
-            float rollDeg = XMConvertToDegrees(targetPose->Rotation.z);
-            if (ImGui::SliderFloat("Roll (Tilt)", &rollDeg, -180.0f, 180.0f)) {
-                targetPose->Rotation.z = XMConvertToRadians(rollDeg);
-                changed = true;
-            }
-
-            // WYSIWYG Logic: Update kamera utama jika sedang mengedit
-            if (changed || ImGui::IsItemActive())
-            {
-                // Kita pinjam mainCamera sebentar untuk hitung rotasi LookAt baru
-                mainCamera->SetPosition(targetPose->Position);
-                mainCamera->LookAt(targetPose->TargetLookAt);
-
-                // Ambil rotasi hasil LookAt, lalu timpa Z-nya dengan settingan Roll kita
-                XMFLOAT3 calcRot = mainCamera->GetRotation();
-                calcRot.z = targetPose->Rotation.z;
-
-                // Simpan balik ke struct agar konsisten
-                targetPose->Rotation = calcRot;
-
-                // Update Controller agar visual di layar berubah
-                camCtrl.SetFixedSetting(targetPose->Position);
-                camCtrl.SetTarget(targetPose->TargetLookAt);
-                camCtrl.SetFixedRollOffset(calcRot.z);
-
-                // Pastikan kamera di posisi yang benar
-                mainCamera->SetRotation(calcRot);
-            }
-        }
+        camCtrl.StartPathTransition(path, transitionDuration, type);
     }
 
-
-    if (ImGui::CollapsingHeader("Vignette Settings", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::Button("Play Sequence (A -> B -> C)", ImVec2(-1, 0)))
     {
-        ImGui::Checkbox("Use Vignette", &vignetteParams.enabled);
-
-        if (vignetteParams.enabled)
-        {
-            ImGui::ColorEdit3("Color", &vignetteParams.color.x);
-            ImGui::SliderFloat2("Center", &vignetteParams.center.x, 0.0f, 1.0f);
-            ImGui::SliderFloat("Intensity", &vignetteParams.intensity, 0.0f, 1.0f);
-            ImGui::SliderFloat("Smoothness", &vignetteParams.smoothness, 0.0f, 1.0f);
-            ImGui::Checkbox("Rounded", &vignetteParams.rounded);
-            ImGui::SliderFloat("Roundness", &vignetteParams.roundness, 0.0f, 1.0f);
-            ImGui::Separator();
-
-            ImGui::Text("Lens Effects");
-            ImGui::SliderFloat("Blur Amount", &vignetteParams.blurStrength, 0.0f, 0.05f);
-            ImGui::SliderFloat("Fish Eye (Distortion)", &vignetteParams.distortion, -0.1f, 0.15f);
-            ImGui::Separator();
-
-            ImGui::Text("CRT Effects");
-            ImGui::Checkbox("AUTO PLAY GLITCH", &m_isGlitching);
-            if (m_isGlitching)
-            {
-                // 1. SCANLINE / HUM BAR
-                // Set to a fixed high visibility.
-                // The movement is handled by "Time" in the shader, so we don't need to change this value.
-                vignetteParams.scanlineStrength = 0.8f;
-
-                // 2. DISABLE SHAKE (Clean Look)
-                // You requested "No shake at all", so we force this to 0.
-                vignetteParams.glitchStrength = 0.0f;
-
-                ImGui::SameLine();
-                ImGui::TextColored(ImVec4(0, 1, 0, 1), " << ROLLING >> ");
-            }
-
-            // Sliders 
-            ImGui::SliderFloat("Glitch Shake", &vignetteParams.glitchStrength, 0.0f, 1.0f);
-            // ROLLING BAR SETTINGS
-            ImGui::Separator();
-            ImGui::Text("Rolling Bar (Animation)");
-            ImGui::SliderFloat("Roll Opacity", &vignetteParams.scanlineStrength, 0.0f, 1.0f);
-            ImGui::SliderFloat("Roll Speed", &vignetteParams.scanlineSpeed, -10.0f, 10.0f);
-            ImGui::SliderFloat("Roll Sharpness", &vignetteParams.scanlineSize, 1.0f, 100.0f);
-
-            // FINE MESH SETTINGS
-            ImGui::Separator();
-            ImGui::Text("CRT Mesh (Background)");
-            ImGui::SliderFloat("Mesh Opacity", &vignetteParams.fineOpacity, 0.0f, 1.0f);
-            ImGui::SliderFloat("Mesh Density", &vignetteParams.fineDensity, 10.0f, 100.0f);
-        }
-        else
-        {
-            ImGui::TextDisabled("Settings are hidden while disabled.");
-        }
+        std::vector<CameraKeyframe> path = { m_poseA, m_poseB, m_poseC };
+        camCtrl.StartPathTransition(path, transitionDuration, static_cast<EasingType>(currentEasingIndex));
+        selectedCamIdx = 2; // Auto select end
     }
 
-    ImGui::End();
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    // --- LIVE EDITOR ---
+    CameraKeyframe* targetPose = nullptr;
+    const char* label = "None";
+    ImVec4 labelColor = ImVec4(1, 1, 1, 1);
+
+    switch (selectedCamIdx) {
+    case 0: targetPose = &m_poseA; label = "POSE A"; labelColor = ImVec4(0.4f, 0.8f, 1.0f, 1.0f); break;
+    case 1: targetPose = &m_poseB; label = "POSE B"; labelColor = ImVec4(0.4f, 1.0f, 0.4f, 1.0f); break;
+    case 2: targetPose = &m_poseC; label = "POSE C"; labelColor = ImVec4(1.0f, 0.6f, 0.4f, 1.0f); break;
+    }
+
+    if (targetPose)
+    {
+        GUISectionHeader("Live Editor");
+        ImGui::TextColored(labelColor, "EDITING: %s", label);
+
+        ImGui::Indent();
+        bool changed = false;
+
+        if (ImGui::DragFloat3("Position", &targetPose->Position.x, 0.05f)) changed = true;
+        if (ImGui::DragFloat3("Target LookAt", &targetPose->TargetLookAt.x, 0.05f)) changed = true;
+
+        float rollDeg = XMConvertToDegrees(targetPose->Rotation.z);
+        if (ImGui::SliderFloat("Roll Angle", &rollDeg, -180.0f, 180.0f, "%.0f deg")) {
+            targetPose->Rotation.z = XMConvertToRadians(rollDeg);
+            changed = true;
+        }
+        ImGui::Unindent();
+
+        // WYSIWYG Logic
+        if (changed || ImGui::IsItemActive())
+        {
+            // Update temporary logic
+            mainCamera->SetPosition(targetPose->Position);
+            mainCamera->LookAt(targetPose->TargetLookAt);
+
+            XMFLOAT3 calcRot = mainCamera->GetRotation();
+            calcRot.z = targetPose->Rotation.z;
+
+            // Simpan kembali rotasi yang sudah dihitung
+            targetPose->Rotation = calcRot;
+
+            // Update visual controller
+            camCtrl.SetFixedSetting(targetPose->Position);
+            camCtrl.SetTarget(targetPose->TargetLookAt);
+            camCtrl.SetFixedRollOffset(calcRot.z);
+
+            mainCamera->SetRotation(calcRot);
+        }
+    }
+}
+
+// =========================================================
+// HELPER: POST PROCESS TAB
+// =========================================================
+void SceneGameBreaker::GUIPostProcessTab()
+{
+    // =========================================================
+    // MASTER SWITCH
+    // =========================================================
+    ImGui::Spacing();
+
+    if (m_fxState.MasterEnabled) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.2f, 0.2f, 1.0f));
+        if (ImGui::Button("Turn Off Filter", ImVec2(-1, 40))) {
+            m_fxState.MasterEnabled = false;
+        }
+        ImGui::PopStyleColor();
+    }
+    else {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.6f, 0.2f, 1.0f));
+        if (ImGui::Button("Turn On Filter", ImVec2(-1, 40))) {
+            m_fxState.MasterEnabled = true;
+        }
+        ImGui::PopStyleColor();
+    }
+
+    ImGui::Separator();
+
+    if (!m_fxState.MasterEnabled)
+    {
+        ImGui::TextDisabled("Post-processing pipeline is bypassed.");
+        return;
+    }
+
+    // =========================================================
+    // 1. VIGNETTE & COLOR GRADING
+    // =========================================================
+    if (ImGui::CollapsingHeader("Vignette & Color", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Indent();
+
+        // Checkbox Utama
+        ImGui::Checkbox("ACTIVATE: Vignette Layer", &m_fxState.EnableVignette);
+        ImGui::Spacing();
+
+        // --- PENGGANTI BeginDisabled ---
+        // Jika fitur MATI, kita buat tampilannya jadi transparan (0.5) agar terlihat "Disabled"
+        if (!m_fxState.EnableVignette) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
+
+        // Code Slider tetap sama
+        ImGui::ColorEdit3("Tint Color", &vignetteParams.color.x);
+        ImGui::SliderFloat("Intensity", &vignetteParams.intensity, 0.0f, 3.0f);
+        ImGui::SliderFloat("Smoothness", &vignetteParams.smoothness, 0.01f, 1.0f);
+        ImGui::SliderFloat2("Center", &vignetteParams.center.x, 0.0f, 1.0f);
+
+        ImGui::Spacing();
+        ImGui::Checkbox("Rounded Mask", &vignetteParams.rounded);
+        if (vignetteParams.rounded) {
+            ImGui::SliderFloat("Roundness", &vignetteParams.roundness, 0.0f, 1.0f);
+        }
+
+        // --- PENGGANTI EndDisabled ---
+        // Kembalikan transparansi ke normal
+        if (!m_fxState.EnableVignette) ImGui::PopStyleVar();
+
+        ImGui::Unindent();
+    }
+
+    // =========================================================
+    // 2. LENS DISTORTION (FISHEYE)
+    // =========================================================
+    if (ImGui::CollapsingHeader("Lens Distortion"))
+    {
+        ImGui::Indent();
+
+        ImGui::Checkbox("ACTIVATE: Lens Layer", &m_fxState.EnableLens);
+        ImGui::Spacing();
+
+        // --- Manual Disable Effect ---
+        if (!m_fxState.EnableLens) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
+
+        ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "Geometry");
+        ImGui::SliderFloat("Fisheye", &vignetteParams.glitchStrength, 0.0f, 1.0f);
+
+        ImGui::Spacing();
+        ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "Aberration");
+        ImGui::SliderFloat("Chroma Blur", &vignetteParams.blurStrength, 0.0f, 0.05f, "%.4f");
+
+        if (!m_fxState.EnableLens) ImGui::PopStyleVar();
+        // -----------------------------
+
+        ImGui::Unindent();
+    }
+
+    // =========================================================
+    // 3. CRT & SCANLINES
+    // =========================================================
+    if (ImGui::CollapsingHeader("CRT Monitor Effect"))
+    {
+        ImGui::Indent();
+
+        ImGui::Checkbox("ACTIVATE: CRT Layer", &m_fxState.EnableCRT);
+        ImGui::Spacing();
+
+        // --- Manual Disable Effect ---
+        if (!m_fxState.EnableCRT) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
+
+        ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Scanlines");
+        ImGui::SliderFloat("Density", &vignetteParams.fineDensity, 10.0f, 500.0f);
+        ImGui::SliderFloat("Opacity ", &vignetteParams.fineOpacity, 0.0f, 1.0f);
+
+        ImGui::Separator();
+
+        ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Rolling Scanline");
+        ImGui::SliderFloat("Speed", &vignetteParams.scanlineSpeed, -10.0f, 10.0f);
+        ImGui::SliderFloat("Size", &vignetteParams.scanlineSize, 1.0f, 150.0f);
+        ImGui::SliderFloat("Opacity", &vignetteParams.scanlineStrength, 0.0f, 1.0f);
+        
+        ImGui::Separator();
+        
+        ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Distortion");
+        ImGui::SliderFloat("CRT Distortion", &vignetteParams.distortion, -0.5f, 0.5f);
+
+
+        if (!m_fxState.EnableCRT) ImGui::PopStyleVar();
+        // -----------------------------
+
+        ImGui::Unindent();
+    }
+}
+
+// =========================================================
+// HELPER: UTILITY
+// =========================================================
+void SceneGameBreaker::GUISectionHeader(const char* label)
+{
+    ImGui::Spacing();
+    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "%s", label);
+    ImGui::Separator();
+    ImGui::Spacing();
 }
 
 void SceneGameBreaker::OnResize(int width, int height)
