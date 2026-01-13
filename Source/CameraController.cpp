@@ -53,6 +53,9 @@ void CameraController::StartTransition(Camera* targetCamSettings, float duration
         previousMode = controlMode;
     }
 
+    fixedRollOffset = targetCamSettings->GetRotation().z;
+    fixedYawOffset = 0.0f;
+
     // Set Mode ke Transition
     controlMode = CameraControlMode::Transition;
 
@@ -142,13 +145,12 @@ void CameraController::Update(float elapsedTime)
         // Selesai Transisi?
         if (t >= 1.0f)
         {
-            // Kembalikan ke mode FixedStatic (atau biarkan Transition state jika ingin diam)
-            // Untuk kasus ini, kita set ke FixedStatic agar bisa dikontrol lagi jika perlu,
-            // tapi kita update 'fixedPosition' agar sinkron dengan posisi akhir.
             controlMode = CameraControlMode::FixedStatic;
             fixedPosition = finalPos;
-            target = activeCamera->GetFocus(); // Hacky, sebaiknya maintain target yang benar
-            angle = activeCamera->GetRotation();
+            target = activeCamera->GetFocus(); // Hacky tapi oke untuk sekarang
+
+            // [BARU] Pastikan rotasi akhir tersinkronisasi
+            // Tidak perlu set 'angle' manual karena FixedStatic akan pakai LookAt + Offset
             transition.active = false;
         }
         break;
@@ -169,6 +171,7 @@ void CameraController::Update(float elapsedTime)
 
     case CameraControlMode::FixedStatic:
     {
+        // 1. Hitung Posisi Target + Offset
         XMVECTOR vTarget = XMLoadFloat3(&target);
         XMVECTOR vOffset = XMLoadFloat3(&m_targetOffset);
         XMVECTOR vFinalTarget = XMVectorAdd(vTarget, vOffset);
@@ -177,11 +180,21 @@ void CameraController::Update(float elapsedTime)
         XMStoreFloat3(&finalTargetPos, vFinalTarget);
 
         activeCamera->SetPosition(fixedPosition);
+
+        // 2. LookAt standar (Ini akan mereset Roll jadi 0)
         activeCamera->LookAt(finalTargetPos);
-        if (fixedYawOffset != 0.0f)
+
+        // [BARU & PENTING] Re-Apply Roll dan Yaw Offset
+        if (fixedYawOffset != 0.0f || fixedRollOffset != 0.0f)
         {
             XMFLOAT3 currentRot = activeCamera->GetRotation();
-            currentRot.y += fixedYawOffset; 
+
+            // Tambahkan Yaw (jika ada animasi putar)
+            currentRot.y += fixedYawOffset;
+
+            // Force Roll sesuai settingan (misal 90 derajat dari Camera B)
+            currentRot.z = fixedRollOffset;
+
             activeCamera->SetRotation(currentRot);
         }
     }

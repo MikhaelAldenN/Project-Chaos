@@ -27,7 +27,6 @@ public:
     void OnResize(int width, int height) override;
 
     Camera* GetMainCamera() const { return mainCamera; }
-    Camera* GetSubCamera() const { return subCamera; }
 
 private:
     void RenderScene(float elapsedTime, Camera* camera);
@@ -45,9 +44,20 @@ private:
     std::unique_ptr<BlockManager> blockManager;
 
     // --- Cameras ---
-    Camera* mainCamera = nullptr;
-    Camera* subCamera = nullptr;
-    std::vector<Camera*> additionalCameras;
+    Camera* mainCamera = nullptr; // Kamera aktif (The Eye)
+
+    // --- NEW: Camera Anchors (Titik Patokan) ---
+    Camera* camSettingA = nullptr; // Posisi Awal
+    Camera* camSettingB = nullptr; // Posisi Modifikasi (Roll 90, dll)
+
+    // Data Target LookAt (Agar bisa diedit terpisah)
+    DirectX::XMFLOAT3 targetA;
+    DirectX::XMFLOAT3 targetB;
+
+    // State GUI
+    bool isCameraInverted = false; // False = A, True = B
+    float transitionDuration = 1.5f;
+    int currentEasingIndex = 3; // SmoothStep
 
     // --- Windows ---
     GameWindow* trackingWindow = nullptr;

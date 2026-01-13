@@ -19,16 +19,54 @@ SceneGameBreaker::SceneGameBreaker()
     }
 
     // --------------------------------------------------------
-    // Initialize Camera 
-    // --------------------------------------------------------
+        // Initialize Main Camera 
+        // --------------------------------------------------------
     mainCamera = new Camera();
     mainCamera->SetPerspectiveFov(XMConvertToRadians(initialFOV), screenW / screenH, cameraNearZ, cameraFarZ);
 
     auto& camCtrl = CameraController::Instance();
     camCtrl.SetActiveCamera(mainCamera);
+
+    // Set awal ke FixedStatic
     camCtrl.SetControlMode(CameraControlMode::FixedStatic);
     camCtrl.SetFixedSetting(cameraPosition);
     camCtrl.SetTarget(cameraTarget);
+
+    // --------------------------------------------------------
+    // SETUP 2 KAMERA (ANCHORS)
+    // --------------------------------------------------------
+
+// --- Camera A (Posisi Normal) ---
+    camSettingA = new Camera();
+
+    // [FIX 1] Hindari posisi (0, X, 0) pas. Geser 0.01f biar matematika aman (Gimbal Lock Prevention)
+    XMFLOAT3 safePosA = cameraPosition;
+    safePosA.z = -0.01f;
+    camSettingA->SetPosition(safePosA);
+
+    targetA = cameraTarget;
+    camSettingA->LookAt(targetA); // Roll otomatis 0
+
+    // --- Camera B (Custom View) ---
+    camSettingB = new Camera();
+
+    // [FIX 2] Jangan main Roll kalau cuma mau ganti angle pandang.
+    // Mainkan Posisi X dan Y-nya.
+    XMFLOAT3 posB = cameraPosition;
+    posB.x = -8.0f;       // Geser ke kiri
+    posB.y = 12.0f;       // Turun sedikit
+    posB.z = -6.0f;       // Mundur sedikit
+    camSettingB->SetPosition(posB);
+
+    targetB = cameraTarget;
+    camSettingB->LookAt(targetB);
+
+    // [PENTING] HAPUS ATAU UBAH BAGIAN INI
+    // Roll 90 derajat bikin dunia jadi vertikal (seperti screenshot kamu).
+    // Kalau mau normal (lantai di bawah), pastikan Roll 0.
+    XMFLOAT3 rotB = camSettingB->GetRotation();
+    rotB.z = 0.0f; // <--- Set ke 0 agar tidak miring aneh
+    camSettingB->SetRotation(rotB);
 
     // --------------------------------------------------------
     // Initialize Assets
@@ -57,6 +95,7 @@ SceneGameBreaker::SceneGameBreaker()
 
 SceneGameBreaker::~SceneGameBreaker()
 {
+    CameraController::Instance().ClearCamera();
     if (mainCamera) delete mainCamera;
     if (player) delete player;
     if (paddle) delete paddle;
@@ -70,10 +109,10 @@ void SceneGameBreaker::Update(float elapsedTime)
     // --------------------------------------------------------
     // HANDLE ANIMATION (TRANSITION)
     // --------------------------------------------------------
-    if (m_isAnimating)
-    {
-        UpdateAnimation(elapsedTime);
-    }
+    //if (m_isAnimating)
+    //{
+    //    UpdateAnimation(elapsedTime);
+    //}
 
     // --------------------------------------------------------
     // Update Paddle & AI
@@ -353,6 +392,124 @@ void SceneGameBreaker::DrawGUI()
     CameraController::Instance().DrawDebugGUI();
     ImGui::Begin("Scene Debug");
     
+    // --------------------------------------------------------
+    // CAMERA SWITCHER SYSTEM
+    // --------------------------------------------------------
+    if (ImGui::CollapsingHeader("Camera Switcher (A/B)", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        // Safety Check
+        if (camSettingA && camSettingB)
+        {
+            ImGui::Text("Current State: %s", isCameraInverted ? "CAMERA B (Mod)" : "CAMERA A (Normal)");
+
+            // Settings
+            ImGui::SliderFloat("Transition Time", &transitionDuration, 0.1f, 5.0f);
+            const char* easingItems[] = { "Linear", "EaseIn", "EaseOut", "SmoothStep" };
+            ImGui::Combo("Easing Type", &currentEasingIndex, easingItems, IM_ARRAYSIZE(easingItems));
+
+            ImGui::Spacing();
+
+            // SWITCH BUTTON
+            if (ImGui::Button(isCameraInverted ? "Go to Camera A" : "Go to Camera B", ImVec2(-1, 40)))
+            {
+                auto& camCtrl = CameraController::Instance();
+                EasingType type = static_cast<EasingType>(currentEasingIndex);
+
+                if (isCameraInverted)
+                {
+                    // Balik ke A
+                    camCtrl.StartTransition(camSettingA, transitionDuration, type);
+                    isCameraInverted = false;
+                }
+                else
+                {
+                    // Ke B
+                    camCtrl.StartTransition(camSettingB, transitionDuration, type);
+                    isCameraInverted = true;
+                }
+            }
+
+            ImGui::Separator();
+
+            // ------------------------------------------
+            // EDIT CAMERA A
+            // ------------------------------------------
+            if (ImGui::TreeNode("Edit Camera A (Normal)"))
+            {
+                bool changed = false;
+
+                // Edit Posisi
+                XMFLOAT3 posA = camSettingA->GetPosition();
+                if (ImGui::DragFloat3("Position A", &posA.x, 0.1f)) {
+                    camSettingA->SetPosition(posA);
+                    changed = true;
+                }
+
+                // Edit LookAt Target
+                if (ImGui::DragFloat3("LookAt Target A", &targetA.x, 0.1f)) {
+                    changed = true;
+                }
+
+                // Apply changes
+                if (changed) {
+                    camSettingA->LookAt(targetA);
+                    // Roll Camera A default 0, tidak perlu diubah
+                }
+
+                ImGui::TreePop();
+            }
+
+            // ------------------------------------------
+                        // EDIT CAMERA B
+                        // ------------------------------------------
+            if (ImGui::TreeNode("Edit Camera B"))
+            {
+                bool changed = false;
+
+                // Edit Posisi
+                XMFLOAT3 posB = camSettingB->GetPosition();
+                if (ImGui::DragFloat3("Position B", &posB.x, 0.1f)) {
+                    camSettingB->SetPosition(posB);
+                    changed = true;
+                }
+
+                // Edit LookAt Target
+                if (ImGui::DragFloat3("LookAt Target B", &targetB.x, 0.1f)) {
+                    changed = true;
+                }
+
+                // [BARU] Slider Manual untuk Roll
+                // Biar kamu bisa lihat bedanya Roll 0 vs Roll 90 secara live
+                XMFLOAT3 currentRot = camSettingB->GetRotation();
+                float rollDeg = XMConvertToDegrees(currentRot.z);
+                if (ImGui::SliderFloat("Roll (Tilt)", &rollDeg, -180.0f, 180.0f))
+                {
+                    // Kita set manual tanpa mengubah 'changed' ke true
+                    // karena kita mau override hasil LookAt
+                    currentRot.z = XMConvertToRadians(rollDeg);
+                    camSettingB->SetRotation(currentRot);
+                }
+
+                // Apply LookAt changes (hanya kalau posisi berubah)
+                if (changed) {
+                    camSettingB->LookAt(targetB);
+
+                    // KITA PERTAHANKAN ROLL DARI SLIDER
+                    // Karena LookAt akan mereset Roll ke 0
+                    XMFLOAT3 r = camSettingB->GetRotation();
+                    r.z = XMConvertToRadians(rollDeg);
+                    camSettingB->SetRotation(r);
+                }
+
+                ImGui::TreePop();
+            }
+        }
+        else
+        {
+            ImGui::TextColored(ImVec4(1, 0, 0, 1), "Error: Camera Settings Null!");
+        }
+    }
+
     if (ImGui::CollapsingHeader("Vignette Settings", ImGuiTreeNodeFlags_DefaultOpen))
     {
         ImGui::Checkbox("Use Vignette", &vignetteParams.enabled);

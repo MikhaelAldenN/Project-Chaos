@@ -39,6 +39,7 @@ public:
     void SetTargetOffset(const DirectX::XMFLOAT3& offset) { m_targetOffset = offset; }
     void SetFixedSetting(const DirectX::XMFLOAT3& value);
     void SetFixedYawOffset(float radians) { fixedYawOffset = radians; }
+    void SetFixedRollOffset(float radians) { fixedRollOffset = radians; }
     void SetControlMode(CameraControlMode mode);
     CameraControlMode GetControlMode() const { return controlMode; }
     void ClearCamera() { activeCamera = nullptr; }
@@ -70,6 +71,7 @@ private:
     DirectX::XMFLOAT3 fixedPosition = { 0.0f, 15.0f, -10.0f };
     DirectX::XMFLOAT3 m_targetOffset = { 0.0f, 0.0f, 0.0f };
     float fixedYawOffset = 0.0f;
+    float fixedRollOffset = 0.0f;
     float moveSpeed = 15.0f;
     float rollSpeed = DirectX::XMConvertToRadians(90);
     float range = 10.0f;
