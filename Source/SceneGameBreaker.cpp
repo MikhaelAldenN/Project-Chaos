@@ -39,6 +39,19 @@ SceneGameBreaker::SceneGameBreaker()
     camCtrl.SetFixedSetting(startPos);
     camCtrl.SetTarget(cameraTarget);
 
+
+    // --------------------------------------------------------
+    // SETUP CAMERA SCENARIO (A, B, C)
+    // --------------------------------------------------------
+    // Point A (Posisi Awal)
+    m_camScenarioPoints.push_back({ "Point A (Start)", {0.0f, 20.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, 2.0f, EasingType::SmoothStep });
+
+    // Point B (Turun sedikit)
+    m_camScenarioPoints.push_back({ "Point B (Mid)",   {0.0f, 15.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, 2.0f, EasingType::SmoothStep });
+
+    // Point C (Close Up)
+    m_camScenarioPoints.push_back({ "Point C (Low)",   {0.0f, 5.0f, 0.0f},  {0.0f, 0.0f, 0.0f}, 3.0f, EasingType::EaseOutQuad });
+
     // --------------------------------------------------------
     // Initialize Assets
     // --------------------------------------------------------
@@ -352,19 +365,28 @@ void SceneGameBreaker::CreateRenderTarget()
 // SceneGameBreaker.cpp GUI
 void SceneGameBreaker::DrawGUI()
 {
+    // 1. Debug Controller (Window Terpisah)
     CameraController::Instance().DrawDebugGUI();
 
+    // 2. Window Utama "Scene Inspector"
     ImGui::SetNextWindowSize(ImVec2(400, 600), ImGuiCond_FirstUseEver);
+
+    // KITA BUKA WINDOW DI SINI
     if (ImGui::Begin("Scene Inspector", nullptr, ImGuiWindowFlags_NoSavedSettings))
     {
         if (ImGui::BeginTabBar("InspectorTabs"))
         {
+            // --- TAB 1: CAMERA ---
             if (ImGui::BeginTabItem("Camera Info"))
             {
+                // PENTING: Panggil GUICameraTab DI SINI!
+                // (Karena dia butuh window "Scene Inspector" yang sedang aktif)
                 GUICameraTab();
+
                 ImGui::EndTabItem();
             }
 
+            // --- TAB 2: POST PROCESS ---
             if (ImGui::BeginTabItem("Post-Process & FX"))
             {
                 GUIPostProcessTab();
@@ -374,29 +396,101 @@ void SceneGameBreaker::DrawGUI()
             ImGui::EndTabBar();
         }
     }
-
-    GUISpriteTab();
+    // KITA TUTUP WINDOW DI SINI
     ImGui::End();
+
+
+    // 3. Window Sprite (Window Terpisah)
+    // Panggil ini DI LUAR window Scene Inspector karena dia bikin window sendiri
+    GUISpriteTab();
 }
 
 void SceneGameBreaker::GUICameraTab()
 {
-    // Simplified: Just show basic info
-    ImGui::Text("Camera Transitions removed.");
-    ImGui::Text("Mode: Static / Follow only.");
+    auto& camCtrl = CameraController::Instance();
+
+    ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "SEQUENCE EDITOR");
+    ImGui::Separator();
+
+    // 1. Play Button
+    if (ImGui::Button("PLAY SEQUENCE (A -> B -> C)", ImVec2(-1, 40)))
+    {
+        std::vector<CameraKeyframe> sequence;
+
+        // Konversi data Editor (Pos + Target) menjadi data Engine (Pos + Rotation)
+        for (const auto& point : m_camScenarioPoints)
+        {
+            CameraKeyframe key;
+            key.TargetPosition = point.Position;
+            key.TargetRotation = CalculateRotationFromTarget(point.Position, point.LookAtTarget);
+            key.Duration = point.Duration;
+            key.Easing = point.Easing;
+            
+            sequence.push_back(key);
+        }
+
+        camCtrl.PlaySequence(sequence, false); // false = jangan looping
+    }
+
+    if (ImGui::Button("Stop & Reset Camera"))
+    {
+        camCtrl.StopSequence();
+        // Reset ke posisi A manual
+        if (!m_camScenarioPoints.empty()) {
+            camCtrl.SetFixedSetting(m_camScenarioPoints[0].Position);
+            camCtrl.SetTarget(m_camScenarioPoints[0].LookAtTarget);
+        }
+    }
 
     ImGui::Spacing();
+    ImGui::Separator();
 
-    if (ImGui::Button("Reset to Default View"))
+    // 2. Editor Loop untuk A, B, C
+    for (int i = 0; i < m_camScenarioPoints.size(); ++i)
     {
-        auto& camCtrl = CameraController::Instance();
-        XMFLOAT3 defaultPos = { 0.0f, 20.0f, 0.0f };
-        camCtrl.SetControlMode(CameraControlMode::FixedStatic);
-        camCtrl.SetFixedSetting(defaultPos);
-        camCtrl.SetTarget(cameraTarget);
+        auto& pt = m_camScenarioPoints[i];
+        
+        ImGui::PushID(i);
+        if (ImGui::CollapsingHeader(pt.Name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+            
+            ImGui::Text("Transform");
+            ImGui::DragFloat3("Position", &pt.Position.x, 0.1f);
+            ImGui::DragFloat3("Look At", &pt.LookAtTarget.x, 0.1f);
+            
+            ImGui::Spacing();
+            ImGui::Text("Timing");
+            ImGui::DragFloat("Duration (sec)", &pt.Duration, 0.1f, 0.1f, 10.0f);
+            
+            // ComboBox untuk Easing
+            const char* easingItems[] = { "Linear", "EaseIn", "EaseOut", "SmoothStep" };
+            int currentEasing = (int)pt.Easing;
+            if (ImGui::Combo("Easing", &currentEasing, easingItems, IM_ARRAYSIZE(easingItems)))
+            {
+                pt.Easing = (EasingType)currentEasing;
+            }
 
-        mainCamera->SetPosition(defaultPos);
-        mainCamera->LookAt(cameraTarget);
+            // Tombol Test Instant (Untuk preview posisi tanpa menunggu sequence)
+            if (ImGui::Button("Jump to this view"))
+            {
+                // Force camera ke posisi ini
+                camCtrl.StopSequence();
+                camCtrl.SetControlMode(CameraControlMode::FixedStatic);
+                camCtrl.SetFixedSetting(pt.Position);
+                camCtrl.SetTarget(pt.LookAtTarget);
+                
+                // Update camera langsung agar tidak flicker
+                if (mainCamera) {
+                    mainCamera->SetPosition(pt.Position);
+                    mainCamera->LookAt(pt.LookAtTarget);
+                }
+            }
+            
+            ImGui::Unindent();
+        }
+        ImGui::PopID();
+        ImGui::Spacing();
     }
 }
 
@@ -533,4 +627,21 @@ void SceneGameBreaker::OnResize(int width, int height)
         mainCamera->SetAspectRatio((float)width / (float)height);
     }
     CreateRenderTarget();
+}
+
+DirectX::XMFLOAT3 SceneGameBreaker::CalculateRotationFromTarget(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& target)
+{
+    // Logika matematika yang sama dengan Camera::LookAt
+    XMVECTOR vPos = XMLoadFloat3(&pos);
+    XMVECTOR vTarget = XMLoadFloat3(&target);
+    XMVECTOR vDir = XMVectorSubtract(vTarget, vPos);
+    vDir = XMVector3Normalize(vDir);
+
+    XMFLOAT3 dir;
+    XMStoreFloat3(&dir, vDir);
+
+    float pitch = asinf(-dir.y);
+    float yaw = atan2f(dir.x, dir.z);
+
+    return { pitch, yaw, 0.0f }; // Return Euler Angles
 }

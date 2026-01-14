@@ -19,6 +19,14 @@
 #include "Player.h"
 #include "BlockManager.h"
 
+struct SceneCameraPoint {
+    std::string Name;
+    DirectX::XMFLOAT3 Position;
+    DirectX::XMFLOAT3 LookAtTarget; // Kita simpan Target, bukan Rotasi (lebih mudah diedit)
+    float Duration;
+    EasingType Easing;
+};
+
 class SceneGameBreaker : public Scene
 {
 public:
@@ -79,6 +87,10 @@ private:
     // 2. CAMERA SYSTEM
     // =========================================================
     std::shared_ptr<Camera> mainCamera;
+    std::vector<SceneCameraPoint> m_camScenarioPoints; // A, B, C
+
+    // Helper untuk mengubah Pos + Target menjadi Rotasi (Pitch, Yaw, Roll)
+    DirectX::XMFLOAT3 CalculateRotationFromTarget(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& target);
 
     // Camera Settings
     float initialFOV = 45.0f;

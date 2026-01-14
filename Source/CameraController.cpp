@@ -7,6 +7,41 @@
 
 using namespace DirectX;
 
+// --- Helper Math Implementation ---
+float CameraController::ApplyEasing(float t, EasingType type)
+{
+    // Clamp 0..1 just in case
+    if (t < 0.0f) return 0.0f;
+    if (t > 1.0f) return 1.0f;
+
+    switch (type)
+    {
+    case EasingType::EaseInQuad:    return t * t;
+    case EasingType::EaseOutQuad:   return t * (2.0f - t);
+    case EasingType::SmoothStep:    return t * t * (3.0f - 2.0f * t); // Unity/Unreal Standard
+    case EasingType::Linear: default: return t;
+    }
+}
+
+XMFLOAT3 CameraController::LerpFloat3(const XMFLOAT3& start, const XMFLOAT3& end, float t)
+{
+    XMVECTOR vStart = XMLoadFloat3(&start);
+    XMVECTOR vEnd = XMLoadFloat3(&end);
+    XMVECTOR vResult = XMVectorLerp(vStart, vEnd, t);
+
+    XMFLOAT3 result;
+    XMStoreFloat3(&result, vResult);
+    return result;
+}
+
+XMFLOAT3 CameraController::LerpAngles(const XMFLOAT3& start, const XMFLOAT3& end, float t)
+{
+    // Sederhana: Linear Interpolation untuk Euler. 
+    // Untuk rotasi kompleks (gimbal lock prevention), sebaiknya gunakan Quaternion Slerp,
+    // tapi untuk cutscene sederhana ini sudah cukup efisien.
+    return LerpFloat3(start, end, t);
+}
+
 CameraController::CameraController()
 {
 }
@@ -51,16 +86,95 @@ void CameraController::Update(float elapsedTime)
         isF1Pressed = false;
     }
 
-    if (controlMode == CameraControlMode::Mouse || controlMode == CameraControlMode::Free) {
-        Input::Instance().GetMouse().LockCursor(toggleCursor);
+    if (controlMode == CameraControlMode::Sequence || controlMode == CameraControlMode::FixedStatic || controlMode == CameraControlMode::FixedFollow) {
+        Input::Instance().GetMouse().LockCursor(false);
     }
     else {
-        Input::Instance().GetMouse().LockCursor(false);
+        Input::Instance().GetMouse().LockCursor(toggleCursor);
     }
 
     // --- Main Control Logic ---
     switch (controlMode)
     {
+    case CameraControlMode::Sequence:
+    {
+        // Safety: Jika queue kosong, kembali ke FixedStatic
+        if (m_sequenceQueue.empty())
+        {
+            SetControlMode(CameraControlMode::FixedStatic);
+            return;
+        }
+
+        // Ambil target saat ini
+        const CameraKeyframe& targetKey = m_sequenceQueue[m_currentKeyframeIdx];
+
+        // Update Timer
+        m_seqTimer += elapsedTime;
+
+        // Hitung progress (0.0 sampai 1.0)
+        float t = 0.0f;
+        if (targetKey.Duration > 0.0f) {
+            t = m_seqTimer / targetKey.Duration;
+        }
+        else {
+            t = 1.0f; // Instant move jika durasi 0
+        }
+
+        // Cek apakah keyframe selesai
+        if (t >= 1.0f)
+        {
+            camera->SetPosition(targetKey.TargetPosition);
+            camera->SetRotation(targetKey.TargetRotation);
+
+            m_currentKeyframeIdx++;
+            m_seqTimer = 0.0f;
+
+            // Cek apakah sequence selesai
+            if (m_currentKeyframeIdx >= m_sequenceQueue.size())
+            {
+                if (m_seqLoop)
+                {
+                    m_currentKeyframeIdx = 0;
+                    m_seqStartPos = camera->GetPosition();
+                    m_seqStartRot = camera->GetRotation();
+                }
+                else
+                {
+                    // === PERBAIKAN DI SINI ===
+                    // Selesai: Stop di posisi terakhir
+                    fixedPosition = camera->GetPosition();
+
+                    // PENTING: Langsung ganti mode SEKARANG JUGA.
+                    // Jangan tunggu frame berikutnya, karena GUI akan mencoba akses index yang kelebihan dan crash.
+                    SetControlMode(CameraControlMode::FixedStatic);
+
+                    return; // Keluar dari fungsi agar tidak lanjut ke bawah
+                }
+            }
+            else
+            {
+                m_seqStartPos = camera->GetPosition();
+                m_seqStartRot = camera->GetRotation();
+            }
+        }
+        else
+        {
+            // Sedang bergerak: Hitung Interpolasi
+            float easeT = ApplyEasing(t, targetKey.Easing);
+
+            XMFLOAT3 newPos = LerpFloat3(m_seqStartPos, targetKey.TargetPosition, easeT);
+            XMFLOAT3 newRot = LerpAngles(m_seqStartRot, targetKey.TargetRotation, easeT);
+
+            camera->SetPosition(newPos);
+            camera->SetRotation(newRot);
+
+            // Sync variabel internal agar mode lain smooth jika di-switch
+            this->eye = newPos;
+            this->angle = newRot;
+            this->fixedPosition = newPos;
+        }
+    }
+    break;
     case CameraControlMode::FixedFollow:
     {
         // 1. Calculate desired position (Target + Offset)
@@ -222,6 +336,48 @@ void CameraController::SetControlMode(CameraControlMode mode)
     this->controlMode = mode;
 }
 
+void CameraController::PlaySequence(const std::vector<CameraKeyframe>& sequence, bool loop)
+{
+    if (sequence.empty()) return;
+
+    m_sequenceQueue = sequence;
+    m_currentKeyframeIdx = 0;
+    m_seqTimer = 0.0f;
+    m_seqLoop = loop;
+
+    // Ambil posisi awal kamera saat ini sebagai titik start
+    auto camera = m_activeCamera.lock();
+    if (camera)
+    {
+        m_seqStartPos = camera->GetPosition();
+        m_seqStartRot = camera->GetRotation();
+    }
+    else
+    {
+        m_seqStartPos = { 0,0,0 };
+        m_seqStartRot = { 0,0,0 };
+    }
+
+    SetControlMode(CameraControlMode::Sequence);
+}
+
+void CameraController::AppendKeyframe(const CameraKeyframe& keyframe)
+{
+    m_sequenceQueue.push_back(keyframe);
+    // Jika kita sedang diam di akhir sequence, trigger logic untuk lanjut
+    if (controlMode == CameraControlMode::Sequence && m_currentKeyframeIdx >= m_sequenceQueue.size() - 1)
+    {
+        // Logic penanganan dinamis bisa ditambahkan di sini
+    }
+}
+
+void CameraController::StopSequence()
+{
+    m_sequenceQueue.clear();
+    m_currentKeyframeIdx = 0;
+    SetControlMode(CameraControlMode::FixedStatic);
+}
+
 void CameraController::DrawDebugGUI()
 {
     auto camera = m_activeCamera.lock();
@@ -282,6 +438,30 @@ void CameraController::DrawDebugGUI()
         {
             ImGui::Text("Orbit Settings");
             ImGui::DragFloat("Range", &range, 0.1f, 1.0f, 100.0f);
+        }
+    }
+    ImGui::End();
+
+    if (ImGui::Begin("Sequence Controls"))
+    {
+        if (controlMode == CameraControlMode::Sequence)
+        {
+            ImGui::Separator();
+            ImGui::TextColored(ImVec4(0, 1, 0, 1), "SEQUENCER ACTIVE");
+            if (!m_sequenceQueue.empty()) {
+                ImGui::Text("Keyframe: %d / %d", m_currentKeyframeIdx + 1, (int)m_sequenceQueue.size());
+                float progress = 0.0f;
+                if (m_currentKeyframeIdx < m_sequenceQueue.size())
+                    progress = m_seqTimer / m_sequenceQueue[m_currentKeyframeIdx].Duration;
+                ImGui::ProgressBar(progress, ImVec2(0.0f, 0.0f));
+            }
+            else {
+                ImGui::Text("Sequence Completed / Empty");
+            }
+
+            if (ImGui::Button("Stop Sequence")) {
+                StopSequence();
+            }
         }
     }
     ImGui::End();
