@@ -47,12 +47,12 @@ SceneGameBreaker::SceneGameBreaker()
     m_camScenarioPoints.push_back({ "Point A (Start)", {0.0f, 20.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, 2.0f, EasingType::SmoothStep });
 
     // Point B (Turun sedikit)
-    m_camScenarioPoints.push_back({ "Point B (Mid)",   {0.7f, 15.0f, 0.0f}, {0.3f, 8.6f, 0.9f}, 2.0f, EasingType::SmoothStep });
+    m_camScenarioPoints.push_back({ "Point B (Mid)",   {0.7f, 15.0f, 0.0f}, {-0.9f, 0.0f, 2.8f}, 2.0f, EasingType::SmoothStep });
 
     // Point C (Close Up)
-    m_camScenarioPoints.push_back({ "Point C (Low)",   {5.4f, 10.8f, 3.3f},  {-0.4f, 0.0f, 2.7f}, 3.0f, EasingType::EaseOutQuad });
+    m_camScenarioPoints.push_back({ "Point C (Low)",   {2.3f, 11.0f, 5.2f},  {-0.8f, 0.0f, 2.0f}, 3.0f, EasingType::EaseOutQuad });
 
-    m_camScenarioPoints.push_back({ "Point D (Top Wide)", {0.0f, 10.0f, 10.1f}, {-0.2f, 0.0f, 1.2f}, 4.0f, EasingType::SmoothStep });
+    m_camScenarioPoints.push_back({ "Point D (Top Wide)", {0.0f, 10.0f, 10.1f}, {-0.2f, 0.0f, 2.1f}, 4.0f, EasingType::SmoothStep });
 
     // --------------------------------------------------------
     // Initialize Assets
@@ -415,6 +415,7 @@ void SceneGameBreaker::GUICameraTab()
     static float moveSpeed = 3.5f;
     static bool useConstantSpeed = true;
     static bool useSmoothCurve = true;
+    static int guiEasingIdx = 0;
 
     // Default pilih SmoothStep agar efek "Satu Sequence" langsung terasa
     static int globalEasingSelection = (int)EasingType::SmoothStep;
@@ -429,9 +430,15 @@ void SceneGameBreaker::GUICameraTab()
     {
         ImGui::DragFloat("Travel Speed", &moveSpeed, 0.1f, 0.1f, 50.0f);
 
-        // Easing combo
-        const char* easingItems[] = { "Linear", "EaseIn", "EaseOut", "Smooth Sequence (Cubic)" };
-        ImGui::Combo("Sequence Easing", &globalEasingSelection, easingItems, IM_ARRAYSIZE(easingItems));
+        // List Item untuk Combo Box
+        const char* easingItems[] = {
+            "Linear",                   // Index 0
+            "EaseIn (Cubic)",           // Index 1
+            "EaseOut (Cubic)",          // Index 2
+            "Smooth Sequence (Auto)"    // Index 3 -> KITA MAU INI JADI SequenceAutoCubic
+        };
+
+        ImGui::Combo("Sequence Easing", &guiEasingIdx, easingItems, IM_ARRAYSIZE(easingItems));
 
         // Spline Options
         ImGui::Checkbox("Enable Smooth Curve (Spline)", &useSmoothCurve);
@@ -472,7 +479,21 @@ void SceneGameBreaker::GUICameraTab()
         }
         if (useConstantSpeed)
         {
-            camCtrl.PlaySequenceBySpeed(sequence, moveSpeed, (EasingType)globalEasingSelection, useSmoothCurve, false);
+            // MAPPING DARI GUI INDEX KE ENUM YANG BENAR
+            EasingType finalEasing = EasingType::Linear;
+
+            switch (guiEasingIdx)
+            {
+            case 0: finalEasing = EasingType::Linear; break;
+            case 1: finalEasing = EasingType::EaseInCubic; break;
+            case 2: finalEasing = EasingType::EaseOutCubic; break;
+            case 3: finalEasing = EasingType::SequenceAutoCubic; break; // <--- INI KUNCINYA
+            }
+
+            camCtrl.SetSplineTension(curveTension);
+
+            // Kirim finalEasing yang sudah dimapping
+            camCtrl.PlaySequenceBySpeed(sequence, moveSpeed, finalEasing, useSmoothCurve, false);
         }
         else
         {
