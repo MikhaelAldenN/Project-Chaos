@@ -131,6 +131,7 @@
     <ClInclude Include="Source\BitmapFont.h" />
     <ClInclude Include="Source\Block.h" />
     <ClInclude Include="Source\BlockManager.h" />
+    <ClInclude Include="Source\UberShader.h" />
     <ClInclude Include="Source\UIButton.h" />
     <ClInclude Include="Source\ButtonManager.h" />
     <ClInclude Include="Source\Camera.h" />
@@ -184,7 +185,6 @@
     <ClInclude Include="Source\UIButtonPrimitive.h" />
     <ClInclude Include="Source\UIButtonSprite.h" />
     <ClInclude Include="Source\UIComponents.h" />
-    <ClInclude Include="Source\VignetteShader.h" />
     <ClInclude Include="Source\WindowManager.h" />
   </ItemGroup>
   <ItemGroup>
@@ -242,8 +242,8 @@
     <ClCompile Include="Source\System\Sprite.cpp" />
     <ClCompile Include="Source\System\TransformUtils.cpp" />
     <ClCompile Include="Source\Typewriter.cpp" />
+    <ClCompile Include="Source\UberShader.cpp" />
     <ClCompile Include="Source\UIComponents.cpp" />
-    <ClCompile Include="Source\VignetteShader.cpp" />
     <ClCompile Include="Source\WindowManager.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -305,11 +305,11 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
-    <FxCompile Include="Shader\VignettePS.hlsl">
+    <FxCompile Include="Shader\UberPostProcessPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
     </FxCompile>
-    <FxCompile Include="Shader\VignetteVS.hlsl">
+    <FxCompile Include="Shader\UberPostProcessVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>

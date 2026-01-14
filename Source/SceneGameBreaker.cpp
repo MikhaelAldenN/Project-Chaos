@@ -52,7 +52,7 @@ SceneGameBreaker::SceneGameBreaker()
     blockManager = std::make_unique<BlockManager>();
     blockManager->Initialize(player);
 
-    vignetteShader = std::make_unique<VignetteShader>(Graphics::Instance().GetDevice());
+    uberShader = std::make_unique<UberShader>(Graphics::Instance().GetDevice());
     CreateRenderTarget();
 }
 
@@ -269,7 +269,7 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
         dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullNone));
         dc->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), nullptr, 0xFFFFFFFF);
 
-        VignetteShader::VignetteData finalParams = vignetteParams;
+        UberShader::UberData finalParams = uberParams;
         finalParams.time = m_globalTime;
 
         if (!m_fxState.EnableVignette) finalParams.intensity = 0.0f;
@@ -287,7 +287,7 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
             finalParams.fineOpacity = 0.0f;
         }
 
-        vignetteShader->Draw(dc, shaderResourceView.Get(), finalParams);
+        uberShader->Draw(dc, shaderResourceView.Get(), finalParams);
         dc->PSSetShaderResources(0, 1, nullSRVs);
     }
 
@@ -435,13 +435,13 @@ void SceneGameBreaker::GUIPostProcessTab()
 
         if (!m_fxState.EnableVignette) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
 
-        ImGui::ColorEdit3("Tint Color", &vignetteParams.color.x);
-        ImGui::SliderFloat("Intensity", &vignetteParams.intensity, 0.0f, 3.0f);
-        ImGui::SliderFloat("Smoothness", &vignetteParams.smoothness, 0.01f, 1.0f);
-        ImGui::SliderFloat2("Center", &vignetteParams.center.x, 0.0f, 1.0f);
+        ImGui::ColorEdit3("Tint Color", &uberParams.color.x);
+        ImGui::SliderFloat("Intensity", &uberParams.intensity, 0.0f, 3.0f);
+        ImGui::SliderFloat("Smoothness", &uberParams.smoothness, 0.01f, 1.0f);
+        ImGui::SliderFloat2("Center", &uberParams.center.x, 0.0f, 1.0f);
 
-        ImGui::Checkbox("Rounded Mask", &vignetteParams.rounded);
-        if (vignetteParams.rounded) ImGui::SliderFloat("Roundness", &vignetteParams.roundness, 0.0f, 1.0f);
+        ImGui::Checkbox("Rounded Mask", &uberParams.rounded);
+        if (uberParams.rounded) ImGui::SliderFloat("Roundness", &uberParams.roundness, 0.0f, 1.0f);
 
         if (!m_fxState.EnableVignette) ImGui::PopStyleVar();
         ImGui::Unindent();
@@ -454,8 +454,9 @@ void SceneGameBreaker::GUIPostProcessTab()
         ImGui::Checkbox("ACTIVATE: Lens Layer", &m_fxState.EnableLens);
 
         if (!m_fxState.EnableLens) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
-        ImGui::SliderFloat("Fisheye", &vignetteParams.glitchStrength, 0.0f, 1.0f);
-        ImGui::SliderFloat("Chroma Blur", &vignetteParams.blurStrength, 0.0f, 0.05f, "%.4f");
+        ImGui::SliderFloat("Fisheye", &uberParams.distortion, -0.5f, 0.5f);
+        ImGui::SliderFloat("Chroma Blur", &uberParams.blurStrength, 0.0f, 0.05f, "%.4f");
+        ImGui::SliderFloat("Glitch Shake", &uberParams.glitchStrength, 0.0f, 1.0f);
         if (!m_fxState.EnableLens) ImGui::PopStyleVar();
         ImGui::Unindent();
     }
@@ -467,12 +468,11 @@ void SceneGameBreaker::GUIPostProcessTab()
         ImGui::Checkbox("ACTIVATE: CRT Layer", &m_fxState.EnableCRT);
 
         if (!m_fxState.EnableCRT) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
-        ImGui::SliderFloat("Density", &vignetteParams.fineDensity, 10.0f, 500.0f);
-        ImGui::SliderFloat("Opacity ", &vignetteParams.fineOpacity, 0.0f, 1.0f);
-        ImGui::SliderFloat("Speed", &vignetteParams.scanlineSpeed, -10.0f, 10.0f);
-        ImGui::SliderFloat("Size", &vignetteParams.scanlineSize, 1.0f, 150.0f);
-        ImGui::SliderFloat("Scanline Opacity", &vignetteParams.scanlineStrength, 0.0f, 1.0f);
-        ImGui::SliderFloat("CRT Distortion", &vignetteParams.distortion, -0.5f, 0.5f);
+        ImGui::SliderFloat("Density", &uberParams.fineDensity, 10.0f, 500.0f);
+        ImGui::SliderFloat("Opacity ", &uberParams.fineOpacity, 0.0f, 1.0f);
+        ImGui::SliderFloat("Speed", &uberParams.scanlineSpeed, -10.0f, 10.0f);
+        ImGui::SliderFloat("Size", &uberParams.scanlineSize, 1.0f, 150.0f);
+        ImGui::SliderFloat("Scanline Opacity", &uberParams.scanlineStrength, 0.0f, 1.0f);
         if (!m_fxState.EnableCRT) ImGui::PopStyleVar();
         ImGui::Unindent();
     }
