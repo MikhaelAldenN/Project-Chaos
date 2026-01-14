@@ -10,7 +10,6 @@ using namespace DirectX;
 // --- Helper Math Implementation ---
 float CameraController::ApplyEasing(float t, EasingType type)
 {
-    // Clamp 0..1 just in case
     if (t < 0.0f) return 0.0f;
     if (t > 1.0f) return 1.0f;
 
@@ -18,7 +17,13 @@ float CameraController::ApplyEasing(float t, EasingType type)
     {
     case EasingType::EaseInQuad:    return t * t;
     case EasingType::EaseOutQuad:   return t * (2.0f - t);
-    case EasingType::SmoothStep:    return t * t * (3.0f - 2.0f * t); // Unity/Unreal Standard
+
+        // --- FORMULA BARU (Lebih Dramatis) ---
+    case EasingType::EaseInCubic:   return t * t * t;
+    case EasingType::EaseOutCubic:  return (--t) * t * t + 1;
+        // -------------------------------------
+
+    case EasingType::SmoothStep:    return t * t * (3.0f - 2.0f * t);
     case EasingType::Linear: default: return t;
     }
 }
@@ -163,12 +168,65 @@ void CameraController::Update(float elapsedTime)
             float easeT = ApplyEasing(t, targetKey.Easing);
 
             XMFLOAT3 newPos = LerpFloat3(m_seqStartPos, targetKey.TargetPosition, easeT);
-            XMFLOAT3 newRot = LerpAngles(m_seqStartRot, targetKey.TargetRotation, easeT);
+            // === BAGIAN INI YANG MENGATUR BELOKAN ===
+            if (m_useSpline)
+            {
+                // Titik P1 (Start) dan P2 (End) untuk segmen ini
+                XMFLOAT3 p1 = m_seqStartPos;
+                XMFLOAT3 p2 = targetKey.TargetPosition;
 
+                // Hitung Jarak Segmen Aktif (P1 ke P2)
+                XMVECTOR vP1 = XMLoadFloat3(&p1);
+                XMVECTOR vP2 = XMLoadFloat3(&p2);
+                float segLength = XMVectorGetX(XMVector3Length(XMVectorSubtract(vP2, vP1)));
+
+                // --- SIAPKAN TANGENT (ARAH BELOKAN) ---
+
+                // 1. Tangent Awal (T1) di P1
+                // Kita lihat P0 (belakang) dan P2 (depan) untuk menentukan arah
+                XMFLOAT3 p0 = p1;
+                if (m_currentKeyframeIdx > 0) {
+                    p0 = m_sequenceQueue[m_currentKeyframeIdx - 1].TargetPosition;
+                }
+
+                XMVECTOR vP0 = XMLoadFloat3(&p0);
+                XMVECTOR vDir1 = XMVectorSubtract(vP2, vP0);
+                vDir1 = XMVector3Normalize(vDir1);
+
+                // KALIKAN DENGAN TENSION DISINI
+                XMVECTOR vT1 = vDir1 * segLength * m_splineTension;
+
+
+                // 2. Tangent Akhir (T2)
+                XMFLOAT3 p3 = p2;
+                if (m_currentKeyframeIdx + 1 < m_sequenceQueue.size()) {
+                    p3 = m_sequenceQueue[m_currentKeyframeIdx + 1].TargetPosition;
+                }
+
+                XMVECTOR vP3 = XMLoadFloat3(&p3);
+                XMVECTOR vDir2 = XMVectorSubtract(vP3, vP1);
+                vDir2 = XMVector3Normalize(vDir2);
+
+                // KALIKAN DENGAN TENSION DISINI JUGA
+                XMVECTOR vT2 = vDir2 * segLength * m_splineTension;
+
+                // --- EKSEKUSI HERMITE SPLINE ---
+                XMFLOAT3 t1Val, t2Val;
+                XMStoreFloat3(&t1Val, vT1);
+                XMStoreFloat3(&t2Val, vT2);
+
+                newPos = HermiteSpline(p1, p2, t1Val, t2Val, easeT);
+            }
+            else
+            {
+                newPos = LerpFloat3(m_seqStartPos, targetKey.TargetPosition, easeT);
+            }
+
+            // ... (Rotasi & SetPosition tetap sama) ...
+            XMFLOAT3 newRot = LerpAngles(m_seqStartRot, targetKey.TargetRotation, easeT);
             camera->SetPosition(newPos);
             camera->SetRotation(newRot);
 
-            // Sync variabel internal agar mode lain smooth jika di-switch
             this->eye = newPos;
             this->angle = newRot;
             this->fixedPosition = newPos;
@@ -361,50 +419,95 @@ void CameraController::PlaySequence(const std::vector<CameraKeyframe>& sequence,
     SetControlMode(CameraControlMode::Sequence);
 }
 
-void CameraController::PlaySequenceBySpeed(const std::vector<CameraKeyframe>& targets, float speed, bool loop)
+XMFLOAT3 CameraController::CatmullRom(const XMFLOAT3& p0, const XMFLOAT3& p1, const XMFLOAT3& p2, const XMFLOAT3& p3, float t)
 {
+    XMVECTOR v0 = XMLoadFloat3(&p0);
+    XMVECTOR v1 = XMLoadFloat3(&p1);
+    XMVECTOR v2 = XMLoadFloat3(&p2);
+    XMVECTOR v3 = XMLoadFloat3(&p3);
+
+    float t2 = t * t;
+    float t3 = t2 * t;
+
+    // Rumus Standar Catmull-Rom Spline
+    XMVECTOR vResult = 0.5f * (
+        (2.0f * v1) +
+        (-v0 + v2) * t +
+        (2.0f * v0 - 5.0f * v1 + 4.0f * v2 - v3) * t2 +
+        (-v0 + 3.0f * v1 - 3.0f * v2 + v3) * t3
+        );
+
+    XMFLOAT3 result;
+    XMStoreFloat3(&result, vResult);
+    return result;
+}
+
+// 2. Update PlaySequenceBySpeed untuk menerima parameter Spline
+void CameraController::PlaySequenceBySpeed(const std::vector<CameraKeyframe>& targets, float speed, EasingType globalEasing, bool useSplinePath, bool loop)
+{
+    // Simpan settingan user
+    m_useSpline = useSplinePath;
+
+    // ... (Logika easing continous yang sebelumnya SAMA PERSIS, copy saja) ...
     if (targets.empty() || speed <= 0.0f) return;
-
-    // Kita akan buat salinan sequence karena kita perlu memodifikasi Durasi & Easing-nya
     std::vector<CameraKeyframe> processedSequence = targets;
-
-    // Ambil posisi awal (Start Point)
+    size_t totalPoints = processedSequence.size();
     XMFLOAT3 currentPos = { 0,0,0 };
     auto camera = m_activeCamera.lock();
     if (camera) currentPos = camera->GetPosition();
 
-    // Loop semua target untuk hitung durasi otomatis
-    for (size_t i = 0; i < processedSequence.size(); ++i)
+    for (size_t i = 0; i < totalPoints; ++i)
     {
         CameraKeyframe& key = processedSequence[i];
 
-        // 1. Paksa Easing menjadi LINEAR agar tidak ada perlambatan di titik temu
-        key.Easing = EasingType::Linear;
+        if (globalEasing == EasingType::SmoothStep && totalPoints > 1) {
+            if (i == 0)
+                key.Easing = EasingType::EaseInCubic; // GANTI KE CUBIC BIAR LEBIH KERASA START-NYA
+            else if (i == totalPoints - 1)
+                key.Easing = EasingType::EaseOutCubic; // GANTI KE CUBIC
+            else
+                key.Easing = EasingType::Linear;
+        }
+        else {
+            key.Easing = globalEasing;
+        }
 
-        // 2. Hitung Jarak (Distance) dari titik sebelumnya ke titik ini
+        // LOGIKA DURASI
         XMVECTOR vStart = XMLoadFloat3(&currentPos);
         XMVECTOR vEnd = XMLoadFloat3(&key.TargetPosition);
-        XMVECTOR vDist = XMVector3Length(XMVectorSubtract(vEnd, vStart));
-
         float distance = 0.0f;
-        XMStoreFloat(&distance, vDist);
+        XMStoreFloat(&distance, XMVector3Length(XMVectorSubtract(vEnd, vStart)));
 
-        // 3. Rumus Fisika: Waktu = Jarak / Kecepatan
-        if (distance > 0.001f)
-        {
-            key.Duration = distance / speed;
-        }
-        else
-        {
-            key.Duration = 0.0f; // Instant jika posisi sama
-        }
+        if (distance > 0.001f) key.Duration = distance / speed;
+        else key.Duration = 0.0f;
 
-        // Set titik start berikutnya menjadi titik target ini
         currentPos = key.TargetPosition;
     }
 
-    // Jalankan sequence yang sudah diproses
     PlaySequence(processedSequence, loop);
+}
+
+XMFLOAT3 CameraController::HermiteSpline(const XMFLOAT3& p1, const XMFLOAT3& p2, const XMFLOAT3& t1, const XMFLOAT3& t2, float t)
+{
+    float t2_val = t * t;
+    float t3_val = t2_val * t;
+
+    // Basis functions
+    float h1 = 2.0f * t3_val - 3.0f * t2_val + 1.0f;
+    float h2 = -2.0f * t3_val + 3.0f * t2_val;
+    float h3 = t3_val - 2.0f * t2_val + t;
+    float h4 = t3_val - t2_val;
+
+    XMVECTOR vP1 = XMLoadFloat3(&p1);
+    XMVECTOR vP2 = XMLoadFloat3(&p2);
+    XMVECTOR vT1 = XMLoadFloat3(&t1);
+    XMVECTOR vT2 = XMLoadFloat3(&t2);
+
+    XMVECTOR result = (vP1 * h1) + (vP2 * h2) + (vT1 * h3) + (vT2 * h4);
+
+    XMFLOAT3 finalPos;
+    XMStoreFloat3(&finalPos, result);
+    return finalPos;
 }
 
 void CameraController::AppendKeyframe(const CameraKeyframe& keyframe)

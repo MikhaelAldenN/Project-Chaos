@@ -57,9 +57,9 @@ private:
     // =========================================================
     // SPRITE CONTROLS
     // =========================================================
-    DirectX::XMFLOAT3 m_spritePos = { 0.110f, 15.0f, 0.0f };
+    DirectX::XMFLOAT3 m_spritePos = { 0.215f, 13.0f, 0.0f };
     DirectX::XMFLOAT2 m_spriteSize = { 16.0f, 9.0f };
-    float m_spriteScale = 0.460f;
+    float m_spriteScale = 0.636f;
     float m_spritePitch = 90.0f;
     float m_spriteYaw = 0.0f;
     float m_spriteRoll = 0.0f;
@@ -126,6 +126,7 @@ private:
     // Visual Config
     DirectX::XMFLOAT4 bgSpriteColor = { 1.0f, 1.0f, 1.0f, 1.0f };
     const char* pathBorderBreaker = "Data/Sprite/Scene Breaker/Sprite_BorderBreakertransparent.png";
+	const char* pathDebugLayout = "Data/Sprite/Placeholder/[PLACEHOLDER]Back_Title.png";
 
     // =========================================================
     // 5. RUNTIME STATE (VARIABLES)

@@ -11,7 +11,9 @@ enum class EasingType {
     Linear,
     EaseInQuad,
     EaseOutQuad,
-    SmoothStep // Standar industri (Ease In & Out)
+    EaseInCubic,  // <-- BARU: Lebih lambat di awal dibanding Quad
+    EaseOutCubic, // <-- BARU: Lebih lambat berhenti dibanding Quad
+    SmoothStep
 };
 
 // Struct untuk menyimpan data "Waypoint" kamera
@@ -51,6 +53,9 @@ public:
     void SetFixedYawOffset(float radians) { fixedYawOffset = radians; }
     void SetFixedRollOffset(float radians) { fixedRollOffset = radians; }
 
+    void SetSplineTension(float tension) { m_splineTension = tension; }
+    float GetSplineTension() const { return m_splineTension; }
+
     void SetControlMode(CameraControlMode mode);
     CameraControlMode GetControlMode() const { return controlMode; }
     void ClearCamera() { m_activeCamera.reset(); }
@@ -58,7 +63,8 @@ public:
     // --- NEW: Sequence / Transition System ---
     // Memulai urutan gerakan baru (akan menghapus antrian lama)
     void PlaySequence(const std::vector<CameraKeyframe>& sequence, bool loop = false);
-    void PlaySequenceBySpeed(const std::vector<CameraKeyframe>& targets, float speedInUnitsPerSec, bool loop = false);
+    void PlaySequenceBySpeed(const std::vector<CameraKeyframe>& targets, float speed, EasingType globalEasing, bool useSplinePath, bool loop = false);
+    void PlaySmoothPath(const std::vector<CameraKeyframe>& points, float totalDuration, EasingType globalEasing = EasingType::SmoothStep);
 
     // Menambahkan keyframe ke antrian yang sedang berjalan
     void AppendKeyframe(const CameraKeyframe& keyframe);
@@ -88,6 +94,8 @@ private:
     float fixedYawOffset = 0.0f;
     float fixedRollOffset = 0.0f;
 
+    float m_splineTension = 1.0f;
+
     float moveSpeed = 15.0f;
     float rollSpeed = DirectX::XMConvertToRadians(90);
     float range = 10.0f;
@@ -100,10 +108,21 @@ private:
     int m_currentKeyframeIdx = 0;
     float m_seqTimer = 0.0f;
     bool m_seqLoop = false;
+    bool m_useSpline = false;
 
     // Cache posisi awal sebelum bergerak ke keyframe berikutnya
     DirectX::XMFLOAT3 m_seqStartPos;
     DirectX::XMFLOAT3 m_seqStartRot;
+
+    // --- State untuk Smooth Path ---
+    bool m_isSmoothPath = false;
+    float m_smoothTotalDuration = 0.0f;
+    EasingType m_smoothEasing = EasingType::SmoothStep;
+    std::vector<DirectX::XMFLOAT3> m_pathPoints; // Hanya butuh posisi untuk kalkulasi kurva
+
+    // Helper Math: Catmull-Rom Spline (Standard industri untuk jalur kamera halus)
+    DirectX::XMFLOAT3 CatmullRom(const DirectX::XMFLOAT3& p0, const DirectX::XMFLOAT3& p1, const DirectX::XMFLOAT3& p2, const DirectX::XMFLOAT3& p3, float t);
+    DirectX::XMFLOAT3 HermiteSpline(const DirectX::XMFLOAT3& p1, const DirectX::XMFLOAT3& p2, const DirectX::XMFLOAT3& t1, const DirectX::XMFLOAT3& t2, float t);
 
     // Helper Functions
     float ApplyEasing(float t, EasingType type);

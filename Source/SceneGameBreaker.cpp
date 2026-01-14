@@ -47,15 +47,18 @@ SceneGameBreaker::SceneGameBreaker()
     m_camScenarioPoints.push_back({ "Point A (Start)", {0.0f, 20.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, 2.0f, EasingType::SmoothStep });
 
     // Point B (Turun sedikit)
-    m_camScenarioPoints.push_back({ "Point B (Mid)",   {0.0f, 15.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, 2.0f, EasingType::SmoothStep });
+    m_camScenarioPoints.push_back({ "Point B (Mid)",   {0.7f, 15.0f, 0.0f}, {0.3f, 8.6f, 0.9f}, 2.0f, EasingType::SmoothStep });
 
     // Point C (Close Up)
-    m_camScenarioPoints.push_back({ "Point C (Low)",   {0.0f, 5.0f, 0.0f},  {0.0f, 0.0f, 0.0f}, 3.0f, EasingType::EaseOutQuad });
+    m_camScenarioPoints.push_back({ "Point C (Low)",   {5.4f, 10.8f, 3.3f},  {-0.4f, 0.0f, 2.7f}, 3.0f, EasingType::EaseOutQuad });
+
+    m_camScenarioPoints.push_back({ "Point D (Top Wide)", {0.0f, 10.0f, 10.1f}, {-0.2f, 0.0f, 1.2f}, 4.0f, EasingType::SmoothStep });
 
     // --------------------------------------------------------
     // Initialize Assets
     // --------------------------------------------------------
     m_spriteBorderBreaker = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathBorderBreaker);
+	m_spriteDEBUG_LAYOUT = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathDebugLayout);
 
     ball = new Ball();
     paddle = new Paddle();
@@ -224,7 +227,7 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
             0.0f, 0.0f, 0.0f,
             screenW, screenH,
             0.0f,
-            1.0f, 1.0f, 1.0f, 1.0f
+            1.0f, 1.0f, 1.0f, 0.5f
         );
     }
 
@@ -409,33 +412,50 @@ void SceneGameBreaker::GUICameraTab()
 {
     auto& camCtrl = CameraController::Instance();
 
-    // Static Variable untuk menyimpan settingan GUI
-    static float moveSpeed = 5.0f; // Kecepatan kamera (Meter/Detik)
-    static bool useConstantSpeed = true; // Checkbox pilihan mode
+    static float moveSpeed = 3.5f;
+    static bool useConstantSpeed = true;
+    static bool useSmoothCurve = true;
+
+    // Default pilih SmoothStep agar efek "Satu Sequence" langsung terasa
+    static int globalEasingSelection = (int)EasingType::SmoothStep;
+    static float curveTension = 1.2f;
 
     ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "SEQUENCE EDITOR");
     ImGui::Separator();
 
-    // --- MODE SELECTION ---
     ImGui::Checkbox("Use Constant Speed Mode", &useConstantSpeed);
 
     if (useConstantSpeed)
     {
-        ImGui::DragFloat("Travel Speed (Units/Sec)", &moveSpeed, 0.1f, 0.1f, 50.0f);
-        ImGui::TextDisabled("Duration & Easing will be auto-calculated.");
-    }
-    else
-    {
-        ImGui::TextDisabled("Using Manual Duration per Keyframe.");
+        ImGui::DragFloat("Travel Speed", &moveSpeed, 0.1f, 0.1f, 50.0f);
+
+        // Easing combo
+        const char* easingItems[] = { "Linear", "EaseIn", "EaseOut", "Smooth Sequence (Cubic)" };
+        ImGui::Combo("Sequence Easing", &globalEasingSelection, easingItems, IM_ARRAYSIZE(easingItems));
+
+        // Spline Options
+        ImGui::Checkbox("Enable Smooth Curve (Spline)", &useSmoothCurve);
+
+        if (useSmoothCurve) {
+            ImGui::Indent();
+            // TAMBAHKAN SLIDER INI
+            if (ImGui::DragFloat("Curve Tension", &curveTension, 0.05f, 0.0f, 3.0f))
+            {
+                camCtrl.SetSplineTension(curveTension);
+            }
+            // Penjelasan visual
+            if (curveTension < 1.0f) ImGui::TextDisabled("(Tighter / Sharper turns)");
+            else if (curveTension > 1.0f) ImGui::TextDisabled("(Wider / Rounder turns)");
+
+            ImGui::Unindent();
+        }
     }
 
     ImGui::Spacing();
 
-    // --- PLAY BUTTON ---
-    std::string playLabel = useConstantSpeed ? "PLAY (Constant Speed)" : "PLAY (Manual Timing)";
-
-    if (ImGui::Button(playLabel.c_str(), ImVec2(-1, 40)))
+    if (ImGui::Button(useConstantSpeed ? "PLAY SEQUENCE" : "PLAY MANUAL", ImVec2(-1, 40)))
     {
+        camCtrl.SetSplineTension(curveTension);
         std::vector<CameraKeyframe> sequence;
 
         for (const auto& point : m_camScenarioPoints)
@@ -444,22 +464,18 @@ void SceneGameBreaker::GUICameraTab()
             key.TargetPosition = point.Position;
             key.TargetRotation = CalculateRotationFromTarget(point.Position, point.LookAtTarget);
 
-            // Jika Manual, kita pakai settingan dari list. 
-            // Jika ConstantSpeed, nilai ini nanti akan ditimpa/diabaikan oleh fungsi PlaySequenceBySpeed.
+            // Manual value (akan di-override jika mode Constant Speed aktif)
             key.Duration = point.Duration;
             key.Easing = point.Easing;
 
             sequence.push_back(key);
         }
-
         if (useConstantSpeed)
         {
-            // Panggil fungsi BARU
-            camCtrl.PlaySequenceBySpeed(sequence, moveSpeed, false);
+            camCtrl.PlaySequenceBySpeed(sequence, moveSpeed, (EasingType)globalEasingSelection, useSmoothCurve, false);
         }
         else
         {
-            // Panggil fungsi LAMA
             camCtrl.PlaySequence(sequence, false);
         }
     }
@@ -487,9 +503,39 @@ void SceneGameBreaker::GUICameraTab()
         if (ImGui::CollapsingHeader(pt.Name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Indent();
+
+            // Variabel untuk mendeteksi perubahan
+            bool isEdited = false;
+
             ImGui::Text("Transform");
-            ImGui::DragFloat3("Position", &pt.Position.x, 0.1f);
-            ImGui::DragFloat3("Look At", &pt.LookAtTarget.x, 0.1f);
+
+            // Cek apakah Position berubah?
+            if (ImGui::DragFloat3("Position", &pt.Position.x, 0.1f)) {
+                isEdited = true;
+            }
+
+            // Cek apakah LookAt berubah?
+            if (ImGui::DragFloat3("Look At", &pt.LookAtTarget.x, 0.1f)) {
+                isEdited = true;
+            }
+
+            // --- LOGIKA UPDATE LIVE ---
+            // Jika ada perubahan, langsung paksa kamera pindah ke titik ini
+            if (isEdited)
+            {
+                camCtrl.StopSequence(); // Hentikan animasi jika sedang jalan
+                camCtrl.SetControlMode(CameraControlMode::FixedStatic);
+
+                // Update Posisi Controller
+                camCtrl.SetFixedSetting(pt.Position);
+                camCtrl.SetTarget(pt.LookAtTarget);
+
+                // Update Posisi Kamera Asli (Biar instan tanpa lag 1 frame)
+                if (auto mainCam = GetMainCamera()) {
+                    mainCam->SetPosition(pt.Position);
+                    mainCam->LookAt(pt.LookAtTarget);
+                }
+            }
 
             // HANYA TAMPILKAN OPSI TIMING JIKA MODE MANUAL
             if (!useConstantSpeed)
@@ -518,7 +564,7 @@ void SceneGameBreaker::GUICameraTab()
                 camCtrl.SetControlMode(CameraControlMode::FixedStatic);
                 camCtrl.SetFixedSetting(pt.Position);
                 camCtrl.SetTarget(pt.LookAtTarget);
-                if (auto mainCam = GetMainCamera()) { // Pastikan helper getter ada atau akses variable
+                if (auto mainCam = GetMainCamera()) {
                     mainCam->SetPosition(pt.Position);
                     mainCam->LookAt(pt.LookAtTarget);
                 }
