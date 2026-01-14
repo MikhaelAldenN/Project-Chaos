@@ -361,6 +361,52 @@ void CameraController::PlaySequence(const std::vector<CameraKeyframe>& sequence,
     SetControlMode(CameraControlMode::Sequence);
 }
 
+void CameraController::PlaySequenceBySpeed(const std::vector<CameraKeyframe>& targets, float speed, bool loop)
+{
+    if (targets.empty() || speed <= 0.0f) return;
+
+    // Kita akan buat salinan sequence karena kita perlu memodifikasi Durasi & Easing-nya
+    std::vector<CameraKeyframe> processedSequence = targets;
+
+    // Ambil posisi awal (Start Point)
+    XMFLOAT3 currentPos = { 0,0,0 };
+    auto camera = m_activeCamera.lock();
+    if (camera) currentPos = camera->GetPosition();
+
+    // Loop semua target untuk hitung durasi otomatis
+    for (size_t i = 0; i < processedSequence.size(); ++i)
+    {
+        CameraKeyframe& key = processedSequence[i];
+
+        // 1. Paksa Easing menjadi LINEAR agar tidak ada perlambatan di titik temu
+        key.Easing = EasingType::Linear;
+
+        // 2. Hitung Jarak (Distance) dari titik sebelumnya ke titik ini
+        XMVECTOR vStart = XMLoadFloat3(&currentPos);
+        XMVECTOR vEnd = XMLoadFloat3(&key.TargetPosition);
+        XMVECTOR vDist = XMVector3Length(XMVectorSubtract(vEnd, vStart));
+
+        float distance = 0.0f;
+        XMStoreFloat(&distance, vDist);
+
+        // 3. Rumus Fisika: Waktu = Jarak / Kecepatan
+        if (distance > 0.001f)
+        {
+            key.Duration = distance / speed;
+        }
+        else
+        {
+            key.Duration = 0.0f; // Instant jika posisi sama
+        }
+
+        // Set titik start berikutnya menjadi titik target ini
+        currentPos = key.TargetPosition;
+    }
+
+    // Jalankan sequence yang sudah diproses
+    PlaySequence(processedSequence, loop);
+}
+
 void CameraController::AppendKeyframe(const CameraKeyframe& keyframe)
 {
     m_sequenceQueue.push_back(keyframe);

@@ -58,6 +58,7 @@ public:
     // --- NEW: Sequence / Transition System ---
     // Memulai urutan gerakan baru (akan menghapus antrian lama)
     void PlaySequence(const std::vector<CameraKeyframe>& sequence, bool loop = false);
+    void PlaySequenceBySpeed(const std::vector<CameraKeyframe>& targets, float speedInUnitsPerSec, bool loop = false);
 
     // Menambahkan keyframe ke antrian yang sedang berjalan
     void AppendKeyframe(const CameraKeyframe& keyframe);

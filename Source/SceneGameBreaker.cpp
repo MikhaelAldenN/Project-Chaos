@@ -409,84 +409,120 @@ void SceneGameBreaker::GUICameraTab()
 {
     auto& camCtrl = CameraController::Instance();
 
+    // Static Variable untuk menyimpan settingan GUI
+    static float moveSpeed = 5.0f; // Kecepatan kamera (Meter/Detik)
+    static bool useConstantSpeed = true; // Checkbox pilihan mode
+
     ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "SEQUENCE EDITOR");
     ImGui::Separator();
 
-    // 1. Play Button
-    if (ImGui::Button("PLAY SEQUENCE (A -> B -> C)", ImVec2(-1, 40)))
+    // --- MODE SELECTION ---
+    ImGui::Checkbox("Use Constant Speed Mode", &useConstantSpeed);
+
+    if (useConstantSpeed)
+    {
+        ImGui::DragFloat("Travel Speed (Units/Sec)", &moveSpeed, 0.1f, 0.1f, 50.0f);
+        ImGui::TextDisabled("Duration & Easing will be auto-calculated.");
+    }
+    else
+    {
+        ImGui::TextDisabled("Using Manual Duration per Keyframe.");
+    }
+
+    ImGui::Spacing();
+
+    // --- PLAY BUTTON ---
+    std::string playLabel = useConstantSpeed ? "PLAY (Constant Speed)" : "PLAY (Manual Timing)";
+
+    if (ImGui::Button(playLabel.c_str(), ImVec2(-1, 40)))
     {
         std::vector<CameraKeyframe> sequence;
 
-        // Konversi data Editor (Pos + Target) menjadi data Engine (Pos + Rotation)
         for (const auto& point : m_camScenarioPoints)
         {
             CameraKeyframe key;
             key.TargetPosition = point.Position;
             key.TargetRotation = CalculateRotationFromTarget(point.Position, point.LookAtTarget);
+
+            // Jika Manual, kita pakai settingan dari list. 
+            // Jika ConstantSpeed, nilai ini nanti akan ditimpa/diabaikan oleh fungsi PlaySequenceBySpeed.
             key.Duration = point.Duration;
             key.Easing = point.Easing;
-            
+
             sequence.push_back(key);
         }
 
-        camCtrl.PlaySequence(sequence, false); // false = jangan looping
+        if (useConstantSpeed)
+        {
+            // Panggil fungsi BARU
+            camCtrl.PlaySequenceBySpeed(sequence, moveSpeed, false);
+        }
+        else
+        {
+            // Panggil fungsi LAMA
+            camCtrl.PlaySequence(sequence, false);
+        }
     }
 
+    // ... (Tombol Stop & Reset tetap sama) ...
     if (ImGui::Button("Stop & Reset Camera"))
     {
         camCtrl.StopSequence();
-        // Reset ke posisi A manual
         if (!m_camScenarioPoints.empty()) {
             camCtrl.SetFixedSetting(m_camScenarioPoints[0].Position);
             camCtrl.SetTarget(m_camScenarioPoints[0].LookAtTarget);
         }
     }
+    // ...
 
     ImGui::Spacing();
     ImGui::Separator();
 
-    // 2. Editor Loop untuk A, B, C
+    // --- EDITOR LIST ---
     for (int i = 0; i < m_camScenarioPoints.size(); ++i)
     {
         auto& pt = m_camScenarioPoints[i];
-        
         ImGui::PushID(i);
+
         if (ImGui::CollapsingHeader(pt.Name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Indent();
-            
             ImGui::Text("Transform");
             ImGui::DragFloat3("Position", &pt.Position.x, 0.1f);
             ImGui::DragFloat3("Look At", &pt.LookAtTarget.x, 0.1f);
-            
-            ImGui::Spacing();
-            ImGui::Text("Timing");
-            ImGui::DragFloat("Duration (sec)", &pt.Duration, 0.1f, 0.1f, 10.0f);
-            
-            // ComboBox untuk Easing
-            const char* easingItems[] = { "Linear", "EaseIn", "EaseOut", "SmoothStep" };
-            int currentEasing = (int)pt.Easing;
-            if (ImGui::Combo("Easing", &currentEasing, easingItems, IM_ARRAYSIZE(easingItems)))
+
+            // HANYA TAMPILKAN OPSI TIMING JIKA MODE MANUAL
+            if (!useConstantSpeed)
             {
-                pt.Easing = (EasingType)currentEasing;
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(1, 1, 0, 1), "Manual Timing Settings");
+                ImGui::DragFloat("Duration (sec)", &pt.Duration, 0.1f, 0.1f, 10.0f);
+
+                const char* easingItems[] = { "Linear", "EaseIn", "EaseOut", "SmoothStep" };
+                int currentEasing = (int)pt.Easing;
+                if (ImGui::Combo("Easing", &currentEasing, easingItems, IM_ARRAYSIZE(easingItems)))
+                {
+                    pt.Easing = (EasingType)currentEasing;
+                }
+            }
+            else
+            {
+                ImGui::Spacing();
+                ImGui::TextDisabled("[Auto-Calculated in Constant Speed Mode]");
             }
 
-            // Tombol Test Instant (Untuk preview posisi tanpa menunggu sequence)
+            // Tombol Jump to View tetap ada
             if (ImGui::Button("Jump to this view"))
             {
-                // Force camera ke posisi ini
                 camCtrl.StopSequence();
                 camCtrl.SetControlMode(CameraControlMode::FixedStatic);
                 camCtrl.SetFixedSetting(pt.Position);
                 camCtrl.SetTarget(pt.LookAtTarget);
-                
-                // Update camera langsung agar tidak flicker
-                if (mainCamera) {
-                    mainCamera->SetPosition(pt.Position);
-                    mainCamera->LookAt(pt.LookAtTarget);
+                if (auto mainCam = GetMainCamera()) { // Pastikan helper getter ada atau akses variable
+                    mainCam->SetPosition(pt.Position);
+                    mainCam->LookAt(pt.LookAtTarget);
                 }
             }
-            
             ImGui::Unindent();
         }
         ImGui::PopID();
