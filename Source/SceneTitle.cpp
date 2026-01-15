@@ -5,10 +5,11 @@
 #include "System/Graphics.h"
 #include <imgui.h>
 #include "ResourceManager.h"
+#include "TUIBuilder.h"
 
 SceneTitle::SceneTitle()
 {
-    // 1. Setup Camera (Orthographic Fixed 1920x1080)
+    // 1. Setup Camera
     camera = std::make_unique<Camera>();
     camera->SetOrthographic(1920.0f, 1080.0f, 0.1f, 1000.0f);
     camera->SetPosition(0.0f, 0.0f, -10.0f);
@@ -17,13 +18,12 @@ SceneTitle::SceneTitle()
     primitiveBatcher = std::make_unique<Primitive>(Graphics::Instance().GetDevice());
     uiManager = std::make_unique<ButtonManager>();
 
-    // [BARU] Inisialisasi Post Process System
+    // Setup Post Process
     postProcess = std::make_unique<PostProcessManager>();
-    // Asumsi layar default 1920x1080, nanti akan auto-resize jika window beda
     postProcess->Initialize(1920, 1080);
 
     // =========================================================
-    // 1. SETUP DEFAULT THEME
+    // 1. SETUP DEFAULT THEME (Config)
     // =========================================================
     menuConfig.styleStandby.backColor = { 0.0f, 0.0f, 0.0f, 0.0f };
     menuConfig.styleStandby.borderColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -38,28 +38,36 @@ SceneTitle::SceneTitle()
     menuConfig.stylePress.textColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     // =========================================================
-    // A. TOMBOL DEKORASI INDEPENDEN ("/..")
+    // [BARU] GUNAKAN TUI BUILDER
     // =========================================================
-    auto btnUpDir = std::make_unique<UIButtonPrimitive>(
-        primitiveBatcher.get(), " /..            <UP DIR>",
-        menuConfig.startX, 260.0f,
-        menuConfig.btnWidth, menuConfig.btnHeight
-    );
 
-    btnUpDir->SetStyle(ButtonState::STANDBY, menuConfig.styleStandby);
-    btnUpDir->SetStyle(ButtonState::HOVER, menuConfig.styleHover);
-    btnUpDir->SetStyle(ButtonState::PRESSED, menuConfig.stylePress);
-    btnUpDir->SetPadding(8.0f);
-    btnUpDir->SetAlignment(TextAlignment::Left);
-    btnUpDir->SetTextScale(menuConfig.textScale);
-    btnUpDir->SetVerticalAdjustment(menuConfig.verticalAdj);
+    // A. Siapkan Builder & Tema
+    TUIBuilder builder(uiManager.get(), primitiveBatcher.get());
 
-    btnUpDir->SetOnClick([]() { printf("Clicked decoration /..\n"); });
-    uiManager->AddButton(std::move(btnUpDir));
+    // Transfer config dari MenuConfig ke TUITheme
+    TUITheme theme;
+    theme.styleStandby = menuConfig.styleStandby;
+    theme.styleHover = menuConfig.styleHover;
+    theme.stylePress = menuConfig.stylePress;
+    theme.textScale = menuConfig.textScale;
+    theme.padding = menuConfig.paddingX;
+    theme.verticalAdj = menuConfig.verticalAdj;
+    theme.align = (TextAlignment)menuConfig.alignment;
 
-    // =========================================================
-    // 2. GENERATE BUTTONS
-    // =========================================================
+    builder.SetTheme(theme);
+    builder.SetButtonSize(menuConfig.btnWidth, menuConfig.btnHeight);
+
+    // B. Buat Tombol Dekorasi (Posisi Manual)
+    // Kita set posisi kursor builder khusus untuk tombol ini
+    builder.SetStartPosition(menuConfig.startX, 260.0f);
+    builder.AddDecoration(" /..            <UP DIR>");
+
+    // C. Buat List Tombol Menu
+    // Reset posisi ke awal list menu
+    builder.SetStartPosition(menuConfig.startX, menuConfig.startY);
+    // Set jarak antar tombol
+    builder.SetSpacing(menuConfig.spacing);
+
     std::vector<std::string> fileList = {
         "BeyondBreak...    3256",
         "README.txt         275",
@@ -70,38 +78,40 @@ SceneTitle::SceneTitle()
 
     debugButtonList.clear();
 
-    for (int i = 0; i < fileList.size(); ++i)
+    for (const auto& fileName : fileList)
     {
-        auto btn = std::make_unique<UIButtonPrimitive>(
-            primitiveBatcher.get(), fileList[i], 0, 0, 100, 20
-        );
+        // 1. Minta Builder buatkan tombol (Posisi otomatis dihitung builder)
+        // Kita pasang callback 'nullptr' dulu, karena kita butuh pointer 'btn' nya
+        UIButtonPrimitive* btn = builder.AddButton(fileName, nullptr);
 
-        std::string fileName = fileList[i];
-        UIButtonPrimitive* rawBtnPtr = btn.get();
-
-        btn->SetOnClick([this, fileName, rawBtnPtr]() {
-            if (currentActiveButton && currentActiveButton != rawBtnPtr) {
+        // 2. Pasang Logic Callback (Sekarang kita punya pointer 'btn')
+        btn->SetOnClick([this, fileName, btn]() {
+            // Visual Logic (Radio Button)
+            if (currentActiveButton && currentActiveButton != btn) {
                 currentActiveButton->SetSelected(false);
             }
-            currentActiveButton = rawBtnPtr;
+            currentActiveButton = btn;
             currentActiveButton->SetSelected(true);
 
+            // Data Logic
             this->selectedFileName = fileName;
             this->PlayDescriptionAnim(fileName);
 
+            // System Logic
             printf("[System] Selected: %s\n", fileName.c_str());
             if (fileName.find("Exit.exe") != std::string::npos) PostQuitMessage(0);
             });
 
-        debugButtonList.push_back(btn.get());
-        uiManager->AddButton(std::move(btn));
+        debugButtonList.push_back(btn);
     }
 
     if (!debugButtonList.empty()) debugBtnExit = debugButtonList.back();
 
-    ApplyMenuLayout();
+    // =========================================================
+    // [AKHIR BAGIAN BUILDER]
+    // =========================================================
 
-    // 2. Load Resources
+    // 2. Load Resources Lain
     bgSprite = std::make_unique<Sprite>(
         Graphics::Instance().GetDevice(),
         "Data/Sprite/Scene Title/Sprite_BorderBrickDos.png"
@@ -111,11 +121,7 @@ SceneTitle::SceneTitle()
     SetupLayout();
     SetupContent();
 
-    // [HAPUS] Inisialisasi UberShader manual & CreateRenderTarget dihapus
-
-    // =========================================================
-    // SET DEFAULT SELECTION (AUTO-SELECT README)
-    // =========================================================
+    // Auto-Select README
     for (auto* btn : debugButtonList)
     {
         if (btn->GetText().find("README.txt") != std::string::npos)

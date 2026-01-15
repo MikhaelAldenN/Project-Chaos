@@ -219,6 +219,9 @@
     <ClCompile Include="Source\PostProcessManager.cpp">
       <Filter>Source\Shaders</Filter>
     </ClCompile>
+    <ClCompile Include="Source\TUIBuilder.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -442,6 +445,9 @@
     </ClInclude>
     <ClInclude Include="Source\PostProcessManager.h">
       <Filter>Source\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\TUIBuilder.h">
+      <Filter>Source\UI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
