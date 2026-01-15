@@ -67,7 +67,11 @@ private:
     // Fungsi helper ImGui untuk mengurangi duplikasi kode UI
     void ImGuiEditPanel(PanelLayout& layout);
 
-    UIButtonPrimitive* debugBtnExit = nullptr;
+    UIButtonPrimitive* debugBtnExit = nullptr; // Pointer ke tombol yang SEDANG diedit
+
+    // Tambahkan 2 baris ini:
+    std::vector<UIButtonPrimitive*> debugButtonList; // List semua tombol untuk dipilih
+    int debugSelectedIdx = 0;                        // Index tombol yang dipilih sekarang
 
     // GUI State
     struct PostProcessState
@@ -90,4 +94,31 @@ private:
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
     Microsoft::WRL::ComPtr<ID3D11Texture2D> depthStencilTexture;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
+
+    // --- GROUP CONFIGURATION ---
+    // Struct ini mengontrol seluruh layout menu secara global
+    struct MenuConfig {
+        // --- Layout (Existing) ---
+        float startX = 55.0f;
+        float startY = 320.0f;
+        float btnWidth = 400.0f;
+        float btnHeight = 35.0f;
+        float spacing = 5.0f;
+        float paddingX = 10.0f;
+        float textScale = 0.625f;
+        float verticalAdj = 2.0f;
+        int alignment = 1;
+
+        // --- Colors (NEW FEATURES) ---
+        // Kita simpan 3 style utama di sini
+        ButtonStyle styleStandby;
+        ButtonStyle styleHover;
+        ButtonStyle stylePress;
+    };
+    MenuConfig menuConfig; // Instance konfigurasi
+
+    // Fungsi helper untuk menerapakan config ke semua tombol
+    void ApplyMenuLayout();
+
+    UIButtonPrimitive* currentActiveButton = nullptr;
 };

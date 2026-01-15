@@ -16,20 +16,81 @@ SceneTitle::SceneTitle()
 
     primitiveBatcher = std::make_unique<Primitive>(Graphics::Instance().GetDevice());
     uiManager = std::make_unique<ButtonManager>();
-    auto btnExit = std::make_unique<UIButtonPrimitive>(
-        primitiveBatcher.get(),
-        "Quit.exe",
-        50.0f, 600.0f, 200.0f, 40.0f
-    );
 
-    debugBtnExit = btnExit.get();
+    // =========================================================
+    // 1. SETUP DEFAULT THEME (Di dalam MenuConfig)
+    // =========================================================
 
-    // Style warna custom (Opsional) - Misal tema Merah Error
-    btnExit->SetColors({ 0.5f, 0.0f, 0.0f }, { 0.8f, 0.0f, 0.0f }, { 0.3f, 0.0f, 0.0f });
+        // Style: Standby (Transparan + Teks Kuning)
+    menuConfig.styleStandby.backColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+    menuConfig.styleStandby.borderColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+    menuConfig.styleStandby.textColor = { 0.96f, 0.80f, 0.23f, 1.0f };
 
-    btnExit->SetOnClick([]() {  });
+    // Style: Hover (Biru DOS + Teks Putih)
+    menuConfig.styleHover.backColor = { 0.0f, 0.0f, 0.8f, 1.0f };
+    menuConfig.styleHover.borderColor = { 0.0f, 0.0f, 0.8f, 1.0f };
+    menuConfig.styleHover.textColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
-    uiManager->AddButton(std::move(btnExit));
+    // Style: Pressed (Putih + Teks Biru)
+    menuConfig.stylePress.backColor = { 0.0f, 0.0f, 0.8f, 1.0f };
+    menuConfig.stylePress.borderColor = { 0.0f, 0.0f, 0.8f, 1.0f };
+    menuConfig.stylePress.textColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+    // =========================================================
+    // 2. GENERATE BUTTONS
+    // =========================================================
+    std::vector<std::string> fileList = {
+        "BeyondBreak...    3256", 
+        "README.txt         275", 
+        "settings.ini        83", 
+        "Misc/            <DIR>", 
+        "Exit.exe          4096"
+    };
+
+    debugButtonList.clear();
+
+    for (int i = 0; i < fileList.size(); ++i)
+    {
+        // Buat button (Posisi 0,0 dulu, nanti diatur ApplyMenuLayout)
+        auto btn = std::make_unique<UIButtonPrimitive>(
+            primitiveBatcher.get(), fileList[i], 0, 0, 100, 20
+        );
+
+        // Callback (Logic klik)
+        std::string fileName = fileList[i];
+
+        // Kita capture 'raw pointer' dari btn untuk logika switching
+        UIButtonPrimitive* rawBtnPtr = btn.get();
+
+        btn->SetOnClick([this, fileName, rawBtnPtr]() {
+
+            // 1. Matikan tombol sebelumnya (jika ada dan beda dengan yang sekarang)
+            if (currentActiveButton && currentActiveButton != rawBtnPtr)
+            {
+                currentActiveButton->SetSelected(false);
+            }
+
+            // 2. Aktifkan tombol yang baru diklik
+            currentActiveButton = rawBtnPtr;
+            currentActiveButton->SetSelected(true);
+
+            // 3. Debug / Game Logic
+            printf("[System] Selected: %s\n", fileName.c_str());
+
+            // Khusus Exit
+            if (fileName == "Exit.exe") PostQuitMessage(0);
+            });
+
+        // ------------------------------------
+
+        debugButtonList.push_back(btn.get());
+        uiManager->AddButton(std::move(btn));
+    }
+
+    if (!debugButtonList.empty()) debugBtnExit = debugButtonList.back();
+
+    // Terapkan Layout & Warna sekaligus
+    ApplyMenuLayout();
 
     // 2. Load Resources
     bgSprite = std::make_unique<Sprite>(
@@ -51,7 +112,7 @@ void SceneTitle::SetupLayout()
     // Default Values (Bisa ditweak lewat ImGui nanti)
 
     // Panel Status (Atas)
-    statusPanel = { "Status Panel", 55.0f, 105.0f, 0.0f, 0.625f, {0.0f, 1.0f, 1.0f, 1.0f} }; // Cyan
+    statusPanel = { "Status Panel", 341.0f, 132.0f, 0.0f, 0.625f, {0.96f, 0.80f, 0.23f, 1.0f} }; // Cyan
 
     // Panel Directory (Tengah)
     dirPanel = { "Directory Panel", 55.0f, 320.0f, 40.0f, 0.625f, {1.0f, 1.0f, 1.0f, 1.0f} }; // White
@@ -63,7 +124,7 @@ void SceneTitle::SetupLayout()
 void SceneTitle::SetupContent()
 {
     // Status
-    statusText = "Online - UNSTABLE";
+    statusText = "Online - Unstable";
 
     // Directory
     directoryFiles = {
@@ -247,6 +308,48 @@ void SceneTitle::OnResize(int width, int height)
     CreateRenderTarget();
 }
 
+void SceneTitle::ApplyMenuLayout()
+{
+    for (int i = 0; i < debugButtonList.size(); ++i)
+    {
+        UIButtonPrimitive* btn = debugButtonList[i];
+
+        // 1. Layout Logic
+        float currentY = menuConfig.startY + (i * (menuConfig.btnHeight + menuConfig.spacing));
+        btn->SetPosition(menuConfig.startX, currentY);
+        btn->SetSize(menuConfig.btnWidth, menuConfig.btnHeight);
+        btn->SetPadding(menuConfig.paddingX);
+        btn->SetTextScale(menuConfig.textScale);
+        btn->SetVerticalAdjustment(menuConfig.verticalAdj);
+        btn->SetAlignment((TextAlignment)menuConfig.alignment);
+
+        // 2. Color/Style Logic (NEW)
+        // Kita copy style dari Master Config ke setiap tombol
+        btn->SetStyle(ButtonState::STANDBY, menuConfig.styleStandby);
+        btn->SetStyle(ButtonState::HOVER, menuConfig.styleHover);
+        btn->SetStyle(ButtonState::PRESSED, menuConfig.stylePress);
+    }
+
+    if (!debugButtonList.empty())
+    {
+        currentActiveButton = debugButtonList[1];
+        currentActiveButton->SetSelected(true);
+    }
+}
+
+static void ImGuiEditButtonStyle(const char* label, ButtonStyle& style)
+{
+    if (ImGui::TreeNode(label))
+    {
+        // Preview Alpha (Transparansi) sangat penting untuk style DOS
+        ImGui::ColorEdit4("Background", &style.backColor.x, ImGuiColorEditFlags_AlphaPreviewHalf);
+        ImGui::ColorEdit4("Border", &style.borderColor.x, ImGuiColorEditFlags_AlphaPreviewHalf);
+        ImGui::ColorEdit4("Text", &style.textColor.x);
+
+        ImGui::TreePop();
+    }
+}
+
 // --- IMGUI IMPLEMENTATION ---
 
 void SceneTitle::ImGuiEditPanel(PanelLayout& layout)
@@ -269,57 +372,83 @@ void SceneTitle::DrawGUI()
 
     if (ImGui::BeginTabBar("InspectorTabs"))
     {
-        // TAB 1: UI & Layout (Existing)
+        // TAB 1: UI Layout
         if (ImGui::BeginTabItem("UI Layout"))
         {
-            if (ImGui::CollapsingHeader("Layout Settings", ImGuiTreeNodeFlags_DefaultOpen))
+            if (ImGui::CollapsingHeader("Menu Group Settings", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                ImGui::Text("Tweak UI positions here:");
+                bool layoutChanged = false;
+
+                // --- A. LAYOUT SECTION ---
+                ImGui::TextColored({ 0.2f, 1.0f, 0.2f, 1.0f }, "Dimensions & Spacing");
+                if (ImGui::DragFloat("Start X", &menuConfig.startX, 1.0f)) layoutChanged = true;
+                if (ImGui::DragFloat("Start Y", &menuConfig.startY, 1.0f)) layoutChanged = true;
+                if (ImGui::DragFloat("Spacing", &menuConfig.spacing, 0.5f)) layoutChanged = true;
+                if (ImGui::DragFloat("Width", &menuConfig.btnWidth, 1.0f)) layoutChanged = true;
+                if (ImGui::DragFloat("Height", &menuConfig.btnHeight, 1.0f)) layoutChanged = true;
+
                 ImGui::Separator();
 
-                ImGuiEditPanel(statusPanel);
-                ImGuiEditPanel(dirPanel);
-                ImGuiEditPanel(logPanel);
-            }
+                // --- B. CONTENT SECTION ---
+                ImGui::TextColored({ 0.2f, 1.0f, 0.2f, 1.0f }, "Text & Alignment");
+                if (ImGui::DragFloat("Text Scale", &menuConfig.textScale, 0.01f)) layoutChanged = true;
+                if (ImGui::DragFloat("Padding", &menuConfig.paddingX, 1.0f)) layoutChanged = true;
+                if (ImGui::DragFloat("V-Adjust", &menuConfig.verticalAdj, 0.5f)) layoutChanged = true;
+                const char* items[] = { "Center", "Left", "Right" };
+                if (ImGui::Combo("Align", &menuConfig.alignment, items, IM_ARRAYSIZE(items))) layoutChanged = true;
 
-            if (ImGui::CollapsingHeader("Button Inspector", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-                if (debugBtnExit)
+                ImGui::Separator();
+
+                // --- C. THEME / COLORS SECTION (NEW!) ---
+                ImGui::TextColored({ 1.0f, 0.5f, 0.0f, 1.0f }, "Theme Editor (Colors)");
+                ImGui::TextDisabled("Changes apply to ALL buttons in group");
+
+                // Helper ini akan return void, jadi kita harus cek manual apa ada perubahan.
+                // Tapi karena ImGui ColorEdit update setiap frame saat digeser, 
+                // cara paling aman: panggil ApplyMenuLayout jika user sedang berinteraksi.
+
+                // 1. STANDBY
+                ImGui::PushID("GrpStd");
+                if (ImGui::TreeNode("State: Standby")) {
+                    ImGui::ColorEdit4("BG", &menuConfig.styleStandby.backColor.x, ImGuiColorEditFlags_AlphaPreviewHalf);
+                    ImGui::ColorEdit4("Border", &menuConfig.styleStandby.borderColor.x, ImGuiColorEditFlags_AlphaPreviewHalf);
+                    ImGui::ColorEdit4("Text", &menuConfig.styleStandby.textColor.x);
+                    ImGui::TreePop();
+                    layoutChanged = true; // Asumsikan berubah jika node terbuka (simple hack)
+                }
+                ImGui::PopID();
+
+                // 2. HOVER
+                ImGui::PushID("GrpHov");
+                if (ImGui::TreeNode("State: Hover")) {
+                    ImGui::ColorEdit4("BG", &menuConfig.styleHover.backColor.x, ImGuiColorEditFlags_AlphaPreviewHalf);
+                    ImGui::ColorEdit4("Border", &menuConfig.styleHover.borderColor.x, ImGuiColorEditFlags_AlphaPreviewHalf);
+                    ImGui::ColorEdit4("Text", &menuConfig.styleHover.textColor.x);
+                    ImGui::TreePop();
+                    layoutChanged = true;
+                }
+                ImGui::PopID();
+
+                // 3. PRESS
+                ImGui::PushID("GrpPrs");
+                if (ImGui::TreeNode("State: Pressed")) {
+                    ImGui::ColorEdit4("BG", &menuConfig.stylePress.backColor.x, ImGuiColorEditFlags_AlphaPreviewHalf);
+                    ImGui::ColorEdit4("Border", &menuConfig.stylePress.borderColor.x, ImGuiColorEditFlags_AlphaPreviewHalf);
+                    ImGui::ColorEdit4("Text", &menuConfig.stylePress.textColor.x);
+                    ImGui::TreePop();
+                    layoutChanged = true;
+                }
+                ImGui::PopID();
+
+                // --- APPLY UPDATE ---
+                if (layoutChanged)
                 {
-                    ImGui::Text("Target: BeyondBreaker.exe");
-
-                    float pos[2] = { debugBtnExit->GetX(), debugBtnExit->GetY() };
-                    float size[2] = { debugBtnExit->GetWidth(), debugBtnExit->GetHeight() };
-
-                    if (ImGui::DragFloat2("Position", pos)) debugBtnExit->SetPosition(pos[0], pos[1]);
-                    if (ImGui::DragFloat2("Size", size, 1.0f, 10.0f, 1000.0f)) debugBtnExit->SetSize(size[0], size[1]);
-
-                    ImGui::DragFloat("Text Scale", &debugBtnExit->GetTextScale(), 0.01f, 0.1f, 5.0f);
-
-                    ImGui::Separator();
-                    ImGui::Text("Text Layout");
-                    ImGui::DragFloat("Padding X", &debugBtnExit->GetPadding(), 1.0f, 0.0f, 500.0f);
-                    ImGui::DragFloat("V-Adjust (Y)", &debugBtnExit->GetVerticalAdjustment(), 0.5f, -50.0f, 50.0f);
-
-                    int alignState = (int)debugBtnExit->GetAlignment();
-                    const char* items[] = { "Center", "Left", "Right" };
-                    if (ImGui::Combo("Alignment", &alignState, items, IM_ARRAYSIZE(items)))
-                    {
-                        debugBtnExit->SetAlignment((TextAlignment)alignState);
-                    }
-
-                    ImGui::Separator();
-                    ImGui::Text("Color Pallete (RGB)");
-                    ImGui::ColorEdit3("Normal", &debugBtnExit->GetColorNormal().x);
-                    ImGui::ColorEdit3("Hover", &debugBtnExit->GetColorHover().x);
-                    ImGui::ColorEdit3("Pressed", &debugBtnExit->GetColorPress().x);
-                    ImGui::ColorEdit3("Border", &debugBtnExit->GetColorBorder().x);
+                    ApplyMenuLayout();
                 }
             }
-            ImGui::EndTabItem();
+            ImGui::EndTabItem(); // JANGAN LUPA INI!
         }
 
-        // TAB 2: Post-Processing (NEW)
         if (ImGui::BeginTabItem("Post-Process & FX"))
         {
             GUIPostProcessTab();
@@ -328,7 +457,6 @@ void SceneTitle::DrawGUI()
 
         ImGui::EndTabBar();
     }
-
     ImGui::End();
 }
 
@@ -444,3 +572,4 @@ void SceneTitle::CreateRenderTarget()
     device->CreateTexture2D(&textureDesc, nullptr, depthStencilTexture.ReleaseAndGetAddressOf());
     device->CreateDepthStencilView(depthStencilTexture.Get(), nullptr, depthStencilView.ReleaseAndGetAddressOf());
 }
+

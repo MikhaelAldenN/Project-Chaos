@@ -26,6 +26,18 @@ public:
     // --- SHARED LOGIC (Semua anak pakai logika yang sama) ---
     void Update()
     {
+        // 1. Jika tombol ini Terpilih (Selected), PAKSA state jadi PRESSED
+        // Ini memastikan visualnya tetap "Mencet" walaupun mouse pergi.
+        if (isSelected)
+        {
+            currentState = ButtonState::PRESSED;
+
+            // Kita tetap butuh cek klik mouse jika ingin logic "Re-click"
+            // Tapi untuk visual, kita return di sini agar tidak ditimpa logic hover di bawah.
+            return;
+        }
+
+        // 2. Standard Mouse Logic (Hanya jalan jika TIDAK Selected)
         Mouse& mouse = Input::Instance().GetMouse();
         POINT mousePos = { mouse.GetPositionX(), mouse.GetPositionY() };
 
@@ -37,7 +49,8 @@ public:
             if (isMouseDown) currentState = ButtonState::PRESSED;
             else
             {
-                if (currentState == ButtonState::PRESSED && callback) callback(); // CLICK!
+                // Logic klik terjadi saat mouse dilepas (Mouse Up) di dalam area
+                if (currentState == ButtonState::PRESSED && callback) callback();
                 currentState = ButtonState::HOVER;
             }
         }
@@ -47,6 +60,9 @@ public:
         }
     }
 
+    // --- NEW HELPERS ---
+    void SetSelected(bool value) { isSelected = value; }
+    bool IsSelected() const { return isSelected; }
     void SetOnClick(OnClickCallback cb) { callback = cb; }
     ButtonState GetState() const { return currentState; }
 
@@ -79,4 +95,5 @@ protected:
     float width, height;
     ButtonState currentState = ButtonState::STANDBY;
     OnClickCallback callback;
+    bool isSelected = false;
 };
