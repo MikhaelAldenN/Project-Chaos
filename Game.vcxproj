@@ -131,6 +131,7 @@
     <ClInclude Include="Source\BitmapFont.h" />
     <ClInclude Include="Source\Block.h" />
     <ClInclude Include="Source\BlockManager.h" />
+    <ClInclude Include="Source\LogConsole.h" />
     <ClInclude Include="Source\PostProcessManager.h" />
     <ClInclude Include="Source\TextDatabase.h" />
     <ClInclude Include="Source\TUIBuilder.h" />
@@ -214,6 +215,7 @@
     <ClCompile Include="Source\Framework.cpp" />
     <ClCompile Include="Source\FreeCameraController.cpp" />
     <ClCompile Include="Source\GameWindow.cpp" />
+    <ClCompile Include="Source\LogConsole.cpp" />
     <ClCompile Include="Source\Main.cpp" />
     <ClCompile Include="Source\Paddle.cpp" />
     <ClCompile Include="Source\Player.cpp" />

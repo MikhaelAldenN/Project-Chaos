@@ -28,7 +28,7 @@ Framework::Framework()
     ResourceManager::Instance().LoadFont("VGA_FONT", "Data/Font/IBM_VGA_32px_0.png", "Data/Font/IBM_VGA_32px.fnt");
 
     // Initialize starting scene (SceneTitle)
-    scene = std::make_unique<SceneIntroBios>();
+    scene = std::make_unique<SceneTitle>();
 
     // Set initial camera if applicable
     if (auto introScene = dynamic_cast<SceneIntroBios*>(scene.get()))

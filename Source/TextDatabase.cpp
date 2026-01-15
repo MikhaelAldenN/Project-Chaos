@@ -101,6 +101,28 @@ void TextDatabase::Initialize()
             "> Clicking this again will close the app."
         }
     };
+
+    m_systemLogs = {
+    "Loading kernel modules...",
+    "Allocating memory block 0x84F...",
+    "Initializing GPU drivers...",
+    "Checking VRAM integrity... OK",
+    "Mounting virtual file system...",
+    "Decrypting user config...",
+    "Connection established: 192.168.0.1",
+    "Packet loss detected, retrying...",
+    "Bypassing firewall rules...",
+    "Access granted to /ROOT/BIN",
+    "Loading shader cache...",
+    "Physics engine warm-up...",
+    "Warning: Temperature spike detected",
+    "Overclocking CPU... 120%",
+    "Syncing with cloud mainframe...",
+    "Downloading patch 1.0.4...",
+    "Verifying checksums...",
+    "Cleaning up temp files...",
+    "User authentication: BYPASSED"
+    };
 }
 
 const FileMetadata* TextDatabase::GetMetadata(const std::string& fileName) const

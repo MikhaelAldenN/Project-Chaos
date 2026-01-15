@@ -16,6 +16,7 @@
 #include "System/Sprite.h" 
 #include "TextDatabase.h"
 #include "PostProcessManager.h"
+#include "LogConsole.h"
 
 // Structs for UI Layout
 struct PanelLayout {
@@ -49,6 +50,7 @@ private:
     std::unique_ptr<ButtonManager> uiManager;
     std::unique_ptr<PostProcessManager> postProcess;
     std::unique_ptr<Typewriter> descTypewriter;
+    std::unique_ptr<LogConsole> logConsole;
 
     // --- Layout & Visual Configuration ---
     PanelLayout panelStatus;

@@ -17,7 +17,11 @@ SceneTitle::SceneTitle()
     TextDatabase::Instance().Initialize();
 
     primitiveBatcher = std::make_unique<Primitive>(Graphics::Instance().GetDevice());
-    uiManager = std::make_unique<ButtonManager>();
+    uiManager = std::make_unique<ButtonManager>(); 
+
+    logConsole = std::make_unique<LogConsole>();
+    logConsole->Initialize(325.0f, 695.0f, 6);
+    logConsole->SetStyle(0.625f, 30.0f, 0.96f, 0.80f, 0.23f, 0.7f);
 
     postProcess = std::make_unique<PostProcessManager>();
     postProcess->Initialize(1920, 1080);
@@ -111,6 +115,7 @@ SceneTitle::SceneTitle()
 void SceneTitle::Update(float elapsedTime)
 {
     uiManager->Update();
+    logConsole->Update(elapsedTime);
 
     if (descTypewriter)
     {
@@ -180,6 +185,7 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
         font->Draw(textTUIMenuBar.c_str(), 400.0f, 960.0f, 0.625f, 0.96f, 0.80f, 0.23f, 1.0f);
 
         if (descTypewriter) descTypewriter->Render(font);
+        logConsole->Render(font);
     }
 
     // --- STEP 3: Apply Post-Processing & Present ---

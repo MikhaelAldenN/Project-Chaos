@@ -225,6 +225,9 @@
     <ClCompile Include="Source\TextDatabase.cpp">
       <Filter>Source\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Source\LogConsole.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -453,6 +456,9 @@
       <Filter>Source\UI</Filter>
     </ClInclude>
     <ClInclude Include="Source\TextDatabase.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\LogConsole.h">
       <Filter>Source\UI</Filter>
     </ClInclude>
   </ItemGroup>

@@ -29,6 +29,8 @@ public:
     // Ambil string sistem (misal: Header atau Status)
     std::string GetSystemString(const std::string& key);
 
+    const std::vector<std::string>& GetSystemLogs() const { return m_systemLogs; }
+
 private:
     TextDatabase() = default;
     ~TextDatabase() = default;
@@ -37,4 +39,5 @@ private:
     std::map<std::string, FileMetadata> m_fileDatabase;
     std::vector<std::string> m_directoryList;
     std::map<std::string, std::string> m_systemStrings;
+    std::vector<std::string> m_systemLogs;
 };
