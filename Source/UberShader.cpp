@@ -1,20 +1,20 @@
-#include "VignetteShader.h"
+#include "UberShader.h"
 #include "System/GpuResourceUtils.h" 
 #include "System/Misc.h"
 #include <algorithm> 
 
-VignetteShader::VignetteShader(ID3D11Device* device)
+UberShader::UberShader(ID3D11Device* device)
 {
     // --------------------------------------------------------
     // Load Shaders
     // --------------------------------------------------------
-    GpuResourceUtils::LoadVertexShader(device, "Data/Shader/VignetteVS.cso", nullptr, 0, nullptr, vertexShader.GetAddressOf());
-    GpuResourceUtils::LoadPixelShader(device, "Data/Shader/VignettePS.cso", pixelShader.GetAddressOf());
+    GpuResourceUtils::LoadVertexShader(device, "Data/Shader/UberPostProcessVS.cso", nullptr, 0, nullptr, vertexShader.GetAddressOf());
+    GpuResourceUtils::LoadPixelShader(device, "Data/Shader/UberPostProcessPS.cso", pixelShader.GetAddressOf());
 
     // --------------------------------------------------------
     // Create Constant Buffer
     // --------------------------------------------------------
-    GpuResourceUtils::CreateConstantBuffer(device, sizeof(CbVignette), constantBuffer.GetAddressOf());
+    GpuResourceUtils::CreateConstantBuffer(device, sizeof(CbUber), constantBuffer.GetAddressOf());
 
     // --------------------------------------------------------
     // Create Sampler State
@@ -26,44 +26,38 @@ VignetteShader::VignetteShader(ID3D11Device* device)
     samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
     device->CreateSamplerState(&samplerDesc, samplerState.GetAddressOf());
 
-    // Force an update on the first frame
-    currentData.intensity = -1.0f;
+    currentData.intensity = -1.0f; // Force update
 }
 
-void VignetteShader::Draw(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* textureSRV, const VignetteData& data)
+void UberShader::Draw(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* textureSRV, const UberData& data)
 {
     // --------------------------------------------------------
     // OPTIMIZATION: Update GPU Buffer only if data changed
     // --------------------------------------------------------
-    if (memcmp(&data, &currentData, sizeof(VignetteData)) != 0)
+    if (memcmp(&data, &currentData, sizeof(UberData)) != 0)
     {
-        CbVignette cb = {};
+        CbUber cb = {};
         cb.color = data.color;
         cb.center = data.center;
-
-        // Apply Tuning Multipliers
         cb.intensity = data.intensity * INTENSITY_FACTOR;
         cb.smoothness = (std::max)(SMOOTHNESS_MIN, data.smoothness * SMOOTHNESS_FACTOR);
-
-        // Convert Boolean to Float
         cb.rounded = data.rounded ? 1.0f : 0.0f;
-
-        // Calculate Roundness Curve (Lerp Logic)
         cb.roundness = ROUNDNESS_POWER * (1.0f - data.roundness) + data.roundness;
 
         cb.blurStrength = std::clamp(data.blurStrength, 0.0f, 0.1f);
         cb.distortion = std::clamp(data.distortion, -0.2f, 0.2f);
+
         cb.glitchStrength = data.glitchStrength;
-        cb.scanlineStrength = data.scanlineStrength;
         cb.time = data.time;
+
+        cb.scanlineStrength = data.scanlineStrength;
         cb.scanlineSpeed = data.scanlineSpeed;
         cb.scanlineSize = data.scanlineSize;
+
         cb.fineOpacity = data.fineOpacity;
         cb.fineDensity = data.fineDensity;
 
         dc->UpdateSubresource(constantBuffer.Get(), 0, 0, &cb, 0, 0);
-
-        // Update Cache
         currentData = data;
     }
 
@@ -73,9 +67,10 @@ void VignetteShader::Draw(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* tex
     dc->VSSetShader(vertexShader.Get(), nullptr, 0);
     dc->PSSetShader(pixelShader.Get(), nullptr, 0);
     dc->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
+    
     // OPTIMIZATION: Unbind Input Layout & Vertex Buffers
     // The Vertex Shader generates coordinates using SV_VertexID, so no input data is needed.
+    dc->IASetInputLayout(nullptr);
     dc->IASetInputLayout(nullptr);
     ID3D11Buffer* nullBuffer = nullptr;
     UINT stride = 0, offset = 0;

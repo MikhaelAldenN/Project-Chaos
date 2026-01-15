@@ -10,7 +10,7 @@
 #include "Scene.h"
 #include "GameWindow.h"
 #include "CameraController.h"
-#include "VignetteShader.h"
+#include "UberShader.h"
 #include "System/Sprite.h"
 
 // Game Objects
@@ -69,7 +69,7 @@ private:
     // =========================================================
     struct PostProcessState
     {
-        bool MasterEnabled = false;
+        bool MasterEnabled = true;
         bool EnableVignette = true;
         bool EnableLens = true;
         bool EnableCRT = true;
@@ -105,8 +105,8 @@ private:
     std::unique_ptr<Sprite> m_spriteBorderBreaker;
     std::unique_ptr<Sprite> m_spriteDEBUG_LAYOUT;
 
-    std::unique_ptr<VignetteShader> vignetteShader;
-    VignetteShader::VignetteData vignetteParams;
+    std::unique_ptr<UberShader> uberShader; 
+    UberShader::UberData        uberParams; 
     PostProcessState m_fxState;
 
     // DirectX Resources (Render Targets)
