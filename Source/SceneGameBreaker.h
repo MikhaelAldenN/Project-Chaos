@@ -12,6 +12,8 @@
 #include "CameraController.h"
 #include "UberShader.h"
 #include "System/Sprite.h"
+#include "BitmapFont.h"     
+#include "ResourceManager.h"
 
 // Game Objects
 #include "Ball.h"
@@ -42,6 +44,17 @@ public:
 
 private:
     // =========================================================
+    // DEFINE STRUCT 
+    // =========================================================
+    struct UI_LayoutData {
+        char name[32];
+        float x, y;
+        float lineSpacing;
+        float scale;
+        float color[4];
+    };
+
+    // =========================================================
     // INTERNAL HELPER FUNCTIONS
     // =========================================================
     void RenderScene(float elapsedTime, Camera* camera);
@@ -53,16 +66,30 @@ private:
     void GUIPostProcessTab();  // Tab Inspector: Efek Visual & Filter
     void GUISpriteTab();       // Tab Inspector: Sprite Border Breaker
     void GUISectionHeader(const char* label);
+    void ImGuiEditPanel(UI_LayoutData& layout);
 
     // =========================================================
     // SPRITE CONTROLS
     // =========================================================
-    DirectX::XMFLOAT3 m_spritePos = { 0.215f, 13.0f, 0.0f };
+    DirectX::XMFLOAT3 m_spritePos = { 0.143f, 13.0f, 0.0f };
     DirectX::XMFLOAT2 m_spriteSize = { 16.0f, 9.0f };
-    float m_spriteScale = 0.636f;
+    float m_spriteScale = 0.645f;
     float m_spritePitch = 90.0f;
     float m_spriteYaw = 0.0f;
     float m_spriteRoll = 0.0f;
+
+    // =========================================================
+    // LAYOUT DATA
+    // =========================================================
+    std::string tutorialText = "[A/D] Move   [SPACE] Shoot";
+
+    UI_LayoutData tutorialLayout = {
+         "Tutorial Panel",               // name
+         349.0f, 836.0f,                 // x, y
+         0.0f,                           // lineSpacing
+         0.625f,                         // scale
+         { 0.96f, 0.80f, 0.23f, 1.0f }   // color (Yellowish)
+    };
 
     // =========================================================
     // INTERNAL DATA STRUCTURES
@@ -126,7 +153,7 @@ private:
     // Visual Config
     DirectX::XMFLOAT4 bgSpriteColor = { 1.0f, 1.0f, 1.0f, 1.0f };
     const char* pathBorderBreaker = "Data/Sprite/Scene Breaker/Sprite_BorderBreakertransparent.png";
-	const char* pathDebugLayout = "Data/Sprite/Placeholder/[PLACEHOLDER]Back_Title.png";
+	//const char* pathDebugLayout = "Data/Sprite/Placeholder/[PLACEHOLDER]Back_Title.png";
 
     // =========================================================
     // 5. RUNTIME STATE (VARIABLES)

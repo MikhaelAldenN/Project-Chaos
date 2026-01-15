@@ -58,7 +58,7 @@ SceneGameBreaker::SceneGameBreaker()
     // Initialize Assets
     // --------------------------------------------------------
     m_spriteBorderBreaker = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathBorderBreaker);
-	m_spriteDEBUG_LAYOUT = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathDebugLayout);
+	//m_spriteDEBUG_LAYOUT = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathDebugLayout);
 
     ball = new Ball();
     paddle = new Paddle();
@@ -267,7 +267,21 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
         );
     }
 
-    // --- C. Debug Shapes ---
+    // --- C. Text ---
+    // [NEW] Render the tutorial text here so it's part of the scene (gets post-processed)
+    BitmapFont* text = ResourceManager::Instance().GetFont("VGA_FONT");
+    if (text)
+    {
+        // Setup Blend State for Text
+        dc->OMSetBlendState(Graphics::Instance().GetAlphaBlendState(), nullptr, 0xFFFFFFFF);
+
+        text->Draw(tutorialText.c_str(),
+            tutorialLayout.x, tutorialLayout.y, tutorialLayout.scale,
+            tutorialLayout.color[0], tutorialLayout.color[1], tutorialLayout.color[2], tutorialLayout.color[3]
+        );
+    }
+
+    // --- D. Debug Shapes ---
     if (targetCam == mainCamera.get())
     {
         Graphics::Instance().GetShapeRenderer()->Render(dc, targetCam->GetView(), targetCam->GetProjection());
@@ -365,6 +379,21 @@ void SceneGameBreaker::CreateRenderTarget()
     device->CreateDepthStencilView(depthStencilTexture.Get(), nullptr, depthStencilView.ReleaseAndGetAddressOf());
 }
 
+void SceneGameBreaker::ImGuiEditPanel(UI_LayoutData& layout)
+{
+    if (ImGui::TreeNode(layout.name))
+    {
+        ImGui::DragFloat("Pos X", &layout.x, 1.0f, 0.0f, 1920.0f);
+        ImGui::DragFloat("Pos Y", &layout.y, 1.0f, 0.0f, 1080.0f);
+        ImGui::DragFloat("Scale", &layout.scale, 0.01f, 0.1f, 5.0f);
+        
+        ImGui::DragFloat("Line Spacing", &layout.lineSpacing, 1.0f, 0.0f, 200.0f);
+        ImGui::ColorEdit4("Color", layout.color);
+
+        ImGui::TreePop();
+    }
+}
+
 // SceneGameBreaker.cpp GUI
 void SceneGameBreaker::DrawGUI()
 {
@@ -375,7 +404,7 @@ void SceneGameBreaker::DrawGUI()
     ImGui::SetNextWindowSize(ImVec2(400, 600), ImGuiCond_FirstUseEver);
 
     // KITA BUKA WINDOW DI SINI
-    if (ImGui::Begin("Scene Inspector", nullptr, ImGuiWindowFlags_NoSavedSettings))
+    if (ImGui::Begin("Scene Inspector", nullptr))
     {
         if (ImGui::BeginTabBar("InspectorTabs"))
         {
@@ -389,7 +418,20 @@ void SceneGameBreaker::DrawGUI()
                 ImGui::EndTabItem();
             }
 
-            // --- TAB 2: POST PROCESS ---
+            // TAB 2: UI LAYOUT
+            if (ImGui::BeginTabItem("UI Layout"))
+            {
+                ImGui::Spacing();
+                ImGui::Text("Adjust In-Game UI Elements:");
+                ImGui::Separator();
+
+                // Drop down Tutorial Setting
+                ImGuiEditPanel(tutorialLayout);
+
+                ImGui::EndTabItem();
+            }
+
+            // --- TAB e: POST PROCESS ---
             if (ImGui::BeginTabItem("Post-Process & FX"))
             {
                 GUIPostProcessTab();
