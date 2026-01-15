@@ -21,8 +21,15 @@
 
 struct SceneCameraPoint {
     std::string Name;
-    DirectX::XMFLOAT3 Position;
-    DirectX::XMFLOAT3 LookAtTarget; // Kita simpan Target, bukan Rotasi (lebih mudah diedit)
+
+    // START STATE
+    DirectX::XMFLOAT3 StartPos;
+    DirectX::XMFLOAT3 StartLookAt;
+
+    // END STATE
+    DirectX::XMFLOAT3 EndPos;
+    DirectX::XMFLOAT3 EndLookAt;
+
     float Duration;
     EasingType Easing;
 };

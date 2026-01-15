@@ -16,14 +16,24 @@ enum class EasingType {
     EaseInCubic,
     EaseOutCubic,
     SmoothStep,
-    SequenceAutoCubic
+    SequenceAutoCubic,
+    Step // <--- TAMBAHKAN INI (JUMP CUT)
 };
 
 // Struct for Camera Waypoints
 struct CameraKeyframe {
+    // Target (End) State
     DirectX::XMFLOAT3 TargetPosition;
-    DirectX::XMFLOAT3 TargetRotation; // Euler Angles (Radians)
-    float Duration;                   // Time to reach this target (seconds)
+    DirectX::XMFLOAT3 TargetRotation;
+
+    // [BARU] Start State (Optional / Explicit)
+    // Jika isJumpCut = true, animasi akan dimulai dari StartPosition ini,
+    // bukan dari posisi kamera terakhir.
+    bool isJumpCut = false;
+    DirectX::XMFLOAT3 StartPosition;
+    DirectX::XMFLOAT3 StartRotation;
+
+    float Duration;
     EasingType Easing = EasingType::SmoothStep;
 };
 

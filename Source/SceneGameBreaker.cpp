@@ -40,19 +40,34 @@ SceneGameBreaker::SceneGameBreaker()
     camCtrl.SetTarget(cameraTarget);
 
 
-    // --------------------------------------------------------
-    // SETUP CAMERA SCENARIO (A, B, C)
-    // --------------------------------------------------------
-    // Point A (Posisi Awal)
-    m_camScenarioPoints.push_back({ "Point A (Start)", {0.0f, 20.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, 2.0f, EasingType::SmoothStep });
+    m_camScenarioPoints.clear();
 
-    // Point B (Turun sedikit)
-    m_camScenarioPoints.push_back({ "Point B (Mid)",   {0.7f, 15.0f, 0.0f}, {-0.9f, 0.0f, 2.8f}, 2.0f, EasingType::SmoothStep });
+    // SHOT 1: Intro (Static shot, jadi Start & End sama)
+    m_camScenarioPoints.push_back({
+        "Shot 1 (Intro)",
+        {0.0f, 20.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, // START State
+        {0.0f, 14.5f, 0.0f}, {-0.5f, 0.0f, 1.5f}, // END State (Sama karena diam)
+        2.0f,
+        EasingType::Step
+        });
 
-    // Point C (Close Up)
-    m_camScenarioPoints.push_back({ "Point C (Low)",   {2.3f, 11.0f, 5.2f},  {-0.8f, 0.0f, 2.0f}, 3.0f, EasingType::EaseOutQuad });
+    // SHOT 2: Angle B (Bergerak sedikit/Fly through)
+    m_camScenarioPoints.push_back({
+        "Shot 2 (Angle B)",
+        {1.9f, 12.3f, 6.8f}, {0.0f, 0.0f, 2.1f}, // START
+        {0.0f, 8.5f, 9.3f}, {-0.1f, 0.0f, 1.4f}, // END
+        1.5f,
+        EasingType::Linear // Pakai Linear/SmoothStep biar kelihatan geraknya
+        });
 
-    m_camScenarioPoints.push_back({ "Point D (Top Wide)", {0.0f, 10.0f, 10.1f}, {-0.2f, 0.0f, 2.1f}, 4.0f, EasingType::SmoothStep });
+    // SHOT 3: Action
+    //m_camScenarioPoints.push_back({
+    //    "Shot 3 (Action)",
+    //    {1.9f, 12.3f, 6.8f}, {0.0f, 0.0f, 2.1f}, // START
+    //    {0.0f, 8.5f, 9.3f}, {-0.1f, 0.0f, 1.4f}, // END
+    //    1.5f,
+    //    EasingType::Linear
+    //    });
 
     // --------------------------------------------------------
     // Initialize Assets
@@ -411,189 +426,295 @@ void SceneGameBreaker::DrawGUI()
 void SceneGameBreaker::GUICameraTab()
 {
     auto& camCtrl = CameraController::Instance();
+    auto mainCam = GetMainCamera();
 
-    static float moveSpeed = 3.5f;
-    static bool useConstantSpeed = true;
-    static bool useSmoothCurve = true;
-    static int guiEasingIdx = 0;
+    // --- STATIC STATES (Untuk GUI) ---
+    static bool isSequencePlaying = false;
+    static int selectedMode = 0; // 0 = Jump Cut (Hard), 1 = Smooth Travel (Spline)
+    static float travelSpeed = 5.0f; // Hanya untuk Smooth Mode
+    static float curveTension = 0.5f;
 
-    // Default pilih SmoothStep agar efek "Satu Sequence" langsung terasa
-    static int globalEasingSelection = (int)EasingType::SmoothStep;
-    static float curveTension = 1.2f;
-
-    ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "SEQUENCE EDITOR");
-    ImGui::Separator();
-
-    ImGui::Checkbox("Use Constant Speed Mode", &useConstantSpeed);
-
-    if (useConstantSpeed)
-    {
-        ImGui::DragFloat("Travel Speed", &moveSpeed, 0.1f, 0.1f, 50.0f);
-
-        // List Item untuk Combo Box
-        const char* easingItems[] = {
-            "Linear",                   // Index 0
-            "EaseIn (Cubic)",           // Index 1
-            "EaseOut (Cubic)",          // Index 2
-            "Smooth Sequence (Auto)"    // Index 3 -> KITA MAU INI JADI SequenceAutoCubic
+    // Styling Helper
+    auto HelpMarker = [](const char* desc) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered()) {
+            ImGui::BeginTooltip();
+            ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+            ImGui::TextUnformatted(desc);
+            ImGui::PopTextWrapPos();
+            ImGui::EndTooltip();
+        }
         };
 
-        ImGui::Combo("Sequence Easing", &guiEasingIdx, easingItems, IM_ARRAYSIZE(easingItems));
-
-        // Spline Options
-        ImGui::Checkbox("Enable Smooth Curve (Spline)", &useSmoothCurve);
-
-        if (useSmoothCurve) {
-            ImGui::Indent();
-            // TAMBAHKAN SLIDER INI
-            if (ImGui::DragFloat("Curve Tension", &curveTension, 0.05f, 0.0f, 3.0f))
-            {
-                camCtrl.SetSplineTension(curveTension);
-            }
-            // Penjelasan visual
-            if (curveTension < 1.0f) ImGui::TextDisabled("(Tighter / Sharper turns)");
-            else if (curveTension > 1.0f) ImGui::TextDisabled("(Wider / Rounder turns)");
-
-            ImGui::Unindent();
-        }
-    }
-
+    // =========================================================
+    // 1. TRANSPORT CONTROL (PLAY / STOP)
+    // =========================================================
     ImGui::Spacing();
+    float availWidth = ImGui::GetContentRegionAvail().x;
 
-    if (ImGui::Button(useConstantSpeed ? "PLAY SEQUENCE" : "PLAY MANUAL", ImVec2(-1, 40)))
+    // Cek status controller asli untuk sync tombol
+    bool ctrlIsSequencing = camCtrl.IsSequencing();
+    if (!ctrlIsSequencing) isSequencePlaying = false;
+
+    if (isSequencePlaying)
     {
-        camCtrl.SetSplineTension(curveTension);
-        std::vector<CameraKeyframe> sequence;
-
-        for (const auto& point : m_camScenarioPoints)
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f)); // Merah
+        if (ImGui::Button("STOP SEQUENCE", ImVec2(availWidth, 40)))
         {
-            CameraKeyframe key;
-            key.TargetPosition = point.Position;
-            key.TargetRotation = CalculateRotationFromTarget(point.Position, point.LookAtTarget);
+            camCtrl.StopSequence();
+            isSequencePlaying = false;
 
-            // Manual value (akan di-override jika mode Constant Speed aktif)
-            key.Duration = point.Duration;
-            key.Easing = point.Easing;
-
-            sequence.push_back(key);
-        }
-        if (useConstantSpeed)
-        {
-            // MAPPING DARI GUI INDEX KE ENUM YANG BENAR
-            EasingType finalEasing = EasingType::Linear;
-
-            switch (guiEasingIdx)
-            {
-            case 0: finalEasing = EasingType::Linear; break;
-            case 1: finalEasing = EasingType::EaseInCubic; break;
-            case 2: finalEasing = EasingType::EaseOutCubic; break;
-            case 3: finalEasing = EasingType::SequenceAutoCubic; break; // <--- INI KUNCINYA
+            // Reset ke Shot 1 (Start Point)
+            if (!m_camScenarioPoints.empty()) {
+                // PERBAIKAN: Gunakan StartPos dan StartLookAt
+                camCtrl.SetFixedSetting(m_camScenarioPoints[0].StartPos);
+                camCtrl.SetTarget(m_camScenarioPoints[0].StartLookAt);
             }
-
-            camCtrl.SetSplineTension(curveTension);
-
-            // Kirim finalEasing yang sudah dimapping
-            camCtrl.PlaySequenceBySpeed(sequence, moveSpeed, finalEasing, useSmoothCurve, false);
         }
-        else
-        {
-            camCtrl.PlaySequence(sequence, false);
-        }
+        ImGui::PopStyleColor();
     }
-
-    // ... (Tombol Stop & Reset tetap sama) ...
-    if (ImGui::Button("Stop & Reset Camera"))
+    else
     {
-        camCtrl.StopSequence();
-        if (!m_camScenarioPoints.empty()) {
-            camCtrl.SetFixedSetting(m_camScenarioPoints[0].Position);
-            camCtrl.SetTarget(m_camScenarioPoints[0].LookAtTarget);
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f)); // Hijau
+        if (ImGui::Button("PLAY SEQUENCE", ImVec2(availWidth, 40)))
+        {
+            std::vector<CameraKeyframe> sequence;
+            for (const auto& point : m_camScenarioPoints)
+            {
+                CameraKeyframe key;
+
+                // SETTING JUMP CUT / CUT & PAN
+                key.isJumpCut = true; // Kita aktifkan mode ini sesuai requestmu
+
+                // 1. Tentukan Titik Awal (Start)
+                key.StartPosition = point.StartPos;
+                key.StartRotation = CalculateRotationFromTarget(point.StartPos, point.StartLookAt);
+
+                // 2. Tentukan Titik Akhir (Target)
+                key.TargetPosition = point.EndPos;
+                key.TargetRotation = CalculateRotationFromTarget(point.EndPos, point.EndLookAt);
+
+                key.Duration = point.Duration;
+                key.Easing = point.Easing; // Misal: Linear atau SmoothStep
+
+                sequence.push_back(key);
+            }
+            // Play!
+            camCtrl.PlaySequence(sequence, false);
+            isSequencePlaying = true;
         }
+        ImGui::PopStyleColor();
     }
-    // ...
 
     ImGui::Spacing();
     ImGui::Separator();
 
-    // --- EDITOR LIST ---
+    // =========================================================
+    // 2. GLOBAL SETTINGS
+    // =========================================================
+    ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "SEQUENCE SETTINGS");
+
+    const char* modes[] = { "Jump Cut (Cinematic)", "Smooth Travel (Fly-through)" };
+    ImGui::Combo("Transition Mode", &selectedMode, modes, IM_ARRAYSIZE(modes));
+
+    if (selectedMode == 1) // Hanya tampil jika Smooth Mode
+    {
+        ImGui::Indent();
+        ImGui::DragFloat("Travel Speed", &travelSpeed, 0.5f, 0.1f, 100.0f, "%.1f m/s");
+        ImGui::SliderFloat("Curve Tension", &curveTension, 0.0f, 2.0f);
+        HelpMarker("0.0 = Straight Lines\n0.5 = Natural Curve\n1.0+ = Wide Turns");
+        ImGui::Unindent();
+    }
+    else
+    {
+        ImGui::Indent();
+        ImGui::TextDisabled("Mode: Instant switching between shots.");
+        ImGui::TextDisabled("Duration controls 'Hold Time' per shot.");
+        ImGui::Unindent();
+    }
+
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // =========================================================
+    // 3. SHOT LIST (TIMELINE)
+    // =========================================================
+    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), "SHOT LIST / KEYFRAMES");
+
+    // Loop semua point
     for (int i = 0; i < m_camScenarioPoints.size(); ++i)
     {
         auto& pt = m_camScenarioPoints[i];
         ImGui::PushID(i);
 
-        if (ImGui::CollapsingHeader(pt.Name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        char headerName[64];
+        snprintf(headerName, 64, "#%d - %s", i + 1, pt.Name.c_str());
+
+        if (ImGui::CollapsingHeader(headerName, ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Indent();
 
-            // Variabel untuk mendeteksi perubahan
-            bool isEdited = false;
+            // --- TIMING ---
+            ImGui::DragFloat("Duration", &pt.Duration, 0.1f, 0.1f, 20.0f);
 
-            ImGui::Text("Transform");
+            // Easing selector (Opsional, Linear biasanya bagus untuk panning)
+            // --- MOTION TYPE SELECTOR ---
+            // Kita mapping manual dari Enum ke Menu Index biar aman & rapi
+            int currentEaseIdx = 0;
+            if (pt.Easing == EasingType::Linear)        currentEaseIdx = 0;
+            else if (pt.Easing == EasingType::EaseInCubic)   currentEaseIdx = 1; // Ease In
+            else if (pt.Easing == EasingType::EaseOutCubic)  currentEaseIdx = 2; // Ease Out
+            else if (pt.Easing == EasingType::SmoothStep)    currentEaseIdx = 3; // Ease In Out
 
-            // Cek apakah Position berubah?
-            if (ImGui::DragFloat3("Position", &pt.Position.x, 0.1f)) {
-                isEdited = true;
-            }
+            const char* easeItems[] = {
+                "Linear (Constant)",
+                "Ease In (Start Slow)",
+                "Ease Out (Stop Slow)",
+                "Smooth Step (Ease In-Out)"
+            };
 
-            // Cek apakah LookAt berubah?
-            if (ImGui::DragFloat3("Look At", &pt.LookAtTarget.x, 0.1f)) {
-                isEdited = true;
-            }
-
-            // --- LOGIKA UPDATE LIVE ---
-            // Jika ada perubahan, langsung paksa kamera pindah ke titik ini
-            if (isEdited)
+            if (ImGui::Combo("Motion Type", &currentEaseIdx, easeItems, IM_ARRAYSIZE(easeItems)))
             {
-                camCtrl.StopSequence(); // Hentikan animasi jika sedang jalan
-                camCtrl.SetControlMode(CameraControlMode::FixedStatic);
-
-                // Update Posisi Controller
-                camCtrl.SetFixedSetting(pt.Position);
-                camCtrl.SetTarget(pt.LookAtTarget);
-
-                // Update Posisi Kamera Asli (Biar instan tanpa lag 1 frame)
-                if (auto mainCam = GetMainCamera()) {
-                    mainCam->SetPosition(pt.Position);
-                    mainCam->LookAt(pt.LookAtTarget);
-                }
-            }
-
-            // HANYA TAMPILKAN OPSI TIMING JIKA MODE MANUAL
-            if (!useConstantSpeed)
-            {
-                ImGui::Spacing();
-                ImGui::TextColored(ImVec4(1, 1, 0, 1), "Manual Timing Settings");
-                ImGui::DragFloat("Duration (sec)", &pt.Duration, 0.1f, 0.1f, 10.0f);
-
-                const char* easingItems[] = { "Linear", "EaseIn", "EaseOut", "SmoothStep" };
-                int currentEasing = (int)pt.Easing;
-                if (ImGui::Combo("Easing", &currentEasing, easingItems, IM_ARRAYSIZE(easingItems)))
+                switch (currentEaseIdx)
                 {
-                    pt.Easing = (EasingType)currentEasing;
+                case 0: pt.Easing = EasingType::Linear; break;
+                case 1: pt.Easing = EasingType::EaseInCubic; break; // Pakai Cubic biar efeknya kerasa
+                case 2: pt.Easing = EasingType::EaseOutCubic; break;
+                case 3: pt.Easing = EasingType::SmoothStep; break;
                 }
             }
-            else
-            {
-                ImGui::Spacing();
-                ImGui::TextDisabled("[Auto-Calculated in Constant Speed Mode]");
-            }
 
-            // Tombol Jump to View tetap ada
-            if (ImGui::Button("Jump to this view"))
-            {
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            // KITA BUAT 2 KOLOM: START vs END
+            ImGui::Columns(2, nullptr, true); // Border true biar jelas
+
+            // === KOLOM KIRI: START ===
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "[ A ] START POINT");
+
+            if (ImGui::Button("View Start")) {
+                // Teleport kamera ke posisi Start untuk preview
                 camCtrl.StopSequence();
                 camCtrl.SetControlMode(CameraControlMode::FixedStatic);
-                camCtrl.SetFixedSetting(pt.Position);
-                camCtrl.SetTarget(pt.LookAtTarget);
-                if (auto mainCam = GetMainCamera()) {
-                    mainCam->SetPosition(pt.Position);
-                    mainCam->LookAt(pt.LookAtTarget);
+                camCtrl.SetFixedSetting(pt.StartPos);
+                camCtrl.SetTarget(pt.StartLookAt);
+                if (mainCam) { mainCam->SetPosition(pt.StartPos); mainCam->LookAt(pt.StartLookAt); }
+            }
+
+            // TOMBOL CAPTURE UNTUK START
+            if (ImGui::Button("Set to Current Cam##Start")) {
+                if (mainCam) {
+                    pt.StartPos = mainCam->GetPosition();
+                    // Hitung LookAt target dari rotasi
+                    XMFLOAT3 rot = mainCam->GetRotation();
+                    XMVECTOR vDir = XMVector3TransformNormal(XMVectorSet(0, 0, 10.0f, 0), XMMatrixRotationRollPitchYaw(rot.x, rot.y, rot.z));
+                    XMStoreFloat3(&pt.StartLookAt, XMVectorAdd(XMLoadFloat3(&pt.StartPos), vDir));
                 }
             }
+
+            // Manual Edit Start (Hidden by default)
+            if (ImGui::TreeNode("Edit Start Coords")) {
+                // Kita pakai variabel 'changed' untuk mendeteksi geseran mouse
+                bool changed = false;
+                changed |= ImGui::DragFloat3("Pos##S", &pt.StartPos.x, 0.1f);
+                changed |= ImGui::DragFloat3("Look##S", &pt.StartLookAt.x, 0.1f);
+
+                // Jika ada perubahan angka, LANGSUNG paksa kamera pindah
+                if (changed) {
+                    camCtrl.SetControlMode(CameraControlMode::FixedStatic);
+                    camCtrl.SetFixedSetting(pt.StartPos);
+                    camCtrl.SetTarget(pt.StartLookAt);
+
+                    // Update visual langsung biar gak nunggu frame berikutnya
+                    if (mainCam) {
+                        mainCam->SetPosition(pt.StartPos);
+                        mainCam->LookAt(pt.StartLookAt);
+                    }
+                }
+                ImGui::TreePop();
+            }
+            ImGui::NextColumn();
+
+            // === KOLOM KANAN: END ===
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "[ B ] END POINT");
+
+            if (ImGui::Button("View End")) {
+                // Teleport kamera ke posisi End untuk preview
+                camCtrl.StopSequence();
+                camCtrl.SetControlMode(CameraControlMode::FixedStatic);
+                camCtrl.SetFixedSetting(pt.EndPos);
+                camCtrl.SetTarget(pt.EndLookAt);
+                if (mainCam) { mainCam->SetPosition(pt.EndPos); mainCam->LookAt(pt.EndLookAt); }
+            }
+
+            // TOMBOL CAPTURE UNTUK END
+            if (ImGui::Button("Set to Current Cam##End")) {
+                if (mainCam) {
+                    pt.EndPos = mainCam->GetPosition();
+                    XMFLOAT3 rot = mainCam->GetRotation();
+                    XMVECTOR vDir = XMVector3TransformNormal(XMVectorSet(0, 0, 10.0f, 0), XMMatrixRotationRollPitchYaw(rot.x, rot.y, rot.z));
+                    XMStoreFloat3(&pt.EndLookAt, XMVectorAdd(XMLoadFloat3(&pt.EndPos), vDir));
+                }
+            }
+
+            // Manual Edit End
+            if (ImGui::TreeNode("Edit End Coords")) {
+                bool changed = false;
+                changed |= ImGui::DragFloat3("Pos##E", &pt.EndPos.x, 0.1f);
+                changed |= ImGui::DragFloat3("Look##E", &pt.EndLookAt.x, 0.1f);
+
+                // Logic yang sama untuk End Point
+                if (changed) {
+                    camCtrl.SetControlMode(CameraControlMode::FixedStatic);
+                    camCtrl.SetFixedSetting(pt.EndPos);
+                    camCtrl.SetTarget(pt.EndLookAt);
+
+                    if (mainCam) {
+                        mainCam->SetPosition(pt.EndPos);
+                        mainCam->LookAt(pt.EndLookAt);
+                    }
+                }
+                ImGui::TreePop();
+            }
+            ImGui::Columns(1); // Balik ke 1 kolom
             ImGui::Unindent();
         }
         ImGui::PopID();
-        ImGui::Spacing();
+    }
+
+    ImGui::Spacing();
+    if (ImGui::Button("+ Add New Shot at Current View", ImVec2(-1, 30)))
+    {
+        SceneCameraPoint newPt;
+        newPt.Name = "New Shot";
+        newPt.Duration = 2.0f;
+        newPt.Easing = EasingType::Step;
+
+        if (mainCam) {
+            // Ambil posisi kamera saat ini
+            XMFLOAT3 currPos = mainCam->GetPosition();
+
+            // Hitung target lookat
+            XMFLOAT3 rot = mainCam->GetRotation();
+            XMVECTOR vDir = XMVector3TransformNormal(XMVectorSet(0, 0, 10.0f, 0), XMMatrixRotationRollPitchYaw(rot.x, rot.y, rot.z));
+            XMFLOAT3 currLookAt;
+            XMStoreFloat3(&currLookAt, XMVectorAdd(XMLoadFloat3(&currPos), vDir));
+
+            // PERBAIKAN: Isi Start DAN End dengan posisi yang sama (sebagai default)
+            newPt.StartPos = currPos;
+            newPt.StartLookAt = currLookAt;
+
+            newPt.EndPos = currPos;
+            newPt.EndLookAt = currLookAt;
+        }
+        else {
+            // Default value jika tidak ada kamera
+            newPt.StartPos = { 0, 5, 0 }; newPt.StartLookAt = { 0, 0, 0 };
+            newPt.EndPos = { 0, 5, 0 };   newPt.EndLookAt = { 0, 0, 0 };
+        }
+        m_camScenarioPoints.push_back(newPt);
     }
 }
 

@@ -143,6 +143,29 @@ void CameraController::UpdateSequence(float dt, std::shared_ptr<Camera>& camera)
     }
 
     const CameraKeyframe& targetKey = m_sequenceQueue[m_currentKeyframeIdx];
+    if (m_seqTimer == 0.0f)
+    {
+        // Setup posisi awal interpolasi
+        if (targetKey.isJumpCut)
+        {
+            // MODE CUT & PAN:
+            // Paksa start point ke posisi Awal yang ditentukan Shot ini
+            m_seqStartPos = targetKey.StartPosition;
+            m_seqStartRot = targetKey.StartRotation;
+
+            // Langsung teleport kamera ke posisi start biar gak ada glitch visual 1 frame
+            camera->SetPosition(m_seqStartPos);
+            camera->SetRotation(m_seqStartRot);
+        }
+        else
+        {
+            // MODE SAMBUNG (CONTINUOUS):
+            // Start point adalah posisi kamera saat ini (akhir dari shot sebelumnya)
+            m_seqStartPos = camera->GetPosition();
+            m_seqStartRot = camera->GetRotation();
+        }
+    }
+
     m_seqTimer += dt;
 
     // Calculate progress (t)
@@ -170,6 +193,22 @@ void CameraController::UpdateSequence(float dt, std::shared_ptr<Camera>& camera)
             {
                 // Sequence Finished
                 m_fixedPos = camera->GetPosition();
+                // 1. Ambil Rotasi Terakhir
+                XMFLOAT3 finalRot = camera->GetRotation();
+
+                // 2. Hitung Forward Vector dari Rotasi tersebut
+                XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(finalRot.x, finalRot.y, finalRot.z);
+                XMVECTOR vForward = XMVectorSet(0, 0, 1, 0); // Forward default
+                vForward = XMVector3TransformNormal(vForward, rotMat);
+
+                // 3. Proyeksikan Target baru di depan kamera (misal jarak 10 unit)
+                XMVECTOR vPos = XMLoadFloat3(&m_fixedPos);
+                XMVECTOR vNewTarget = XMVectorAdd(vPos, XMVectorScale(vForward, 10.0f));
+
+                // 4. Simpan ke m_targetPos
+                XMStoreFloat3(&m_targetPos, vNewTarget);
+                // ===========================
+
                 SetControlMode(CameraControlMode::FixedStatic);
             }
         }
@@ -182,33 +221,45 @@ void CameraController::UpdateSequence(float dt, std::shared_ptr<Camera>& camera)
     }
     else
     {
-        // Interpolation
-        float easeT = ApplyEasing(t, targetKey.Easing);
         XMFLOAT3 newPos;
-
-        if (m_useSpline)
+        XMFLOAT3 newRot;
+        // Interpolation
+        if (targetKey.Easing == EasingType::Step)
         {
-            // Get P0 (Prev), P1 (Start), P2 (Target), P3 (Next)
-            XMFLOAT3 p0 = (m_currentKeyframeIdx > 0) ? m_sequenceQueue[m_currentKeyframeIdx - 1].TargetPosition : m_seqStartPos;
-            XMFLOAT3 p3 = (m_currentKeyframeIdx + 1 < m_sequenceQueue.size()) ? m_sequenceQueue[m_currentKeyframeIdx + 1].TargetPosition : targetKey.TargetPosition;
-
-            newPos = CalculateHermitePos(p0, m_seqStartPos, targetKey.TargetPosition, p3, easeT, m_splineTension);
+            // HARD CUT / JUMP CUT MODE
+            // Abaikan interpolasi dari StartPos.
+            // Posisi LANGSUNG di Target sejak detik ke-0 frame ini.
+            // "Duration" sekarang berfungsi sebagai "Hold Time".
+            newPos = targetKey.TargetPosition;
+            newRot = targetKey.TargetRotation;
         }
         else
         {
-            newPos = LerpFloat3(m_seqStartPos, targetKey.TargetPosition, easeT);
+            float easeT = ApplyEasing(t, targetKey.Easing);
+            if (m_useSpline)
+            {
+                // Get P0 (Prev), P1 (Start), P2 (Target), P3 (Next)
+                XMFLOAT3 p0 = (m_currentKeyframeIdx > 0) ? m_sequenceQueue[m_currentKeyframeIdx - 1].TargetPosition : m_seqStartPos;
+                XMFLOAT3 p3 = (m_currentKeyframeIdx + 1 < m_sequenceQueue.size()) ? m_sequenceQueue[m_currentKeyframeIdx + 1].TargetPosition : targetKey.TargetPosition;
+
+                newPos = CalculateHermitePos(p0, m_seqStartPos, targetKey.TargetPosition, p3, easeT, m_splineTension);
+            }
+            else
+            {
+                newPos = LerpFloat3(m_seqStartPos, targetKey.TargetPosition, easeT);
+            }
+
+            // Simple Lerp for rotation (Switch to Quaternion Slerp if needed later)
+            XMFLOAT3 newRot = LerpFloat3(m_seqStartRot, targetKey.TargetRotation, easeT);
+
+            camera->SetPosition(newPos);
+            camera->SetRotation(newRot);
+
+            // Sync internal state
+            m_eyePos = newPos;
+            m_currentAngle = newRot;
+            m_fixedPos = newPos;
         }
-
-        // Simple Lerp for rotation (Switch to Quaternion Slerp if needed later)
-        XMFLOAT3 newRot = LerpFloat3(m_seqStartRot, targetKey.TargetRotation, easeT);
-
-        camera->SetPosition(newPos);
-        camera->SetRotation(newRot);
-
-        // Sync internal state
-        m_eyePos = newPos;
-        m_currentAngle = newRot;
-        m_fixedPos = newPos;
     }
 }
 
