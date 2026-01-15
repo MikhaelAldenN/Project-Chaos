@@ -16,6 +16,8 @@ public:
     void UpdateAI(float elapsedTime, Ball* ball, BlockManager* blockManager);
     void CheckCollision(Ball* ball);
     void SetAIEnabled(bool enable) { isAIEnabled = enable; }
+    void SetActive(bool active) { isActive = active; }
+    bool IsActive() const { return isActive; }
 
     CharacterMovement* GetMovement() const { return movement; }
 
@@ -33,8 +35,8 @@ private:
     float paddleSpeed = 1.5f;
     float startX = -0.5f;        // Initial spawn X position
     float fixedZ = -4.0f;        // The fixed depth line where paddle stays
-    float xLimitLeft = -8.4f;    // Maximum Left position 
-    float xLimitRight = 7.6f;    // Maximum Right position
+    float xLimitLeft = -8.8f;    // Maximum Left position 
+    float xLimitRight = 8.8f;    // Maximum Right position
 
     // ----------------------------------------------------
     // PHYSICS & COLLISION SETTINGS
@@ -49,8 +51,8 @@ private:
     // ----------------------------------------------------
     // AI SETTINGS
     // ----------------------------------------------------
-    float aiLaunchDelay = 1.0f;   // How long AI waits before serving ball
-    float aiLaunchSpeed = 8.0f;   // Speed of ball when AI serves
+    float aiLaunchDelay = 1.0f;     // How long AI waits before serving ball
+    float aiLaunchSpeed = 8.0f;     // Speed of ball when AI serves
     float aiLaunchRandomX = 1.0f;   // Random X variance on serve (+/-)
 
     // Prediction & Targeting
@@ -67,4 +69,5 @@ private:
     // ----------------------------------------------------
     float launchTimer = 0.0f;
     bool isAIEnabled = false;
+    bool isActive = true;
 };

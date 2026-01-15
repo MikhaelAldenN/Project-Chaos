@@ -79,6 +79,7 @@ void Player::UpdateBreakoutLogic(float elapsedTime)
     if (isSpaceDown && !wasSpacePressed)
     {
         currentShakeIntensity += breakoutSettings.shakeGain;
+        shakeCount++;
     }
 
     wasSpacePressed = isSpaceDown;

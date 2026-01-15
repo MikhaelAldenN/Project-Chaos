@@ -1,5 +1,4 @@
 #include "BlockManager.h"
-#include <cmath>
 
 BlockManager::BlockManager()
 {
@@ -52,15 +51,131 @@ void BlockManager::Initialize(Player* player)
             blocks.push_back(std::move(newBlock));
         }
     }
+    InitPrioritySlots();
 }
 
-void BlockManager::Update(float elapsedTime, Camera* camera)
+void BlockManager::InitPrioritySlots()
 {
+    m_sortedOffsets.clear();
+
+    // Generate a generic grid around (0,0,0)
+    int center = 5;
+    for (int r = -center; r <= center; ++r)
+    {
+        for (int c = -center; c <= center; ++c)
+        {
+            if (r == 0 && c == 0) continue; // Skip center
+
+            DirectX::XMFLOAT3 offset;
+            offset.x = (float)c;
+            offset.y = 0.0f;
+            offset.z = (float)r;
+            m_sortedOffsets.push_back(offset);
+        }
+    }
+
+    // Sort: Closest offsets to center come first
+    std::sort(m_sortedOffsets.begin(), m_sortedOffsets.end(),
+        [](const DirectX::XMFLOAT3& a, const DirectX::XMFLOAT3& b) {
+            float distA = a.x * a.x + a.z * a.z;
+            float distB = b.x * b.x + b.z * b.z;
+            return distA < distB;
+        });
+}
+
+void BlockManager::Update(float elapsedTime, Camera* camera, Player* player)
+{
+    if (isFormationActive && player)
+    {
+        UpdateFormationPositions(elapsedTime, player);
+    }
+
     for (auto& block : blocks)
     {
         if (block->IsActive())
         {
             block->Update(elapsedTime, camera);
+        }
+    }
+}
+
+void BlockManager::UpdateFormationPositions(float elapsedTime, Player* player)
+{
+    if (!player) return;
+    DirectX::XMFLOAT3 playerPos = player->GetMovement()->GetPosition();
+
+    // 1. Identify active blocks
+    std::vector<Block*> activeBlocks;
+    for (const auto& b : blocks) {
+        if (b->IsActive()) activeBlocks.push_back(b.get());
+    }
+
+    if (activeBlocks.empty()) return;
+
+    // 2. Identify Target Positions
+    int count = (int)activeBlocks.size();
+    if (count > m_sortedOffsets.size()) count = (int)m_sortedOffsets.size();
+
+    std::vector<DirectX::XMFLOAT3> targets;
+    for (int i = 0; i < count; ++i)
+    {
+        DirectX::XMFLOAT3 t;
+        t.x = playerPos.x + (m_sortedOffsets[i].x * formationSpacing);
+        t.y = 0.0f;
+        t.z = playerPos.z + (m_sortedOffsets[i].z * formationSpacing);
+        targets.push_back(t);
+    }
+
+    // 3. Assign and Move Blocks
+    std::vector<bool> blockAssigned(activeBlocks.size(), false);
+
+    for (const auto& target : targets)
+    {
+        int bestBlockIdx = -1;
+        float closestDistSq = FLT_MAX;
+
+        // Find nearest block for this target
+        for (int i = 0; i < activeBlocks.size(); ++i)
+        {
+            if (blockAssigned[i]) continue;
+
+            float d = GetDistSq(target, activeBlocks[i]->GetMovement()->GetPosition());
+            if (d < closestDistSq)
+            {
+                closestDistSq = d;
+                bestBlockIdx = i;
+            }
+        }
+
+        // Apply Movement
+        if (bestBlockIdx != -1)
+        {
+            Block* b = activeBlocks[bestBlockIdx];
+            blockAssigned[bestBlockIdx] = true;
+
+            DirectX::XMFLOAT3 currentPos = b->GetMovement()->GetPosition();
+
+            // --- NEW: Check Distance to determine Collision State ---
+            float distSq = GetDistSq(currentPos, target);
+
+            // If far away (moving), disable collision. If close (arrived), enable it.
+            if (distSq > 0.05f)
+            {
+                b->SetRelocating(true); // Disable Collision
+            }
+            else
+            {
+                b->SetRelocating(false); // Enable Collision
+            }
+
+            // Lerp Logic
+            float lerpSpeed = 5.0f * elapsedTime;
+            DirectX::XMFLOAT3 newPos;
+            newPos.x = currentPos.x + (target.x - currentPos.x) * lerpSpeed;
+            newPos.y = currentPos.y + (target.y - currentPos.y) * lerpSpeed;
+            newPos.z = currentPos.z + (target.z - currentPos.z) * lerpSpeed;
+
+            b->GetMovement()->SetPosition(newPos);
         }
     }
 }
@@ -89,7 +204,7 @@ void BlockManager::CheckCollision(Ball* ball)
     for (auto& block : blocks)
     {
         // Skip dead blocks
-        if (!block->IsActive()) continue;
+        if (!block->IsActive() || block->IsRelocating()) continue;
 
         DirectX::XMFLOAT3 blockPos = block->GetMovement()->GetPosition();
 

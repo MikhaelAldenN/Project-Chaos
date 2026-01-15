@@ -45,8 +45,8 @@ SceneGameBreaker::SceneGameBreaker()
     // SHOT 1: Intro (Static shot, jadi Start & End sama)
     m_camScenarioPoints.push_back({
         "Shot 1 (Intro)",
-        {0.0f, 20.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, // START State
-        {0.0f, 14.5f, 0.0f}, {-0.5f, 0.0f, 1.5f}, // END State (Sama karena diam)
+        {0.0f, 20.0f, 0.0f}, {0.0f, 0.0f, 0.0f},    // START State
+        {0.0f, 14.5f, 0.0f}, {-0.5f, 0.0f, 1.5f},   // END State (Sama karena diam)
         3.0f,
         EasingType::EaseInCubic
         });
@@ -54,8 +54,8 @@ SceneGameBreaker::SceneGameBreaker()
     // SHOT 2: Angle B (Bergerak sedikit/Fly through)
     m_camScenarioPoints.push_back({
         "Shot 2 (Angle B)",
-        {1.9f, 12.3f, 6.8f}, {0.0f, 0.0f, 2.1f}, // START
-        {-0.4f, 8.5f, 9.3f}, {-0.5f, 0.0f, 1.4f}, // END
+        {1.9f, 12.3f, 6.8f}, {0.0f, 0.0f, 2.1f},    // START
+        {-0.4f, 8.5f, 9.3f}, {-0.5f, 0.0f, 1.4f},   // END
         3.0f,
         EasingType::EaseOutCubic // Pakai Linear/SmoothStep biar kelihatan geraknya
         });
@@ -137,14 +137,41 @@ void SceneGameBreaker::Update(float elapsedTime)
     // --------------------------------------------------------
     if (blockManager)
     {
-        blockManager->Update(elapsedTime, activeCam);
+        blockManager->Update(elapsedTime, activeCam, player);
         if (ball && ball->IsActive()) blockManager->CheckCollision(ball);
     }
 
     // --------------------------------------------------------
     // Update Player
     // --------------------------------------------------------
-    if (player) player->Update(elapsedTime, activeCam);
+    if (player)
+    {
+        player->Update(elapsedTime, activeCam);
+
+        int shakes = player->GetShakeCount();
+
+        // PHASE 1: Formation Mode 
+        if (shakes >= 30 && blockManager && !blockManager->IsFormationActive())
+        {
+            blockManager->ActivateFormationMode();
+        }
+
+        // PHASE 2: Destruction Mode 
+        if (shakes >= 50)
+        {
+            // Destroy Paddle
+            if (paddle && paddle->IsActive())
+            {
+                paddle->SetActive(false);
+            }
+
+            // Disable Ball Walls
+            if (ball)
+            {
+                ball->SetBoundariesEnabled(false);
+            }
+        }
+    }
 
     CameraController::Instance().Update(elapsedTime);
     UpdateGameTriggers(elapsedTime);
@@ -406,7 +433,7 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
 
     if (ball) ball->Render(modelRenderer);
     if (blockManager) blockManager->Render(modelRenderer);
-    if (paddle) paddle->Render(modelRenderer);
+    if (paddle && paddle->IsActive()) { paddle->Render(modelRenderer); }
     if (player) player->Render(modelRenderer);
 
     modelRenderer->Render(rc);

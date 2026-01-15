@@ -12,6 +12,7 @@ public:
     void Reset();
     void SetVelocity(const DirectX::XMFLOAT3& v) { velocity = v; }
     void SetActive(bool active) { isActive = active; }
+    void SetBoundariesEnabled(bool enable) { boundariesEnabled = enable; }
 
     CharacterMovement* GetMovement() const { return movement; }
     DirectX::XMFLOAT3 GetVelocity() const { return velocity; }
@@ -35,13 +36,14 @@ private:
     // ----------------------------------------------------
     // ARENA BOUNDARIES
     // ----------------------------------------------------
-    float xLimitLeft = -9.1f;       // Left Wall collision point
-    float xLimitRight = 8.3f;       // Right Wall collision point
-    float zLimitTop = 5.8f;         // Top Wall
-    float zLimitBottom = -4.7f;     // Bottom (Game Over trigger)
+    float xLimitLeft = -9.6f;       // Left Wall collision point
+    float xLimitRight = 9.6f;       // Right Wall collision point
+    float zLimitTop = 6.3f;         // Top Wall
+    float zLimitBottom = -5.2f;     // Bottom (Game Over trigger)
 
     // ----------------------------------------------------
     // INTERNAL STATE
     // ----------------------------------------------------
     bool isActive = false;
+    bool boundariesEnabled = true;
 };

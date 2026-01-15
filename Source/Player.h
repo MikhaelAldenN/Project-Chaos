@@ -40,6 +40,7 @@ public:
     };
 
     BreakoutSettings breakoutSettings;
+    int GetShakeCount() const { return shakeCount; }
 
 private:
     void UpdateBreakoutLogic(float elapsedTime);
@@ -57,5 +58,6 @@ private:
     bool isBreakoutActive = false;
     bool wasSpacePressed = false;                               
     float currentShakeIntensity = 0.0f;
+    int shakeCount = 0;
     DirectX::XMFLOAT3 originalPosition = { 0.0f, 0.0f, 0.0f }; 
 };
