@@ -5,6 +5,7 @@
 #include <vector>
 #include <wrl/client.h>
 #include <DirectXMath.h>
+#include <map>
 
 #include "Scene.h"
 #include "System/Sprite.h" 
@@ -14,6 +15,11 @@
 #include "ButtonManager.h"
 #include "UIButtonPrimitive.h"
 #include "UberShader.h"
+
+struct FileMetadata {
+    std::string title;            // Judul (misal: "App Details" atau "CREDITS")
+    std::vector<std::string> lines; // Baris-baris teks deskripsi
+};
 
 // Struct sederhana untuk data Layout
 struct PanelLayout {
@@ -45,13 +51,23 @@ private:
     std::unique_ptr<Primitive> primitiveBatcher;
     std::unique_ptr<ButtonManager> uiManager;
 
-    // --- Layout Configuration ---
-    PanelLayout statusPanel;
-    PanelLayout dirPanel;
-    PanelLayout logPanel;
+// --- Layout Configuration ---
+    PanelLayout panelStatus; // Tetap (Online Status)
+
+    // [BARU] Header untuk "Name Size"
+    PanelLayout panelDirectory;
+
+    PanelLayout panelDescription;
+
+    // [HAPUS] dirPanel & logPanel sudah tidak dipakai
+
+    std::map<std::string, FileMetadata> fileDatabase;
+    std::string selectedFileName = "";
 
     // --- Content Data ---
-    std::string statusText;
+    std::string textStatusOnline;
+    std::string textDirectoryHeader;
+
     std::vector<std::string> directoryFiles;
     std::vector<std::string> systemLogs;
 
@@ -67,7 +83,11 @@ private:
     // Fungsi helper ImGui untuk mengurangi duplikasi kode UI
     void ImGuiEditPanel(PanelLayout& layout);
 
-    UIButtonPrimitive* debugBtnExit = nullptr;
+    UIButtonPrimitive* debugBtnExit = nullptr; // Pointer ke tombol yang SEDANG diedit
+
+    // Tambahkan 2 baris ini:
+    std::vector<UIButtonPrimitive*> debugButtonList; // List semua tombol untuk dipilih
+    int debugSelectedIdx = 0;                        // Index tombol yang dipilih sekarang
 
     // GUI State
     struct PostProcessState
@@ -90,4 +110,31 @@ private:
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
     Microsoft::WRL::ComPtr<ID3D11Texture2D> depthStencilTexture;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
+
+    // --- GROUP CONFIGURATION ---
+    // Struct ini mengontrol seluruh layout menu secara global
+    struct MenuConfig {
+        // --- Layout (Existing) ---
+        float startX = 340.0f;
+        float startY = 299.0f;
+        float btnWidth = 421.0f;
+        float btnHeight = 40.0f;
+        float spacing = 0.0f;
+        float paddingX = 10.0f;
+        float textScale = 0.625f;
+        float verticalAdj = 2.0f;
+        int alignment = 2;
+
+        // --- Colors (NEW FEATURES) ---
+        // Kita simpan 3 style utama di sini
+        ButtonStyle styleStandby;
+        ButtonStyle styleHover;
+        ButtonStyle stylePress;
+    };
+    MenuConfig menuConfig; // Instance konfigurasi
+
+    // Fungsi helper untuk menerapakan config ke semua tombol
+    void ApplyMenuLayout();
+
+    UIButtonPrimitive* currentActiveButton = nullptr;
 };
