@@ -45,13 +45,18 @@ private:
     std::unique_ptr<Primitive> primitiveBatcher;
     std::unique_ptr<ButtonManager> uiManager;
 
-    // --- Layout Configuration ---
-    PanelLayout statusPanel;
-    PanelLayout dirPanel;
-    PanelLayout logPanel;
+// --- Layout Configuration ---
+    PanelLayout panelStatus; // Tetap (Online Status)
+
+    // [BARU] Header untuk "Name Size"
+    PanelLayout panelDirectory;
+
+    // [HAPUS] dirPanel & logPanel sudah tidak dipakai
 
     // --- Content Data ---
-    std::string statusText;
+    std::string textStatusOnline;
+    std::string textDirectoryHeader;
+
     std::vector<std::string> directoryFiles;
     std::vector<std::string> systemLogs;
 
@@ -99,15 +104,15 @@ private:
     // Struct ini mengontrol seluruh layout menu secara global
     struct MenuConfig {
         // --- Layout (Existing) ---
-        float startX = 55.0f;
-        float startY = 320.0f;
-        float btnWidth = 400.0f;
-        float btnHeight = 35.0f;
-        float spacing = 5.0f;
+        float startX = 340.0f;
+        float startY = 299.0f;
+        float btnWidth = 421.0f;
+        float btnHeight = 40.0f;
+        float spacing = 0.0f;
         float paddingX = 10.0f;
         float textScale = 0.625f;
         float verticalAdj = 2.0f;
-        int alignment = 1;
+        int alignment = 2;
 
         // --- Colors (NEW FEATURES) ---
         // Kita simpan 3 style utama di sini

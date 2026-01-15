@@ -37,6 +37,39 @@ SceneTitle::SceneTitle()
     menuConfig.stylePress.textColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     // =========================================================
+    // A. TOMBOL DEKORASI INDEPENDEN ("/..")
+    // =========================================================
+    // Posisi Y: 280.0f (Di atas tombol pertama yang Y-nya 320.0f)
+    auto btnUpDir = std::make_unique<UIButtonPrimitive>(
+        primitiveBatcher.get(), " /..            <UP DIR>",
+        menuConfig.startX, 260.0f, // Posisi Manual
+        menuConfig.btnWidth, menuConfig.btnHeight
+    );
+
+    // Styling Manual (Menggunakan style dari config biar seragam)
+    // Trik: Set style PRESSED sama dengan HOVER atau PRESS biasa, 
+    // tapi karena tidak ada logic 'SetSelected', dia hanya kedip sebentar saat diklik.
+    btnUpDir->SetStyle(ButtonState::STANDBY, menuConfig.styleStandby);
+    btnUpDir->SetStyle(ButtonState::HOVER, menuConfig.styleHover);
+    btnUpDir->SetStyle(ButtonState::PRESSED, menuConfig.stylePress);
+
+    // Layout Manual
+    btnUpDir->SetPadding(8.0f);
+    btnUpDir->SetAlignment(TextAlignment::Left); // Atau Left sesuai selera
+    btnUpDir->SetTextScale(menuConfig.textScale);
+    btnUpDir->SetVerticalAdjustment(menuConfig.verticalAdj);
+
+    // Callback SEDERHANA (Tanpa Logika Radio Button/Selected)
+    btnUpDir->SetOnClick([]() {
+        printf("Clicked decoration /..\n");
+        // TIDAK ADA: currentActiveButton->SetSelected(true); 
+        // Jadi dia tidak akan nyangkut warnanya.
+        });
+
+    // Masukkan langsung ke Manager (Tidak perlu masuk debugButtonList)
+    uiManager->AddButton(std::move(btnUpDir));
+
+    // =========================================================
     // 2. GENERATE BUTTONS
     // =========================================================
     std::vector<std::string> fileList = {
@@ -112,19 +145,20 @@ void SceneTitle::SetupLayout()
     // Default Values (Bisa ditweak lewat ImGui nanti)
 
     // Panel Status (Atas)
-    statusPanel = { "Status Panel", 341.0f, 132.0f, 0.0f, 0.625f, {0.96f, 0.80f, 0.23f, 1.0f} }; // Cyan
+    panelStatus = { "Status Panel", 341.0f, 132.0f, 0.0f, 0.625f, {0.96f, 0.80f, 0.23f, 1.0f} }; // Cyan
 
     // Panel Directory (Tengah)
-    dirPanel = { "Directory Panel", 55.0f, 320.0f, 40.0f, 0.625f, {1.0f, 1.0f, 1.0f, 1.0f} }; // White
+    panelDirectory = { "Directory Panel",  395.0f, 234.0f, 40.0f, 0.625f, {0.96f, 0.80f, 0.23f, 1.0f} }; // White
 
     // Panel Logs (Bawah)
-    logPanel = { "System Logs", 55.0f, 680.0f, 35.0f, 0.625f, {0.7f, 0.7f, 0.7f, 1.0f} }; // Greyish
+    //logPanel = { "System Logs", 55.0f, 680.0f, 35.0f, 0.625f, {0.7f, 0.7f, 0.7f, 1.0f} }; // Greyish
 }
 
 void SceneTitle::SetupContent()
 {
     // Status
-    statusText = "Online - Unstable";
+    textStatusOnline = "Online - Unstable";
+    textDirectoryHeader = "NAME             SIZE";
 
     // Directory
     directoryFiles = {
@@ -244,14 +278,15 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
     BitmapFont* text = ResourceManager::Instance().GetFont("VGA_FONT");
     if (text)
     {
-        // Render Status (Manual call karena cuma 1 baris)
-        text->Draw(statusText.c_str(),
-            statusPanel.x, statusPanel.y, statusPanel.scale,
-            statusPanel.color[0], statusPanel.color[1], statusPanel.color[2], statusPanel.color[3]);
+        text->Draw(textStatusOnline.c_str(),
+            panelStatus.x, panelStatus.y, panelStatus.scale,
+            panelStatus.color[0], panelStatus.color[1], panelStatus.color[2], panelStatus.color[3]);
 
-        // Render Lists
-        DrawListInPanel(directoryFiles, dirPanel);
-        DrawListInPanel(systemLogs, logPanel);
+        // B. Render Header "Name Size" (BARU)
+        // Ini adalah cara standar merender teks di engine-mu:
+        text->Draw(textDirectoryHeader.c_str(),
+            panelDirectory.x, panelDirectory.y, panelDirectory.scale,
+            panelDirectory.color[0], panelDirectory.color[1], panelDirectory.color[2], panelDirectory.color[3]);        //DrawListInPanel(systemLogs, logPanel);
     }
 
     primitiveBatcher->Render(Graphics::Instance().GetDeviceContext());
@@ -375,6 +410,22 @@ void SceneTitle::DrawGUI()
         // TAB 1: UI Layout
         if (ImGui::BeginTabItem("UI Layout"))
         {
+            if (ImGui::CollapsingHeader("Text Elements", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Indent();
+
+                // Editor untuk "Online - Unstable"
+                ImGuiEditPanel(panelStatus);
+
+                ImGui::Separator();
+
+                // Editor untuk "Name Size" (BARU)
+                // Kamu bisa geser X/Y, ganti warna, atau Scale lewat sini!
+                ImGuiEditPanel(panelDirectory);
+
+                ImGui::Unindent();
+            }
+
             if (ImGui::CollapsingHeader("Menu Group Settings", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 bool layoutChanged = false;
