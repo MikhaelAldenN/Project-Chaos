@@ -46,7 +46,7 @@ public:
         // Effects
         float             blurStrength          = 0.01f;
         float             distortion            = 0.015f;
-        float             glitchStrength        = 0.02f;
+        float             glitchStrength        = 0.01f;
         float             time                  = 0.0f;
 
         // Scanlines

@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <wrl/client.h>
 #include <DirectXMath.h>
 
 #include "Scene.h"
@@ -12,6 +13,7 @@
 #include "Primitive.h"
 #include "ButtonManager.h"
 #include "UIButtonPrimitive.h"
+#include "UberShader.h"
 
 // Struct sederhana untuk data Layout
 struct PanelLayout {
@@ -56,6 +58,8 @@ private:
     // --- Helper Functions ---
     void SetupLayout();
     void SetupContent();
+    void CreateRenderTarget(); 
+    void GUIPostProcessTab();  
 
     // Fungsi render teks generik
     void DrawListInPanel(const std::vector<std::string>& list, const PanelLayout& layout);
@@ -64,4 +68,26 @@ private:
     void ImGuiEditPanel(PanelLayout& layout);
 
     UIButtonPrimitive* debugBtnExit = nullptr;
+
+    // GUI State
+    struct PostProcessState
+    {
+        bool MasterEnabled = true;
+        bool EnableVignette = true;
+        bool EnableLens = true;
+        bool EnableCRT = true;
+    };
+    PostProcessState m_fxState;
+
+    // Post-Processing Resources
+    std::unique_ptr<UberShader> uberShader;
+    UberShader::UberData uberParams;
+    float m_globalTime = 0.0f;
+
+    // DirectX Render Targets
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> renderTargetTexture;
+    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> depthStencilTexture;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
 };

@@ -61,7 +61,7 @@ private:
     // =========================================================
     struct PostProcessState
     {
-        bool MasterEnabled = false;
+        bool MasterEnabled = true;
         bool EnableVignette = true;
         bool EnableLens = true;
         bool EnableCRT = true;
