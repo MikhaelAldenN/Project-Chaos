@@ -89,7 +89,7 @@ private:
     // =========================================================
     // LAYOUT DATA
     // =========================================================
-    std::string tutorialText = "[A/D] Move   [SPACE] Shoot";
+    std::string tutorialText = "[A/D] Move [SPACE] Shoot";
 
     UI_LayoutData tutorialLayout = {
          "Tutorial Panel",               // name
