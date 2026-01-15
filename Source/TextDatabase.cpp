@@ -103,27 +103,36 @@ void TextDatabase::Initialize()
     };
 
     m_systemLogs = {
-    "Loading kernel modules...",
-    "Allocating memory block 0x84F...",
-    "Initializing GPU drivers...",
-    "Checking VRAM integrity... OK",
-    "Mounting virtual file system...",
-    "Decrypting user config...",
-    "Connection established: 192.168.0.1",
-    "Packet loss detected, retrying...",
-    "Bypassing firewall rules...",
-    "Access granted to /ROOT/BIN",
-    "Loading shader cache...",
-    "Physics engine warm-up...",
-    "Warning: Temperature spike detected",
-    "Overclocking CPU... 120%",
-    "Syncing with cloud mainframe...",
-    "Downloading patch 1.0.4...",
-    "Verifying checksums...",
-    "Cleaning up temp files...",
-    "User authentication: BYPASSED"
-    };
-}
+        "Initializing Kernel...",
+        "Mounting Volume (C:)",
+        "Loading Drivers...",
+        "Check Integrity: 100%",
+        "Memory Heap: Alloc OK",
+        "Security Level: NULL",
+        "Bypass Firewall: ON",
+        "Establishing Link...",
+        "Handshake: Accepted",
+        "Render Pipeline: ON",
+        "Shader Cache: Built",
+        "Reading Sector 0x7G",
+        "Writing Buffer...",
+        "Decrypting Keyfile",
+        "Password: *********",
+        "Root Access: GRANTED",
+        "Fetching Remote Data",
+        "Parsing Config...",
+        "Texture Atlas: Load",
+        "Audio Engine: Ready",
+        "Physics: Stabilized",
+        "Warning: Low Voltage",
+        "Overclocking: 110%",
+        "Compiling Assets...",
+        "Garbage Collection",
+        "Stack Trace: Clean",
+        "User: ADMIN_01",
+        "Uploading Virus...",
+        "System Update: SKIP"
+    }; }
 
 const FileMetadata* TextDatabase::GetMetadata(const std::string& fileName) const
 {

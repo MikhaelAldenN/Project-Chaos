@@ -20,8 +20,9 @@ SceneTitle::SceneTitle()
     uiManager = std::make_unique<ButtonManager>(); 
 
     logConsole = std::make_unique<LogConsole>();
-    logConsole->Initialize(325.0f, 695.0f, 6);
-    logConsole->SetStyle(0.625f, 30.0f, 0.96f, 0.80f, 0.23f, 0.7f);
+    logConsole->Initialize(335.0f, 695.0f, 6);
+    logConsole->SetStyle(0.625f, 30.0f, 0.96f, 0.80f, 0.23f, 0.6f);
+    logConsole->SetSpeed(0.5f, 5.0f);
 
     postProcess = std::make_unique<PostProcessManager>();
     postProcess->Initialize(1920, 1080);
@@ -73,6 +74,11 @@ SceneTitle::SceneTitle()
             // App Logic
             this->selectedFileName = fileName;
             this->PlayDescriptionAnim(fileName);
+            if (this->logConsole)
+            {
+                std::string shortName = fileName.substr(0, fileName.find(" "));
+                this->logConsole->AddLog("> Open: " + shortName, 0.85f);
+            }
             printf("[System] Selected: %s\n", fileName.c_str());
 
             if (fileName.find("Exit.exe") != std::string::npos) PostQuitMessage(0);
