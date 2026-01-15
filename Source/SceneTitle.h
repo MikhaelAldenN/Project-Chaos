@@ -100,6 +100,10 @@ private:
     void ApplyMenuLayout();
     void PlayDescriptionAnim(const std::string& key);
 
+    void BuildMenu(const std::string& folderName);
+    std::string currentFolder = "ROOT";
+    std::string pendingFolder = "";
+
     // --- Debug GUI Helpers ---
     void GUIPostProcessTab();
     void ImGuiEditPanel(PanelLayout& layout);

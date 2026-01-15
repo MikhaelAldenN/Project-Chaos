@@ -33,8 +33,83 @@ SceneTitle::SceneTitle()
     menuConfig.stylePress = { {0.0f, 0.0f, 0.8f, 1.0f}, {0.0f, 0.0f, 0.8f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
 
     // 3. Construct UI using TUIBuilder
+    //TUIBuilder builder(uiManager.get(), primitiveBatcher.get());
+
+    //TUITheme theme;
+    //theme.styleStandby = menuConfig.styleStandby;
+    //theme.styleHover = menuConfig.styleHover;
+    //theme.stylePress = menuConfig.stylePress;
+    //theme.textScale = menuConfig.textScale;
+    //theme.padding = menuConfig.paddingX;
+    //theme.verticalAdj = menuConfig.verticalAdj;
+    //theme.align = (TextAlignment)menuConfig.alignment;
+
+    //builder.SetTheme(theme);
+    //builder.SetButtonSize(menuConfig.btnWidth, menuConfig.btnHeight);
+
+    //// 3.1 Build Decoration
+    //builder.SetStartPosition(menuConfig.startX, 260.0f);
+    //builder.AddDecoration(" /..            <UP DIR>");
+
+    //// 3.2 Build Main Menu
+    //builder.SetStartPosition(menuConfig.startX, menuConfig.startY);
+    //builder.SetSpacing(menuConfig.spacing);
+
+    //const auto& fileList = TextDatabase::Instance().GetDirectoryList();
+    //menuButtons.clear();
+
+    //for (const auto& fileName : fileList)
+    //{
+    //    // Create button with deferred logic
+    //    UIButtonPrimitive* btn = builder.AddButton(fileName, nullptr);
+
+    //    btn->SetOnClick([this, fileName, btn]() {
+    //        // Radio Button Logic
+    //        if (currentActiveButton && currentActiveButton != btn) {
+    //            currentActiveButton->SetSelected(false);
+    //        }
+    //        currentActiveButton = btn;
+    //        currentActiveButton->SetSelected(true);
+
+    //        // App Logic
+    //        this->selectedFileName = fileName;
+    //        this->PlayDescriptionAnim(fileName);
+    //        if (this->logConsole)
+    //        {
+    //            std::string shortName = fileName.substr(0, fileName.find(" "));
+    //            this->logConsole->AddLog("> Open: " + shortName, 0.85f);
+    //        }
+    //        printf("[System] Selected: %s\n", fileName.c_str());
+
+    //        if (fileName.find("Exit.exe") != std::string::npos) PostQuitMessage(0);
+    //        });
+
+    //    menuButtons.push_back(btn);
+    //}
+
+    //if (!menuButtons.empty()) btnExit = menuButtons.back();
+
+    // 4. Load Assets & Finalize Setup
+    bgSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Sprite_BorderBrickDos.png");
+
+    SetupLayout();
+    SetupContent();
+
+    BuildMenu("ROOT");
+}
+
+void SceneTitle::BuildMenu(const std::string& folderName)
+{
+    // 1. Bersihkan Tombol Lama
+    menuButtons.clear();
+    uiManager->Clear();
+
+    currentFolder = folderName;
+
+    // 2. Siapkan Builder Ulang
     TUIBuilder builder(uiManager.get(), primitiveBatcher.get());
 
+    // Setup Theme (Copy dari config)
     TUITheme theme;
     theme.styleStandby = menuConfig.styleStandby;
     theme.styleHover = menuConfig.styleHover;
@@ -47,39 +122,80 @@ SceneTitle::SceneTitle()
     builder.SetTheme(theme);
     builder.SetButtonSize(menuConfig.btnWidth, menuConfig.btnHeight);
 
-    // 3.1 Build Decoration
-    builder.SetStartPosition(menuConfig.startX, 260.0f);
-    builder.AddDecoration(" /..            <UP DIR>");
+    // =========================================================
+    // [MODIFIKASI START]
+    // =========================================================
 
-    // 3.2 Build Main Menu
-    builder.SetStartPosition(menuConfig.startX, menuConfig.startY);
+    // A. Logic Dekorasi (Header)
+    // HANYA TAMPILKAN DEKORASI JIKA DI ROOT.
+    if (folderName == "ROOT")
+    {
+        builder.SetStartPosition(menuConfig.startX, 260.0f);
+        builder.AddDecoration(" VOL (C:)          <SYS>");
+    }
+    // "Else" dihapus supaya folder Misc tidak punya header "SUB DIR"
+
+    // B. Logic Posisi Tombol
+    // Default Y = 299.0f (Sesuai config awal)
+    float currentListY = menuConfig.startY;
+
+    // Jika BUKAN ROOT (misal di Misc), kita "naikkan" posisi tombolnya 
+    // ke 260.0f (posisi bekas header tadi) supaya tidak ompong.
+    if (folderName != "ROOT")
+    {
+        currentListY = 260.0f;
+    }
+
+    builder.SetStartPosition(menuConfig.startX, currentListY);
     builder.SetSpacing(menuConfig.spacing);
 
-    const auto& fileList = TextDatabase::Instance().GetDirectoryList();
-    menuButtons.clear();
+    // =========================================================
+    // [MODIFIKASI END]
+    // =========================================================
+
+    // 3. Ambil File dari Database berdasarkan Folder
+    const auto& fileList = TextDatabase::Instance().GetFiles(folderName);
 
     for (const auto& fileName : fileList)
     {
-        // Create button with deferred logic
         UIButtonPrimitive* btn = builder.AddButton(fileName, nullptr);
 
         btn->SetOnClick([this, fileName, btn]() {
-            // Radio Button Logic
+
+            // --- [LOGIC NAVIGASI] ---
+
+            // A. Tombol BACK ("../")
+            if (fileName.find("../") != std::string::npos)
+            {
+                this->PlayDescriptionAnim("");
+                this->pendingFolder = "ROOT";
+                if (this->logConsole) this->logConsole->AddLog("> CD C:", 1.0f);
+                return;
+            }
+
+            // B. Masuk Folder MISC ("Misc/")
+            if (fileName.find("Misc/") != std::string::npos)
+            {
+                this->PlayDescriptionAnim(fileName);
+                this->pendingFolder = "Misc";
+                if (this->logConsole) this->logConsole->AddLog("> CD Misc", 1.0f);
+                return;
+            }
+
+            // --- [LOGIC SELECT BIASA] ---
             if (currentActiveButton && currentActiveButton != btn) {
                 currentActiveButton->SetSelected(false);
             }
             currentActiveButton = btn;
             currentActiveButton->SetSelected(true);
 
-            // App Logic
             this->selectedFileName = fileName;
             this->PlayDescriptionAnim(fileName);
-            if (this->logConsole)
-            {
+
+            if (this->logConsole) {
                 std::string shortName = fileName.substr(0, fileName.find(" "));
-                this->logConsole->AddLog("> Open: " + shortName, 0.85f);
+                this->logConsole->AddLog("> Open: " + shortName, 1.0f);
             }
-            printf("[System] Selected: %s\n", fileName.c_str());
 
             if (fileName.find("Exit.exe") != std::string::npos) PostQuitMessage(0);
             });
@@ -89,27 +205,29 @@ SceneTitle::SceneTitle()
 
     if (!menuButtons.empty()) btnExit = menuButtons.back();
 
-    // 4. Load Assets & Finalize Setup
-    bgSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Sprite_BorderBrickDos.png");
-
-    SetupLayout();
-    SetupContent();
-
-    // 5. Default Selection (README.txt)
-    for (auto* btn : menuButtons)
+    if (folderName == "ROOT")
     {
-        if (btn->GetText().find("README.txt") != std::string::npos)
+        for (auto* btn : menuButtons)
         {
-            if (currentActiveButton) currentActiveButton->SetSelected(false);
-            currentActiveButton = btn;
-            currentActiveButton->SetSelected(true);
+            // Cari tombol yang teksnya mengandung "README.txt"
+            if (btn->GetText().find("README.txt") != std::string::npos)
+            {
+                // 1. Reset seleksi lama (jika ada)
+                if (currentActiveButton) currentActiveButton->SetSelected(false);
 
-            selectedFileName = btn->GetText();
-            PlayDescriptionAnim(selectedFileName);
+                // 2. Set tombol README jadi terpilih
+                currentActiveButton = btn;
+                currentActiveButton->SetSelected(true);
 
-            printf("[System] Auto-Selected: %s\n", selectedFileName.c_str());
+                // 3. Load Konten ke Panel Kanan
+                this->selectedFileName = btn->GetText();
+                this->PlayDescriptionAnim(selectedFileName);
 
-            break;
+                // 4. Catat di Log (Opsional)
+                //if (this->logConsole) this->logConsole->AddLog("> Default: README", 1.0f);
+
+                break; // Berhenti mencari karena sudah ketemu
+            }
         }
     }
 }
@@ -120,6 +238,12 @@ SceneTitle::SceneTitle()
 
 void SceneTitle::Update(float elapsedTime)
 {
+    if (!pendingFolder.empty())
+    {
+        BuildMenu(pendingFolder); // Rebuild menu di sini AMAN
+        pendingFolder = "";       // Reset request
+    }
+
     uiManager->Update();
     logConsole->Update(elapsedTime);
 
@@ -257,12 +381,27 @@ void SceneTitle::PlayDescriptionAnim(const std::string& key)
 {
     if (key.empty()) return;
 
-    const FileMetadata* data = TextDatabase::Instance().GetMetadata(key);
-    if (!data) return;
+    // [BARU] Bersihkan Key (Ambil nama file saja, buang spasi/size)
+    // Contoh: "joke.txt       5" -> "joke.txt"
+    std::string cleanKey = key;
+    size_t spacePos = key.find(" ");
+    if (spacePos != std::string::npos)
+    {
+        cleanKey = key.substr(0, spacePos);
+    }
+
+    // [UBAH] Gunakan cleanKey untuk mencari data
+    const FileMetadata* data = TextDatabase::Instance().GetMetadata(cleanKey);
+
+    if (!data) {
+        // Debugging: Kalau masih ga muncul, cek output window
+        printf("[Warning] Metadata not found for key: '%s'\n", cleanKey.c_str());
+        return;
+    }
 
     descTypewriter = std::make_unique<Typewriter>();
 
-    float currentY = panelDescription.y + 30.0f; // Margin top
+    float currentY = panelDescription.y + 30.0f;
 
     for (const std::string& line : data->lines)
     {

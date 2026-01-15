@@ -7,19 +7,27 @@ void TextDatabase::Initialize()
     m_systemStrings["DirectoryHeader"] = "NAME             SIZE";
     m_systemStrings["TUIMenuBar"] = "F1 HELP | F2 NOTE | F3 EDIT | F4 DEL | F5 RUN | F9 REFR | F10 QUIT";
 
-    // 2. SETUP DIRECTORY LIST (Urutan Menu)
-    m_directoryList = {
+    // 2. SETUP FILE SYSTEM (FOLDER STRUKTUR) [BARU]
+    // --- Folder: ROOT ---
+    m_fileSystem["ROOT"] = {
         "BeyondBreak...    3256",
         "README.txt         275",
         "settings.ini        83",
-        "Misc/            <DIR>",
+        "Misc/            <DIR>", // Folder cabang
         "Exit.exe          4096"
+    };
+
+    // --- Folder: Misc ---
+    m_fileSystem["Misc"] = {
+        "../            <UP DIR>",  // Tombol Kembali
+        "secret_log.txt      12",
+        "joke.txt             5"
     };
 
     // 3. SETUP FILE METADATA (Isi Konten)
 
     // --- Beyond Breaker ---
-    m_fileDatabase["BeyondBreak...    3256"] = {
+    m_fileDatabase["BeyondBreak..."] = {
         "APPLICATION INFO", // Title
         {
             "App : BeyondBreaker.exe",
@@ -34,7 +42,7 @@ void TextDatabase::Initialize()
     };
 
     // --- README.TXT (ASCII Art) ---
-    m_fileDatabase["README.txt         275"] = {
+    m_fileDatabase["README.txt"] = {
         "FILE CONTENT: README.TXT",
         {
             "    ____  _______   _____  _   _ ____       ",
@@ -65,7 +73,7 @@ void TextDatabase::Initialize()
     };
 
     // --- Settings.ini ---
-    m_fileDatabase["settings.ini        83"] = {
+    m_fileDatabase["settings.ini"] = {
         "CONFIGURATION",
         {
             "[Video]",
@@ -80,7 +88,7 @@ void TextDatabase::Initialize()
     };
 
     // --- Misc Directory ---
-    m_fileDatabase["Misc/            <DIR>"] = {
+    m_fileDatabase["Misc/"] = {
         "DIRECTORY INFO",
         {
             "Folder: Misc",
@@ -92,7 +100,7 @@ void TextDatabase::Initialize()
     };
 
     // --- Exit.exe ---
-    m_fileDatabase["Exit.exe          4096"] = {
+    m_fileDatabase["Exit.exe"] = {
         "SYSTEM CALL",
         {
             "Terminating Session...",
@@ -102,37 +110,74 @@ void TextDatabase::Initialize()
         }
     };
 
+    // [BARU] Metadata untuk file dalam Misc
+
+    // Tombol Back (../) - Kosongin aja
+    m_fileDatabase["/.."] = { "", {} }; // [GANTI]
+
+    m_fileDatabase["secret_log.txt"] = {
+        "ENCRYPTED LOG",
+        {
+            "SUBJECT: ALDEN",
+            "STATUS: AWAKENED",
+            "----------------",
+            "He is starting to realize that",
+            "this world is just code...",
+            "We must monitor him closely."
+        }
+    };
+
+    m_fileDatabase["joke.txt"] = {
+        "DAILY JOKE",
+        {
+            "Q: Why do Java developers wear glasses?",
+            "A: Because they don't C#."
+        }
+    };
+
     m_systemLogs = {
-        "Initializing Kernel...",
-        "Mounting Volume (C:)",
-        "Loading Drivers...",
-        "Check Integrity: 100%",
-        "Memory Heap: Alloc OK",
-        "Security Level: NULL",
-        "Bypass Firewall: ON",
-        "Establishing Link...",
-        "Handshake: Accepted",
-        "Render Pipeline: ON",
-        "Shader Cache: Built",
-        "Reading Sector 0x7G",
-        "Writing Buffer...",
-        "Decrypting Keyfile",
-        "Password: *********",
-        "Root Access: GRANTED",
-        "Fetching Remote Data",
-        "Parsing Config...",
-        "Texture Atlas: Load",
-        "Audio Engine: Ready",
-        "Physics: Stabilized",
-        "Warning: Low Voltage",
-        "Overclocking: 110%",
-        "Compiling Assets...",
-        "Garbage Collection",
-        "Stack Trace: Clean",
-        "User: ADMIN_01",
-        "Uploading Virus...",
-        "System Update: SKIP"
-    }; }
+    "Initializing Kernel...",
+    "Mounting Volume (C:)",
+    "Loading Drivers...",
+    "Check Integrity: 100%",
+    "Memory Heap: Alloc OK",
+    "Security Level: NULL",
+    "Bypass Firewall: ON",
+    "Establishing Link...",
+    "Handshake: Accepted",
+    "Render Pipeline: ON",
+    "Shader Cache: Built",
+    "Reading Sector 0x7G",
+    "Writing Buffer...",
+    "Decrypting Keyfile",
+    "Password: *********",
+    "Root Access: GRANTED",
+    "Fetching Remote Data",
+    "Parsing Config...",
+    "Texture Atlas: Load",
+    "Audio Engine: Ready",
+    "Physics: Stabilized",
+    "Warning: Low Voltage",
+    "Overclocking: 110%",
+    "Compiling Assets...",
+    "Garbage Collection",
+    "Stack Trace: Clean",
+    "User: ADMIN_01",
+    "Uploading Virus...",
+    "System Update: SKIP"
+    };
+}
+
+// [BARU] Implementasi Getter
+const std::vector<std::string>& TextDatabase::GetFiles(const std::string& folderName)
+{
+    // Cek apakah folder ada? Kalau ga ada, return ROOT atau kosong
+    if (m_fileSystem.find(folderName) != m_fileSystem.end()) {
+        return m_fileSystem[folderName];
+    }
+    // Fallback safety
+    return m_fileSystem["ROOT"];
+}
 
 const FileMetadata* TextDatabase::GetMetadata(const std::string& fileName) const
 {

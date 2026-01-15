@@ -24,7 +24,8 @@ public:
     const FileMetadata* GetMetadata(const std::string& fileName) const;
 
     // Ambil daftar nama file untuk Menu Directory
-    const std::vector<std::string>& GetDirectoryList() const { return m_directoryList; }
+    //const std::vector<std::string>& GetDirectoryList() const { return m_directoryList; }
+    const std::vector<std::string>& GetFiles(const std::string& folderName);
 
     // Ambil string sistem (misal: Header atau Status)
     std::string GetSystemString(const std::string& key);
@@ -36,8 +37,10 @@ private:
     ~TextDatabase() = default;
 
     // Penyimpanan Data
+    //std::vector<std::string> m_directoryList;
+    std::map<std::string, std::vector<std::string>> m_fileSystem;
+
     std::map<std::string, FileMetadata> m_fileDatabase;
-    std::vector<std::string> m_directoryList;
     std::map<std::string, std::string> m_systemStrings;
     std::vector<std::string> m_systemLogs;
 };
