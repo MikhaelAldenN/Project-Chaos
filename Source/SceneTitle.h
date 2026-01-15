@@ -5,6 +5,7 @@
 #include <vector>
 #include <wrl/client.h>
 #include <DirectXMath.h>
+#include <map>
 
 #include "Scene.h"
 #include "System/Sprite.h" 
@@ -14,6 +15,11 @@
 #include "ButtonManager.h"
 #include "UIButtonPrimitive.h"
 #include "UberShader.h"
+
+struct FileMetadata {
+    std::string title;            // Judul (misal: "App Details" atau "CREDITS")
+    std::vector<std::string> lines; // Baris-baris teks deskripsi
+};
 
 // Struct sederhana untuk data Layout
 struct PanelLayout {
@@ -51,7 +57,12 @@ private:
     // [BARU] Header untuk "Name Size"
     PanelLayout panelDirectory;
 
+    PanelLayout panelDescription;
+
     // [HAPUS] dirPanel & logPanel sudah tidak dipakai
+
+    std::map<std::string, FileMetadata> fileDatabase;
+    std::string selectedFileName = "";
 
     // --- Content Data ---
     std::string textStatusOnline;

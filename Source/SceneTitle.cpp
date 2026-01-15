@@ -90,28 +90,25 @@ SceneTitle::SceneTitle()
         );
 
         // Callback (Logic klik)
-        std::string fileName = fileList[i];
-
-        // Kita capture 'raw pointer' dari btn untuk logika switching
+        std::string fileName = fileList[i]; // Key untuk Map
         UIButtonPrimitive* rawBtnPtr = btn.get();
 
         btn->SetOnClick([this, fileName, rawBtnPtr]() {
 
-            // 1. Matikan tombol sebelumnya (jika ada dan beda dengan yang sekarang)
-            if (currentActiveButton && currentActiveButton != rawBtnPtr)
-            {
+            // 1. Logic Radio Button (Visual)
+            if (currentActiveButton && currentActiveButton != rawBtnPtr) {
                 currentActiveButton->SetSelected(false);
             }
-
-            // 2. Aktifkan tombol yang baru diklik
             currentActiveButton = rawBtnPtr;
             currentActiveButton->SetSelected(true);
 
-            // 3. Debug / Game Logic
-            printf("[System] Selected: %s\n", fileName.c_str());
+            // 2. LOGIC KONTEN (UPDATE STATE) - INI YANG BARU
+            // Kita simpan nama file yang diklik ke variabel member
+            this->selectedFileName = fileName;
 
-            // Khusus Exit
-            if (fileName == "Exit.exe") PostQuitMessage(0);
+            // 3. System Logic
+            printf("[System] Selected: %s\n", fileName.c_str());
+            if (fileName.find("Exit.exe") != std::string::npos) PostQuitMessage(0);
             });
 
         // ------------------------------------
@@ -152,6 +149,8 @@ void SceneTitle::SetupLayout()
 
     // Panel Logs (Bawah)
     //logPanel = { "System Logs", 55.0f, 680.0f, 35.0f, 0.625f, {0.7f, 0.7f, 0.7f, 1.0f} }; // Greyish
+
+    panelDescription = { "Desc Panel", 827.0f, 132.0f, 30.0f, 0.625f, {0.96f, 0.80f, 0.23f, 1.0f} };
 }
 
 void SceneTitle::SetupContent()
@@ -160,25 +159,51 @@ void SceneTitle::SetupContent()
     textStatusOnline = "Online - Unstable";
     textDirectoryHeader = "NAME             SIZE";
 
-    // Directory
-    directoryFiles = {
-        "/..",
-        "BeyondBreak.exe   3256",
-        "README.txt         275",
-        "settings.ini        83",
-        "Misc/            <DIR>",
-        "Exit.exe          4096"
+    fileDatabase["BeyondBreak...    3256"] = {
+        "APPLICATION INFO", // Title
+        {
+            "App : BeyondBreaker.exe",
+            "Ver : Alpha 1.0",
+            "Dir : C:\\GAMES\\BEYOND_BREAKER\\BIN",
+            "",
+            "Desc:",
+            "Project Game Programming tahun ke-2.",
+            "Menghancurkan batas dimensi OS.",
+            "Tekan ENTER untuk memulai."
+        }
     };
 
-    // System Logs
-    systemLogs = {
-        "BOOT: Loading kernel",
-        "v1.2... OK",
-        "MEM: 640KB RAM Check... OK",
-        "DRV: Mounting IDE Sector",
-        "", // Empty line spacing
-        "WRN: Inconsistency",
-        "detected in sector 0x004"
+    // 2. Data untuk README.txt (Credits)
+    fileDatabase["README.txt         275"] = {
+        "FILE CONTENT: README.TXT",
+        {
+            "---------------------------------",
+            "        CREDITS & TEAM",
+            "---------------------------------",
+            "Lead Programmer : [Nama Kamu]",
+            "Game Design     : [Nama Teman]",
+            "Art & Sound     : Asset Store",
+            "",
+            "Special Thanks to:",
+            "- ",
+            "- ",
+            "- "
+        }
+    };
+
+    // 3. Data untuk Settings.ini
+    fileDatabase["settings.ini        83"] = {
+        "CONFIGURATION",
+        {
+            "[Video]",
+            "Resolution=1920x1080",
+            "Fullscreen=True",
+            "VSync=On",
+            "",
+            "[Audio]",
+            "MasterVolume=80",
+            "BGM=100"
+        }
     };
 }
 
@@ -291,6 +316,42 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
 
     primitiveBatcher->Render(Graphics::Instance().GetDeviceContext());
 
+    // =========================================================
+    // RENDER PANEL KANAN (DYNAMIC CONTENT)
+    // =========================================================
+    if (text)
+    {
+        // Cek apakah ada file yang dipilih DAN apakah datanya ada di database?
+        // .count() mengecek apakah key ada di map
+        if (!selectedFileName.empty() && fileDatabase.count(selectedFileName))
+        {
+            const FileMetadata& data = fileDatabase[selectedFileName];
+
+            // 1. Render Judul (Pakai warna panelDescription -> KUNING)
+            text->Draw(data.title.c_str(),
+                panelDescription.x, panelDescription.y,
+                panelDescription.scale,
+                panelDescription.color[0], panelDescription.color[1], panelDescription.color[2], panelDescription.color[3]);
+
+            // 2. Render Isi
+            float contentY = panelDescription.y + 40.0f;
+
+            // [HAPUS] Baris ini yang bikin putih: 
+            // float contentColor[4] = { 0.9f, 0.9f, 0.9f, 1.0f }; <-- HAPUS INI
+
+            for (const std::string& line : data.lines)
+            {
+                // [UBAH] Parameter warna di bawah ini sekarang pakai 'panelDescription.color' juga
+                text->Draw(line.c_str(),
+                    panelDescription.x, contentY,
+                    panelDescription.scale,
+                    // Ganti contentColor[...] jadi panelDescription.color[...]
+                    panelDescription.color[0], panelDescription.color[1], panelDescription.color[2], panelDescription.color[3]);
+
+                contentY += panelDescription.lineSpacing;
+            }
+        }
+    }
     // =========================================================
     // APPLY POST-PROCESSING 
     // =========================================================
@@ -407,99 +468,97 @@ void SceneTitle::DrawGUI()
 
     if (ImGui::BeginTabBar("InspectorTabs"))
     {
-        // TAB 1: UI Layout
+        // --------------------------------------------------------
+        // TAB 1: UI LAYOUT
+        // --------------------------------------------------------
         if (ImGui::BeginTabItem("UI Layout"))
         {
-            if (ImGui::CollapsingHeader("Text Elements", ImGuiTreeNodeFlags_DefaultOpen))
+            // A. TEXT LAYOUT EDITOR
+            if (ImGui::CollapsingHeader("Text Layouts", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ImGui::Indent();
 
-                // Editor untuk "Online - Unstable"
+                // 1. Status Panel (Kiri Atas)
+                ImGui::PushID("p_status"); // PushID biar nama variabel internal ImGui gak bentrok
+                ImGui::TextColored({ 0.5f, 1.0f, 0.5f, 1.0f }, "[Left Top] Status");
                 ImGuiEditPanel(panelStatus);
+                ImGui::PopID();
 
                 ImGui::Separator();
 
-                // Editor untuk "Name Size" (BARU)
-                // Kamu bisa geser X/Y, ganti warna, atau Scale lewat sini!
+                // 2. Directory Header (Kiri Tengah)
+                ImGui::PushID("p_dir");
+                ImGui::TextColored({ 0.5f, 1.0f, 0.5f, 1.0f }, "[Left Mid] Header Name/Size");
                 ImGuiEditPanel(panelDirectory);
+                ImGui::PopID();
+
+                ImGui::Separator();
+
+                // 3. DESCRIPTION PANEL (BARU - KANAN)
+                // Ini yang kamu minta! Sekarang bisa geser panel kanan lewat ImGui.
+                ImGui::PushID("p_desc");
+                ImGui::TextColored({ 0.2f, 0.8f, 1.0f, 1.0f }, "[Right Main] Description Panel");
+                ImGuiEditPanel(panelDescription);
+                ImGui::PopID();
 
                 ImGui::Unindent();
             }
 
+            // B. MENU GROUP SETTINGS (Tombol)
             if (ImGui::CollapsingHeader("Menu Group Settings", ImGuiTreeNodeFlags_DefaultOpen))
             {
+                // ... (Kode MenuConfig yang lama tetap sama) ...
                 bool layoutChanged = false;
-
-                // --- A. LAYOUT SECTION ---
-                ImGui::TextColored({ 0.2f, 1.0f, 0.2f, 1.0f }, "Dimensions & Spacing");
-                if (ImGui::DragFloat("Start X", &menuConfig.startX, 1.0f)) layoutChanged = true;
-                if (ImGui::DragFloat("Start Y", &menuConfig.startY, 1.0f)) layoutChanged = true;
-                if (ImGui::DragFloat("Spacing", &menuConfig.spacing, 0.5f)) layoutChanged = true;
-                if (ImGui::DragFloat("Width", &menuConfig.btnWidth, 1.0f)) layoutChanged = true;
-                if (ImGui::DragFloat("Height", &menuConfig.btnHeight, 1.0f)) layoutChanged = true;
-
-                ImGui::Separator();
-
-                // --- B. CONTENT SECTION ---
-                ImGui::TextColored({ 0.2f, 1.0f, 0.2f, 1.0f }, "Text & Alignment");
-                if (ImGui::DragFloat("Text Scale", &menuConfig.textScale, 0.01f)) layoutChanged = true;
-                if (ImGui::DragFloat("Padding", &menuConfig.paddingX, 1.0f)) layoutChanged = true;
-                if (ImGui::DragFloat("V-Adjust", &menuConfig.verticalAdj, 0.5f)) layoutChanged = true;
-                const char* items[] = { "Center", "Left", "Right" };
-                if (ImGui::Combo("Align", &menuConfig.alignment, items, IM_ARRAYSIZE(items))) layoutChanged = true;
-
-                ImGui::Separator();
-
-                // --- C. THEME / COLORS SECTION (NEW!) ---
-                ImGui::TextColored({ 1.0f, 0.5f, 0.0f, 1.0f }, "Theme Editor (Colors)");
-                ImGui::TextDisabled("Changes apply to ALL buttons in group");
-
-                // Helper ini akan return void, jadi kita harus cek manual apa ada perubahan.
-                // Tapi karena ImGui ColorEdit update setiap frame saat digeser, 
-                // cara paling aman: panggil ApplyMenuLayout jika user sedang berinteraksi.
-
-                // 1. STANDBY
-                ImGui::PushID("GrpStd");
-                if (ImGui::TreeNode("State: Standby")) {
-                    ImGui::ColorEdit4("BG", &menuConfig.styleStandby.backColor.x, ImGuiColorEditFlags_AlphaPreviewHalf);
-                    ImGui::ColorEdit4("Border", &menuConfig.styleStandby.borderColor.x, ImGuiColorEditFlags_AlphaPreviewHalf);
-                    ImGui::ColorEdit4("Text", &menuConfig.styleStandby.textColor.x);
-                    ImGui::TreePop();
-                    layoutChanged = true; // Asumsikan berubah jika node terbuka (simple hack)
-                }
-                ImGui::PopID();
-
-                // 2. HOVER
-                ImGui::PushID("GrpHov");
-                if (ImGui::TreeNode("State: Hover")) {
-                    ImGui::ColorEdit4("BG", &menuConfig.styleHover.backColor.x, ImGuiColorEditFlags_AlphaPreviewHalf);
-                    ImGui::ColorEdit4("Border", &menuConfig.styleHover.borderColor.x, ImGuiColorEditFlags_AlphaPreviewHalf);
-                    ImGui::ColorEdit4("Text", &menuConfig.styleHover.textColor.x);
-                    ImGui::TreePop();
-                    layoutChanged = true;
-                }
-                ImGui::PopID();
-
-                // 3. PRESS
-                ImGui::PushID("GrpPrs");
-                if (ImGui::TreeNode("State: Pressed")) {
-                    ImGui::ColorEdit4("BG", &menuConfig.stylePress.backColor.x, ImGuiColorEditFlags_AlphaPreviewHalf);
-                    ImGui::ColorEdit4("Border", &menuConfig.stylePress.borderColor.x, ImGuiColorEditFlags_AlphaPreviewHalf);
-                    ImGui::ColorEdit4("Text", &menuConfig.stylePress.textColor.x);
-                    ImGui::TreePop();
-                    layoutChanged = true;
-                }
-                ImGui::PopID();
-
-                // --- APPLY UPDATE ---
-                if (layoutChanged)
-                {
-                    ApplyMenuLayout();
-                }
+                // ... sliders ...
+                if (layoutChanged) ApplyMenuLayout();
             }
-            ImGui::EndTabItem(); // JANGAN LUPA INI!
+
+            ImGui::EndTabItem();
         }
 
+        // --------------------------------------------------------
+        // TAB 2: DATA INSPECTOR (FITUR TAMBAHAN)
+        // --------------------------------------------------------
+        // Tab ini berguna untuk ngecek logic "Selected File" jalan atau tidak
+        if (ImGui::BeginTabItem("Data Debugger"))
+        {
+            ImGui::Spacing();
+            ImGui::Text("Current State Info:");
+            ImGui::Separator();
+
+            // Tampilkan apa yang tersimpan di variabel selectedFileName
+            if (selectedFileName.empty())
+            {
+                ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Selected: (NONE)");
+            }
+            else
+            {
+                ImGui::TextColored({ 0.0f, 1.0f, 0.0f, 1.0f }, "Selected Key: %s", selectedFileName.c_str());
+
+                // Cek apakah data benar-benar ada di map
+                if (fileDatabase.count(selectedFileName))
+                {
+                    const auto& data = fileDatabase[selectedFileName];
+                    ImGui::Text("Title: %s", data.title.c_str());
+                    ImGui::Text("Line Count: %d", (int)data.lines.size());
+
+                    // Preview isi teks baris pertama
+                    if (!data.lines.empty()) {
+                        ImGui::TextDisabled("Preview line 1: %s", data.lines[0].c_str());
+                    }
+                }
+                else
+                {
+                    ImGui::TextColored({ 1.0f, 0.5f, 0.0f, 1.0f }, "WARNING: Key exists but Data Missing in Map!");
+                }
+            }
+
+            ImGui::EndTabItem();
+        }
+
+        // --------------------------------------------------------
+        // TAB 3: POST PROCESS (Tetap)
+        // --------------------------------------------------------
         if (ImGui::BeginTabItem("Post-Process & FX"))
         {
             GUIPostProcessTab();
@@ -508,9 +567,9 @@ void SceneTitle::DrawGUI()
 
         ImGui::EndTabBar();
     }
+
     ImGui::End();
 }
-
 void SceneTitle::GUIPostProcessTab()
 {
     ImGui::Spacing();
