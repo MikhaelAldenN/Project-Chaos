@@ -4,6 +4,7 @@
 #include "System/Graphics.h"
 #include "System/Input.h"
 #include "MathUtils.h" 
+#include <imgui.h>
 
 // --- KONFIGURASI CONSTANT ---
 namespace ConfigOS {

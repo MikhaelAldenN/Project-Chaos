@@ -3,27 +3,21 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <map>
 #include <wrl/client.h>
 #include <DirectXMath.h>
-#include <map>
 
 #include "Scene.h"
-#include "System/Sprite.h" 
 #include "Camera.h"
-#include "imgui.h"
 #include "Primitive.h"
 #include "ButtonManager.h"
 #include "UIButtonPrimitive.h"
 #include "Typewriter.h"
-
-// [BARU] Include Manager
+#include "System/Sprite.h" 
+#include "TextDatabase.h"
 #include "PostProcessManager.h"
 
-struct FileMetadata {
-    std::string title;
-    std::vector<std::string> lines;
-};
-
+// Structs for UI Layout
 struct PanelLayout {
     char name[32];
     float x, y;
@@ -38,72 +32,29 @@ public:
     SceneTitle();
     ~SceneTitle() override = default;
 
+    // Core Loop
     void Update(float elapsedTime) override;
     void Render(float dt, Camera* camera = nullptr) override;
-    void DrawGUI() override;
     void OnResize(int width, int height) override;
 
+    // Debug / Tools
+    void DrawGUI() override;
     Camera* GetCamera() const { return camera.get(); }
 
 private:
-    // --- Core Systems ---
-    std::unique_ptr<Sprite> bgSprite;
+    // --- Subsystems ---
     std::unique_ptr<Camera> camera;
-
+    std::unique_ptr<Sprite> bgSprite;
     std::unique_ptr<Primitive> primitiveBatcher;
     std::unique_ptr<ButtonManager> uiManager;
-
-    // [BARU] Post Process Manager
-    // Menggantikan UberShader & RenderTarget manual
     std::unique_ptr<PostProcessManager> postProcess;
+    std::unique_ptr<Typewriter> descTypewriter;
 
-    // --- Layout Configuration ---
+    // --- Layout & Visual Configuration ---
     PanelLayout panelStatus;
     PanelLayout panelDirectory;
     PanelLayout panelDescription;
 
-    std::map<std::string, FileMetadata> fileDatabase;
-    std::string selectedFileName = "";
-
-    // --- Content Data ---
-    std::string textStatusOnline;
-    std::string textDirectoryHeader;
-    std::string textTUIMenuBar;
-
-    std::vector<std::string> directoryFiles;
-    std::vector<std::string> systemLogs;
-
-    // --- Helper Functions ---
-    void SetupLayout();
-    void SetupContent();
-    // void CreateRenderTarget(); // [HAPUS] Sudah dihandle Manager
-    void GUIPostProcessTab();
-
-    void DrawListInPanel(const std::vector<std::string>& list, const PanelLayout& layout);
-    void ImGuiEditPanel(PanelLayout& layout);
-
-    UIButtonPrimitive* debugBtnExit = nullptr;
-    std::vector<UIButtonPrimitive*> debugButtonList;
-    int debugSelectedIdx = 0;
-
-    // GUI State (Tetap disimpan untuk kontrol logic toggle)
-    struct PostProcessState
-    {
-        bool MasterEnabled = true;
-        bool EnableVignette = true;
-        bool EnableLens = true;
-        bool EnableCRT = true;
-    };
-    PostProcessState m_fxState;
-
-    // Kita simpan "Config" di sini. 
-    // Saat Render, kita copy ini ke PostProcessManager.
-    UberShader::UberData uberParams;
-
-    // [HAPUS] m_globalTime dipindah ke Manager
-    // [HAPUS] Semua ComPtr RenderTarget & DepthStencil
-
-    // --- GROUP CONFIGURATION ---
     struct MenuConfig {
         float startX = 340.0f;
         float startY = 299.0f;
@@ -113,18 +64,41 @@ private:
         float paddingX = 10.0f;
         float textScale = 0.625f;
         float verticalAdj = 2.0f;
-        int alignment = 2;
+        int alignment = 2; // Left
 
         ButtonStyle styleStandby;
         ButtonStyle styleHover;
         ButtonStyle stylePress;
-    };
-    MenuConfig menuConfig;
+    } menuConfig;
 
-    void ApplyMenuLayout();
-
+    // --- State Management ---
+    std::string selectedFileName = "";
     UIButtonPrimitive* currentActiveButton = nullptr;
+    UIButtonPrimitive* btnExit = nullptr;
+    std::vector<UIButtonPrimitive*> menuButtons;
 
-    std::unique_ptr<Typewriter> descTypewriter;
+    // --- Cached Strings ---
+    std::string textStatusOnline;
+    std::string textDirectoryHeader;
+    std::string textTUIMenuBar;
+
+    // --- Post Process State ---
+    struct PostProcessState {
+        bool MasterEnabled = true;
+        bool EnableVignette = true;
+        bool EnableLens = true;
+        bool EnableCRT = true;
+    } m_fxState;
+
+    UberShader::UberData uberParams; // Local copy for GUI manipulation
+
+    // --- Internal Helpers ---
+    void SetupLayout();
+    void SetupContent();
+    void ApplyMenuLayout();
     void PlayDescriptionAnim(const std::string& key);
+
+    // --- Debug GUI Helpers ---
+    void GUIPostProcessTab();
+    void ImGuiEditPanel(PanelLayout& layout);
 };

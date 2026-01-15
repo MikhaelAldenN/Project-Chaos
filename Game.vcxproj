@@ -132,6 +132,7 @@
     <ClInclude Include="Source\Block.h" />
     <ClInclude Include="Source\BlockManager.h" />
     <ClInclude Include="Source\PostProcessManager.h" />
+    <ClInclude Include="Source\TextDatabase.h" />
     <ClInclude Include="Source\TUIBuilder.h" />
     <ClInclude Include="Source\UberShader.h" />
     <ClInclude Include="Source\UIButton.h" />
@@ -244,6 +245,7 @@
     <ClCompile Include="Source\System\ShapeRenderer.cpp" />
     <ClCompile Include="Source\System\Sprite.cpp" />
     <ClCompile Include="Source\System\TransformUtils.cpp" />
+    <ClCompile Include="Source\TextDatabase.cpp" />
     <ClCompile Include="Source\TUIBuilder.cpp" />
     <ClCompile Include="Source\Typewriter.cpp" />
     <ClCompile Include="Source\UberShader.cpp" />
