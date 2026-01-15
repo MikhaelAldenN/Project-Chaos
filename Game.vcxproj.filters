@@ -216,6 +216,9 @@
     <ClCompile Include="Source\UberShader.cpp">
       <Filter>Source\Shaders</Filter>
     </ClCompile>
+    <ClCompile Include="Source\PostProcessManager.cpp">
+      <Filter>Source\Shaders</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -435,6 +438,9 @@
       <Filter>Source\Character</Filter>
     </ClInclude>
     <ClInclude Include="Source\UberShader.h">
+      <Filter>Source\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\PostProcessManager.h">
       <Filter>Source\Shaders</Filter>
     </ClInclude>
   </ItemGroup>

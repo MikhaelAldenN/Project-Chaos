@@ -14,21 +14,22 @@
 #include "Primitive.h"
 #include "ButtonManager.h"
 #include "UIButtonPrimitive.h"
-#include "UberShader.h"
 #include "Typewriter.h"
 
+// [BARU] Include Manager
+#include "PostProcessManager.h"
+
 struct FileMetadata {
-    std::string title;            // Judul (misal: "App Details" atau "CREDITS")
-    std::vector<std::string> lines; // Baris-baris teks deskripsi
+    std::string title;
+    std::vector<std::string> lines;
 };
 
-// Struct sederhana untuk data Layout
 struct PanelLayout {
-    char name[32];   // Nama untuk label ImGui
-    float x, y;      // Posisi
+    char name[32];
+    float x, y;
     float lineSpacing;
     float scale;
-    float color[4];  // Warna teks (R, G, B, A)
+    float color[4];
 };
 
 class SceneTitle : public Scene
@@ -52,15 +53,14 @@ private:
     std::unique_ptr<Primitive> primitiveBatcher;
     std::unique_ptr<ButtonManager> uiManager;
 
-// --- Layout Configuration ---
-    PanelLayout panelStatus; // Tetap (Online Status)
+    // [BARU] Post Process Manager
+    // Menggantikan UberShader & RenderTarget manual
+    std::unique_ptr<PostProcessManager> postProcess;
 
-    // [BARU] Header untuk "Name Size"
+    // --- Layout Configuration ---
+    PanelLayout panelStatus;
     PanelLayout panelDirectory;
-
     PanelLayout panelDescription;
-
-    // [HAPUS] dirPanel & logPanel sudah tidak dipakai
 
     std::map<std::string, FileMetadata> fileDatabase;
     std::string selectedFileName = "";
@@ -68,6 +68,7 @@ private:
     // --- Content Data ---
     std::string textStatusOnline;
     std::string textDirectoryHeader;
+    std::string textTUIMenuBar;
 
     std::vector<std::string> directoryFiles;
     std::vector<std::string> systemLogs;
@@ -75,22 +76,17 @@ private:
     // --- Helper Functions ---
     void SetupLayout();
     void SetupContent();
-    void CreateRenderTarget(); 
-    void GUIPostProcessTab();  
+    // void CreateRenderTarget(); // [HAPUS] Sudah dihandle Manager
+    void GUIPostProcessTab();
 
-    // Fungsi render teks generik
     void DrawListInPanel(const std::vector<std::string>& list, const PanelLayout& layout);
-
-    // Fungsi helper ImGui untuk mengurangi duplikasi kode UI
     void ImGuiEditPanel(PanelLayout& layout);
 
-    UIButtonPrimitive* debugBtnExit = nullptr; // Pointer ke tombol yang SEDANG diedit
+    UIButtonPrimitive* debugBtnExit = nullptr;
+    std::vector<UIButtonPrimitive*> debugButtonList;
+    int debugSelectedIdx = 0;
 
-    // Tambahkan 2 baris ini:
-    std::vector<UIButtonPrimitive*> debugButtonList; // List semua tombol untuk dipilih
-    int debugSelectedIdx = 0;                        // Index tombol yang dipilih sekarang
-
-    // GUI State
+    // GUI State (Tetap disimpan untuk kontrol logic toggle)
     struct PostProcessState
     {
         bool MasterEnabled = true;
@@ -100,22 +96,15 @@ private:
     };
     PostProcessState m_fxState;
 
-    // Post-Processing Resources
-    std::unique_ptr<UberShader> uberShader;
+    // Kita simpan "Config" di sini. 
+    // Saat Render, kita copy ini ke PostProcessManager.
     UberShader::UberData uberParams;
-    float m_globalTime = 0.0f;
 
-    // DirectX Render Targets
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> renderTargetTexture;
-    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> depthStencilTexture;
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
+    // [HAPUS] m_globalTime dipindah ke Manager
+    // [HAPUS] Semua ComPtr RenderTarget & DepthStencil
 
     // --- GROUP CONFIGURATION ---
-    // Struct ini mengontrol seluruh layout menu secara global
     struct MenuConfig {
-        // --- Layout (Existing) ---
         float startX = 340.0f;
         float startY = 299.0f;
         float btnWidth = 421.0f;
@@ -126,21 +115,16 @@ private:
         float verticalAdj = 2.0f;
         int alignment = 2;
 
-        // --- Colors (NEW FEATURES) ---
-        // Kita simpan 3 style utama di sini
         ButtonStyle styleStandby;
         ButtonStyle styleHover;
         ButtonStyle stylePress;
     };
-    MenuConfig menuConfig; // Instance konfigurasi
+    MenuConfig menuConfig;
 
-    // Fungsi helper untuk menerapakan config ke semua tombol
     void ApplyMenuLayout();
 
     UIButtonPrimitive* currentActiveButton = nullptr;
 
     std::unique_ptr<Typewriter> descTypewriter;
-
-    // Fungsi helper untuk mereset dan mengisi animasi teks
     void PlayDescriptionAnim(const std::string& key);
 };

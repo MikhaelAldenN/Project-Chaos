@@ -131,6 +131,7 @@
     <ClInclude Include="Source\BitmapFont.h" />
     <ClInclude Include="Source\Block.h" />
     <ClInclude Include="Source\BlockManager.h" />
+    <ClInclude Include="Source\PostProcessManager.h" />
     <ClInclude Include="Source\UberShader.h" />
     <ClInclude Include="Source\UIButton.h" />
     <ClInclude Include="Source\ButtonManager.h" />
@@ -214,6 +215,7 @@
     <ClCompile Include="Source\Main.cpp" />
     <ClCompile Include="Source\Paddle.cpp" />
     <ClCompile Include="Source\Player.cpp" />
+    <ClCompile Include="Source\PostProcessManager.cpp" />
     <ClCompile Include="Source\Primitive.cpp" />
     <ClCompile Include="Source\ResourceManager.cpp" />
     <ClCompile Include="Source\SceneGame.cpp" />
