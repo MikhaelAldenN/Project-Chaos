@@ -160,6 +160,7 @@ void SceneTitle::BuildMenu(const std::string& folderName)
     {
         UIButtonPrimitive* btn = builder.AddButton(fileName, nullptr);
 
+        btn->SetVisibleChars(0);
         btn->SetOnClick([this, fileName, btn]() {
 
             // --- [LOGIC NAVIGASI] ---
@@ -202,6 +203,10 @@ void SceneTitle::BuildMenu(const std::string& folderName)
 
         menuButtons.push_back(btn);
     }
+
+    // [BARU] Reset State Animasi
+    animButtonIndex = 0; // Mulai dari tombol pertama (index 0)
+    animTimer = 0.0f;
 
     if (!menuButtons.empty()) btnExit = menuButtons.back();
 
@@ -256,6 +261,33 @@ void SceneTitle::Update(float elapsedTime)
     if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN))
     {
         Framework::Instance()->ChangeScene(std::make_unique<SceneGameBreaker>());
+    }
+
+    if (animButtonIndex < menuButtons.size())
+    {
+        animTimer += elapsedTime;
+
+        // Loop while agar kalau framerate drop, ngetiknya ngerapel (cepet)
+        while (animTimer >= animSpeed)
+        {
+            animTimer -= animSpeed;
+
+            UIButtonPrimitive* currentBtn = menuButtons[animButtonIndex];
+
+            // Tambah 1 huruf
+            int currentChars = currentBtn->GetVisibleChars();
+            currentBtn->SetVisibleChars(currentChars + 1);
+
+            // Jika tombol ini sudah selesai ngetik semua hurufnya...
+            if (currentBtn->IsFinishedTyping())
+            {
+                // Pindah giliran ke tombol berikutnya
+                animButtonIndex++;
+
+                // Safety check: Kalau sudah habis semua tombolnya, keluar loop
+                if (animButtonIndex >= menuButtons.size()) break;
+            }
+        }
     }
 }
 

@@ -3,6 +3,7 @@
 #include "Primitive.h"
 #include "ResourceManager.h"
 #include "BitmapFont.h"
+#include <string>
 
 enum class TextAlignment {
     Center,
@@ -35,7 +36,19 @@ public:
         styles[0] = { {0.0f, 0.0f, 0.5f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} }; // Standby
         styles[1] = { {0.0f, 0.0f, 0.8f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 0.0f, 1.0f} }; // Hover
         styles[2] = { {0.0f, 0.5f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f, 1.0f} }; // Pressed
+    
+        visibleChars = (int)text.length();
     }
+
+    void SetVisibleChars(int count) {
+        if (count < 0) count = 0;
+        if (count > (int)labelText.length()) count = (int)labelText.length();
+        visibleChars = count;
+    }
+
+    int GetVisibleChars() const { return visibleChars; }
+    int GetTotalChars() const { return (int)labelText.length(); }
+    bool IsFinishedTyping() const { return visibleChars >= (int)labelText.length(); }
 
     // Setter Style yang Efisien (By Reference)
     void SetStyle(ButtonState state, const ButtonStyle& style)
@@ -93,25 +106,36 @@ public:
 
         // 4. Render Text
         BitmapFont* font = ResourceManager::Instance().GetFont("VGA_FONT");
-        if (font)
+        if (font && visibleChars > 0)
         {
-            DirectX::XMFLOAT2 textSize = font->MeasureText(labelText, textScale);
+            // [KUNCI]: Ukur teks UTUH untuk mendapatkan posisi (Anchor) yang stabil
+            DirectX::XMFLOAT2 fullTextSize = font->MeasureText(labelText, textScale);
 
-            // Perhitungan Posisi X
+            // Siapkan teks POTONGAN untuk digambar
+            std::string drawText = labelText.substr(0, visibleChars);
+
+            // Perhitungan Posisi X (Gunakan fullTextSize, bukan textSize)
             float textX = 0.0f;
             switch (alignment)
             {
-            case TextAlignment::Left:   textX = (float)rect.left + paddingX; break;
-            case TextAlignment::Right:  textX = (float)rect.left + width - textSize.x - paddingX; break;
-            case TextAlignment::Center: default: textX = (float)rect.left + (width - textSize.x) / 2.0f; break;
+            case TextAlignment::Left:
+                textX = (float)rect.left + paddingX;
+                break;
+            case TextAlignment::Right:
+                // Menggunakan lebar utuh agar anchor point tidak pindah-pindah
+                textX = (float)rect.left + width - fullTextSize.x - paddingX;
+                break;
+            case TextAlignment::Center:
+            default:
+                textX = (float)rect.left + (width - fullTextSize.x) / 2.0f;
+                break;
             }
 
-            // Perhitungan Posisi Y + Efek Tekan
             float pressOffset = (currentState == ButtonState::PRESSED) ? 2.0f : 0.0f;
-            float textY = (float)rect.top + (height - textSize.y) / 2.0f + verticalAdjustment + pressOffset;
+            float textY = (float)rect.top + (height - fullTextSize.y) / 2.0f + verticalAdjustment + pressOffset;
 
-            // Render Text dengan Warna dari Style
-            font->Draw(labelText.c_str(), textX, textY, textScale,
+            // Gambar teks potongan di posisi anchor yang sudah stabil
+            font->Draw(drawText.c_str(), textX, textY, textScale,
                 activeStyle.textColor.x, activeStyle.textColor.y, activeStyle.textColor.z, activeStyle.textColor.w);
         }
     }
@@ -123,6 +147,8 @@ private:
     // Array style untuk 3 state: STANDBY, HOVER, PRESSED
     // Menggunakan array lebih cepat aksesnya daripada if-else branch
     ButtonStyle styles[3];
+
+    int visibleChars = 0;
 
     float textScale;
     float paddingX;

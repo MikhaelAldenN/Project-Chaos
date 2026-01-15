@@ -107,4 +107,8 @@ private:
     // --- Debug GUI Helpers ---
     void GUIPostProcessTab();
     void ImGuiEditPanel(PanelLayout& layout);
+
+    int animButtonIndex = 0;   // Tombol ke-berapa yang sedang ngetik?
+    float animTimer = 0.0f;    // Timer per huruf
+    float animSpeed = 0.001f;   // Kecepatan ngetik (makin kecil makin ngebut)
 };
