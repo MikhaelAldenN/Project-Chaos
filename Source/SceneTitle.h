@@ -15,6 +15,7 @@
 #include "ButtonManager.h"
 #include "UIButtonPrimitive.h"
 #include "UberShader.h"
+#include "Typewriter.h"
 
 struct FileMetadata {
     std::string title;            // Judul (misal: "App Details" atau "CREDITS")
@@ -137,4 +138,9 @@ private:
     void ApplyMenuLayout();
 
     UIButtonPrimitive* currentActiveButton = nullptr;
+
+    std::unique_ptr<Typewriter> descTypewriter;
+
+    // Fungsi helper untuk mereset dan mengisi animasi teks
+    void PlayDescriptionAnim(const std::string& key);
 };

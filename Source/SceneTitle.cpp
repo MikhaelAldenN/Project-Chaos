@@ -105,6 +105,7 @@ SceneTitle::SceneTitle()
             // 2. LOGIC KONTEN (UPDATE STATE) - INI YANG BARU
             // Kita simpan nama file yang diklik ke variabel member
             this->selectedFileName = fileName;
+            this->PlayDescriptionAnim(fileName);
 
             // 3. System Logic
             printf("[System] Selected: %s\n", fileName.c_str());
@@ -135,6 +136,30 @@ SceneTitle::SceneTitle()
     // Initialize UberShader & Render Targets
     uberShader = std::make_unique<UberShader>(Graphics::Instance().GetDevice());
     CreateRenderTarget();
+
+    // =========================================================
+    // SET DEFAULT SELECTION (AUTO-SELECT README)
+    // =========================================================
+    // Kita cari tombol yang mengandung kata "README"
+    for (auto* btn : debugButtonList)
+    {
+        // Cek apakah teks tombol mengandung "README.txt"
+        if (btn->GetText().find("README.txt") != std::string::npos)
+        {
+            // A. Reset pilihan sebelumnya (jika ada)
+            if (currentActiveButton) currentActiveButton->SetSelected(false);
+
+            // B. Set Visual Tombol jadi PRESSED
+            currentActiveButton = btn;
+            currentActiveButton->SetSelected(true);
+
+            // C. Set Data Logic agar Panel Kanan Muncul (PENTING!)
+            // Kita harus set manual karena callback OnClick tidak otomatis jalan di sini
+            selectedFileName = btn->GetText();
+            PlayDescriptionAnim(selectedFileName);
+            break;
+        }
+    }
 }
 
 void SceneTitle::SetupLayout()
@@ -150,7 +175,7 @@ void SceneTitle::SetupLayout()
     // Panel Logs (Bawah)
     //logPanel = { "System Logs", 55.0f, 680.0f, 35.0f, 0.625f, {0.7f, 0.7f, 0.7f, 1.0f} }; // Greyish
 
-    panelDescription = { "Desc Panel", 827.0f, 132.0f, 30.0f, 0.625f, {0.96f, 0.80f, 0.23f, 1.0f} };
+    panelDescription = { "Desc Panel", 844.0f, 96.0f, 30.0f, 0.625f, {0.96f, 0.80f, 0.23f, 1.0f} };
 }
 
 void SceneTitle::SetupContent()
@@ -177,17 +202,55 @@ void SceneTitle::SetupContent()
     fileDatabase["README.txt         275"] = {
         "FILE CONTENT: README.TXT",
         {
-            "---------------------------------",
-            "        CREDITS & TEAM",
-            "---------------------------------",
-            "Lead Programmer : [Nama Kamu]",
-            "Game Design     : [Nama Teman]",
-            "Art & Sound     : Asset Store",
+            "    ____  _______   _____  _   _ ____       ",
+            "   | __ )| ____\\ \\ / / _ \\| \\ | |  _ \\      ",
+            "   |  _ \\|  _|  \\ V / | | |  \\| | | | |     ",
+            "   | |_) | |___  | || |_| | |\\  | |_| |     ",
+            " __|____/|_____|_|_| \\___/|_| \\_|____/____  ",
+            "| __ )|  _ \\| ____|  / \\  | |/ / ____|  _ \\ ",
+            "|  _ \\| |_) |  _|   / _ \\ | ' /|  _| | |_) |",
+            "| |_) |  _ <| |___ / ___ \\| . \\| |___|  _ < ",
+            "|____/|_| \\_\\_____/_/   \\_\\_|\\_\\_____|_| \\_\\",
             "",
-            "Special Thanks to:",
-            "- ",
-            "- ",
-            "- "
+            "              --a Game by--",
+            "      KONPAIRUTOOREBAKAMI PRODUCTION",
+            "",
+            ""
+            "===========================================",
+            " RELEASE INFO  : PUBLIC ALPHA BUILD v1.0",
+            " TARGET SYSTEM : BRICK-DOS / KERNEL 32",
+            " CRACKED BY    : KONPAIRU-TO-OREBAKAMI",
+            "===========================================",
+            " ",
+            "[ DESCRIPTION ]",
+            " warning: this program is unstable!",
+            " Beyond Breaker is not just a game. It is a ",
+            " tooldesigned to shatter the 4th wall of ",
+            " this OS.",
+            " ",
+            //" We found a glitch in the render pipeline.",
+            //" We intend to exploit it.",
+            //" ",
+            //"[ CONTROLS ]",
+            //"  > [W,A,S,D] ... Navigation / Axis Control",
+            //"  > [SPACE] ..... Execute / Fire",
+            //"  > [ENTER] ..... Confirm Selection",
+            //"  > [ESC] ....... Panic Button (Quit)",
+            //" ",
+            //"[ KNOWN BUGS ]",
+            //"  * Parallax engine may cause spatial dizziness.",
+            //"  * If the screen shakes violently, do not panic.",
+            //"    It means the system is breaking.",
+            //" ",
+            //"[ GREETZ & THANKS ]",
+            //"  * ",
+            //"  * ",
+            //"  * ",
+            //"  * ",
+            //" ",
+            //"--------------------------------------------------",
+            //" EST. 2026 OSAKA, JAPAN.          END OF FILE.",
+            //"--------------------------------------------------"
         }
     };
 
@@ -213,6 +276,16 @@ void SceneTitle::Update(float elapsedTime)
     if (m_globalTime > 1000.0f) m_globalTime -= 1000.0f;
 
     uiManager->Update();
+
+    if (descTypewriter)
+    {
+        int overclockSpeed = 5;
+
+        for (int i = 0; i < overclockSpeed; ++i)
+        {
+            descTypewriter->Update(elapsedTime);
+        }
+    }
 
     // Scene Switching
     if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN))
@@ -323,33 +396,38 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
     {
         // Cek apakah ada file yang dipilih DAN apakah datanya ada di database?
         // .count() mengecek apakah key ada di map
-        if (!selectedFileName.empty() && fileDatabase.count(selectedFileName))
+        //if (!selectedFileName.empty() && fileDatabase.count(selectedFileName))
+        //{
+        //    const FileMetadata& data = fileDatabase[selectedFileName];
+
+        //    // 1. Render Judul (Pakai warna panelDescription -> KUNING)
+        //    //text->Draw(data.title.c_str(),
+        //    //    panelDescription.x, panelDescription.y,
+        //    //    panelDescription.scale,
+        //    //    panelDescription.color[0], panelDescription.color[1], panelDescription.color[2], panelDescription.color[3]);
+
+        //    // 2. Render Isi
+        //    float contentY = panelDescription.y + 40.0f;
+
+        //    // [HAPUS] Baris ini yang bikin putih: 
+        //    // float contentColor[4] = { 0.9f, 0.9f, 0.9f, 1.0f }; <-- HAPUS INI
+
+        //    for (const std::string& line : data.lines)
+        //    {
+        //        // [UBAH] Parameter warna di bawah ini sekarang pakai 'panelDescription.color' juga
+        //        text->Draw(line.c_str(),
+        //            panelDescription.x, contentY,
+        //            panelDescription.scale,
+        //            // Ganti contentColor[...] jadi panelDescription.color[...]
+        //            panelDescription.color[0], panelDescription.color[1], panelDescription.color[2], panelDescription.color[3]);
+
+        //        contentY += panelDescription.lineSpacing;
+        //    }
+        //}
+        if (descTypewriter)
         {
-            const FileMetadata& data = fileDatabase[selectedFileName];
-
-            // 1. Render Judul (Pakai warna panelDescription -> KUNING)
-            text->Draw(data.title.c_str(),
-                panelDescription.x, panelDescription.y,
-                panelDescription.scale,
-                panelDescription.color[0], panelDescription.color[1], panelDescription.color[2], panelDescription.color[3]);
-
-            // 2. Render Isi
-            float contentY = panelDescription.y + 40.0f;
-
-            // [HAPUS] Baris ini yang bikin putih: 
-            // float contentColor[4] = { 0.9f, 0.9f, 0.9f, 1.0f }; <-- HAPUS INI
-
-            for (const std::string& line : data.lines)
-            {
-                // [UBAH] Parameter warna di bawah ini sekarang pakai 'panelDescription.color' juga
-                text->Draw(line.c_str(),
-                    panelDescription.x, contentY,
-                    panelDescription.scale,
-                    // Ganti contentColor[...] jadi panelDescription.color[...]
-                    panelDescription.color[0], panelDescription.color[1], panelDescription.color[2], panelDescription.color[3]);
-
-                contentY += panelDescription.lineSpacing;
-            }
+            // Typewriter akan mengurus rendering per huruf sesuai progres waktunya
+            descTypewriter->Render(text);
         }
     }
     // =========================================================
@@ -683,3 +761,42 @@ void SceneTitle::CreateRenderTarget()
     device->CreateDepthStencilView(depthStencilTexture.Get(), nullptr, depthStencilView.ReleaseAndGetAddressOf());
 }
 
+void SceneTitle::PlayDescriptionAnim(const std::string& key)
+{
+    // 1. Safety Check: Apakah data ada?
+    if (key.empty() || fileDatabase.find(key) == fileDatabase.end()) return;
+
+    // 2. RESET Typewriter
+    // Kita buat instance baru untuk menghapus state animasi lama seketika.
+    descTypewriter = std::make_unique<Typewriter>();
+
+    // 3. Ambil Data
+    const FileMetadata& data = fileDatabase[key];
+
+    // 4. Hitung Layout & Isi Typewriter
+    // Mulai dari posisi Y panelDescription
+    float marginTop =30.0f;
+    float currentY = panelDescription.y + marginTop;
+
+    // Kecepatan ketik (makin kecil makin cepat)
+    // 0.01f = Sangat Cepat (Hacker style)
+    // 0.05f = Normal Bios
+    float typingSpeed = 0.01f;
+
+    for (const std::string& line : data.lines)
+    {
+        // Masukkan baris ke antrian Typewriter
+        // Perhatikan: Kita hitung posisi X dan Y secara manual di sini
+        descTypewriter->AddLine(
+            line,
+            panelDescription.x,
+            currentY,
+            panelDescription.scale,
+            panelDescription.color,
+            typingSpeed // Asumsi method AddLine support parameter speed (optional)
+        );
+
+        // Geser posisi Y untuk baris berikutnya
+        currentY += panelDescription.lineSpacing;
+    }
+}
