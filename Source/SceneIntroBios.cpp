@@ -242,7 +242,7 @@ void SceneIntroBios::OnResize(int width, int height)
 void SceneIntroBios::DrawGUI() 
 {
     ImGui::SetNextWindowSize(ImVec2(400, 600), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Bios Inspector", nullptr, ImGuiWindowFlags_NoSavedSettings))
+    if (ImGui::Begin("Bios Inspector", nullptr))
     {
         if (ImGui::BeginTabBar("InspectorTabs"))
         {
