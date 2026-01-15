@@ -54,6 +54,7 @@ private:
     void RenderScene(float elapsedTime, Camera* camera);
     void UpdateGameTriggers(float elapsedTime);
     void CreateRenderTarget();
+    void PlayCinematicTrigger();
 
     // --- GUI Helpers ---
     void GUICameraTab();       // Tab Inspector: Kamera (Sekarang hanya status)

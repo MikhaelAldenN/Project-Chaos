@@ -89,6 +89,17 @@ public:
     void StopSequence();
     bool IsSequencing() const { return m_controlMode == CameraControlMode::Sequence; }
 
+    // Helper struct untuk info waktu sequence
+    struct SequenceTimeInfo {
+        bool IsPlaying;
+        float CurrentTime;
+        float TotalDuration;
+        size_t CurrentIndex; // TAMBAHAN: Index saat ini
+        size_t TotalShots;   // TAMBAHAN: Total jumlah shot
+    };
+
+    SequenceTimeInfo GetSequenceProgress() const;
+
 private:
     // Singleton handling
     CameraController();

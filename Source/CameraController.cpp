@@ -522,3 +522,28 @@ void CameraController::DrawDebugGUI()
 
     ImGui::End();
 }
+
+CameraController::SequenceTimeInfo CameraController::GetSequenceProgress() const
+{
+    SequenceTimeInfo info;
+    info.IsPlaying = (m_controlMode == CameraControlMode::Sequence) && !m_sequenceQueue.empty();
+
+    if (info.IsPlaying && m_currentKeyframeIdx < m_sequenceQueue.size())
+    {
+        info.CurrentTime = m_seqTimer;
+        info.TotalDuration = m_sequenceQueue[m_currentKeyframeIdx].Duration;
+
+        // --- ISI DATA BARU ---
+        info.CurrentIndex = m_currentKeyframeIdx;
+        info.TotalShots = m_sequenceQueue.size();
+    }
+    else
+    {
+        info.CurrentTime = 0.0f;
+        info.TotalDuration = 0.0f;
+        info.CurrentIndex = 0;
+        info.TotalShots = 0;
+    }
+
+    return info;
+}

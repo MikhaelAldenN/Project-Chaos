@@ -47,17 +47,17 @@ SceneGameBreaker::SceneGameBreaker()
         "Shot 1 (Intro)",
         {0.0f, 20.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, // START State
         {0.0f, 14.5f, 0.0f}, {-0.5f, 0.0f, 1.5f}, // END State (Sama karena diam)
-        2.0f,
-        EasingType::Step
+        3.0f,
+        EasingType::EaseInCubic
         });
 
     // SHOT 2: Angle B (Bergerak sedikit/Fly through)
     m_camScenarioPoints.push_back({
         "Shot 2 (Angle B)",
         {1.9f, 12.3f, 6.8f}, {0.0f, 0.0f, 2.1f}, // START
-        {0.0f, 8.5f, 9.3f}, {-0.1f, 0.0f, 1.4f}, // END
-        1.5f,
-        EasingType::Linear // Pakai Linear/SmoothStep biar kelihatan geraknya
+        {-0.4f, 8.5f, 9.3f}, {-0.5f, 0.0f, 1.4f}, // END
+        3.0f,
+        EasingType::EaseOutCubic // Pakai Linear/SmoothStep biar kelihatan geraknya
         });
 
     // SHOT 3: Action
@@ -73,7 +73,7 @@ SceneGameBreaker::SceneGameBreaker()
     // Initialize Assets
     // --------------------------------------------------------
     m_spriteBorderBreaker = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathBorderBreaker);
-	m_spriteDEBUG_LAYOUT = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathDebugLayout);
+	//m_spriteDEBUG_LAYOUT = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathDebugLayout);
 
     ball = new Ball();
     paddle = new Paddle();
@@ -148,6 +148,60 @@ void SceneGameBreaker::Update(float elapsedTime)
 
     CameraController::Instance().Update(elapsedTime);
     UpdateGameTriggers(elapsedTime);
+
+    // =========================================================
+    // LOGIKA FX: AUTO GLITCH TRANSITION
+    // =========================================================
+    // Kita cek waktu sequence kamera
+    auto seqInfo = CameraController::Instance().GetSequenceProgress();
+
+    static bool wasPlayingSequence = false;
+
+    if (seqInfo.IsPlaying && m_fxState.MasterEnabled && m_fxState.EnableLens)
+    {
+        wasPlayingSequence = true;
+
+        float t = seqInfo.CurrentTime;
+        float d = seqInfo.TotalDuration;
+        float remaining = d - t;
+        float transitionWindow = 0.2f;
+
+        // Cek apakah ini Shot Terakhir?
+        bool isLastShot = (seqInfo.CurrentIndex == seqInfo.TotalShots - 1);
+
+        // PHASE 1: PRE-CUT (Menjelang pindah)
+        // SYARAT BARU: && !isLastShot
+        // Jangan glitch kalau ini shot terakhir, biarkan bersih sampai selesai.
+        if (remaining <= transitionWindow && d > 0.0f && !isLastShot)
+        {
+            float ratio = 1.0f - (remaining / transitionWindow);
+            uberParams.glitchStrength = ratio;
+        }
+        // PHASE 2: POST-CUT (Baru saja pindah)
+        else if (t <= transitionWindow && seqInfo.CurrentIndex > 0)
+        {
+            float ratio = t / transitionWindow;
+            uberParams.glitchStrength = 0.7f * (1.0f - ratio);
+        }
+        // NORMAL STATE
+        else
+        {
+            uberParams.glitchStrength = 0.0f;
+        }
+    }
+    else
+    {
+        // LOGIKA RESET (JALAN HANYA SEKALI SAAT SEQUENCE BERHENTI)
+        if (wasPlayingSequence)
+        {
+            // Sequence baru saja mati frame ini, paksa glitch jadi 0
+            if (m_fxState.MasterEnabled && m_fxState.EnableLens)
+            {
+                uberParams.glitchStrength = 0.0f;
+            }
+            wasPlayingSequence = false; // Reset flag biar gak ganggu manual slider
+        }
+    }
 }
 
 void SceneGameBreaker::UpdateGameTriggers(float elapsedTime)
@@ -173,6 +227,7 @@ void SceneGameBreaker::UpdateGameTriggers(float elapsedTime)
             player->SetBreakoutMode(true);
             player->SetInputEnabled(false);
         }
+        PlayCinematicTrigger();
     }
 }
 
@@ -868,4 +923,36 @@ DirectX::XMFLOAT3 SceneGameBreaker::CalculateRotationFromTarget(const DirectX::X
     float yaw = atan2f(dir.x, dir.z);
 
     return { pitch, yaw, 0.0f }; // Return Euler Angles
+}
+
+void SceneGameBreaker::PlayCinematicTrigger()
+{
+    if (m_camScenarioPoints.empty()) return;
+
+    std::vector<CameraKeyframe> sequence;
+
+    for (const auto& point : m_camScenarioPoints)
+    {
+        CameraKeyframe key;
+
+        // Mode Cinematic: Jump Cut aktif
+        key.isJumpCut = true;
+
+        // 1. Start State
+        key.StartPosition = point.StartPos;
+        key.StartRotation = CalculateRotationFromTarget(point.StartPos, point.StartLookAt);
+
+        // 2. End State
+        key.TargetPosition = point.EndPos;
+        key.TargetRotation = CalculateRotationFromTarget(point.EndPos, point.EndLookAt);
+
+        // 3. Timing
+        key.Duration = point.Duration;
+        key.Easing = point.Easing;
+
+        sequence.push_back(key);
+    }
+
+    // Eksekusi sequence
+    CameraController::Instance().PlaySequence(sequence, false);
 }
