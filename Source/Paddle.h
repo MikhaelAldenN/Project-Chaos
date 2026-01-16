@@ -21,6 +21,12 @@ public:
 
     CharacterMovement* GetMovement() const { return movement; }
 
+    // Allow the scene to access the model for rendering
+    std::shared_ptr<Model> GetModel() const { return model; }
+
+    // Color Setting
+    DirectX::XMFLOAT4 color = { 0.0f, 0.0f, 0.8f, 1.0f };
+
 private:
     void HandleInput();
     // Helper for random float generation 

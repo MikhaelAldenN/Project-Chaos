@@ -148,28 +148,24 @@ void SceneGameBreaker::Update(float elapsedTime)
     {
         player->Update(elapsedTime, activeCam);
 
-        int shakes = player->GetShakeCount();
+        float energy = player->GetShakeEnergy();
+        float thresholdForm = player->breakoutSettings.thresholdFormation;
+        float thresholdDest = player->breakoutSettings.thresholdDestruction;
 
-        // PHASE 1: Formation Mode 
-        if (shakes >= 30 && blockManager && !blockManager->IsFormationActive())
+        // PHASE 1: Formation Mode
+        if (energy >= thresholdForm && blockManager && !blockManager->IsFormationActive())
         {
             blockManager->ActivateFormationMode();
+            player->SetGameStage(1); // Lock checkpoint
         }
 
-        // PHASE 2: Destruction Mode 
-        if (shakes >= 50)
+        // PHASE 2: Destruction Mode
+        if (energy >= thresholdDest)
         {
-            // Destroy Paddle
-            if (paddle && paddle->IsActive())
-            {
-                paddle->SetActive(false);
-            }
+            if (paddle && paddle->IsActive()) paddle->SetActive(false);
+            if (ball) ball->SetBoundariesEnabled(false);
 
-            // Disable Ball Walls
-            if (ball)
-            {
-                ball->SetBoundariesEnabled(false);
-            }
+            player->SetGameStage(2); // Lock final checkpoint
         }
     }
 
@@ -433,8 +429,8 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
 
     if (ball) ball->Render(modelRenderer);
     if (blockManager) blockManager->Render(modelRenderer);
-    if (paddle && paddle->IsActive()) { paddle->Render(modelRenderer); }
-    if (player) player->Render(modelRenderer);
+    if (paddle && paddle->IsActive()) { modelRenderer->Draw(ShaderId::Phong, paddle->GetModel(), paddle->color); }
+    if (player) { modelRenderer->Draw(ShaderId::Phong, player->GetModel(), player->color); }
 
     modelRenderer->Render(rc);
 }
@@ -528,13 +524,59 @@ void SceneGameBreaker::DrawGUI()
                 ImGui::EndTabItem();
             }
 
-            // --- TAB e: POST PROCESS ---
+            // --- TAB 3: POST PROCESS ---
             if (ImGui::BeginTabItem("Post-Process & FX"))
             {
                 GUIPostProcessTab();
                 ImGui::EndTabItem();
             }
 
+            // --- TAB: OBJECT COLOR ---
+            if (ImGui::BeginTabItem("Object Color"))
+            {
+                ImGui::Spacing();
+
+                // Header "Character"
+                ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "CHARACTER");
+                ImGui::Separator();
+                ImGui::Spacing();
+
+                // 1. Drop down "Paddle"
+                if (paddle)
+                {
+                    if (ImGui::CollapsingHeader("Paddle", ImGuiTreeNodeFlags_DefaultOpen))
+                    {
+                        ImGui::Indent();
+                        ImGui::ColorEdit4("Base Color##Paddle", &paddle->color.x);
+                        ImGui::Unindent();
+                    }
+                }
+
+                // 2. Drop down "Blocks"
+                if (blockManager)
+                {
+                    if (ImGui::CollapsingHeader("Blocks"))
+                    {
+                        ImGui::Indent();
+                        // This controls the 'globalBlockColor' we added to BlockManager
+                        ImGui::ColorEdit4("Base Color##Blocks", &blockManager->globalBlockColor.x);
+                        ImGui::Unindent();
+                    }
+                }
+
+                // 3. Drop down "Player"
+                if (player)
+                {
+                    if (ImGui::CollapsingHeader("Player"))
+                    {
+                        ImGui::Indent();
+                        ImGui::ColorEdit4("Base Color##Player", &player->color.x);
+                        ImGui::Unindent();
+                    }
+                }
+
+				ImGui::EndTabItem();
+			}
             ImGui::EndTabBar();
         }
     }

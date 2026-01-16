@@ -16,18 +16,20 @@ public:
 
     CharacterMovement* GetMovement() const { return movement; }
     DirectX::XMFLOAT3 GetVelocity() const { return velocity; }
+    DirectX::XMFLOAT3 GetPreviousPosition() const { return prevPosition; }
 
     float GetRadius() const { return radius; }
     bool IsActive() const { return isActive; }
 
 private:
     DirectX::XMFLOAT3 velocity = { 0, 0, 0 };
+    DirectX::XMFLOAT3 prevPosition = { 0, 0, 0 };
 
     // ----------------------------------------------------
     // PHYSICS & MOVEMENT SETTINGS
     // ----------------------------------------------------
-    float speed = 7.0f;             // Speed of the ball
-    float radius = 0.1f;            // Collision radius 
+    float speed = 3.0f;             // Speed of the ball
+    float radius = 0.25f;           // Collision radius 
 
     // Launch Settings 
     float launchDirX = 0.3f;        // Initial X direction

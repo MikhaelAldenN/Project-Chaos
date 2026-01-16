@@ -1,6 +1,7 @@
 #include "Ball.h"
 #include "System/Graphics.h"
 #include "System/Input.h" 
+#include <cmath>
 
 using namespace DirectX;
 
@@ -45,6 +46,21 @@ void Ball::Update(float elapsedTime, Camera* camera)
     }
 
     XMFLOAT3 pos = movement->GetPosition();
+    prevPosition = pos;
+
+    float minAbsZ = speed * 0.25f; // Require at least 25% vertical speed
+
+    if (std::abs(velocity.z) < minAbsZ)
+    {
+        float dirZ = (velocity.z >= 0.0f) ? 1.0f : -1.0f;
+        velocity.z = dirZ * minAbsZ;
+        XMVECTOR v = XMLoadFloat3(&velocity);
+        v = XMVector3Normalize(v) * speed;
+        XMStoreFloat3(&velocity, v);
+    }
+
+    pos.x += velocity.x * elapsedTime;
+    pos.z += velocity.z * elapsedTime;
     pos.x += velocity.x * elapsedTime;
     pos.z += velocity.z * elapsedTime;
 

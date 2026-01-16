@@ -96,7 +96,7 @@ private:
          349.0f, 836.0f,                 // x, y
          0.0f,                           // lineSpacing
          0.625f,                         // scale
-         { 0.96f, 0.80f, 0.23f, 1.0f }   // color (Yellowish)
+         { 0.96f, 0.80f, 0.23f, 1.0f }   // color 
     };
 
     // =========================================================
@@ -156,7 +156,7 @@ private:
     // =========================================================
     // Gameplay Config
     int triggerBlockCount = 40;
-    float ballSpawnZOffset = 0.3f;
+    float ballSpawnZOffset = 0.35f;
 
     // Visual Config
     DirectX::XMFLOAT4 bgSpriteColor = { 1.0f, 1.0f, 1.0f, 1.0f };

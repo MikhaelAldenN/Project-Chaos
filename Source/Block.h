@@ -9,6 +9,7 @@ public:
     ~Block() override;
 
     void Update(float elapsedTime, Camera* camera) override;
+    void Render(ModelRenderer* renderer, const DirectX::XMFLOAT4& color);
     void OnHit();
 
     // --- Relocation State Accessors ---

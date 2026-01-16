@@ -26,6 +26,9 @@ public:
     int GetActiveBlockCount() const;
     const std::vector<std::unique_ptr<Block>>& GetBlocks() const { return blocks; }
 
+    // Color Setting
+    DirectX::XMFLOAT4 globalBlockColor = { 0.96f, 0.80f, 0.23f, 1.0f };
+
 private:
     // Helper grid 
     void InitPrioritySlots();
