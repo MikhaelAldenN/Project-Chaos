@@ -189,6 +189,7 @@
     <ClInclude Include="Source\UIButtonPrimitive.h" />
     <ClInclude Include="Source\UIButtonSprite.h" />
     <ClInclude Include="Source\UIComponents.h" />
+    <ClInclude Include="Source\UILabel.h" />
     <ClInclude Include="Source\WindowManager.h" />
   </ItemGroup>
   <ItemGroup>

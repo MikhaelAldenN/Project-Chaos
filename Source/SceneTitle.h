@@ -17,6 +17,7 @@
 #include "TextDatabase.h"
 #include "PostProcessManager.h"
 #include "LogConsole.h"
+#include "UILabel.h"
 
 // Structs for UI Layout
 struct PanelLayout {
@@ -51,6 +52,7 @@ private:
     std::unique_ptr<PostProcessManager> postProcess;
     std::unique_ptr<Typewriter> descTypewriter;
     std::unique_ptr<LogConsole> logConsole;
+    std::unique_ptr<UILabel> fileHeaderLabel;
 
     // --- Layout & Visual Configuration ---
     PanelLayout panelStatus;

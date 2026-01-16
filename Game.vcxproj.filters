@@ -461,6 +461,9 @@
     <ClInclude Include="Source\LogConsole.h">
       <Filter>Source\UI</Filter>
     </ClInclude>
+    <ClInclude Include="Source\UILabel.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Basic.hlsli">

@@ -32,62 +32,17 @@ SceneTitle::SceneTitle()
     menuConfig.styleHover = { {0.0f, 0.0f, 0.8f, 1.0f}, {0.0f, 0.0f, 0.8f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
     menuConfig.stylePress = { {0.0f, 0.0f, 0.8f, 1.0f}, {0.0f, 0.0f, 0.8f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
 
-    // 3. Construct UI using TUIBuilder
-    //TUIBuilder builder(uiManager.get(), primitiveBatcher.get());
+    fileHeaderLabel = std::make_unique<UILabel>(primitiveBatcher.get());
+    // Posisi Label: 
+    // X = Sama dengan panelDescription.x + sedikit offset biar ga nempel pojok banget
+    // Y = panelDescription.y MINUS setengah tinggi huruf, supaya pas di tengah garis border atas.
+    // (Kamu mungkin perlu fine-tune nilai Y ini biar pas nindih garis)
+    fileHeaderLabel->SetPosition(860.0f, 93.0f);
 
-    //TUITheme theme;
-    //theme.styleStandby = menuConfig.styleStandby;
-    //theme.styleHover = menuConfig.styleHover;
-    //theme.stylePress = menuConfig.stylePress;
-    //theme.textScale = menuConfig.textScale;
-    //theme.padding = menuConfig.paddingX;
-    //theme.verticalAdj = menuConfig.verticalAdj;
-    //theme.align = (TextAlignment)menuConfig.alignment;
-
-    //builder.SetTheme(theme);
-    //builder.SetButtonSize(menuConfig.btnWidth, menuConfig.btnHeight);
-
-    //// 3.1 Build Decoration
-    //builder.SetStartPosition(menuConfig.startX, 260.0f);
-    //builder.AddDecoration(" /..            <UP DIR>");
-
-    //// 3.2 Build Main Menu
-    //builder.SetStartPosition(menuConfig.startX, menuConfig.startY);
-    //builder.SetSpacing(menuConfig.spacing);
-
-    //const auto& fileList = TextDatabase::Instance().GetDirectoryList();
-    //menuButtons.clear();
-
-    //for (const auto& fileName : fileList)
-    //{
-    //    // Create button with deferred logic
-    //    UIButtonPrimitive* btn = builder.AddButton(fileName, nullptr);
-
-    //    btn->SetOnClick([this, fileName, btn]() {
-    //        // Radio Button Logic
-    //        if (currentActiveButton && currentActiveButton != btn) {
-    //            currentActiveButton->SetSelected(false);
-    //        }
-    //        currentActiveButton = btn;
-    //        currentActiveButton->SetSelected(true);
-
-    //        // App Logic
-    //        this->selectedFileName = fileName;
-    //        this->PlayDescriptionAnim(fileName);
-    //        if (this->logConsole)
-    //        {
-    //            std::string shortName = fileName.substr(0, fileName.find(" "));
-    //            this->logConsole->AddLog("> Open: " + shortName, 0.85f);
-    //        }
-    //        printf("[System] Selected: %s\n", fileName.c_str());
-
-    //        if (fileName.find("Exit.exe") != std::string::npos) PostQuitMessage(0);
-    //        });
-
-    //    menuButtons.push_back(btn);
-    //}
-
-    //if (!menuButtons.empty()) btnExit = menuButtons.back();
+    fileHeaderLabel->SetScale(0.625f);
+    fileHeaderLabel->SetColor(0.96f, 0.80f, 0.23f, 1.0f); // Warna Teks (Kuning)
+    fileHeaderLabel->SetBackgroundColor(0.0f, 0.0f, 0.0f, 1.0f); // Warna Box (Hitam)
+    fileHeaderLabel->SetText(""); // Awal kosong
 
     // 4. Load Assets & Finalize Setup
     bgSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Sprite_BorderBrickDos.png");
@@ -215,7 +170,7 @@ void SceneTitle::BuildMenu(const std::string& folderName)
         for (auto* btn : menuButtons)
         {
             // Cari tombol yang teksnya mengandung "README.txt"
-            if (btn->GetText().find("README.txt") != std::string::npos)
+            if (btn->GetText().find("ReadMe.txt") != std::string::npos)
             {
                 // 1. Reset seleksi lama (jika ada)
                 if (currentActiveButton) currentActiveButton->SetSelected(false);
@@ -350,6 +305,8 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
         logConsole->Render(font);
     }
 
+    if (fileHeaderLabel) fileHeaderLabel->Render(dc);
+
     // --- STEP 3: Apply Post-Processing & Present ---
     if (m_fxState.MasterEnabled)
     {
@@ -411,16 +368,18 @@ void SceneTitle::ApplyMenuLayout()
 
 void SceneTitle::PlayDescriptionAnim(const std::string& key)
 {
-    if (key.empty()) return;
+    if (key.empty()) {
+        fileHeaderLabel->SetText("");
+        return;
+    }
 
     // [BARU] Bersihkan Key (Ambil nama file saja, buang spasi/size)
     // Contoh: "joke.txt       5" -> "joke.txt"
     std::string cleanKey = key;
     size_t spacePos = key.find(" ");
-    if (spacePos != std::string::npos)
-    {
-        cleanKey = key.substr(0, spacePos);
-    }
+    if (spacePos != std::string::npos) cleanKey = key.substr(0, spacePos);
+
+    fileHeaderLabel->SetText(cleanKey);
 
     // [UBAH] Gunakan cleanKey untuk mencari data
     const FileMetadata* data = TextDatabase::Instance().GetMetadata(cleanKey);
