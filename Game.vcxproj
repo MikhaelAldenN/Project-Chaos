@@ -190,6 +190,7 @@
     <ClInclude Include="Source\UIButtonSprite.h" />
     <ClInclude Include="Source\UIComponents.h" />
     <ClInclude Include="Source\UILabel.h" />
+    <ClInclude Include="Source\UIPanel.h" />
     <ClInclude Include="Source\WindowManager.h" />
   </ItemGroup>
   <ItemGroup>
@@ -253,6 +254,7 @@
     <ClCompile Include="Source\Typewriter.cpp" />
     <ClCompile Include="Source\UberShader.cpp" />
     <ClCompile Include="Source\UIComponents.cpp" />
+    <ClCompile Include="Source\UIPanel.cpp" />
     <ClCompile Include="Source\WindowManager.cpp" />
   </ItemGroup>
   <ItemGroup>

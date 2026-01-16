@@ -228,6 +228,9 @@
     <ClCompile Include="Source\LogConsole.cpp">
       <Filter>Source\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Source\UIPanel.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -462,6 +465,9 @@
       <Filter>Source\UI</Filter>
     </ClInclude>
     <ClInclude Include="Source\UILabel.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UIPanel.h">
       <Filter>Source\UI</Filter>
     </ClInclude>
   </ItemGroup>

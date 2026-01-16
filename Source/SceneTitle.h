@@ -18,6 +18,7 @@
 #include "PostProcessManager.h"
 #include "LogConsole.h"
 #include "UILabel.h"
+#include "UIPanel.h"
 
 // Structs for UI Layout
 struct PanelLayout {
@@ -53,6 +54,7 @@ private:
     std::unique_ptr<Typewriter> descTypewriter;
     std::unique_ptr<LogConsole> logConsole;
     std::unique_ptr<UILabel> fileHeaderLabel;
+    std::unique_ptr<UIPanel> exitPopup;
 
     // --- Layout & Visual Configuration ---
     PanelLayout panelStatus;
@@ -79,6 +81,7 @@ private:
     std::string selectedFileName = "";
     UIButtonPrimitive* currentActiveButton = nullptr;
     UIButtonPrimitive* btnExit = nullptr;
+    UIButtonPrimitive* lastSelectedBeforePopup = nullptr;
     std::vector<UIButtonPrimitive*> menuButtons;
 
     // --- Cached Strings ---

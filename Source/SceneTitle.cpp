@@ -47,9 +47,46 @@ SceneTitle::SceneTitle()
     // 4. Load Assets & Finalize Setup
     bgSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Sprite_BorderBrickDos.png");
 
+    float panelW = 600.0f;
+    float panelH = 300.0f;
+    float panelX = (1920.0f - panelW) / 2.0f;
+    float panelY = (1080.0f - panelH) / 2.0f;
+
+    exitPopup = std::make_unique<UIPanel>(primitiveBatcher.get(), panelX, panelY, panelW, panelH, "Exit?");
+
+    exitPopup->SetMessage("Are you sure you want to\n terminate the session?");
+
+    // Tombol YES (Kiri)
+    exitPopup->AddButton("YES", 50.0f, 200.0f, 200.0f, 40.0f, [this]() {
+        PostQuitMessage(0); // Keluar beneran
+        });
+
+    // Tombol NO (Kanan)
+    exitPopup->AddButton("NO", 350.0f, 200.0f, 200.0f, 40.0f, [this]() {
+
+        // 1. Tutup Popup
+        this->exitPopup->Hide();
+
+        // [BARU] 2. Restore / Kembalikan Seleksi Lama
+        if (this->lastSelectedBeforePopup)
+        {
+            // Kembalikan pointer utama
+            this->currentActiveButton = this->lastSelectedBeforePopup;
+
+            // Nyalakan kembali visualnya (Hijau/Kuning)
+            this->currentActiveButton->SetSelected(true);
+
+            // Opsional: Pastikan variabel cadangan di-reset (good practice)
+            this->lastSelectedBeforePopup = nullptr;
+		}
+	});
+
+    // Default: Tersembunyi
+    exitPopup->Hide();
+
+
     SetupLayout();
     SetupContent();
-
     BuildMenu("ROOT");
 }
 
@@ -120,6 +157,25 @@ void SceneTitle::BuildMenu(const std::string& folderName)
 
             // --- [LOGIC NAVIGASI] ---
 
+            if (fileName.find("Exit.exe") != std::string::npos)
+            {
+                // [BARU] 1. Simpan "Ingatan" tombol mana yang sedang aktif
+                // Simpan tombol yang sedang nyala (bukan tombol Exit-nya, tapi tombol sebelumnya)
+                this->lastSelectedBeforePopup = this->currentActiveButton;
+
+                // 2. Matikan visualnya (agar background gelap bersih)
+                if (currentActiveButton)
+                {
+                    currentActiveButton->SetSelected(false);
+                    currentActiveButton = nullptr; // Reset pointer utama
+                }
+
+                // 3. Munculkan Popup
+                this->exitPopup->Show();
+
+                return;
+            }
+
             // A. Tombol BACK ("../")
             if (fileName.find("../") != std::string::npos)
             {
@@ -172,7 +228,6 @@ void SceneTitle::BuildMenu(const std::string& folderName)
                 this->logConsole->AddLog("> Open: " + shortName, 1.0f);
             }
 
-            if (fileName.find("Exit.exe") != std::string::npos) PostQuitMessage(0);
             });
 
         menuButtons.push_back(btn);
@@ -217,51 +272,80 @@ void SceneTitle::BuildMenu(const std::string& folderName)
 
 void SceneTitle::Update(float elapsedTime)
 {
-    if (!pendingFolder.empty())
+    // ==============================================================
+    // 1. UPDATE BACKGROUND ELEMENTS (TETAP JALAN WALAU ADA POPUP)
+    // ==============================================================
+
+    // Log Console tetap update (tambah teks/scroll) agar terlihat "hidup"
+    if (logConsole)
     {
-        BuildMenu(pendingFolder); // Rebuild menu di sini AMAN
-        pendingFolder = "";       // Reset request
+        logConsole->Update(elapsedTime);
     }
 
-    uiManager->Update();
-    logConsole->Update(elapsedTime);
-
+    // Typewriter effect (Deskripsi panel kanan) boleh tetap jalan atau mau distop juga bebas.
+    // Aku taruh di sini biar dia menyelesaikan ketikannya dulu.
     if (descTypewriter)
     {
-        // Overclock typewriter effect (5x speed)
         for (int i = 0; i < 5; ++i) descTypewriter->Update(elapsedTime);
     }
 
-    if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN))
+    // ==============================================================
+    // 2. CEK POPUP / MODAL (BLOCKING AREA)
+    // ==============================================================
+
+    // Jika Popup Exit muncul...
+    if (exitPopup && exitPopup->IsVisible())
     {
-        Framework::Instance()->ChangeScene(std::make_unique<SceneGameBreaker>());
+        // ... Update logika tombol YES/NO di dalam popup
+        exitPopup->Update(elapsedTime);
+
+        // [STOP!] 
+        // Return di sini membuat kode di bawahnya TIDAK dijalankan.
+        // Artinya: User tidak bisa klik file lain, tidak bisa tekan Enter untuk Start Game.
+        return;
     }
 
+    // ==============================================================
+    // 3. UPDATE MENU UTAMA (HANYA JIKA POPUP MATI)
+    // ==============================================================
+
+    // Logika ganti folder
+    if (!pendingFolder.empty())
+    {
+        BuildMenu(pendingFolder);
+        pendingFolder = "";
+    }
+
+    // Update Mouse & Tombol Menu Utama
+    if (uiManager)
+    {
+        uiManager->Update();
+    }
+
+    // Animasi mengetik nama file di menu (List file muncul satu-satu)
     if (animButtonIndex < menuButtons.size())
     {
         animTimer += elapsedTime;
-
-        // Loop while agar kalau framerate drop, ngetiknya ngerapel (cepet)
         while (animTimer >= animSpeed)
         {
             animTimer -= animSpeed;
-
             UIButtonPrimitive* currentBtn = menuButtons[animButtonIndex];
-
-            // Tambah 1 huruf
             int currentChars = currentBtn->GetVisibleChars();
             currentBtn->SetVisibleChars(currentChars + 1);
 
-            // Jika tombol ini sudah selesai ngetik semua hurufnya...
             if (currentBtn->IsFinishedTyping())
             {
-                // Pindah giliran ke tombol berikutnya
                 animButtonIndex++;
-
-                // Safety check: Kalau sudah habis semua tombolnya, keluar loop
                 if (animButtonIndex >= menuButtons.size()) break;
             }
         }
+    }
+
+    // Shortcut Keyboard (Start Game)
+    // Ini juga harus diblokir kalau lagi ada popup Exit
+    if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN))
+    {
+        Framework::Instance()->ChangeScene(std::make_unique<SceneGameBreaker>());
     }
 }
 
@@ -305,6 +389,7 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
         bgSprite->Render(dc, camera.get(), 0, 0, 0, 1920.0f, 1080.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
     }
 
+
     uiManager->Render(dc, targetCamera);
     primitiveBatcher->Render(dc);
 
@@ -323,6 +408,12 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
         if (descTypewriter) descTypewriter->Render(font);
         logConsole->Render(font);
     }
+
+    if (exitPopup)
+    {
+        exitPopup->Render(dc);
+    }
+
 
     if (fileHeaderLabel) fileHeaderLabel->Render(dc);
 
