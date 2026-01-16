@@ -22,7 +22,7 @@ SceneTitle::SceneTitle()
     logConsole = std::make_unique<LogConsole>();
     logConsole->Initialize(335.0f, 695.0f, 6);
     logConsole->SetStyle(0.625f, 30.0f, 0.96f, 0.80f, 0.23f, 0.6f);
-    logConsole->SetSpeed(0.5f, 5.0f);
+    logConsole->SetSpeed(0.2f, 5.0f);
 
     postProcess = std::make_unique<PostProcessManager>();
     postProcess->Initialize(1920, 1080);
@@ -47,6 +47,7 @@ SceneTitle::SceneTitle()
     // 4. Load Assets & Finalize Setup
     bgSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Sprite_BorderBrickDos.png");
 
+    // [SETUP PANEL]
     float panelW = 600.0f;
     float panelH = 300.0f;
     float panelX = (1920.0f - panelW) / 2.0f;
@@ -54,34 +55,49 @@ SceneTitle::SceneTitle()
 
     exitPopup = std::make_unique<UIPanel>(primitiveBatcher.get(), panelX, panelY, panelW, panelH, "Exit?");
 
-    exitPopup->SetMessage("Are you sure you want to\n terminate the session?");
+    // Teks panjang otomatis turun baris, tidak perlu manual \n!
+    exitPopup->SetMessage("Are you sure you want to\nterminate the session?");
 
-    // Tombol YES (Kiri)
-    exitPopup->AddButton("YES", 50.0f, 200.0f, 200.0f, 40.0f, [this]() {
-        PostQuitMessage(0); // Keluar beneran
+    float btnY = 200.0f; // Posisi Y relatif dari atas panel
+
+    // Tombol YES
+    exitPopup->AddButton("YES", 75.0f, btnY, 200.0f, 40.0f, [this]() {
+        PostQuitMessage(0);
         });
 
-    // Tombol NO (Kanan)
-    exitPopup->AddButton("NO", 350.0f, 200.0f, 200.0f, 40.0f, [this]() {
+    // Tombol NO
+    // X = 75 + 200 (btn1) + 50 (gap) = 325
+    exitPopup->AddButton("NO", 325.0f, btnY, 200.0f, 40.0f, [this]() {
 
-        // 1. Tutup Popup
         this->exitPopup->Hide();
 
-        // [BARU] 2. Restore / Kembalikan Seleksi Lama
-        if (this->lastSelectedBeforePopup)
+        // 1. Matikan Tombol Exit (Current)
+        if (this->currentActiveButton)
         {
-            // Kembalikan pointer utama
-            this->currentActiveButton = this->lastSelectedBeforePopup;
+            this->currentActiveButton->SetSelected(false);
+            this->currentActiveButton->SetState(ButtonState::STANDBY);
+        }
 
-            // Nyalakan kembali visualnya (Hijau/Kuning)
-            this->currentActiveButton->SetSelected(true);
+        // 2. Cari Tombol "ReadMe.txt" di daftar menu
+        for (auto* btn : this->menuButtons)
+        {
+            // Cek apakah teks tombol mengandung kata "ReadMe.txt"
+            if (btn->GetText().find("ReadMe.txt") != std::string::npos)
+            {
+                // JADIKAN AKTIF
+                this->currentActiveButton = btn;
+                this->currentActiveButton->SetSelected(true);
+                this->currentActiveButton->SetState(ButtonState::PRESSED); // Paksa Nyala Biru
 
-            // Opsional: Pastikan variabel cadangan di-reset (good practice)
-            this->lastSelectedBeforePopup = nullptr;
-		}
-	});
+                // Jangan lupa update Panel Kanan (Deskripsi) biar sinkron
+                this->selectedFileName = btn->GetText();
+                this->PlayDescriptionAnim(this->selectedFileName);
 
-    // Default: Tersembunyi
+                break; // Stop loop kalau sudah ketemu
+            }
+        }
+        });
+
     exitPopup->Hide();
 
 
@@ -159,25 +175,27 @@ void SceneTitle::BuildMenu(const std::string& folderName)
 
             if (fileName.find("Exit.exe") != std::string::npos)
             {
-                // [BARU] 1. Simpan "Ingatan" tombol mana yang sedang aktif
-                // Simpan tombol yang sedang nyala (bukan tombol Exit-nya, tapi tombol sebelumnya)
-                this->lastSelectedBeforePopup = this->currentActiveButton;
+                // [HAPUS] this->lastSelectedBeforePopup = ... (Ga butuh lagi)
 
-                // 2. Matikan visualnya (agar background gelap bersih)
-                if (currentActiveButton)
+                // 1. Matikan tombol apapun yang sedang nyala (misal ReadMe)
+                if (this->currentActiveButton)
                 {
-                    currentActiveButton->SetSelected(false);
-                    currentActiveButton = nullptr; // Reset pointer utama
+                    this->currentActiveButton->SetSelected(false);
+                    this->currentActiveButton->SetState(ButtonState::STANDBY);
                 }
+
+                // 2. Nyalakan tombol Exit ini (Visual Only)
+                this->currentActiveButton = btn;
+                this->currentActiveButton->SetSelected(true);
+                this->currentActiveButton->SetState(ButtonState::PRESSED);
 
                 // 3. Munculkan Popup
                 this->exitPopup->Show();
-
                 return;
             }
 
             // A. Tombol BACK ("../")
-            if (fileName.find("../") != std::string::npos)
+            if (fileName.find("..\\") != std::string::npos)
             {
                 this->PlayDescriptionAnim("");
 
@@ -196,7 +214,7 @@ void SceneTitle::BuildMenu(const std::string& folderName)
                 return;
             }
             // B. Masuk Folder MISC ("Misc/")
-            if (fileName.find("Misc/") != std::string::npos)
+            if (fileName.find("Misc\\") != std::string::npos)
             {
                 this->PlayDescriptionAnim(fileName);
                 this->pendingFolder = "Misc";
@@ -205,7 +223,7 @@ void SceneTitle::BuildMenu(const std::string& folderName)
             }
 
             // C. Masuk Folder ART [BARU]
-            if (fileName.find("Art/") != std::string::npos)
+            if (fileName.find("Art\\") != std::string::npos)
             {
                 this->PlayDescriptionAnim(fileName);
                 this->pendingFolder = "Art"; // Masuk ke "Art" (sesuai kunci di TextDatabase)
@@ -297,7 +315,7 @@ void SceneTitle::Update(float elapsedTime)
     if (exitPopup && exitPopup->IsVisible())
     {
         // ... Update logika tombol YES/NO di dalam popup
-        exitPopup->Update(elapsedTime);
+        exitPopup->Update();
 
         // [STOP!] 
         // Return di sini membuat kode di bawahnya TIDAK dijalankan.
@@ -409,13 +427,15 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
         logConsole->Render(font);
     }
 
+    if (fileHeaderLabel)
+    {
+        fileHeaderLabel->Render(dc);
+    }
+
     if (exitPopup)
     {
         exitPopup->Render(dc);
     }
-
-
-    if (fileHeaderLabel) fileHeaderLabel->Render(dc);
 
     // --- STEP 3: Apply Post-Processing & Present ---
     if (m_fxState.MasterEnabled)

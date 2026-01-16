@@ -89,7 +89,7 @@ void TextDatabase::Initialize()
         });
 
     // Folder Misc (Manual ketik "/" dan "<DIR>" suka-suka kamu)
-    RegisterEntry("ROOT", "Misc/            <DIR>", "DIRECTORY INFO", {
+    RegisterEntry("ROOT", "Misc\\            <DIR>", "DIRECTORY INFO", {
         "Folder: Misc",
         "Access: RESTRICTED",
         "",
@@ -111,7 +111,7 @@ void TextDatabase::Initialize()
     // =========================================================
 
     // Tombol Back (Manual ketik "../" dan "<UP DIR>")
-    RegisterEntry("Misc", "../            <UP DIR>", "", {});
+    RegisterEntry("Misc", "..\\            <UP DIR>", "", {});
 
     // File: Secret Log
     RegisterEntry("Misc", "secret_log.txt      12", "ENCRYPTED LOG", {
@@ -130,7 +130,7 @@ void TextDatabase::Initialize()
         });
 
     // 2. FOLDER BARU: Art/
-    RegisterEntry("Misc", "Art/             <DIR>", "DIRECTORY INFO", {
+    RegisterEntry("Misc", "Art\\             <DIR>", "DIRECTORY INFO", {
         "Folder: Art Gallery",
         "Contains ASCII masterpieces.",
         "",
@@ -142,7 +142,7 @@ void TextDatabase::Initialize()
     // =========================================================
 
     // 1. Tombol Back untuk folder Art (Baliknya ke Misc)
-    RegisterEntry("Art", "../            <UP DIR>", "", {});
+    RegisterEntry("Art", "..\\            <UP DIR>", "", {});
 
     // File: Tower.art
     RegisterEntry("Art", "Tower.art           42", "ASCII ART: TOWER", {

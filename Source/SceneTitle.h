@@ -81,7 +81,6 @@ private:
     std::string selectedFileName = "";
     UIButtonPrimitive* currentActiveButton = nullptr;
     UIButtonPrimitive* btnExit = nullptr;
-    UIButtonPrimitive* lastSelectedBeforePopup = nullptr;
     std::vector<UIButtonPrimitive*> menuButtons;
 
     // --- Cached Strings ---
