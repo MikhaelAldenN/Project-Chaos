@@ -124,17 +124,36 @@ void SceneTitle::BuildMenu(const std::string& folderName)
             if (fileName.find("../") != std::string::npos)
             {
                 this->PlayDescriptionAnim("");
-                this->pendingFolder = "ROOT";
-                if (this->logConsole) this->logConsole->AddLog("> CD C:", 1.0f);
+
+                // Kalau sekarang di Art, baliknya ke Misc
+                if (currentFolder == "Art")
+                {
+                    this->pendingFolder = "Misc";
+                    if (this->logConsole) this->logConsole->AddLog("> CD .. (Misc)", 1.0f);
+                }
+                // Kalau bukan (misal di Misc), baliknya ke ROOT
+                else
+                {
+                    this->pendingFolder = "ROOT";
+                    if (this->logConsole) this->logConsole->AddLog("> CD C:", 1.0f);
+                }
                 return;
             }
-
             // B. Masuk Folder MISC ("Misc/")
             if (fileName.find("Misc/") != std::string::npos)
             {
                 this->PlayDescriptionAnim(fileName);
                 this->pendingFolder = "Misc";
                 if (this->logConsole) this->logConsole->AddLog("> CD Misc", 1.0f);
+                return;
+            }
+
+            // C. Masuk Folder ART [BARU]
+            if (fileName.find("Art/") != std::string::npos)
+            {
+                this->PlayDescriptionAnim(fileName);
+                this->pendingFolder = "Art"; // Masuk ke "Art" (sesuai kunci di TextDatabase)
+                if (this->logConsole) this->logConsole->AddLog("> CD Art", 1.0f);
                 return;
             }
 
