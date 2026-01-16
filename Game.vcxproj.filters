@@ -216,6 +216,18 @@
     <ClCompile Include="Source\UberShader.cpp">
       <Filter>Source\Shaders</Filter>
     </ClCompile>
+    <ClCompile Include="Source\PostProcessManager.cpp">
+      <Filter>Source\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\TUIBuilder.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\TextDatabase.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\LogConsole.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -436,6 +448,21 @@
     </ClInclude>
     <ClInclude Include="Source\UberShader.h">
       <Filter>Source\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\PostProcessManager.h">
+      <Filter>Source\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\TUIBuilder.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\TextDatabase.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\LogConsole.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UILabel.h">
+      <Filter>Source\UI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

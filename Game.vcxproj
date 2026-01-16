@@ -131,6 +131,10 @@
     <ClInclude Include="Source\BitmapFont.h" />
     <ClInclude Include="Source\Block.h" />
     <ClInclude Include="Source\BlockManager.h" />
+    <ClInclude Include="Source\LogConsole.h" />
+    <ClInclude Include="Source\PostProcessManager.h" />
+    <ClInclude Include="Source\TextDatabase.h" />
+    <ClInclude Include="Source\TUIBuilder.h" />
     <ClInclude Include="Source\UberShader.h" />
     <ClInclude Include="Source\UIButton.h" />
     <ClInclude Include="Source\ButtonManager.h" />
@@ -185,6 +189,7 @@
     <ClInclude Include="Source\UIButtonPrimitive.h" />
     <ClInclude Include="Source\UIButtonSprite.h" />
     <ClInclude Include="Source\UIComponents.h" />
+    <ClInclude Include="Source\UILabel.h" />
     <ClInclude Include="Source\WindowManager.h" />
   </ItemGroup>
   <ItemGroup>
@@ -211,9 +216,11 @@
     <ClCompile Include="Source\Framework.cpp" />
     <ClCompile Include="Source\FreeCameraController.cpp" />
     <ClCompile Include="Source\GameWindow.cpp" />
+    <ClCompile Include="Source\LogConsole.cpp" />
     <ClCompile Include="Source\Main.cpp" />
     <ClCompile Include="Source\Paddle.cpp" />
     <ClCompile Include="Source\Player.cpp" />
+    <ClCompile Include="Source\PostProcessManager.cpp" />
     <ClCompile Include="Source\Primitive.cpp" />
     <ClCompile Include="Source\ResourceManager.cpp" />
     <ClCompile Include="Source\SceneGame.cpp" />
@@ -241,6 +248,8 @@
     <ClCompile Include="Source\System\ShapeRenderer.cpp" />
     <ClCompile Include="Source\System\Sprite.cpp" />
     <ClCompile Include="Source\System\TransformUtils.cpp" />
+    <ClCompile Include="Source\TextDatabase.cpp" />
+    <ClCompile Include="Source\TUIBuilder.cpp" />
     <ClCompile Include="Source\Typewriter.cpp" />
     <ClCompile Include="Source\UberShader.cpp" />
     <ClCompile Include="Source\UIComponents.cpp" />
