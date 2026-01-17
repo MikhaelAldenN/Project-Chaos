@@ -131,6 +131,7 @@
     <ClInclude Include="Source\BitmapFont.h" />
     <ClInclude Include="Source\Block.h" />
     <ClInclude Include="Source\BlockManager.h" />
+    <ClInclude Include="Source\JuiceEngine.h" />
     <ClInclude Include="Source\LogConsole.h" />
     <ClInclude Include="Source\PostProcessManager.h" />
     <ClInclude Include="Source\TextDatabase.h" />
@@ -217,6 +218,7 @@
     <ClCompile Include="Source\Framework.cpp" />
     <ClCompile Include="Source\FreeCameraController.cpp" />
     <ClCompile Include="Source\GameWindow.cpp" />
+    <ClCompile Include="Source\JuiceEngine.cpp" />
     <ClCompile Include="Source\LogConsole.cpp" />
     <ClCompile Include="Source\Main.cpp" />
     <ClCompile Include="Source\Paddle.cpp" />

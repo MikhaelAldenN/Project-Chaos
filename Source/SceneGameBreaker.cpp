@@ -5,6 +5,7 @@
 #include "WindowManager.h"
 #include "System/Graphics.h"
 #include "System/Input.h"
+#include "JuiceEngine.h"
 
 using namespace DirectX;
 
@@ -170,6 +171,7 @@ void SceneGameBreaker::Update(float elapsedTime)
     }
 
     CameraController::Instance().Update(elapsedTime);
+    JuiceEngine::Instance().Update(elapsedTime);
     UpdateGameTriggers(elapsedTime);
 
     // =========================================================

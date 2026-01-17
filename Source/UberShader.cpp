@@ -1,6 +1,7 @@
 #include "UberShader.h"
 #include "System/GpuResourceUtils.h" 
 #include "System/Misc.h"
+#include "JuiceEngine.h"
 #include <algorithm> 
 
 UberShader::UberShader(ID3D11Device* device)
@@ -31,15 +32,20 @@ UberShader::UberShader(ID3D11Device* device)
 
 void UberShader::Draw(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* textureSRV, const UberData& data)
 {
+
+    UberData finalData = data;
+    float juiceKick = JuiceEngine::Instance().GetGlitchIntensity();
+    finalData.glitchStrength += juiceKick;
+
     // --------------------------------------------------------
     // OPTIMIZATION: Update GPU Buffer only if data changed
     // --------------------------------------------------------
-    if (memcmp(&data, &currentData, sizeof(UberData)) != 0)
+    if (memcmp(&finalData, &currentData, sizeof(UberData)) != 0)
     {
         CbUber cb = {};
-        cb.color = data.color;
-        cb.center = data.center;
-        cb.intensity = data.intensity * INTENSITY_FACTOR;
+        cb.color = finalData.color;
+        cb.center = finalData.center;
+        cb.intensity = finalData.intensity * INTENSITY_FACTOR;
         cb.smoothness = (std::max)(SMOOTHNESS_MIN, data.smoothness * SMOOTHNESS_FACTOR);
         cb.rounded = data.rounded ? 1.0f : 0.0f;
         cb.roundness = ROUNDNESS_POWER * (1.0f - data.roundness) + data.roundness;
@@ -47,7 +53,7 @@ void UberShader::Draw(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* texture
         cb.blurStrength = std::clamp(data.blurStrength, 0.0f, 0.1f);
         cb.distortion = std::clamp(data.distortion, -0.2f, 0.2f);
 
-        cb.glitchStrength = data.glitchStrength;
+        cb.glitchStrength = finalData.glitchStrength;
         cb.time = data.time;
 
         cb.scanlineStrength = data.scanlineStrength;
@@ -58,7 +64,7 @@ void UberShader::Draw(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* texture
         cb.fineDensity = data.fineDensity;
 
         dc->UpdateSubresource(constantBuffer.Get(), 0, 0, &cb, 0, 0);
-        currentData = data;
+        currentData = finalData;
     }
 
     // --------------------------------------------------------

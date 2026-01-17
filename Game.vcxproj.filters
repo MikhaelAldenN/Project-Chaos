@@ -231,6 +231,9 @@
     <ClCompile Include="Source\UIPanel.cpp">
       <Filter>Source\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Source\JuiceEngine.cpp">
+      <Filter>Source\Juice</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -470,6 +473,9 @@
     <ClInclude Include="Source\UIPanel.h">
       <Filter>Source\UI</Filter>
     </ClInclude>
+    <ClInclude Include="Source\JuiceEngine.h">
+      <Filter>Source\Juice</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Basic.hlsli">
@@ -542,6 +548,9 @@
     </Filter>
     <Filter Include="Source\Shaders">
       <UniqueIdentifier>{9305fe09-e6fa-4d28-a574-7cb568d9c056}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Juice">
+      <UniqueIdentifier>{165d3b92-0931-4466-8fbc-edf664481396}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

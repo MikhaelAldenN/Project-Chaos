@@ -4,6 +4,7 @@
 #include <imgui.h>
 #include <cmath>
 #include <algorithm>
+#include "JuiceEngine.h"
 
 using namespace DirectX;
 
@@ -128,6 +129,29 @@ void CameraController::Update(float elapsedTime)
     case CameraControlMode::GamePad:
     case CameraControlMode::Mouse:       UpdateOrbitCamera(elapsedTime, camera); break;
     }
+
+    // =========================================================
+    // POST-UPDATE MODIFIERS (Shake, Sway, Headbob, etc.)
+    // =========================================================
+
+    // 1. Ambil Data Offset dari JuiceEngine
+    // (Tidak perlu hitung logika di sini, cukup ambil hasilnya)
+    XMFLOAT3 shakePos = JuiceEngine::Instance().GetShakePosOffset();
+    XMFLOAT3 shakeRot = JuiceEngine::Instance().GetShakeRotOffset();
+
+    // 2. Apply Position (Additive)
+    XMFLOAT3 currentPos = camera->GetPosition();
+    currentPos.x += shakePos.x;
+    currentPos.y += shakePos.y;
+    currentPos.z += shakePos.z;
+    camera->SetPosition(currentPos);
+
+    // 3. Apply Rotation (Additive)
+    XMFLOAT3 currentRot = camera->GetRotation();
+    currentRot.x += shakeRot.x;
+    currentRot.y += shakeRot.y;
+    currentRot.z += shakeRot.z;
+    camera->SetRotation(currentRot);
 }
 
 // =========================================================
