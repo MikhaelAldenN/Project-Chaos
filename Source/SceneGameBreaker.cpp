@@ -61,6 +61,26 @@ SceneGameBreaker::SceneGameBreaker()
         EasingType::EaseOutCubic // Pakai Linear/SmoothStep biar kelihatan geraknya
         });
 
+    m_camScenarioPoints.push_back({
+        "Shot 2.5 (Formation)",
+        {-0.4f, 8.5f, 9.3f},  {-0.5f, 0.0f, 1.4f}, // START (Sama persis kayak End Shot 2)
+        {-0.4f, 10.5f, 12.0f}, {-0.5f, 0.0f, 1.0f}, // END (Zoom Out & Naik Dikit)
+        1.5f,                                      // Durasi (Cepat saja)
+        EasingType::EaseOutCubic
+        });
+
+    m_camScenarioPoints.push_back({
+            "Shot 3 (Destruction)",
+            {-0.4f, 8.5f, 9.3f}, {-0.5f, 0.0f, 1.4f}, // START (Nyambung dari Shot 2)
+
+            // END: Koordinat dari Gambar Kamu
+            {12.2f, 15.0f, 4.3f},   // Posisi Akhir
+            {-1.7f, 0.0f, -4.0f},   // Look At Akhir
+
+            2.5f,                   // Durasi
+            EasingType::EaseOutCubic
+        });
+
     // SHOT 3: Action
     //m_camScenarioPoints.push_back({
     //    "Shot 3 (Action)",
@@ -169,20 +189,122 @@ void SceneGameBreaker::Update(float elapsedTime)
         float thresholdForm = player->breakoutSettings.thresholdFormation;
         float thresholdDest = player->breakoutSettings.thresholdDestruction;
 
-        // PHASE 1: Formation Mode
+		// PHASE 1: Formation Mode
         if (energy >= thresholdForm && blockManager && !blockManager->IsFormationActive())
         {
             blockManager->ActivateFormationMode();
-            player->SetGameStage(1); // Lock checkpoint
+            player->SetGameStage(1);
+
+            // =========================================================
+            // [BARU] TRIGGER KAMERA FORMATION (Shot 2.5)
+            // =========================================================
+            if (!m_hasTriggeredFormationCam)
+            {
+                m_hasTriggeredFormationCam = true;
+
+                // Pastikan data ada (Index 2 sekarang milik Formation)
+                if (m_camScenarioPoints.size() >= 3)
+                {
+                    const auto& shotForm = m_camScenarioPoints[2]; // Index 2 = Formation
+
+                    std::vector<CameraKeyframe> seq;
+                    CameraKeyframe key;
+                    key.isJumpCut = false; // Smooth transition
+                    key.TargetPosition = shotForm.EndPos;
+                    key.TargetRotation = CalculateRotationFromTarget(shotForm.EndPos, shotForm.EndLookAt);
+                    key.Duration = shotForm.Duration;
+                    key.Easing = shotForm.Easing;
+                    seq.push_back(key);
+
+                    CameraController::Instance().PlaySequence(seq, false);
+
+                    // Sedikit Juice biar kerasa perpindahannya
+                    JuiceEngine::Instance().TriggerShake({ 0.5f, 0.2f, 0.5f, 20.0f, 3.0f });
+                }
+            }
         }
 
         // PHASE 2: Destruction Mode
         if (energy >= thresholdDest)
         {
+            // Logic game asli (mematikan paddle, bola liar, dll)
             if (paddle && paddle->IsActive()) paddle->SetActive(false);
             if (ball) ball->SetBoundariesEnabled(false);
+            player->SetGameStage(2);
 
-            player->SetGameStage(2); // Lock final checkpoint
+            // =========================================================
+            // [BARU] TRIGGER KAMERA ANGLE 3 (FINISH)
+            // =========================================================
+            if (!m_hasTriggeredDestructionCam)
+            {
+                m_hasTriggeredDestructionCam = true; // Kunci biar gak kepanggil lagi
+
+                m_isTransitioningToDestruction = true;
+
+                // 1. Ambil Data Shot 3 (Index ke-2)
+                if (m_camScenarioPoints.size() >= 4)
+                {
+                    const auto& shotDest = m_camScenarioPoints[3]; // Index 3 = Destruction
+
+                    std::vector<CameraKeyframe> finishSequence;
+                    CameraKeyframe key;
+                    key.isJumpCut = false;
+                    key.TargetPosition = shotDest.EndPos;
+                    key.TargetRotation = CalculateRotationFromTarget(shotDest.EndPos, shotDest.EndLookAt);
+                    key.Duration = shotDest.Duration;
+                    key.Easing = shotDest.Easing;
+                    finishSequence.push_back(key);
+
+                    CameraController::Instance().PlaySequence(finishSequence, false);
+
+                    // Juice Effect Final
+                    JuiceEngine::Instance().TriggerShake({ 1.5f, 0.8f, 2.0f, 25.0f, 1.0f });
+                    JuiceEngine::Instance().TriggerGlitchKick(2.0f, 2.0f);
+                }
+
+                // 4. [BONUS] TAMBAH EFEK LEDAKAN VISUAL (JUICE!)
+                // Karena ini finish, kita kasih guncangan besar + Glitch parah
+                ShakeSettings finishShake;
+                finishShake.Duration = 1.5f;     // Lama
+                finishShake.AmplitudePos = 0.8f; // Guncangan Besar
+                finishShake.AmplitudeRot = 2.0f; // Putaran Besar
+                finishShake.TraumaFalloff = 1.0f;// Hilangnya pelan-pelan
+
+                JuiceEngine::Instance().TriggerShake(finishShake);
+                JuiceEngine::Instance().TriggerGlitchKick(2.0f, 2.0f); // Glitch sangat rusak
+            }
+        }
+
+        if (m_isTransitioningToDestruction)
+        {
+            if (!CameraController::Instance().IsSequencing())
+            {
+                m_isTransitioningToDestruction = false;
+                if (player)
+                {
+                    auto& camCtrl = CameraController::Instance();
+                    XMFLOAT3 playerPos = player->GetMovement()->GetPosition();
+
+                    // [UPDATE] Ambil data dari Index 3 (Destruction)
+                    const auto& shotDest = m_camScenarioPoints[3];
+
+                    // Hitung Offset seperti sebelumnya
+                    XMFLOAT3 posOffset;
+                    posOffset.x = shotDest.EndPos.x - playerPos.x;
+                    posOffset.y = shotDest.EndPos.y - playerPos.y;
+                    posOffset.z = shotDest.EndPos.z - playerPos.z;
+
+                    XMFLOAT3 lookOffset;
+                    lookOffset.x = shotDest.EndLookAt.x - playerPos.x;
+                    lookOffset.y = shotDest.EndLookAt.y - playerPos.y;
+                    lookOffset.z = shotDest.EndLookAt.z - playerPos.z;
+
+                    camCtrl.SetControlMode(CameraControlMode::FixedFollow);
+                    camCtrl.SetFixedSetting(posOffset);
+                    camCtrl.SetTargetOffset(lookOffset);
+                    camCtrl.SetTarget(playerPos);
+                }
+            }
         }
     }
 
@@ -1071,8 +1193,18 @@ void SceneGameBreaker::PlayCinematicTrigger()
 
     std::vector<CameraKeyframe> sequence;
 
-    for (const auto& point : m_camScenarioPoints)
+    // [MODIFIKASI] Ubah loop 'foreach' menjadi 'for loop' biasa
+    // Kita batasi hanya mengambil 2 Shot pertama (Shot 1 & Shot 2)
+    // Shot 3 (Destruction) jangan dimasukkan ke sini!
+
+    int introShotCount = 2; // Batasi jumlah shot intro
+
+    for (int i = 0; i < m_camScenarioPoints.size(); ++i)
     {
+        // STOP jika sudah melebihi batas intro (misal index 2 / Shot 3)
+        if (i >= introShotCount) break;
+
+        const auto& point = m_camScenarioPoints[i];
         CameraKeyframe key;
 
         // Mode Cinematic: Jump Cut aktif

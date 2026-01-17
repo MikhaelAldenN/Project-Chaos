@@ -289,13 +289,24 @@ void CameraController::UpdateSequence(float dt, std::shared_ptr<Camera>& camera)
 
 void CameraController::UpdateFixedFollow(std::shared_ptr<Camera>& camera)
 {
+    // 1. Hitung Posisi Kamera (Seperti biasa)
     XMFLOAT3 finalPos;
     finalPos.x = m_targetPos.x + m_fixedPos.x;
     finalPos.y = m_targetPos.y + m_fixedPos.y;
     finalPos.z = m_targetPos.z + m_fixedPos.z;
 
     camera->SetPosition(finalPos);
-    camera->LookAt(m_targetPos);
+
+    // 2. [BARU] Hitung Titik Pandang (Look At) dengan Offset
+    // Sebelumnya cuma: camera->LookAt(m_targetPos);
+    // Sekarang kita tambahkan m_targetOffset:
+
+    XMFLOAT3 finalLookAt;
+    finalLookAt.x = m_targetPos.x + m_targetOffset.x;
+    finalLookAt.y = m_targetPos.y + m_targetOffset.y;
+    finalLookAt.z = m_targetPos.z + m_targetOffset.z;
+
+    camera->LookAt(finalLookAt);
 }
 
 void CameraController::UpdateFixedStatic(std::shared_ptr<Camera>& camera)

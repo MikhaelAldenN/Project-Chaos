@@ -173,4 +173,7 @@ private:
     float m_bgRotation = 0.0f;
 
     bool m_isShakeEnabled = false;
+    bool m_hasTriggeredDestructionCam = false;
+    bool m_isTransitioningToDestruction = false;
+    bool m_hasTriggeredFormationCam = false;
 };
