@@ -234,6 +234,12 @@
     <ClCompile Include="Source\JuiceEngine.cpp">
       <Filter>Source\Juice</Filter>
     </ClCompile>
+    <ClCompile Include="Source\CinematicDirector.cpp">
+      <Filter>Source\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\GUISceneGameBreaker.cpp">
+      <Filter>Source\ImGui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -476,6 +482,12 @@
     <ClInclude Include="Source\JuiceEngine.h">
       <Filter>Source\Juice</Filter>
     </ClInclude>
+    <ClInclude Include="Source\CinematicDirector.h">
+      <Filter>Source\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\GUISceneGameBreaker.h">
+      <Filter>Source\ImGui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Basic.hlsli">
@@ -551,6 +563,9 @@
     </Filter>
     <Filter Include="Source\Juice">
       <UniqueIdentifier>{165d3b92-0931-4466-8fbc-edf664481396}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\ImGui">
+      <UniqueIdentifier>{2be508a9-002e-4235-99a4-f7752bfca66b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
