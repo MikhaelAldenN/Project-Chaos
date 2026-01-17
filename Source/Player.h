@@ -28,18 +28,37 @@ public:
     void SetInputEnabled(bool enable) { isInputEnabled = enable; }
     void SetCamera(Camera* cam) { activeCamera = cam; }
 
-    // --- Breakout Mechanic ---
+    // --- Breakout / Mashing System ---
     void SetBreakoutMode(bool enable);
 
+    // Get current energy 
+    float GetShakeEnergy() const { return shakeEnergy; }
+
+    // Checkpoint Stages: 0 = Normal, 1 = Yellow (Formation), 2 = Max (Destruction)
+    void SetGameStage(int stage) { gameStage = stage; }
+
+    // --- SETTINGS ---
     struct BreakoutSettings
     {
-        float shakeGain = 0.1f;        // How much shake is added per SPACE press
-        float shakeDecay = 1.2f;       // How fast the shake calms down per second
-        float maxShake = 0.8f;         // The maximum violence of the shake
-        float shakeFrequency = 20.0f;  // Speed of vibration
+        // [VISUAL] Screen Shake Effects
+        float visualShakeGain = 0.1f;           // Shake intensity added per click
+        float visualShakeDecay = 1.2f;          // How fast shake stops
+        float visualMaxShake = 0.8f;            // Max displacement
+
+        // [GAMEPLAY] Energy / Mashing Logic    
+        float energyGain = 6.4f;                // Energy added per click
+        float energyDecay = 40.0f;              // Energy lost per second 
+        float energyMax = 100.0f;               // Max bar value
+
+        // [THRESHOLDS] When things happen
+        float thresholdFormation = 60.0f;       // Phase 1 (Yellow)
+        float thresholdDestruction = 100.0f;    // Phase 2 (Pale Yellow/Destroy)
     };
 
     BreakoutSettings breakoutSettings;
+
+    // Color Setting
+    DirectX::XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 private:
     void UpdateBreakoutLogic(float elapsedTime);
@@ -57,5 +76,7 @@ private:
     bool isBreakoutActive = false;
     bool wasSpacePressed = false;                               
     float currentShakeIntensity = 0.0f;
+    float shakeEnergy = 0.0f; 
+    int gameStage = 0;
     DirectX::XMFLOAT3 originalPosition = { 0.0f, 0.0f, 0.0f }; 
 };

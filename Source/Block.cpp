@@ -20,6 +20,12 @@ void Block::Update(float elapsedTime, Camera* camera)
     SyncData();
 }
 
+void Block::Render(ModelRenderer* renderer, const DirectX::XMFLOAT4& color)
+{
+    if (!isActive) return;
+    renderer->Draw(ShaderId::Phong, model, color);
+}
+
 void Block::OnHit()
 {
     isActive = false;

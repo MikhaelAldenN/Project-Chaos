@@ -76,26 +76,81 @@ void Player::UpdateBreakoutLogic(float elapsedTime)
 {
     bool isSpaceDown = (GetAsyncKeyState(VK_SPACE) & 0x8000) != 0;
 
+    // --------------------------------------------------------
+    // INPUT HANDLING 
+    // --------------------------------------------------------
     if (isSpaceDown && !wasSpacePressed)
     {
-        currentShakeIntensity += breakoutSettings.shakeGain;
+        currentShakeIntensity += breakoutSettings.visualShakeGain;
+        shakeEnergy += breakoutSettings.energyGain;
     }
-
     wasSpacePressed = isSpaceDown;
 
-    currentShakeIntensity -= breakoutSettings.shakeDecay * elapsedTime;
+    // --------------------------------------------------------
+    // ENERGY LOGIC 
+    // --------------------------------------------------------
+    // Apply Decay
+    shakeEnergy -= breakoutSettings.energyDecay * elapsedTime;
+
+    // Determine Checkpoints
+    float minEnergy = 0.0f;
+    if (gameStage >= 1) minEnergy = breakoutSettings.thresholdFormation;   
+    if (gameStage >= 2) minEnergy = breakoutSettings.energyMax;            
+
+    // Clamp Energy
+    if (shakeEnergy < minEnergy) shakeEnergy = minEnergy;
+    if (shakeEnergy > breakoutSettings.energyMax) shakeEnergy = breakoutSettings.energyMax;
+
+    // --------------------------------------------------------
+    // COLOR INTERPOLATION
+    // --------------------------------------------------------
+    DirectX::XMFLOAT4 cWhite = { 1.0f, 1.0f, 1.0f, 1.0f };
+    DirectX::XMFLOAT4 cYellow = { 0.96f, 0.80f, 0.23f, 1.0f };
+    DirectX::XMFLOAT4 cPale = { 1.0f, 0.89f, 0.58f, 1.0f };
+
+    float t1 = breakoutSettings.thresholdFormation;
+    float t2 = breakoutSettings.energyMax; 
+
+    if (shakeEnergy <= t1)
+    {
+        // Phase 0 -> 1: White to Yellow
+        float t = shakeEnergy / t1;
+        if (t > 1.0f) t = 1.0f; if (t < 0.0f) t = 0.0f;
+
+        color.x = cWhite.x + (cYellow.x - cWhite.x) * t;
+        color.y = cWhite.y + (cYellow.y - cWhite.y) * t;
+        color.z = cWhite.z + (cYellow.z - cWhite.z) * t;
+    }
+    else
+    {
+        // Phase 1 -> 2: Yellow to Pale Yellpw
+        float range = t2 - t1;
+        float t = (shakeEnergy - t1) / range;
+        if (t > 1.0f) t = 1.0f; if (t < 0.0f) t = 0.0f;
+
+        color.x = cYellow.x + (cPale.x - cYellow.x) * t;
+        color.y = cYellow.y + (cPale.y - cYellow.y) * t;
+        color.z = cYellow.z + (cPale.z - cYellow.z) * t;
+    }
+    color.w = 1.0f;
+
+    // --------------------------------------------------------
+    // 4. VISUAL SHAKE PHYSICS
+    // --------------------------------------------------------
+    currentShakeIntensity -= breakoutSettings.visualShakeDecay * elapsedTime;
 
     if (currentShakeIntensity < 0.0f) currentShakeIntensity = 0.0f;
-    if (currentShakeIntensity > breakoutSettings.maxShake) currentShakeIntensity = breakoutSettings.maxShake;
+    if (currentShakeIntensity > breakoutSettings.visualMaxShake) currentShakeIntensity = breakoutSettings.visualMaxShake;
+
     if (currentShakeIntensity > 0.0f)
     {
-        float randX = ((float)(rand() % 100) / 50.0f - 1.0f) * currentShakeIntensity; 
+        // Simple random shake offset
+        float randX = ((float)(rand() % 100) / 50.0f - 1.0f) * currentShakeIntensity;
         float randZ = ((float)(rand() % 100) / 50.0f - 1.0f) * currentShakeIntensity;
 
         XMFLOAT3 shakePos = originalPosition;
         shakePos.x += randX;
         shakePos.z += randZ;
-
         movement->SetPosition(shakePos);
     }
     else
@@ -149,9 +204,6 @@ void Player::HandleMovementInput()
         // Fallback: World Space movement
         movement->SetMoveInput(x, z);
     }
-
-    // PENTING: JANGAN panggil movement->Jump() di sini!
-    // Itu tugas State PlayerJump::Enter().
 }
 
 bool Player::CheckJumpInput()

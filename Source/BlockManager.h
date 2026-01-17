@@ -1,6 +1,9 @@
 #pragma once
-#include <vector>
+#include <algorithm>
+#include <cmath>
+#include <DirectXMath.h>
 #include <memory>
+#include <vector>
 #include "Ball.h"
 #include "Block.h"
 #include "Camera.h"
@@ -14,14 +17,23 @@ public:
     ~BlockManager();
 
     void Initialize(Player* player);
-    void Update(float elapsedTime, Camera* camera);
+    void Update(float elapsedTime, Camera* camera, Player* player);
     void Render(ModelRenderer* renderer);
     void CheckCollision(Ball* ball);
+    void ActivateFormationMode() { isFormationActive = true; }
 
+    bool IsFormationActive() const { return isFormationActive; }
     int GetActiveBlockCount() const;
     const std::vector<std::unique_ptr<Block>>& GetBlocks() const { return blocks; }
 
+    // Color Setting
+    DirectX::XMFLOAT4 globalBlockColor = { 0.96f, 0.80f, 0.23f, 1.0f };
+
 private:
+    // Helper grid 
+    void InitPrioritySlots();
+    void UpdateFormationPositions(float elapsedTime, Player* player);
+
     std::vector<std::unique_ptr<Block>> blocks;
 
     // Grid Configuration
@@ -36,4 +48,21 @@ private:
 
     // Player Spawn Adjustments
     float m_playerSpawnOffsetX = -0.5f;     // X Value Player
+
+    // --------------------------------------------------------
+    // FORMATION SETTINGS
+    // --------------------------------------------------------
+    bool isFormationActive = false;
+    float formationSpacing = 1.0f;
+
+    std::vector<DirectX::XMFLOAT3> m_sortedOffsets;
+
+    // Helper for distance calculation
+    float GetDistSq(const DirectX::XMFLOAT3& a, const DirectX::XMFLOAT3& b) const
+    {
+        float dx = a.x - b.x;
+        float dy = a.y - b.y;
+        float dz = a.z - b.z;
+        return dx * dx + dy * dy + dz * dz;
+    }
 };

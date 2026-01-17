@@ -197,19 +197,20 @@ void BlockManager::CheckCollision(Ball* ball)
 
     DirectX::XMFLOAT3 ballPos = ball->GetMovement()->GetPosition();
     DirectX::XMFLOAT3 ballVel = ball->GetVelocity();
-    DirectX::XMFLOAT3 prevBallPos = ball->GetPreviousPosition();
 
     float ballRadius = ball->GetRadius();
     float blockHalfSize = m_blockHalfSize;
 
     for (auto& block : blocks)
     {
-        if (!block->IsActive()) continue;
+        // Skip dead blocks
+        if (!block->IsActive() || block->IsRelocating()) continue;
 
         DirectX::XMFLOAT3 blockPos = block->GetMovement()->GetPosition();
 
         float deltaX = ballPos.x - blockPos.x;
         float deltaZ = ballPos.z - blockPos.z;
+
         float absX = std::abs(deltaX);
         float absZ = std::abs(deltaZ);
 
@@ -218,30 +219,18 @@ void BlockManager::CheckCollision(Ball* ball)
 
         if (overlapX > 0 && overlapZ > 0)
         {
-            float maxZRange = blockHalfSize + ballRadius;
-            float distPrevZ = std::abs(prevBallPos.z - blockPos.z);
-            bool wasOutsideZ = (distPrevZ >= maxZRange);
-
-            float maxXRange = blockHalfSize + ballRadius;
-            float distPrevX = std::abs(prevBallPos.x - blockPos.x);
-            bool wasOutsideX = (distPrevX >= maxXRange);
-
-            if (wasOutsideZ)
-            {
-                ballVel.z *= -1.0f;
-            }
-            else if (wasOutsideX)
+            if (overlapX < overlapZ)
             {
                 ballVel.x *= -1.0f;
             }
             else
             {
-                if (overlapX < overlapZ) ballVel.x *= -1.0f;
-                else ballVel.z *= -1.0f;
+                ballVel.z *= -1.0f;
             }
 
             ball->SetVelocity(ballVel);
             block->OnHit();
+
             return;
         }
     }

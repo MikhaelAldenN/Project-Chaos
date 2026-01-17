@@ -1,6 +1,7 @@
 #include "Ball.h"
 #include "System/Graphics.h"
 #include "System/Input.h" 
+#include <cmath>
 
 using namespace DirectX;
 
@@ -39,46 +40,58 @@ void Ball::Update(float elapsedTime, Camera* camera)
 {
     if (!isActive)
     {
-        if (GetAsyncKeyState(VK_SPACE) & 0x8000)
-        {
-            Launch();
-        }
+        if (GetAsyncKeyState(VK_SPACE) & 0x8000) Launch();
         SyncData();
-        return; 
+        return;
     }
 
     XMFLOAT3 pos = movement->GetPosition();
+    prevPosition = pos;
+
+    float minAbsZ = speed * 0.25f; // Require at least 25% vertical speed
+
+    if (std::abs(velocity.z) < minAbsZ)
+    {
+        float dirZ = (velocity.z >= 0.0f) ? 1.0f : -1.0f;
+        velocity.z = dirZ * minAbsZ;
+        XMVECTOR v = XMLoadFloat3(&velocity);
+        v = XMVector3Normalize(v) * speed;
+        XMStoreFloat3(&velocity, v);
+    }
+
+    pos.x += velocity.x * elapsedTime;
+    pos.z += velocity.z * elapsedTime;
     pos.x += velocity.x * elapsedTime;
     pos.z += velocity.z * elapsedTime;
 
-    // Right Wall Bounce
-    if (pos.x > xLimitRight)
+    if (boundariesEnabled)
     {
-        pos.x = xLimitRight;
-        velocity.x *= -1;
-    }
-    // Left Wall Bounce
-    else if (pos.x < xLimitLeft)
-    {
-        pos.x = xLimitLeft;
-        velocity.x *= -1;
-    }
-
-    // Top Wall
-    if (pos.z > zLimitTop)
-    {
-        pos.z = zLimitTop;
-        velocity.z *= -1;
-    }
-
-    // Bottom Boundary 
-    if (pos.z < zLimitBottom)
-    {
-        Reset();
+        // Right Wall Bounce
+        if (pos.x > xLimitRight)
+        {
+            pos.x = xLimitRight;
+            velocity.x *= -1;
+        }
+        // Left Wall Bounce
+        else if (pos.x < xLimitLeft)
+        {
+            pos.x = xLimitLeft;
+            velocity.x *= -1;
+        }
+        // Top Wall
+        if (pos.z > zLimitTop)
+        {
+            pos.z = zLimitTop;
+            velocity.z *= -1;
+        }
+        // Bottom Boundary (Reset)
+        if (pos.z < zLimitBottom)
+        {
+            Reset();
+        }
     }
 
     pos.y = 0.0f;
-
     movement->SetPosition(pos);
     SyncData();
 }

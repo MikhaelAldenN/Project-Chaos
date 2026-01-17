@@ -20,6 +20,7 @@ Paddle::~Paddle()
 
 void Paddle::Update(float elapsedTime, Camera* camera)
 {
+    if (!isActive) return;
     if (!isAIEnabled)
     {
         HandleInput();
@@ -45,7 +46,7 @@ void Paddle::Update(float elapsedTime, Camera* camera)
 
 void Paddle::UpdateAI(float elapsedTime, Ball* ball, BlockManager* blockManager)
 {
-    if (!isAIEnabled || !ball) return;
+    if (!isActive || !isAIEnabled || !ball) return;
 
     // LAUNCH LOGIC
     if (!ball->IsActive())
@@ -178,7 +179,7 @@ void Paddle::HandleInput()
 
 void Paddle::CheckCollision(Ball* ball)
 {
-    if (!ball) return;
+    if (!isActive || !ball) return;
 
     auto ballPos = ball->GetPosition();
     auto padPos = movement->GetPosition();

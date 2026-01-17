@@ -45,8 +45,8 @@ SceneGameBreaker::SceneGameBreaker()
     // SHOT 1: Intro (Static shot, jadi Start & End sama)
     m_camScenarioPoints.push_back({
         "Shot 1 (Intro)",
-        {0.0f, 20.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, // START State
-        {0.0f, 14.5f, 0.0f}, {-0.5f, 0.0f, 1.5f}, // END State (Sama karena diam)
+        {0.0f, 20.0f, 0.0f}, {0.0f, 0.0f, 0.0f},    // START State
+        {0.0f, 14.5f, 0.0f}, {-0.5f, 0.0f, 1.5f},   // END State (Sama karena diam)
         3.0f,
         EasingType::EaseInCubic
         });
@@ -54,8 +54,8 @@ SceneGameBreaker::SceneGameBreaker()
     // SHOT 2: Angle B (Bergerak sedikit/Fly through)
     m_camScenarioPoints.push_back({
         "Shot 2 (Angle B)",
-        {1.9f, 12.3f, 6.8f}, {0.0f, 0.0f, 2.1f}, // START
-        {-0.4f, 8.5f, 9.3f}, {-0.5f, 0.0f, 1.4f}, // END
+        {1.9f, 12.3f, 6.8f}, {0.0f, 0.0f, 2.1f},    // START
+        {-0.4f, 8.5f, 9.3f}, {-0.5f, 0.0f, 1.4f},   // END
         3.0f,
         EasingType::EaseOutCubic // Pakai Linear/SmoothStep biar kelihatan geraknya
         });
@@ -137,14 +137,37 @@ void SceneGameBreaker::Update(float elapsedTime)
     // --------------------------------------------------------
     if (blockManager)
     {
-        blockManager->Update(elapsedTime, activeCam);
+        blockManager->Update(elapsedTime, activeCam, player);
         if (ball && ball->IsActive()) blockManager->CheckCollision(ball);
     }
 
     // --------------------------------------------------------
     // Update Player
     // --------------------------------------------------------
-    if (player) player->Update(elapsedTime, activeCam);
+    if (player)
+    {
+        player->Update(elapsedTime, activeCam);
+
+        float energy = player->GetShakeEnergy();
+        float thresholdForm = player->breakoutSettings.thresholdFormation;
+        float thresholdDest = player->breakoutSettings.thresholdDestruction;
+
+        // PHASE 1: Formation Mode
+        if (energy >= thresholdForm && blockManager && !blockManager->IsFormationActive())
+        {
+            blockManager->ActivateFormationMode();
+            player->SetGameStage(1); // Lock checkpoint
+        }
+
+        // PHASE 2: Destruction Mode
+        if (energy >= thresholdDest)
+        {
+            if (paddle && paddle->IsActive()) paddle->SetActive(false);
+            if (ball) ball->SetBoundariesEnabled(false);
+
+            player->SetGameStage(2); // Lock final checkpoint
+        }
+    }
 
     CameraController::Instance().Update(elapsedTime);
     UpdateGameTriggers(elapsedTime);
@@ -406,8 +429,8 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
 
     if (ball) ball->Render(modelRenderer);
     if (blockManager) blockManager->Render(modelRenderer);
-    if (paddle) paddle->Render(modelRenderer);
-    if (player) player->Render(modelRenderer);
+    if (paddle && paddle->IsActive()) { modelRenderer->Draw(ShaderId::Phong, paddle->GetModel(), paddle->color); }
+    if (player) { modelRenderer->Draw(ShaderId::Phong, player->GetModel(), player->color); }
 
     modelRenderer->Render(rc);
 }
@@ -501,13 +524,59 @@ void SceneGameBreaker::DrawGUI()
                 ImGui::EndTabItem();
             }
 
-            // --- TAB e: POST PROCESS ---
+            // --- TAB 3: POST PROCESS ---
             if (ImGui::BeginTabItem("Post-Process & FX"))
             {
                 GUIPostProcessTab();
                 ImGui::EndTabItem();
             }
 
+            // --- TAB: OBJECT COLOR ---
+            if (ImGui::BeginTabItem("Object Color"))
+            {
+                ImGui::Spacing();
+
+                // Header "Character"
+                ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "CHARACTER");
+                ImGui::Separator();
+                ImGui::Spacing();
+
+                // 1. Drop down "Paddle"
+                if (paddle)
+                {
+                    if (ImGui::CollapsingHeader("Paddle", ImGuiTreeNodeFlags_DefaultOpen))
+                    {
+                        ImGui::Indent();
+                        ImGui::ColorEdit4("Base Color##Paddle", &paddle->color.x);
+                        ImGui::Unindent();
+                    }
+                }
+
+                // 2. Drop down "Blocks"
+                if (blockManager)
+                {
+                    if (ImGui::CollapsingHeader("Blocks"))
+                    {
+                        ImGui::Indent();
+                        // This controls the 'globalBlockColor' we added to BlockManager
+                        ImGui::ColorEdit4("Base Color##Blocks", &blockManager->globalBlockColor.x);
+                        ImGui::Unindent();
+                    }
+                }
+
+                // 3. Drop down "Player"
+                if (player)
+                {
+                    if (ImGui::CollapsingHeader("Player"))
+                    {
+                        ImGui::Indent();
+                        ImGui::ColorEdit4("Base Color##Player", &player->color.x);
+                        ImGui::Unindent();
+                    }
+                }
+
+				ImGui::EndTabItem();
+			}
             ImGui::EndTabBar();
         }
     }

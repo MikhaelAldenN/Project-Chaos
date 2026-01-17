@@ -10,56 +10,63 @@
 
 enum class ShaderId
 {
-	Basic,
-	Lambert,
-	Phong,
+    Basic,
+    Lambert,
+    Phong,
 
-	EnumCount
+    EnumCount
 };
 
 class ModelRenderer
 {
 public:
-	ModelRenderer(ID3D11Device* device);
-	~ModelRenderer() {}
+    ModelRenderer(ID3D11Device* device);
+    ~ModelRenderer() {}
 
-	// î†ï`âÊ
-	void Draw(ShaderId shaderId, std::shared_ptr<Model> model);
+    void Draw(ShaderId shaderId, std::shared_ptr<Model> model, const DirectX::XMFLOAT4& color = { 1.0f, 1.0f, 1.0f, 1.0f });
 
-	// ï`âÊé¿çs
-	void Render(const RenderContext& rc);
+    // ï`âÊé¿çs
+    void Render(const RenderContext& rc);
 
 private:
-	struct CbScene
-	{
-		DirectX::XMFLOAT4X4		viewProjection;
-		DirectX::XMFLOAT4		lightDirection;
-		DirectX::XMFLOAT4		lightColor;
-		DirectX::XMFLOAT4		cameraPosition;
-	};
+    struct CbScene
+    {
+        DirectX::XMFLOAT4X4		viewProjection;
+        DirectX::XMFLOAT4		lightDirection;
+        DirectX::XMFLOAT4		lightColor;
+        DirectX::XMFLOAT4		cameraPosition;
+    };
 
-	struct CbSkeleton
-	{
-		DirectX::XMFLOAT4X4		boneTransforms[256];
-	};
+    struct CbSkeleton
+    {
+        DirectX::XMFLOAT4X4		boneTransforms[256];
+    };
 
-	struct DrawInfo
-	{
-		ShaderId				shaderId;
-		std::shared_ptr<Model>	model;
-	};
+    struct CbObject
+    {
+        DirectX::XMFLOAT4       color;
+    };
 
-	struct TransparencyDrawInfo
-	{
-		ShaderId				shaderId;
-		const Model::Mesh*		mesh;
-		float					distance;
-	};
+    struct DrawInfo
+    {
+        ShaderId				shaderId;
+        std::shared_ptr<Model>	model;
+        DirectX::XMFLOAT4       color; 
+    };
 
-	std::unique_ptr<Shader>					shaders[static_cast<int>(ShaderId::EnumCount)];
-	std::vector<DrawInfo>					drawInfos;
-	std::vector<TransparencyDrawInfo>		transparencyDrawInfos;
+    struct TransparencyDrawInfo
+    {
+        ShaderId				shaderId;
+        const Model::Mesh* mesh;
+        float					distance;
+        DirectX::XMFLOAT4       color; 
+    };
 
-	Microsoft::WRL::ComPtr<ID3D11Buffer>	sceneConstantBuffer;
-	Microsoft::WRL::ComPtr<ID3D11Buffer>	skeletonConstantBuffer;
+    std::unique_ptr<Shader>					shaders[static_cast<int>(ShaderId::EnumCount)];
+    std::vector<DrawInfo>					drawInfos;
+    std::vector<TransparencyDrawInfo>		transparencyDrawInfos;
+
+    Microsoft::WRL::ComPtr<ID3D11Buffer>	sceneConstantBuffer;
+    Microsoft::WRL::ComPtr<ID3D11Buffer>	skeletonConstantBuffer;
+    Microsoft::WRL::ComPtr<ID3D11Buffer>	objectConstantBuffer;
 };
