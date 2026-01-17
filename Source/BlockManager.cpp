@@ -242,6 +242,12 @@ void BlockManager::CheckCollision(Ball* ball)
 
             ball->SetVelocity(ballVel);
             block->OnHit();
+
+            if (m_onBlockHitCallback)
+            {
+                m_onBlockHitCallback();
+            }
+
             return;
         }
     }

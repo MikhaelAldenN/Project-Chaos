@@ -84,6 +84,22 @@ SceneGameBreaker::SceneGameBreaker()
     blockManager = std::make_unique<BlockManager>();
     blockManager->Initialize(player);
 
+    blockManager->SetOnBlockHitCallback([this]()
+        {
+            // Cek Saklar: Cuma boleh getar kalau saklar sudah ON
+            if (m_isShakeEnabled)
+            {
+                ShakeSettings hitShake;
+                hitShake.Duration = 0.5f;
+                hitShake.AmplitudePos = 0.5f; // Silakan atur kekuatan di sini
+                hitShake.AmplitudeRot = 0.5f;
+                hitShake.Frequency = 35.0f;
+                hitShake.TraumaFalloff = 4.0f;
+
+                JuiceEngine::Instance().TriggerShake(hitShake);
+            }
+        });
+
     uberShader = std::make_unique<UberShader>(Graphics::Instance().GetDevice());
     CreateRenderTarget();
 }
@@ -172,14 +188,25 @@ void SceneGameBreaker::Update(float elapsedTime)
 
     CameraController::Instance().Update(elapsedTime);
     JuiceEngine::Instance().Update(elapsedTime);
+
+    // =========================================================
+    // LOGIKA SAKLAR SHAKE
+    // =========================================================
+    // Cek apakah sequence sedang berjalan
+    auto seqInfo = CameraController::Instance().GetSequenceProgress();
+
+    // Jika kamera sudah masuk Index 1 (Shot 2/Angle B), NYALAKAN SAKLAR!
+    // Sekali nyala, dia akan true terus (walaupun animasi selesai).
+    if (seqInfo.IsPlaying && seqInfo.CurrentIndex >= 1)
+    {
+        m_isShakeEnabled = true;
+    }
     UpdateGameTriggers(elapsedTime);
 
     // =========================================================
     // LOGIKA FX: AUTO GLITCH TRANSITION
     // =========================================================
     // Kita cek waktu sequence kamera
-    auto seqInfo = CameraController::Instance().GetSequenceProgress();
-
     static bool wasPlayingSequence = false;
 
     if (seqInfo.IsPlaying && m_fxState.MasterEnabled && m_fxState.EnableLens)

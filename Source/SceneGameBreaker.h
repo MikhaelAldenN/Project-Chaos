@@ -171,4 +171,6 @@ private:
 
     // Background dynamic state
     float m_bgRotation = 0.0f;
+
+    bool m_isShakeEnabled = false;
 };
