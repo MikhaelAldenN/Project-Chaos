@@ -64,6 +64,14 @@ void GameBreakerGUI::Draw(SceneGameBreaker* scene)
                 ImGui::EndTabItem();
             }
 
+			// --- TAB 5: OBJECT TRANSFORM ---
+            if (ImGui::BeginTabItem("Object Transform"))
+            {
+				scene->GUIObjectTransformTab();
+				ImGui::EndTabItem();
+            }
+            
+
             ImGui::EndTabBar();
         }
     }
@@ -345,29 +353,66 @@ void GameBreakerGUI::DrawPostProcessTab(SceneGameBreaker* scene)
     }
 }
 
+
 void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
 {
     ImGui::Spacing();
-    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "CHARACTER & OBJECTS");
+
+    // ===========================
+    // SECTION: STAGE
+    // ===========================
+	if (scene->m_stage)
+    {
+        ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "STAGE");
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("Stage Color", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+            ImGui::ColorEdit4("Base Color##Stage", &scene->m_stage->color.x);
+            ImGui::Unindent();
+        }
+        ImGui::Spacing();
+    }
+
+    // ===========================
+    // SECTION: CHARACTER
+    // ===========================
+    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "CHARACTER");
     ImGui::Separator();
     ImGui::Spacing();
 
-    if (scene->paddle && ImGui::CollapsingHeader("Paddle", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Indent();
-        ImGui::ColorEdit4("Color##P", &scene->paddle->color.x);
-        ImGui::Unindent();
+    // Paddle
+	if (scene->paddle)
+    {
+        if (ImGui::CollapsingHeader("Paddle", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+            ImGui::ColorEdit4("Base Color##Paddle", &scene->paddle->color.x);
+            ImGui::Unindent();
+        }
     }
 
-    if (scene->blockManager && ImGui::CollapsingHeader("Blocks")) {
-        ImGui::Indent();
-        ImGui::ColorEdit4("Color##B", &scene->blockManager->globalBlockColor.x);
-        ImGui::Unindent();
+    // Blocks
+    if (scene->blockManager)
+    {
+        if (ImGui::CollapsingHeader("Blocks"))
+        {
+            ImGui::Indent();
+            ImGui::ColorEdit4("Base Color##Blocks", &scene->blockManager->globalBlockColor.x);
+            ImGui::Unindent();
+        }
     }
 
-    if (scene->player && ImGui::CollapsingHeader("Player")) {
-        ImGui::Indent();
-        ImGui::ColorEdit4("Color##Pl", &scene->player->color.x);
-        ImGui::Unindent();
+    // Player
+    if (scene->player)
+    {
+        if (ImGui::CollapsingHeader("Player"))
+        {
+            ImGui::Indent();
+            ImGui::ColorEdit4("Base Color##Player", &scene->player->color.x);
+            ImGui::Unindent();
+        }
     }
 }
 
@@ -405,5 +450,55 @@ void GameBreakerGUI::ImGuiEditPanel(const char* label, float& x, float& y, float
         ImGui::DragFloat("Line Spacing", &spacing, 1.0f, 0.0f, 200.0f);
         ImGui::ColorEdit4("Color", color);
         ImGui::TreePop();
+    }
+}
+
+void SceneGameBreaker::GUIObjectTransformTab()
+{
+    ImGui::Spacing();
+    ImGui::Text("Adjust 3D Object Transforms:");
+    ImGui::Separator();
+
+    if (m_stage)
+    {
+        if (ImGui::CollapsingHeader("Stage Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+
+            // Position Sliders
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
+            ImGui::DragFloat("X##StagePos", &m_stage->position.x, 0.1f);
+            ImGui::DragFloat("Y##StagePos", &m_stage->position.y, 0.1f);
+            ImGui::DragFloat("Z##StagePos", &m_stage->position.z, 0.1f);
+
+            ImGui::Spacing();
+
+            // Rotation Sliders
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
+            ImGui::DragFloat("Pitch##StageRot", &m_stage->rotation.x, 0.1f, -180.0f, 180.0f);
+            ImGui::DragFloat("Yaw##StageRot", &m_stage->rotation.y, 0.1f, -180.0f, 180.0f);
+            ImGui::DragFloat("Roll##StageRot", &m_stage->rotation.z, 0.1f, -180.0f, 180.0f);
+
+            ImGui::Spacing();
+
+            // Scale Sliders
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
+            ImGui::DragFloat("X##StageScl", &m_stage->scale.x, 0.01f, 0.1f, 50.0f);
+            ImGui::DragFloat("Y##StageScl", &m_stage->scale.y, 0.01f, 0.1f, 50.0f);
+            ImGui::DragFloat("Z##StageScl", &m_stage->scale.z, 0.01f, 0.1f, 50.0f);
+
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            // Reset Button
+            if (ImGui::Button("Reset to Defaults", ImVec2(-1, 30)))
+            {
+                m_stage->position = StageConfig::DEFAULT_POS;
+                m_stage->rotation = StageConfig::DEFAULT_ROT;
+                m_stage->scale = StageConfig::DEFAULT_SCALE;
+            }
+
+            ImGui::Unindent();
+        }
     }
 }

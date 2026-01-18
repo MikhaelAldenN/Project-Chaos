@@ -39,6 +39,9 @@ public:
     void DrawGUI() override;
     void OnResize(int width, int height) override;
 
+	void GUIObjectTransformTab();
+	void GUIObjectColorTab();
+
     Camera* GetMainCamera() const { return mainCamera.get(); }
 
 private:

@@ -25,10 +25,10 @@
     <FxCompile Include="Shader\PrimitiveRendererVS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="Shader\ShapeRendererVS.hlsl">
+    <FxCompile Include="Shader\ShapeRendererPS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="Shader\ShapeRendererPS.hlsl">
+    <FxCompile Include="Shader\ShapeRendererVS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shader\SpritePS.hlsl">
@@ -37,15 +37,111 @@
     <FxCompile Include="Shader\SpriteVS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="Shader\UberPostProcessVS.hlsl">
+    <FxCompile Include="Shader\UberPostProcessPS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="Shader\UberPostProcessPS.hlsl">
+    <FxCompile Include="Shader\UberPostProcessVS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Source\AnimationController.cpp">
+      <Filter>Source\Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Camera.cpp">
+      <Filter>Source\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\CameraController.cpp">
+      <Filter>Source\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\FreeCameraController.cpp">
+      <Filter>Source\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Character.cpp">
+      <Filter>Source\Character</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Block.cpp">
+      <Filter>Source\Character</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Enemy.cpp">
+      <Filter>Source\Character</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Ball.cpp">
+      <Filter>Source\Character</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Player.cpp">
+      <Filter>Source\Character</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\BlockManager.cpp">
+      <Filter>Source\Character</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\CharacterMovement.cpp">
+      <Filter>Source\Character</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Paddle.cpp">
+      <Filter>Source\Character</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Framework.cpp">
+      <Filter>Source\Framework</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Main.cpp">
+      <Filter>Source\Framework</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\SceneGame.cpp">
+      <Filter>Source\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\SceneGameBeyond.cpp">
+      <Filter>Source\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\SceneGameBreaker.cpp">
+      <Filter>Source\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\SceneIntroBios.cpp">
+      <Filter>Source\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\SceneIntroOS.cpp">
+      <Filter>Source\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\SceneTitle.cpp">
+      <Filter>Source\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\PostProcessManager.cpp">
+      <Filter>Source\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\UberShader.cpp">
+      <Filter>Source\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Stage.cpp">
+      <Filter>Source\Stage</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\LogConsole.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\TextDatabase.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\TUIBuilder.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Typewriter.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\UIComponents.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\UIPanel.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\GameWindow.cpp">
+      <Filter>Source\Window</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\WindowManager.cpp">
+      <Filter>Source\Window</Filter>
+    </ClCompile>
     <ClCompile Include="Source\System\BasicShader.cpp">
+      <Filter>System</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\BitmapFont.cpp">
       <Filter>System</Filter>
     </ClCompile>
     <ClCompile Include="Source\System\Dialog.cpp">
@@ -63,38 +159,8 @@
     <ClCompile Include="Source\System\Graphics.cpp">
       <Filter>System</Filter>
     </ClCompile>
-    <ClCompile Include="External\ImGuizmo\ImCurveEdit.cpp">
-      <Filter>External\ImGuizmo</Filter>
-    </ClCompile>
-    <ClCompile Include="External\ImGuizmo\ImGradient.cpp">
-      <Filter>External\ImGuizmo</Filter>
-    </ClCompile>
-    <ClCompile Include="External\imgui-docking\imgui.cpp">
-      <Filter>External\imgui-docking</Filter>
-    </ClCompile>
-    <ClCompile Include="External\imgui-docking\imgui_demo.cpp">
-      <Filter>External\imgui-docking</Filter>
-    </ClCompile>
-    <ClCompile Include="External\imgui-docking\imgui_draw.cpp">
-      <Filter>External\imgui-docking</Filter>
-    </ClCompile>
-    <ClCompile Include="External\imgui-docking\imgui_impl_dx11.cpp">
-      <Filter>External\imgui-docking</Filter>
-    </ClCompile>
-    <ClCompile Include="External\imgui-docking\imgui_impl_win32.cpp">
-      <Filter>External\imgui-docking</Filter>
-    </ClCompile>
-    <ClCompile Include="External\imgui-docking\imgui_widgets.cpp">
-      <Filter>External\imgui-docking</Filter>
-    </ClCompile>
     <ClCompile Include="Source\System\ImGuiRenderer.cpp">
       <Filter>System</Filter>
-    </ClCompile>
-    <ClCompile Include="External\ImGuizmo\ImGuizmo.cpp">
-      <Filter>External\ImGuizmo</Filter>
-    </ClCompile>
-    <ClCompile Include="External\ImGuizmo\ImSequencer.cpp">
-      <Filter>External\ImGuizmo</Filter>
     </ClCompile>
     <ClCompile Include="Source\System\Input.cpp">
       <Filter>System</Filter>
@@ -117,10 +183,16 @@
     <ClCompile Include="Source\System\PhongShader.cpp">
       <Filter>System</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Primitive.cpp">
+      <Filter>System</Filter>
+    </ClCompile>
     <ClCompile Include="Source\System\PrimitiveRenderer.cpp">
       <Filter>System</Filter>
     </ClCompile>
     <ClCompile Include="Source\System\RenderState.cpp">
+      <Filter>System</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ResourceManager.cpp">
       <Filter>System</Filter>
     </ClCompile>
     <ClCompile Include="Source\System\ShapeRenderer.cpp">
@@ -132,120 +204,168 @@
     <ClCompile Include="Source\System\TransformUtils.cpp">
       <Filter>System</Filter>
     </ClCompile>
-    <ClCompile Include="Source\AnimationController.cpp">
-      <Filter>Source\Animation</Filter>
+    <ClCompile Include="External\imgui-docking\imgui.cpp">
+      <Filter>External\imgui-docking</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Camera.cpp">
-      <Filter>Source\Camera</Filter>
+    <ClCompile Include="External\imgui-docking\imgui_demo.cpp">
+      <Filter>External\imgui-docking</Filter>
     </ClCompile>
-    <ClCompile Include="Source\CameraController.cpp">
-      <Filter>Source\Camera</Filter>
+    <ClCompile Include="External\imgui-docking\imgui_draw.cpp">
+      <Filter>External\imgui-docking</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Character.cpp">
-      <Filter>Source\Character</Filter>
+    <ClCompile Include="External\imgui-docking\imgui_impl_dx11.cpp">
+      <Filter>External\imgui-docking</Filter>
     </ClCompile>
-    <ClCompile Include="Source\CharacterMovement.cpp">
-      <Filter>Source\Character</Filter>
+    <ClCompile Include="External\imgui-docking\imgui_impl_win32.cpp">
+      <Filter>External\imgui-docking</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Enemy.cpp">
-      <Filter>Source\Character</Filter>
+    <ClCompile Include="External\imgui-docking\imgui_widgets.cpp">
+      <Filter>External\imgui-docking</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Framework.cpp">
-      <Filter>Source\Framework</Filter>
+    <ClCompile Include="External\ImGuizmo\ImCurveEdit.cpp">
+      <Filter>External\ImGuizmo</Filter>
     </ClCompile>
-    <ClCompile Include="Source\FreeCameraController.cpp">
-      <Filter>Source\Camera</Filter>
+    <ClCompile Include="External\ImGuizmo\ImGradient.cpp">
+      <Filter>External\ImGuizmo</Filter>
     </ClCompile>
-    <ClCompile Include="Source\GameWindow.cpp">
-      <Filter>Source\Window</Filter>
+    <ClCompile Include="External\ImGuizmo\ImGuizmo.cpp">
+      <Filter>External\ImGuizmo</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Main.cpp">
-      <Filter>Source\Framework</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Paddle.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Player.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\SceneGameBeyond.cpp">
-      <Filter>Source\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\SceneGameBreaker.cpp">
-      <Filter>Source\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\SceneTitle.cpp">
-      <Filter>Source\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\WindowManager.cpp">
-      <Filter>Source\Window</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\BitmapFont.cpp">
-      <Filter>System</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\SceneGame.cpp">
-      <Filter>Source\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\SceneIntroBios.cpp">
-      <Filter>Source\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\SceneIntroOS.cpp">
-      <Filter>Source\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Primitive.cpp">
-      <Filter>System</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\ResourceManager.cpp">
-      <Filter>System</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Typewriter.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\UIComponents.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Ball.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Block.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\BlockManager.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\UberShader.cpp">
-      <Filter>Source\Shaders</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\PostProcessManager.cpp">
-      <Filter>Source\Shaders</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\TUIBuilder.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\TextDatabase.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\LogConsole.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\UIPanel.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\JuiceEngine.cpp">
-      <Filter>Source\Juice</Filter>
+    <ClCompile Include="External\ImGuizmo\ImSequencer.cpp">
+      <Filter>External\ImGuizmo</Filter>
     </ClCompile>
     <ClCompile Include="Source\CinematicDirector.cpp">
-      <Filter>Source\Scene</Filter>
+      <Filter>Source\Camera</Filter>
     </ClCompile>
     <ClCompile Include="Source\GUISceneGameBreaker.cpp">
-      <Filter>Source\ImGui</Filter>
+      <Filter>Source\DebugGUI</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Stage.cpp">
-      <Filter>Source\Stage</Filter>
+    <ClCompile Include="Source\JuiceEngine.cpp">
+      <Filter>Source\JuiceEngine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\AnimationController.h">
+      <Filter>Source\Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Camera.h">
+      <Filter>Source\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\CameraController.h">
+      <Filter>Source\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\FreeCameraController.h">
+      <Filter>Source\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Character.h">
+      <Filter>Source\Character</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Block.h">
+      <Filter>Source\Character</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Enemy.h">
+      <Filter>Source\Character</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Ball.h">
+      <Filter>Source\Character</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Player.h">
+      <Filter>Source\Character</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\BlockManager.h">
+      <Filter>Source\Character</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\CharacterMovement.h">
+      <Filter>Source\Character</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Paddle.h">
+      <Filter>Source\Character</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Framework.h">
+      <Filter>Source\Framework</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Scene.h">
+      <Filter>Source\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\SceneGame.h">
+      <Filter>Source\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\SceneGameBeyond.h">
+      <Filter>Source\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\SceneGameBreaker.h">
+      <Filter>Source\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\SceneIntroBios.h">
+      <Filter>Source\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\SceneIntroOS.h">
+      <Filter>Source\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\SceneTitle.h">
+      <Filter>Source\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\PostProcessManager.h">
+      <Filter>Source\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UberShader.h">
+      <Filter>Source\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Stage.h">
+      <Filter>Source\Stage</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\StateMachine.h">
+      <Filter>Source\State</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\PlayerState.h">
+      <Filter>Source\State</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\PlayerStates.h">
+      <Filter>Source\State</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ButtonManager.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\LogConsole.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\TextDatabase.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\TUIBuilder.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Typewriter.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UIButton.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UIButtonPrimitive.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UIButtonSprite.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UIComponents.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UILabel.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UIPanel.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\GameWindow.h">
+      <Filter>Source\Window</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\WindowManager.h">
+      <Filter>Source\Window</Filter>
+    </ClInclude>
     <ClInclude Include="Source\System\BasicShader.h">
+      <Filter>System</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\BitmapFont.h">
       <Filter>System</Filter>
     </ClInclude>
     <ClInclude Include="Source\System\Dialog.h">
@@ -266,44 +386,8 @@
     <ClInclude Include="Source\System\HighResolutionTimer.h">
       <Filter>System</Filter>
     </ClInclude>
-    <ClInclude Include="External\imgui-docking\imconfig.h">
-      <Filter>External\imgui-docking</Filter>
-    </ClInclude>
-    <ClInclude Include="External\ImGuizmo\ImCurveEdit.h">
-      <Filter>External\ImGuizmo</Filter>
-    </ClInclude>
-    <ClInclude Include="External\ImGuizmo\ImGradient.h">
-      <Filter>External\ImGuizmo</Filter>
-    </ClInclude>
-    <ClInclude Include="External\imgui-docking\imgui.h">
-      <Filter>External\imgui-docking</Filter>
-    </ClInclude>
-    <ClInclude Include="External\imgui-docking\imgui_impl_dx11.h">
-      <Filter>External\imgui-docking</Filter>
-    </ClInclude>
-    <ClInclude Include="External\imgui-docking\imgui_impl_win32.h">
-      <Filter>External\imgui-docking</Filter>
-    </ClInclude>
-    <ClInclude Include="External\imgui-docking\imgui_internal.h">
-      <Filter>External\imgui-docking</Filter>
-    </ClInclude>
     <ClInclude Include="Source\System\ImGuiRenderer.h">
       <Filter>System</Filter>
-    </ClInclude>
-    <ClInclude Include="External\ImGuizmo\ImGuizmo.h">
-      <Filter>External\ImGuizmo</Filter>
-    </ClInclude>
-    <ClInclude Include="External\ImGuizmo\ImSequencer.h">
-      <Filter>External\ImGuizmo</Filter>
-    </ClInclude>
-    <ClInclude Include="External\imgui-docking\imstb_truetype.h">
-      <Filter>External\imgui-docking</Filter>
-    </ClInclude>
-    <ClInclude Include="External\imgui-docking\imstb_rectpack.h">
-      <Filter>External\imgui-docking</Filter>
-    </ClInclude>
-    <ClInclude Include="External\imgui-docking\imstb_textedit.h">
-      <Filter>External\imgui-docking</Filter>
     </ClInclude>
     <ClInclude Include="Source\System\Input.h">
       <Filter>System</Filter>
@@ -317,7 +401,7 @@
     <ClInclude Include="Source\System\Light.h">
       <Filter>System</Filter>
     </ClInclude>
-    <ClInclude Include="Source\System\Mouse.h">
+    <ClInclude Include="Source\MathUtils.h">
       <Filter>System</Filter>
     </ClInclude>
     <ClInclude Include="Source\System\Misc.h">
@@ -329,7 +413,13 @@
     <ClInclude Include="Source\System\ModelRenderer.h">
       <Filter>System</Filter>
     </ClInclude>
+    <ClInclude Include="Source\System\Mouse.h">
+      <Filter>System</Filter>
+    </ClInclude>
     <ClInclude Include="Source\System\PhongShader.h">
+      <Filter>System</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Primitive.h">
       <Filter>System</Filter>
     </ClInclude>
     <ClInclude Include="Source\System\PrimitiveRenderer.h">
@@ -339,6 +429,9 @@
       <Filter>System</Filter>
     </ClInclude>
     <ClInclude Include="Source\System\RenderState.h">
+      <Filter>System</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ResourceManager.h">
       <Filter>System</Filter>
     </ClInclude>
     <ClInclude Include="Source\System\Shader.h">
@@ -356,143 +449,50 @@
     <ClInclude Include="Source\System\TransformUtils.h">
       <Filter>System</Filter>
     </ClInclude>
-    <ClInclude Include="Source\AnimationController.h">
-      <Filter>Source\Animation</Filter>
+    <ClInclude Include="External\imgui-docking\imconfig.h">
+      <Filter>External\imgui-docking</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Camera.h">
-      <Filter>Source\Camera</Filter>
+    <ClInclude Include="External\imgui-docking\imgui.h">
+      <Filter>External\imgui-docking</Filter>
     </ClInclude>
-    <ClInclude Include="Source\CameraController.h">
-      <Filter>Source\Camera</Filter>
+    <ClInclude Include="External\imgui-docking\imgui_impl_dx11.h">
+      <Filter>External\imgui-docking</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Character.h">
-      <Filter>Source\Character</Filter>
+    <ClInclude Include="External\imgui-docking\imgui_impl_win32.h">
+      <Filter>External\imgui-docking</Filter>
     </ClInclude>
-    <ClInclude Include="Source\CharacterMovement.h">
-      <Filter>Source\Character</Filter>
+    <ClInclude Include="External\imgui-docking\imgui_internal.h">
+      <Filter>External\imgui-docking</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Enemy.h">
-      <Filter>Source\Character</Filter>
+    <ClInclude Include="External\imgui-docking\imstb_rectpack.h">
+      <Filter>External\imgui-docking</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Framework.h">
-      <Filter>Source\Framework</Filter>
+    <ClInclude Include="External\imgui-docking\imstb_textedit.h">
+      <Filter>External\imgui-docking</Filter>
     </ClInclude>
-    <ClInclude Include="Source\FreeCameraController.h">
-      <Filter>Source\Camera</Filter>
+    <ClInclude Include="External\imgui-docking\imstb_truetype.h">
+      <Filter>External\imgui-docking</Filter>
     </ClInclude>
-    <ClInclude Include="Source\GameWindow.h">
-      <Filter>Source\Window</Filter>
+    <ClInclude Include="External\ImGuizmo\ImCurveEdit.h">
+      <Filter>External\ImGuizmo</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Paddle.h">
-      <Filter>Source\Character</Filter>
+    <ClInclude Include="External\ImGuizmo\ImGradient.h">
+      <Filter>External\ImGuizmo</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Player.h">
-      <Filter>Source\Character</Filter>
+    <ClInclude Include="External\ImGuizmo\ImGuizmo.h">
+      <Filter>External\ImGuizmo</Filter>
     </ClInclude>
-    <ClInclude Include="Source\PlayerState.h">
-      <Filter>Source\State</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\PlayerStates.h">
-      <Filter>Source\State</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Scene.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\SceneGameBeyond.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\SceneGameBreaker.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\SceneTitle.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\StateMachine.h">
-      <Filter>Source\State</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\WindowManager.h">
-      <Filter>Source\Window</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\BitmapFont.h">
-      <Filter>System</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\SceneIntroOS.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\SceneGame.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\SceneIntroBios.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\MathUtils.h">
-      <Filter>System</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Primitive.h">
-      <Filter>System</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\ResourceManager.h">
-      <Filter>System</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Typewriter.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UIComponents.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UIButton.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\ButtonManager.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UIButtonSprite.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UIButtonPrimitive.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Ball.h">
-      <Filter>Source\Character</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Block.h">
-      <Filter>Source\Character</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\BlockManager.h">
-      <Filter>Source\Character</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UberShader.h">
-      <Filter>Source\Shaders</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\PostProcessManager.h">
-      <Filter>Source\Shaders</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\TUIBuilder.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\TextDatabase.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\LogConsole.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UILabel.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UIPanel.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\JuiceEngine.h">
-      <Filter>Source\Juice</Filter>
+    <ClInclude Include="External\ImGuizmo\ImSequencer.h">
+      <Filter>External\ImGuizmo</Filter>
     </ClInclude>
     <ClInclude Include="Source\CinematicDirector.h">
-      <Filter>Source\Scene</Filter>
+      <Filter>Source\Camera</Filter>
     </ClInclude>
     <ClInclude Include="Source\GUISceneGameBreaker.h">
-      <Filter>Source\ImGui</Filter>
+      <Filter>Source\DebugGUI</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Stage.h">
-      <Filter>Source\Stage</Filter>
+    <ClInclude Include="Source\JuiceEngine.h">
+      <Filter>Source\JuiceEngine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -502,19 +502,19 @@
     <None Include="Shader\Lambert.hlsli">
       <Filter>Shader</Filter>
     </None>
-    <None Include="Shader\Phong.hlsli">
-      <Filter>Shader</Filter>
-    </None>
-    <None Include="Shader\PrimitiveRenderer.hlsli">
+    <None Include="Shader\ShapeRenderer.hlsli">
       <Filter>Shader</Filter>
     </None>
     <None Include="Shader\Scene.hlsli">
       <Filter>Shader</Filter>
     </None>
-    <None Include="Shader\Skinning.hlsli">
+    <None Include="Shader\PrimitiveRenderer.hlsli">
       <Filter>Shader</Filter>
     </None>
-    <None Include="Shader\ShapeRenderer.hlsli">
+    <None Include="Shader\Phong.hlsli">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="Shader\Skinning.hlsli">
       <Filter>Shader</Filter>
     </None>
     <None Include="Shader\Sprite.hlsli">
@@ -522,59 +522,59 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="External">
-      <UniqueIdentifier>{b54aa3b3-dc47-4aa9-8508-8b933e803baf}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Shader">
-      <UniqueIdentifier>{cfc4e838-758a-45c3-9b3d-4d696b79b5fa}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source">
-      <UniqueIdentifier>{1c768011-5897-4cb3-80a4-a89305f5b227}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="System">
-      <UniqueIdentifier>{e23622a1-e772-40d5-85a0-817888739d7a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="External\imgui-docking">
-      <UniqueIdentifier>{849dc802-af6d-4a90-8f0f-a05f52f593ff}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="External\ImGuizmo">
-      <UniqueIdentifier>{0be3af61-19a8-4754-8e75-a197d7ef8aee}</UniqueIdentifier>
+      <UniqueIdentifier>{2b3e2022-ddc2-41c7-87c3-12667fdded60}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Animation">
-      <UniqueIdentifier>{ef844414-2b3b-4d51-a432-5500f3fe0910}</UniqueIdentifier>
+      <UniqueIdentifier>{891cb4e5-4e9c-4aa9-ae3f-a8cebedadb57}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Camera">
-      <UniqueIdentifier>{e49577f5-18f2-49d9-b66c-026bf6729329}</UniqueIdentifier>
+      <UniqueIdentifier>{461e1e2a-0e2b-4def-8558-8ae8b02e7a29}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Character">
-      <UniqueIdentifier>{a03d8f29-42a7-48fc-831b-fa51bfde715d}</UniqueIdentifier>
+      <UniqueIdentifier>{b787c2fd-c2b2-4ca0-91d9-61f955c3d49a}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Framework">
-      <UniqueIdentifier>{f8a1ff19-18ce-42d6-aa76-f496881d40f2}</UniqueIdentifier>
+      <UniqueIdentifier>{e1087b50-356c-4b06-9144-c7fbee63a43c}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Scene">
-      <UniqueIdentifier>{8e6f7416-6e4c-4c73-9809-39462a7ee3a9}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\State">
-      <UniqueIdentifier>{b39a3f26-f46c-473c-bc33-67610b6dce34}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Window">
-      <UniqueIdentifier>{842d1260-4159-4ebb-bccb-9cbb87897538}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\UI">
-      <UniqueIdentifier>{3378e46e-63d3-48e5-b5a6-6558c1efe819}</UniqueIdentifier>
+      <UniqueIdentifier>{dd669dd4-6119-477a-9799-78d280c8e03e}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Shaders">
-      <UniqueIdentifier>{9305fe09-e6fa-4d28-a574-7cb568d9c056}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Juice">
-      <UniqueIdentifier>{165d3b92-0931-4466-8fbc-edf664481396}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\ImGui">
-      <UniqueIdentifier>{2be508a9-002e-4235-99a4-f7752bfca66b}</UniqueIdentifier>
+      <UniqueIdentifier>{9b37db2a-d994-4a71-a339-fe6e35f61f22}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Stage">
-      <UniqueIdentifier>{97196af7-7764-4f00-b9df-b71d3e6428c5}</UniqueIdentifier>
+      <UniqueIdentifier>{b6f39b3d-159b-4e52-9b0f-937747d689ea}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\State">
+      <UniqueIdentifier>{a567a437-9e81-43d7-be93-81293e2da273}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\UI">
+      <UniqueIdentifier>{789c50eb-f8e5-4630-81fb-b18fb4017582}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Window">
+      <UniqueIdentifier>{6397cb64-fa80-49ce-8d72-e2ae3f5c6a37}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shader">
+      <UniqueIdentifier>{b5e7fa88-71ba-4d8c-a565-ac27dcec1137}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="System">
+      <UniqueIdentifier>{f0d3d3e4-d429-4638-a1ac-9d1d15c14320}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="External">
+      <UniqueIdentifier>{eda9fcbc-9e50-4996-bb82-d0db32934e99}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="External\imgui-docking">
+      <UniqueIdentifier>{f418eba5-083a-4fa8-a51b-86efd41d13c4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="External\ImGuizmo">
+      <UniqueIdentifier>{e3803378-04d7-4a3f-bddf-4278fb783329}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\DebugGUI">
+      <UniqueIdentifier>{c3446281-fbb3-4c45-b3e8-518c302576cc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\JuiceEngine">
+      <UniqueIdentifier>{579371db-9d8e-4fa5-b1c0-e8a7a31d2d54}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

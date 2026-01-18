@@ -15,6 +15,7 @@ private:
     static void DrawUI_LayoutTab(SceneGameBreaker* scene); // Tab baru untuk Tutorial UI
     static void DrawPostProcessTab(SceneGameBreaker* scene);
     static void DrawObjectColorTab(SceneGameBreaker* scene); // Tab baru untuk Color
+	static void DrawObjectTransformTab(SceneGameBreaker* scene); // Tab baru untuk Transform
     static void DrawSpriteTab(SceneGameBreaker* scene);
 
     // Helper untuk edit layout UI
