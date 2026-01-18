@@ -44,6 +44,34 @@ public:
 
 private:
     // =========================================================
+    // CONFIGURATION CONSTANTS
+    // =========================================================
+    struct Config {
+        // Camera
+        static constexpr float CAM_FOV = 45.0f;
+        static constexpr float CAM_NEAR = 0.1f;
+        static constexpr float CAM_FAR = 1000.0f;
+        static constexpr float CAM_START_HEIGHT = 20.0f; 
+
+        // Gameplay
+        static constexpr int   TRIGGER_BLOCK_COUNT = 40;
+        static constexpr float BALL_SPAWN_Z_OFFSET = 0.38f;
+
+        // Screen Shake (On Block Hit)
+        static constexpr float SHAKE_DURATION = 0.5f;
+        static constexpr float SHAKE_AMP_POS = 0.5f;
+        static constexpr float SHAKE_AMP_ROT = 0.5f;
+        static constexpr float SHAKE_FREQ = 35.0f;
+        static constexpr float SHAKE_TRAUMA = 4.0f;
+
+        // Post Process / CRT Effect
+        static constexpr float FX_CRT_BASE_STRENGTH = 0.2f;      
+        static constexpr float FX_CRT_ROTATION_TARGET = 0.45f;   
+        static constexpr float FX_TRANSITION_WINDOW = 0.2f;      
+        static constexpr float FX_GLITCH_FACTOR = 0.7f;          
+    };
+
+    // =========================================================
     // INTERNAL HELPER FUNCTIONS
     // =========================================================
     void RenderScene(float elapsedTime, Camera* camera);
@@ -91,9 +119,6 @@ private:
     std::shared_ptr<Camera> mainCamera;
 
     // Camera Settings
-    float initialFOV = 45.0f;
-    float cameraNearZ = 0.1f;
-    float cameraFarZ = 1000.0f;
     DirectX::XMFLOAT3 cameraPosition = { 0.0f, 18.0f, 0.0f };
     DirectX::XMFLOAT3 cameraTarget = { 0.0f, 0.0f, 0.0f };
 
@@ -104,10 +129,6 @@ private:
     std::unique_ptr<PostProcessManager> m_postProcess;
     UberShader::UberData uberParams;
     PostProcessState m_fxState;
-
-    // Config
-    int triggerBlockCount = 40;
-    float ballSpawnZOffset = 0.38f;
 
     // Visual Config
     DirectX::XMFLOAT4 bgSpriteColor = { 1.0f, 1.0f, 1.0f, 1.0f };

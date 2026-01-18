@@ -22,13 +22,13 @@ SceneGameBreaker::SceneGameBreaker()
 
     // 1. Setup Main Camera
     mainCamera = std::make_shared<Camera>();
-    mainCamera->SetPerspectiveFov(XMConvertToRadians(initialFOV), screenW / screenH, cameraNearZ, cameraFarZ);
+    mainCamera->SetPerspectiveFov(XMConvertToRadians(Config::CAM_FOV), screenW / screenH, Config::CAM_NEAR, Config::CAM_FAR);
 
     auto& camCtrl = CameraController::Instance();
     camCtrl.SetActiveCamera(mainCamera);
 
     XMFLOAT3 startPos = cameraPosition;
-    startPos.x = 0.0f; startPos.z = 0.0f; startPos.y = 20.0f;
+    startPos.x = 0.0f; startPos.z = 0.0f; startPos.y = Config::CAM_START_HEIGHT;
     mainCamera->SetPosition(startPos);
     mainCamera->LookAt(cameraTarget);
 
@@ -56,11 +56,11 @@ SceneGameBreaker::SceneGameBreaker()
             if (m_isShakeEnabled)
             {
                 ShakeSettings hitShake;
-                hitShake.Duration = 0.5f;
-                hitShake.AmplitudePos = 0.5f;
-                hitShake.AmplitudeRot = 0.5f;
-                hitShake.Frequency = 35.0f;
-                hitShake.TraumaFalloff = 4.0f;
+                hitShake.Duration = Config::SHAKE_DURATION;
+                hitShake.AmplitudePos = Config::SHAKE_AMP_POS;
+                hitShake.AmplitudeRot = Config::SHAKE_AMP_ROT;
+                hitShake.Frequency = Config::SHAKE_FREQ;
+                hitShake.TraumaFalloff = Config::SHAKE_TRAUMA;
                 JuiceEngine::Instance().TriggerShake(hitShake);
             }
         });
@@ -99,7 +99,7 @@ void SceneGameBreaker::Update(float elapsedTime)
         if (paddle && !ball->IsActive())
         {
             XMFLOAT3 padPos = paddle->GetPosition();
-            padPos.z += ballSpawnZOffset;
+            padPos.z += Config::BALL_SPAWN_Z_OFFSET;
             padPos.y = 0.0f;
             ball->GetMovement()->SetPosition(padPos);
         }
@@ -169,11 +169,11 @@ void SceneGameBreaker::Update(float elapsedTime)
     // [MODIFIKASI] Ambil nilai dari variabel Class (Config), bukan hardcode lokal!
     float normalDensity = m_configFineDensity; // Nilai dari ImGui
     float zoomDensity = m_configZoomDensity;   // Nilai dari ImGui
-    float baseStrength = 0.2f;
+    float baseStrength = Config::FX_CRT_BASE_STRENGTH;
 
     // Config Rotasi
     float startRotation = 0.0f;
-    float targetRotation = 0.45f;
+    float targetRotation = Config::FX_CRT_ROTATION_TARGET;
 
     bool isInsideProgram = m_isShakeEnabled;
 
@@ -217,14 +217,15 @@ void SceneGameBreaker::Update(float elapsedTime)
         float t = seqInfo.CurrentTime;
         float d = seqInfo.TotalDuration;
         float remaining = d - t;
-        float transitionWindow = 0.2f;
+        float transitionWindow = Config::FX_TRANSITION_WINDOW;
+        float glitchFactor = Config::FX_GLITCH_FACTOR;
         bool isLastShot = (seqInfo.CurrentIndex == seqInfo.TotalShots - 1);
 
         if (remaining <= transitionWindow && d > 0.0f && !isLastShot) {
             uberParams.glitchStrength = 1.0f - (remaining / transitionWindow);
         }
         else if (t <= transitionWindow && seqInfo.CurrentIndex > 0) {
-            uberParams.glitchStrength = 0.7f * (1.0f - (t / transitionWindow));
+            uberParams.glitchStrength = glitchFactor * (1.0f - (t / transitionWindow));
         }
         else {
             uberParams.glitchStrength = 0.0f;
@@ -257,7 +258,7 @@ void SceneGameBreaker::UpdateGameTriggers(float elapsedTime)
 
     // Trigger Breakout Mode (Tombol T atau blok habis)
     bool triggerCondition = (GetKeyState('T') & 0x8000)
-        || (blockManager && blockManager->GetActiveBlockCount() <= triggerBlockCount);
+        || (blockManager && blockManager->GetActiveBlockCount() <= Config::TRIGGER_BLOCK_COUNT);
 
     if (triggerCondition)
     {
@@ -395,10 +396,10 @@ void SceneGameBreaker::OnResize(int width, int height)
     {
         // Update FOV dengan aspect ratio baru (Width / Height)
         mainCamera->SetPerspectiveFov(
-            DirectX::XMConvertToRadians(initialFOV),
+            DirectX::XMConvertToRadians(Config::CAM_FOV),
             (float)width / (float)height,
-            cameraNearZ,
-            cameraFarZ
+            Config::CAM_NEAR,
+            Config::CAM_FAR
         );
     }
 
