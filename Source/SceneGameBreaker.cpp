@@ -68,8 +68,8 @@ SceneGameBreaker::SceneGameBreaker()
     // 3. Setup Director & Shader
     m_director = std::make_unique<CinematicDirector>();
 
-    uberShader = std::make_unique<UberShader>(Graphics::Instance().GetDevice());
-    CreateRenderTarget();
+    m_postProcess = std::make_unique<PostProcessManager>();
+    m_postProcess->Initialize((int)screenW, (int)screenH);
 }
 
 SceneGameBreaker::~SceneGameBreaker()
@@ -280,32 +280,38 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
     auto dc = Graphics::Instance().GetDeviceContext();
     auto rs = Graphics::Instance().GetRenderState();
 
-    // 1. Setup Render Target (Post Process or Original)
-    ID3D11RenderTargetView* originalRTV = nullptr;
-    ID3D11DepthStencilView* originalDSV = nullptr;
-    dc->OMGetRenderTargets(1, &originalRTV, &originalDSV);
+    // =========================================================
+    // BEGIN POST PROCESS CAPTURE
+    // =========================================================
+    m_postProcess->SetEnabled(m_fxState.MasterEnabled);
 
-    ID3D11RenderTargetView* currentRTV = originalRTV;
-    ID3D11DepthStencilView* currentDSV = originalDSV;
-
-    bool usePostProcess = m_fxState.MasterEnabled;
-    if (usePostProcess)
-    {
-        currentRTV = renderTargetView.Get();
-        currentDSV = depthStencilView.Get();
-        float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-        dc->ClearRenderTargetView(currentRTV, clearColor);
-        dc->ClearDepthStencilView(currentDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+    // If PostProcess is enabled, this swaps RTV to internal texture
+    // If disabled, this simply clears the BackBuffer
+    if (m_fxState.MasterEnabled) {
+        m_postProcess->BeginCapture();
     }
-    dc->OMSetRenderTargets(1, &currentRTV, currentDSV);
+    else {
+        ID3D11RenderTargetView* originalRTV = nullptr;
+        ID3D11DepthStencilView* originalDSV = nullptr;
+        dc->OMGetRenderTargets(1, &originalRTV, &originalDSV);
+        if (originalRTV) {
+            float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+            dc->ClearRenderTargetView(originalRTV, clearColor);
+            originalRTV->Release();
+        }
+        if (originalDSV) {
+            dc->ClearDepthStencilView(originalDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+            originalDSV->Release();
+        }
+    }
 
-    // 2. Render Scene
-
+    // =========================================================
+    // 2. RENDER SCENE CONTENTS
+    // =========================================================
     // Transparent Sprite (Debug Layout)
     if (m_spriteDEBUG_LAYOUT) {
         dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
         dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
-        // ... Render Debug Layout code ...
     }
 
     // 3D Objects
@@ -314,7 +320,7 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
     dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullBack));
     RenderScene(elapsedTime, targetCam);
 
-    // --- B. World Space Sprite (Transparent) ---
+    // --- World Space Sprite (Transparent) ---
     if (m_spriteBorderBreaker && !m_introFinished)
     {
         dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
@@ -340,27 +346,22 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
         Graphics::Instance().GetShapeRenderer()->Render(dc, targetCam->GetView(), targetCam->GetProjection());
     }
 
-    // 3. Post Process Pass
-    if (usePostProcess)
+    // =========================================================
+    // END POST PROCESS CAPTURE (DRAW TO SCREEN)
+    // =========================================================
+    if (m_fxState.MasterEnabled)
     {
-        dc->OMSetRenderTargets(0, nullptr, nullptr);
-        dc->OMSetRenderTargets(1, &originalRTV, originalDSV);
-        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+        UberShader::UberData& activeData = m_postProcess->GetData();
+        activeData = this->uberParams; 
 
-        UberShader::UberData finalParams = uberParams;
-        finalParams.time = m_globalTime;
-        if (!m_fxState.EnableVignette) finalParams.intensity = 0.0f;
-        if (!m_fxState.EnableLens) { finalParams.glitchStrength = 0.0f; finalParams.distortion = 0.0f; }
-        if (!m_fxState.EnableCRT) { finalParams.scanlineStrength = 0.0f; }
+        // Apply visual toggles
+        if (!m_fxState.EnableVignette) activeData.intensity = 0.0f;
+        if (!m_fxState.EnableLens) { activeData.glitchStrength = 0.0f; activeData.distortion = 0.0f; }
+        if (!m_fxState.EnableCRT) { activeData.scanlineStrength = 0.0f; activeData.fineOpacity = 0.0f; }
 
-        uberShader->Draw(dc, shaderResourceView.Get(), finalParams);
-
-        ID3D11ShaderResourceView* nullSRV = nullptr;
-        dc->PSSetShaderResources(0, 1, &nullSRV);
+        // Draw the fullscreen quad with effects
+        m_postProcess->EndCapture(elapsedTime);
     }
-
-    if (originalRTV) originalRTV->Release();
-    if (originalDSV) originalDSV->Release();
 }
 
 void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
@@ -377,34 +378,6 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
     if (player) modelRenderer->Draw(ShaderId::Phong, player->GetModel(), player->color);
     modelRenderer->Render(rc);
 }
-
-void SceneGameBreaker::CreateRenderTarget()
-{
-    // ... (Sama seperti sebelumnya, tidak ada perubahan logika di sini) ...
-    // Kode inisialisasi Texture, RTV, SRV, DSV standard
-    auto device = Graphics::Instance().GetDevice();
-    float screenW = 1920; float screenH = 1080;
-    if (auto window = Framework::Instance()->GetMainWindow()) {
-        screenW = (float)window->GetWidth(); screenH = (float)window->GetHeight();
-    }
-    D3D11_TEXTURE2D_DESC desc = {};
-    desc.Width = (UINT)screenW; desc.Height = (UINT)screenH; desc.MipLevels = 1; desc.ArraySize = 1;
-    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; desc.SampleDesc.Count = 1; desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-    device->CreateTexture2D(&desc, nullptr, renderTargetTexture.ReleaseAndGetAddressOf());
-    device->CreateRenderTargetView(renderTargetTexture.Get(), nullptr, renderTargetView.ReleaseAndGetAddressOf());
-    device->CreateShaderResourceView(renderTargetTexture.Get(), nullptr, shaderResourceView.ReleaseAndGetAddressOf());
-    desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-    device->CreateTexture2D(&desc, nullptr, depthStencilTexture.ReleaseAndGetAddressOf());
-    device->CreateDepthStencilView(depthStencilTexture.Get(), nullptr, depthStencilView.ReleaseAndGetAddressOf());
-}
-
-//void SceneGameBreaker::ImGuiEditPanel(UI_LayoutData& layout)
-//{
-//    // Fungsi ini dipindah ke GameBreakerGUI, tapi jika kamu masih memakainya secara internal
-//    // untuk keperluan lain, bisa disimpan. Jika tidak, HAPUS saja.
-//    // Untuk saat ini saya hapus karena sudah ada di GUISceneGameBreaker.cpp
-//}
 
 void SceneGameBreaker::DrawGUI()
 {
@@ -431,5 +404,8 @@ void SceneGameBreaker::OnResize(int width, int height)
 
     // 2. Buat Ulang Render Target (Texture layar)
     // Penting! Kalau tidak dipanggil, Post-Process akan error atau gepeng saat window di-resize.
-    CreateRenderTarget();
+    if (m_postProcess)
+    {
+        m_postProcess->OnResize(width, height);
+    }
 }

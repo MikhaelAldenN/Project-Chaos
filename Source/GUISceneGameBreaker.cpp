@@ -67,7 +67,7 @@ void GameBreakerGUI::Draw(SceneGameBreaker* scene)
 			// --- TAB 5: OBJECT TRANSFORM ---
             if (ImGui::BeginTabItem("Object Transform"))
             {
-				scene->GUIObjectTransformTab();
+                DrawObjectTransformTab(scene);
 				ImGui::EndTabItem();
             }
             
@@ -453,13 +453,13 @@ void GameBreakerGUI::ImGuiEditPanel(const char* label, float& x, float& y, float
     }
 }
 
-void SceneGameBreaker::GUIObjectTransformTab()
+void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 {
     ImGui::Spacing();
     ImGui::Text("Adjust 3D Object Transforms:");
     ImGui::Separator();
 
-    if (m_stage)
+    if (scene->m_stage)
     {
         if (ImGui::CollapsingHeader("Stage Transform", ImGuiTreeNodeFlags_DefaultOpen))
         {
@@ -467,25 +467,25 @@ void SceneGameBreaker::GUIObjectTransformTab()
 
             // Position Sliders
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
-            ImGui::DragFloat("X##StagePos", &m_stage->position.x, 0.1f);
-            ImGui::DragFloat("Y##StagePos", &m_stage->position.y, 0.1f);
-            ImGui::DragFloat("Z##StagePos", &m_stage->position.z, 0.1f);
+            ImGui::DragFloat("X##StagePos", &scene->m_stage->position.x, 0.1f);
+            ImGui::DragFloat("Y##StagePos", &scene->m_stage->position.y, 0.1f);
+            ImGui::DragFloat("Z##StagePos", &scene->m_stage->position.z, 0.1f);
 
             ImGui::Spacing();
 
             // Rotation Sliders
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
-            ImGui::DragFloat("Pitch##StageRot", &m_stage->rotation.x, 0.1f, -180.0f, 180.0f);
-            ImGui::DragFloat("Yaw##StageRot", &m_stage->rotation.y, 0.1f, -180.0f, 180.0f);
-            ImGui::DragFloat("Roll##StageRot", &m_stage->rotation.z, 0.1f, -180.0f, 180.0f);
+            ImGui::DragFloat("Pitch##StageRot", &scene->m_stage->rotation.x, 0.1f, -180.0f, 180.0f);
+            ImGui::DragFloat("Yaw##StageRot", &scene->m_stage->rotation.y, 0.1f, -180.0f, 180.0f);
+            ImGui::DragFloat("Roll##StageRot", &scene->m_stage->rotation.z, 0.1f, -180.0f, 180.0f);
 
             ImGui::Spacing();
 
             // Scale Sliders
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
-            ImGui::DragFloat("X##StageScl", &m_stage->scale.x, 0.01f, 0.1f, 50.0f);
-            ImGui::DragFloat("Y##StageScl", &m_stage->scale.y, 0.01f, 0.1f, 50.0f);
-            ImGui::DragFloat("Z##StageScl", &m_stage->scale.z, 0.01f, 0.1f, 50.0f);
+            ImGui::DragFloat("X##StageScl", &scene->m_stage->scale.x, 0.01f, 0.1f, 50.0f);
+            ImGui::DragFloat("Y##StageScl", &scene->m_stage->scale.y, 0.01f, 0.1f, 50.0f);
+            ImGui::DragFloat("Z##StageScl", &scene->m_stage->scale.z, 0.01f, 0.1f, 50.0f);
 
             ImGui::Spacing();
             ImGui::Separator();
@@ -493,9 +493,9 @@ void SceneGameBreaker::GUIObjectTransformTab()
             // Reset Button
             if (ImGui::Button("Reset to Defaults", ImVec2(-1, 30)))
             {
-                m_stage->position = StageConfig::DEFAULT_POS;
-                m_stage->rotation = StageConfig::DEFAULT_ROT;
-                m_stage->scale = StageConfig::DEFAULT_SCALE;
+                scene->m_stage->position = StageConfig::DEFAULT_POS;
+                scene->m_stage->rotation = StageConfig::DEFAULT_ROT;
+                scene->m_stage->scale = StageConfig::DEFAULT_SCALE;
             }
 
             ImGui::Unindent();

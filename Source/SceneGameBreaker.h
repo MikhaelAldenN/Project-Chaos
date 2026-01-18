@@ -24,6 +24,7 @@
 
 #include "CinematicDirector.h" // Logic Kamera ada di sini
 #include "GUISceneGameBreaker.h" // Logic GUI ada di sini
+#include "PostProcessManager.h"
 
 class SceneGameBreaker : public Scene
 {
@@ -39,9 +40,6 @@ public:
     void DrawGUI() override;
     void OnResize(int width, int height) override;
 
-	void GUIObjectTransformTab();
-	void GUIObjectColorTab();
-
     Camera* GetMainCamera() const { return mainCamera.get(); }
 
 private:
@@ -50,7 +48,6 @@ private:
     // =========================================================
     void RenderScene(float elapsedTime, Camera* camera);
     void UpdateGameTriggers(float elapsedTime);
-    void CreateRenderTarget();
 
     // =========================================================
     // SPRITE CONTROLS & LAYOUT
@@ -104,16 +101,9 @@ private:
     std::unique_ptr<Sprite> m_spriteBorderBreaker;
     std::unique_ptr<Sprite> m_spriteDEBUG_LAYOUT; // Jika masih dipakai
 
-    std::unique_ptr<UberShader> uberShader;
-    UberShader::UberData        uberParams;
+    std::unique_ptr<PostProcessManager> m_postProcess;
+    UberShader::UberData uberParams;
     PostProcessState m_fxState;
-
-    // Render Targets
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> renderTargetTexture;
-    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> depthStencilTexture;
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
 
     // Config
     int triggerBlockCount = 40;
