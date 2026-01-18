@@ -5,6 +5,7 @@
 #include "Player.h"
 #include "PlayerStates.h" 
 #include "StateMachine.h"
+#include "JuiceEngine.h"
 #include <cmath>
 
 
@@ -86,6 +87,10 @@ void Player::UpdateBreakoutLogic(float elapsedTime)
     {
         currentShakeIntensity += breakoutSettings.visualShakeGain;
         shakeEnergy += breakoutSettings.energyGain;
+
+        // TRIGGER JUICE!
+        JuiceEngine::Instance().TriggerGlitchKick(0.2f, 5.0f);
+
     }
     wasSpacePressed = isSpaceDown;
 

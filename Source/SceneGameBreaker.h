@@ -22,23 +22,14 @@
 #include "Player.h"
 #include "Stage.h"
 
-struct SceneCameraPoint {
-    std::string Name;
-
-    // START STATE
-    DirectX::XMFLOAT3 StartPos;
-    DirectX::XMFLOAT3 StartLookAt;
-
-    // END STATE
-    DirectX::XMFLOAT3 EndPos;
-    DirectX::XMFLOAT3 EndLookAt;
-
-    float Duration;
-    EasingType Easing;
-};
+#include "CinematicDirector.h" // Logic Kamera ada di sini
+#include "GUISceneGameBreaker.h" // Logic GUI ada di sini
 
 class SceneGameBreaker : public Scene
 {
+    // Memberi akses ke class GUI untuk edit variabel private
+    friend class GameBreakerGUI;
+
 public:
     SceneGameBreaker();
     ~SceneGameBreaker() override;
@@ -52,7 +43,14 @@ public:
 
 private:
     // =========================================================
-    // DEFINE STRUCT 
+    // INTERNAL HELPER FUNCTIONS
+    // =========================================================
+    void RenderScene(float elapsedTime, Camera* camera);
+    void UpdateGameTriggers(float elapsedTime);
+    void CreateRenderTarget();
+
+    // =========================================================
+    // SPRITE CONTROLS & LAYOUT
     // =========================================================
     struct UI_LayoutData {
         char name[32];
@@ -62,26 +60,6 @@ private:
         float color[4];
     };
 
-    // =========================================================
-    // INTERNAL HELPER FUNCTIONS
-    // =========================================================
-    void RenderScene(float elapsedTime, Camera* camera);
-    void UpdateGameTriggers(float elapsedTime);
-    void CreateRenderTarget();
-    void PlayCinematicTrigger();
-
-    // --- GUI Helpers ---
-    void GUICameraTab();       // Tab Inspector: Kamera (Sekarang hanya status)
-    void GUIPostProcessTab();  // Tab Inspector: Efek Visual & Filter
-    void GUIObjectTransformTab();
-    void GUIObjectColorTab();
-    void GUISpriteTab();       // Tab Inspector: Sprite Border Breaker
-    void GUISectionHeader(const char* label);
-    void ImGuiEditPanel(UI_LayoutData& layout);
-
-    // =========================================================
-    // SPRITE CONTROLS
-    // =========================================================
     DirectX::XMFLOAT3 m_spritePos = { 0.143f, 13.0f, 0.0f };
     DirectX::XMFLOAT2 m_spriteSize = { 16.0f, 9.0f };
     float m_spriteScale = 0.645f;
@@ -89,47 +67,28 @@ private:
     float m_spriteYaw = 0.0f;
     float m_spriteRoll = 0.0f;
 
-    // =========================================================
-    // LAYOUT DATA
-    // =========================================================
     std::string tutorialText = "[A/D] Move [SPACE] Shoot";
-
     UI_LayoutData tutorialLayout = {
-         "Tutorial Panel",               // name
-         349.0f, 836.0f,                 // x, y
-         0.0f,                           // lineSpacing
-         0.625f,                         // scale
-         { 0.96f, 0.80f, 0.23f, 1.0f }   // color 
+         "Tutorial Panel", 349.0f, 836.0f, 0.0f, 0.625f, { 0.96f, 0.80f, 0.23f, 1.0f }
     };
 
     // =========================================================
-    // INTERNAL DATA STRUCTURES
+    // RUNTIME STATE
     // =========================================================
-    struct PostProcessState
-    {
+    struct PostProcessState {
         bool MasterEnabled = true;
         bool EnableVignette = true;
         bool EnableLens = true;
         bool EnableCRT = true;
     };
 
-    // =========================================================
-    // 1. GAMEPLAY OBJECTS
-    // =========================================================
     Ball* ball = nullptr;
     Paddle* paddle = nullptr;
     Player* player = nullptr;
     std::unique_ptr<BlockManager> blockManager;
     std::unique_ptr<Stage> m_stage;
 
-    // =========================================================
-    // 2. CAMERA SYSTEM
-    // =========================================================
     std::shared_ptr<Camera> mainCamera;
-    std::vector<SceneCameraPoint> m_camScenarioPoints; // A, B, C
-
-    // Helper untuk mengubah Pos + Target menjadi Rotasi (Pitch, Yaw, Roll)
-    DirectX::XMFLOAT3 CalculateRotationFromTarget(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& target);
 
     // Camera Settings
     float initialFOV = 45.0f;
@@ -138,42 +97,38 @@ private:
     DirectX::XMFLOAT3 cameraPosition = { 0.0f, 18.0f, 0.0f };
     DirectX::XMFLOAT3 cameraTarget = { 0.0f, 0.0f, 0.0f };
 
-    // =========================================================
-    // 3. GRAPHICS & POST-PROCESSING
-    // =========================================================
+    // Graphics
     std::unique_ptr<Sprite> m_spriteBorderBreaker;
-    std::unique_ptr<Sprite> m_spriteDEBUG_LAYOUT;
+    std::unique_ptr<Sprite> m_spriteDEBUG_LAYOUT; // Jika masih dipakai
 
-    std::unique_ptr<UberShader> uberShader; 
-    UberShader::UberData        uberParams; 
+    std::unique_ptr<UberShader> uberShader;
+    UberShader::UberData        uberParams;
     PostProcessState m_fxState;
 
-    // DirectX Resources (Render Targets)
+    // Render Targets
     Microsoft::WRL::ComPtr<ID3D11Texture2D> renderTargetTexture;
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
     Microsoft::WRL::ComPtr<ID3D11Texture2D> depthStencilTexture;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
 
-    // =========================================================
-    // 4. CONFIGURATION & SETTINGS
-    // =========================================================
-    // Gameplay Config
+    // Config
     int triggerBlockCount = 40;
     float ballSpawnZOffset = 0.38f;
 
     // Visual Config
     DirectX::XMFLOAT4 bgSpriteColor = { 1.0f, 1.0f, 1.0f, 1.0f };
     const char* pathBorderBreaker = "Data/Sprite/Scene Breaker/Sprite_BorderBreakertransparent.png";
-	//const char* pathDebugLayout = "Data/Sprite/Placeholder/[PLACEHOLDER]Back_Title.png";
 
-    // =========================================================
-    // 5. RUNTIME STATE (VARIABLES)
-    // =========================================================
-    bool m_hasTriggered = false; // Flag untuk trigger logic game (bukan animasi)
+    // State Variables
+    bool m_hasTriggered = false;
     float m_globalTime = 0.0f;
+    float m_bgRotation = 0.0f;
+    bool m_isShakeEnabled = false;
+    float m_configFineDensity = 30.0f;
+    float m_configZoomDensity = 0.0f;
     bool m_introFinished = false;
 
-    // Background dynamic state
-    float m_bgRotation = 0.0f;
+    // [PENTING] Director yang mengatur kamera sekarang
+    std::unique_ptr<CinematicDirector> m_director;
 };

@@ -131,6 +131,9 @@
     <ClInclude Include="Source\BitmapFont.h" />
     <ClInclude Include="Source\Block.h" />
     <ClInclude Include="Source\BlockManager.h" />
+    <ClInclude Include="Source\CinematicDirector.h" />
+    <ClInclude Include="Source\GUISceneGameBreaker.h" />
+    <ClInclude Include="Source\JuiceEngine.h" />
     <ClInclude Include="Source\LogConsole.h" />
     <ClInclude Include="Source\PostProcessManager.h" />
     <ClInclude Include="Source\Stage.h" />
@@ -191,6 +194,7 @@
     <ClInclude Include="Source\UIButtonSprite.h" />
     <ClInclude Include="Source\UIComponents.h" />
     <ClInclude Include="Source\UILabel.h" />
+    <ClInclude Include="Source\UIPanel.h" />
     <ClInclude Include="Source\WindowManager.h" />
   </ItemGroup>
   <ItemGroup>
@@ -213,10 +217,13 @@
     <ClCompile Include="Source\CameraController.cpp" />
     <ClCompile Include="Source\Character.cpp" />
     <ClCompile Include="Source\CharacterMovement.cpp" />
+    <ClCompile Include="Source\CinematicDirector.cpp" />
     <ClCompile Include="Source\Enemy.cpp" />
     <ClCompile Include="Source\Framework.cpp" />
     <ClCompile Include="Source\FreeCameraController.cpp" />
     <ClCompile Include="Source\GameWindow.cpp" />
+    <ClCompile Include="Source\GUISceneGameBreaker.cpp" />
+    <ClCompile Include="Source\JuiceEngine.cpp" />
     <ClCompile Include="Source\LogConsole.cpp" />
     <ClCompile Include="Source\Main.cpp" />
     <ClCompile Include="Source\Paddle.cpp" />
@@ -255,6 +262,7 @@
     <ClCompile Include="Source\Typewriter.cpp" />
     <ClCompile Include="Source\UberShader.cpp" />
     <ClCompile Include="Source\UIComponents.cpp" />
+    <ClCompile Include="Source\UIPanel.cpp" />
     <ClCompile Include="Source\WindowManager.cpp" />
   </ItemGroup>
   <ItemGroup>

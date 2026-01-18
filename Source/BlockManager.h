@@ -9,6 +9,7 @@
 #include "Camera.h"
 #include "Player.h"
 #include "System/ModelRenderer.h"
+#include <functional>
 
 class BlockManager
 {
@@ -28,6 +29,10 @@ public:
 
     // Color Setting
     DirectX::XMFLOAT4 globalBlockColor = { 0.96f, 0.80f, 0.23f, 1.0f };
+
+    void SetOnBlockHitCallback(std::function<void()> callback) {
+        m_onBlockHitCallback = callback;
+    }
 
 private:
     // Helper grid 
@@ -65,4 +70,7 @@ private:
         float dz = a.z - b.z;
         return dx * dx + dy * dy + dz * dz;
     }
+
+	// Callback when a block is hit
+    std::function<void()> m_onBlockHitCallback = nullptr;
 };

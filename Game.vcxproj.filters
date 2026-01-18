@@ -228,6 +228,18 @@
     <ClCompile Include="Source\LogConsole.cpp">
       <Filter>Source\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Source\UIPanel.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\JuiceEngine.cpp">
+      <Filter>Source\Juice</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\CinematicDirector.cpp">
+      <Filter>Source\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\GUISceneGameBreaker.cpp">
+      <Filter>Source\ImGui</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Stage.cpp">
       <Filter>Source\Stage</Filter>
     </ClCompile>
@@ -467,6 +479,18 @@
     <ClInclude Include="Source\UILabel.h">
       <Filter>Source\UI</Filter>
     </ClInclude>
+    <ClInclude Include="Source\UIPanel.h">
+      <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\JuiceEngine.h">
+      <Filter>Source\Juice</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\CinematicDirector.h">
+      <Filter>Source\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\GUISceneGameBreaker.h">
+      <Filter>Source\ImGui</Filter>
+    </ClInclude>
     <ClInclude Include="Source\Stage.h">
       <Filter>Source\Stage</Filter>
     </ClInclude>
@@ -542,6 +566,12 @@
     </Filter>
     <Filter Include="Source\Shaders">
       <UniqueIdentifier>{9305fe09-e6fa-4d28-a574-7cb568d9c056}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Juice">
+      <UniqueIdentifier>{165d3b92-0931-4466-8fbc-edf664481396}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\ImGui">
+      <UniqueIdentifier>{2be508a9-002e-4235-99a4-f7752bfca66b}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Stage">
       <UniqueIdentifier>{97196af7-7764-4f00-b9df-b71d3e6428c5}</UniqueIdentifier>

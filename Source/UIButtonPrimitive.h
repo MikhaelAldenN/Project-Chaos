@@ -46,6 +46,10 @@ public:
         visibleChars = count;
     }
 
+    void SetState(ButtonState state) {
+        currentState = state;
+    }
+
     int GetVisibleChars() const { return visibleChars; }
     int GetTotalChars() const { return (int)labelText.length(); }
     bool IsFinishedTyping() const { return visibleChars >= (int)labelText.length(); }

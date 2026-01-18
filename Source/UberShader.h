@@ -55,6 +55,7 @@ public:
         float             scanlineSize          = 150.0f;
         float             fineOpacity           = 1.0f;
         float             fineDensity           = 30.0f;
+        float             fineRotation          = 0.0f;
     };
 
     // =========================================================
@@ -90,7 +91,8 @@ private:
         float scanlineSize;
         float fineOpacity;
         float fineDensity;
-        float padding;
+        /*float padding;*/
+        float fineRotation;
     };
 
     Microsoft::WRL::ComPtr<ID3D11VertexShader>  vertexShader;

@@ -4,6 +4,7 @@
 #include <imgui.h>
 #include <cmath>
 #include <algorithm>
+#include "JuiceEngine.h"
 
 using namespace DirectX;
 
@@ -128,6 +129,29 @@ void CameraController::Update(float elapsedTime)
     case CameraControlMode::GamePad:
     case CameraControlMode::Mouse:       UpdateOrbitCamera(elapsedTime, camera); break;
     }
+
+    // =========================================================
+    // POST-UPDATE MODIFIERS (Shake, Sway, Headbob, etc.)
+    // =========================================================
+
+    // 1. Ambil Data Offset dari JuiceEngine
+    // (Tidak perlu hitung logika di sini, cukup ambil hasilnya)
+    XMFLOAT3 shakePos = JuiceEngine::Instance().GetShakePosOffset();
+    XMFLOAT3 shakeRot = JuiceEngine::Instance().GetShakeRotOffset();
+
+    // 2. Apply Position (Additive)
+    XMFLOAT3 currentPos = camera->GetPosition();
+    currentPos.x += shakePos.x;
+    currentPos.y += shakePos.y;
+    currentPos.z += shakePos.z;
+    camera->SetPosition(currentPos);
+
+    // 3. Apply Rotation (Additive)
+    XMFLOAT3 currentRot = camera->GetRotation();
+    currentRot.x += shakeRot.x;
+    currentRot.y += shakeRot.y;
+    currentRot.z += shakeRot.z;
+    camera->SetRotation(currentRot);
 }
 
 // =========================================================
@@ -265,13 +289,24 @@ void CameraController::UpdateSequence(float dt, std::shared_ptr<Camera>& camera)
 
 void CameraController::UpdateFixedFollow(std::shared_ptr<Camera>& camera)
 {
+    // 1. Hitung Posisi Kamera (Seperti biasa)
     XMFLOAT3 finalPos;
     finalPos.x = m_targetPos.x + m_fixedPos.x;
     finalPos.y = m_targetPos.y + m_fixedPos.y;
     finalPos.z = m_targetPos.z + m_fixedPos.z;
 
     camera->SetPosition(finalPos);
-    camera->LookAt(m_targetPos);
+
+    // 2. [BARU] Hitung Titik Pandang (Look At) dengan Offset
+    // Sebelumnya cuma: camera->LookAt(m_targetPos);
+    // Sekarang kita tambahkan m_targetOffset:
+
+    XMFLOAT3 finalLookAt;
+    finalLookAt.x = m_targetPos.x + m_targetOffset.x;
+    finalLookAt.y = m_targetPos.y + m_targetOffset.y;
+    finalLookAt.z = m_targetPos.z + m_targetOffset.z;
+
+    camera->LookAt(finalLookAt);
 }
 
 void CameraController::UpdateFixedStatic(std::shared_ptr<Camera>& camera)
@@ -532,10 +567,11 @@ CameraController::SequenceTimeInfo CameraController::GetSequenceProgress() const
     {
         info.CurrentTime = m_seqTimer;
         info.TotalDuration = m_sequenceQueue[m_currentKeyframeIdx].Duration;
-
-        // --- ISI DATA BARU ---
         info.CurrentIndex = m_currentKeyframeIdx;
         info.TotalShots = m_sequenceQueue.size();
+
+        // [BARU] Kirim tipe easing ke luar
+        info.CurrentEasing = m_sequenceQueue[m_currentKeyframeIdx].Easing;
     }
     else
     {
@@ -543,6 +579,7 @@ CameraController::SequenceTimeInfo CameraController::GetSequenceProgress() const
         info.TotalDuration = 0.0f;
         info.CurrentIndex = 0;
         info.TotalShots = 0;
+        info.CurrentEasing = EasingType::Linear; // Default
     }
 
     return info;
