@@ -10,9 +10,9 @@
 namespace StageConfig
 {
     static const char* MODEL_PATH = "Data/Model/Stage/PLACEHOLDER_mdl_Stage.glb";
-    static const DirectX::XMFLOAT3 DEFAULT_POS      = { 0.0f, 0.0f, -20.0f }; 
+    static const DirectX::XMFLOAT3 DEFAULT_POS      = { 0.0f, 0.3f, -20.0f }; 
     static const DirectX::XMFLOAT3 DEFAULT_ROT      = { 0.0f, 180.0f, 0.0f };
-    static const DirectX::XMFLOAT3 DEFAULT_SCALE    = { 50.0f, 50.0f, 50.0f };
+    static const DirectX::XMFLOAT3 DEFAULT_SCALE    = { 70.0f, 70.0f, 70.0f };
     static const DirectX::XMFLOAT4 DEFAULT_COLOR    = { 1.0f, 1.0f, 1.0f, 1.0f };
 }
 
