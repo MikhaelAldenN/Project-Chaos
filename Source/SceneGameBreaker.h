@@ -121,6 +121,8 @@ private:
     float m_globalTime = 0.0f;
     float m_bgRotation = 0.0f;
     bool m_isShakeEnabled = false;
+    float m_configFineDensity = 30.0f;
+    float m_configZoomDensity = 0.0f;
 
     // [PENTING] Director yang mengatur kamera sekarang
     std::unique_ptr<CinematicDirector> m_director;

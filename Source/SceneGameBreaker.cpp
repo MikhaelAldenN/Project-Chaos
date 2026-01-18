@@ -1,5 +1,6 @@
 #include <imgui.h>
 #include <SDL3/SDL.h>
+#include <algorithm>
 #include "Framework.h"
 #include "SceneGameBreaker.h"
 #include "WindowManager.h"
@@ -148,11 +149,59 @@ void SceneGameBreaker::Update(float elapsedTime)
     JuiceEngine::Instance().Update(elapsedTime);
     UpdateGameTriggers(elapsedTime);
 
-    // Update Shake Switch (Agar block hit cuma getar setelah intro)
+    // =========================================================
+    // LOGIKA SCANLINE ZOOM EFFECT (Dynamic FineDensity)
+    // =========================================================
+
     auto seqInfo = CameraController::Instance().GetSequenceProgress();
+
+    // 1. LOCK STATE
     if (seqInfo.IsPlaying && seqInfo.CurrentIndex >= 1)
     {
         m_isShakeEnabled = true;
+    }
+
+    // [MODIFIKASI] Ambil nilai dari variabel Class (Config), bukan hardcode lokal!
+    float normalDensity = m_configFineDensity; // Nilai dari ImGui
+    float zoomDensity = m_configZoomDensity;   // Nilai dari ImGui
+    float baseStrength = 0.2f;
+
+    // Config Rotasi
+    float startRotation = 0.0f;
+    float targetRotation = 0.45f;
+
+    bool isInsideProgram = m_isShakeEnabled;
+
+    if (isInsideProgram)
+    {
+        // DALAM PROGRAM: Hilang
+        uberParams.fineOpacity = 0.0f;
+        uberParams.scanlineStrength = 0.0f;
+        uberParams.fineRotation = targetRotation;
+    }
+    else if (seqInfo.IsPlaying && seqInfo.CurrentIndex == 0)
+    {
+        // TRANSISI: Animasi dari Config A ke Config B
+        float t = 0.0f;
+        if (seqInfo.TotalDuration > 0.0f) t = seqInfo.CurrentTime / seqInfo.TotalDuration;
+        t = std::clamp(t, 0.0f, 1.0f);
+
+        float easedT = CameraController::ApplyEasing(t, seqInfo.CurrentEasing);
+
+        // Interpolasi menggunakan nilai Config
+        uberParams.fineDensity = normalDensity + (zoomDensity - normalDensity) * easedT;
+        uberParams.fineRotation = startRotation + (targetRotation - startRotation) * easedT;
+
+        uberParams.fineOpacity = 1.0f;
+        uberParams.scanlineStrength = baseStrength;
+    }
+    else
+    {
+        // IDLE: Pakai nilai Config Normal
+        uberParams.fineOpacity = 1.0f;
+        uberParams.fineDensity = normalDensity; // Ini akan ngikutin slider ImGui secara realtime
+        uberParams.fineRotation = startRotation;
+        uberParams.scanlineStrength = baseStrength;
     }
 
     // Auto Glitch Transition (Optional: Bisa dipindah ke Director juga kalau mau lebih bersih)

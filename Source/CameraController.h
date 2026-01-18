@@ -114,9 +114,12 @@ public:
         float TotalDuration;
         size_t CurrentIndex; // TAMBAHAN: Index saat ini
         size_t TotalShots;   // TAMBAHAN: Total jumlah shot
+        EasingType CurrentEasing;
     };
 
     SequenceTimeInfo GetSequenceProgress() const;
+
+    static float ApplyEasing(float t, EasingType type);
 
 private:
     // Singleton handling
@@ -133,7 +136,7 @@ private:
     void UpdateOrbitCamera(float dt, std::shared_ptr<Camera>& camera);
 
     // --- Math Helpers (Static/Pure) ---
-    static float ApplyEasing(float t, EasingType type);
+    //static float ApplyEasing(float t, EasingType type);
     static DirectX::XMFLOAT3 LerpFloat3(const DirectX::XMFLOAT3& start, const DirectX::XMFLOAT3& end, float t);
     static DirectX::XMFLOAT3 CalculateHermitePos(const DirectX::XMFLOAT3& p0, const DirectX::XMFLOAT3& p1, const DirectX::XMFLOAT3& p2, const DirectX::XMFLOAT3& p3, float t, float tension);
 

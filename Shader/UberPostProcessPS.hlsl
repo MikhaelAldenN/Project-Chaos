@@ -22,7 +22,7 @@ cbuffer UberConstantBuffer : register(b0)
     float crt_fineOpacity; 
     float crt_fineDensity; 
     
-    float padding; 
+    float fineRotation; 
 };
 
 struct VS_OUT
@@ -151,13 +151,29 @@ float4 main(VS_OUT pin) : SV_TARGET
         finalColor.rgb -= bar * crt_scanlineOpacity * 0.5f;
     }
 
-    // -----------------------------------------------------
+// -----------------------------------------------------
     // STEP 5B: FINE SCANLINES (Static Mesh)
     // -----------------------------------------------------
     if (crt_fineOpacity > 0.0f)
     {
+        // [BARU] ROTATION LOGIC
+        // 1. Buat Matriks Rotasi (2D)
+        float s = sin(fineRotation);
+        float c = cos(fineRotation);
+        float2x2 rotationMatrix = float2x2(c, -s, s, c);
+
+        // 2. Pusatkan UV ke tengah (0.5, 0.5) agar berputar pada poros tengah layar
+        float2 centeredUV = uvG - 0.5f;
+
+        // 3. Terapkan Rotasi
+        float2 rotatedUV = mul(centeredUV, rotationMatrix);
+
+        // 4. Kembalikan posisi UV
+        rotatedUV += 0.5f;
+
+        // [UPDATE] Gunakan 'rotatedUV.y' menggantikan 'uvG.y'
         // High frequency sine wave
-        float mesh = sin(uvG.y * crt_fineDensity * 50.0f);
+        float mesh = sin(rotatedUV.y * crt_fineDensity * 50.0f);
         mesh = (mesh + 1.0f) * 0.5f;
         
         // Slight sharpness
@@ -166,7 +182,7 @@ float4 main(VS_OUT pin) : SV_TARGET
         // Apply dark mesh lines
         finalColor.rgb -= (1.0f - mesh) * crt_fineOpacity * 0.3f;
     }
-
+    
     // -----------------------------------------------------
     // STEP 6: APPLY VIGNETTE COLOR
     // -----------------------------------------------------

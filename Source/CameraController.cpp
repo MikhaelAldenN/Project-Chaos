@@ -567,10 +567,11 @@ CameraController::SequenceTimeInfo CameraController::GetSequenceProgress() const
     {
         info.CurrentTime = m_seqTimer;
         info.TotalDuration = m_sequenceQueue[m_currentKeyframeIdx].Duration;
-
-        // --- ISI DATA BARU ---
         info.CurrentIndex = m_currentKeyframeIdx;
         info.TotalShots = m_sequenceQueue.size();
+
+        // [BARU] Kirim tipe easing ke luar
+        info.CurrentEasing = m_sequenceQueue[m_currentKeyframeIdx].Easing;
     }
     else
     {
@@ -578,6 +579,7 @@ CameraController::SequenceTimeInfo CameraController::GetSequenceProgress() const
         info.TotalDuration = 0.0f;
         info.CurrentIndex = 0;
         info.TotalShots = 0;
+        info.CurrentEasing = EasingType::Linear; // Default
     }
 
     return info;

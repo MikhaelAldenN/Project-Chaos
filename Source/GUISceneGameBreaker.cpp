@@ -337,7 +337,8 @@ void GameBreakerGUI::DrawPostProcessTab(SceneGameBreaker* scene)
 
         ImGui::SliderFloat("Scanline Opacity", &uber.scanlineStrength, 0.0f, 1.0f);
         ImGui::SliderFloat("Scanline Size", &uber.scanlineSize, 1.0f, 150.0f);
-        ImGui::SliderFloat("Noise Density", &uber.fineDensity, 10.0f, 500.0f);
+        ImGui::SliderFloat("Fine Density (Idle)", &scene->m_configFineDensity, 1.0f, 100.0f);
+        ImGui::SliderFloat("Fine Density (Zoom)", &scene->m_configZoomDensity, 1.0f, 100.0f);
 
         if (!scene->m_fxState.EnableCRT) ImGui::PopStyleVar();
         ImGui::Unindent();
