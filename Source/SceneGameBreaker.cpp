@@ -50,6 +50,9 @@ SceneGameBreaker::SceneGameBreaker()
     blockManager = std::make_unique<BlockManager>();
     blockManager->Initialize(player);
 
+    m_enemyManager = std::make_unique<EnemyManager>();
+    m_enemyManager->Initialize(Graphics::Instance().GetDevice());
+
     // Callback untuk Shake saat blok hancur
     blockManager->SetOnBlockHitCallback([this]()
         {
@@ -147,6 +150,11 @@ void SceneGameBreaker::Update(float elapsedTime)
             if (ball) ball->SetBoundariesEnabled(false);
             player->SetGameStage(2);
         }
+    }
+
+    if (m_enemyManager)
+    {
+        m_enemyManager->Update(elapsedTime, activeCam);
     }
 
     // Update Systems
@@ -372,11 +380,12 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
 
-    if (m_introFinished && m_stage) { m_stage->UpdateTransform(); m_stage->Render(modelRenderer); }
     if (ball) ball->Render(modelRenderer);
     if (blockManager) blockManager->Render(modelRenderer);
     if (paddle && paddle->IsActive()) modelRenderer->Draw(ShaderId::Phong, paddle->GetModel(), paddle->color);
     if (player) modelRenderer->Draw(ShaderId::Phong, player->GetModel(), player->color);
+    if (m_introFinished && m_enemyManager) { m_enemyManager->Render(modelRenderer); }
+    if (m_introFinished && m_stage) { m_stage->UpdateTransform(); m_stage->Render(modelRenderer); }
     modelRenderer->Render(rc);
 }
 

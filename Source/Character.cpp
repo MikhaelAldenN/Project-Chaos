@@ -11,7 +11,6 @@ Character::Character()
 Character::~Character()
 {
     if (movement) delete movement;
-    // Model is managed by shared_ptr, no manual delete needed
 }
 
 void Character::Render(ModelRenderer* renderer)
@@ -26,7 +25,10 @@ void Character::RenderDebug(const RenderContext& rc, ShapeRenderer* renderer)
     // Visualize collision capsule
     XMFLOAT3 pos = movement->GetPosition();
     XMMATRIX T = XMMatrixTranslation(pos.x, pos.y, pos.z);
-    XMMATRIX R = XMMatrixRotationY(movement->GetRotationY());
+
+    XMFLOAT3 rot = movement->GetRotation();
+    XMMATRIX R = XMMatrixRotationRollPitchYaw(rot.x, rot.y, rot.z);
+
     XMFLOAT4X4 transform;
     XMStoreFloat4x4(&transform, R * T);
 
@@ -43,8 +45,9 @@ void Character::SyncData()
         // 1. Sync Position
         rootNode.position = movement->GetPosition();
 
-        // 2. Sync Rotation (Convert Euler Y to Quaternion)
-        DirectX::XMVECTOR qRot = DirectX::XMQuaternionRotationRollPitchYaw(0, movement->GetRotationY(), 0);
+        // 2. Sync Rotation
+        XMFLOAT3 rot = movement->GetRotation();
+        DirectX::XMVECTOR qRot = DirectX::XMQuaternionRotationRollPitchYaw(rot.x, rot.y, rot.z);
         DirectX::XMStoreFloat4(&rootNode.rotation, qRot);
 
         // 3. Sync Scale

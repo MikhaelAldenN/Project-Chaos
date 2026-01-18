@@ -14,7 +14,7 @@ void CharacterMovement::SetMoveInput(float x, float z)
     if (fabs(x) > 0.01f || fabs(z) > 0.01f)
     {
         // Calculate target angle based on input vector
-        rotationY = atan2f(x, z);
+        rotation.y = atan2f(x, z);
     }
 }
 

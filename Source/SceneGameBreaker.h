@@ -18,6 +18,7 @@
 // Game Objects
 #include "Ball.h"
 #include "BlockManager.h"
+#include "EnemyManager.h"
 #include "Paddle.h"
 #include "Player.h"
 #include "Stage.h"
@@ -114,6 +115,7 @@ private:
     Paddle* paddle = nullptr;
     Player* player = nullptr;
     std::unique_ptr<BlockManager> blockManager;
+    std::unique_ptr<EnemyManager> m_enemyManager;
     std::unique_ptr<Stage> m_stage;
 
     std::shared_ptr<Camera> mainCamera;

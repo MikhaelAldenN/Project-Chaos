@@ -243,6 +243,9 @@
     <ClCompile Include="Source\JuiceEngine.cpp">
       <Filter>Source\JuiceEngine</Filter>
     </ClCompile>
+    <ClCompile Include="Source\EnemyManager.cpp">
+      <Filter>Source\Character</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\AnimationController.h">
@@ -493,6 +496,9 @@
     </ClInclude>
     <ClInclude Include="Source\JuiceEngine.h">
       <Filter>Source\JuiceEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\EnemyManager.h">
+      <Filter>Source\Character</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

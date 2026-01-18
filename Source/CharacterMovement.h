@@ -18,8 +18,12 @@ public:
     const DirectX::XMFLOAT3& GetPosition() const { return position; }
     void SetPosition(const DirectX::XMFLOAT3& pos) { position = pos; }
 
-    float GetRotationY() const { return rotationY; }
-    void SetRotationY(float rad) { rotationY = rad; }
+    const DirectX::XMFLOAT3& GetRotation() const { return rotation; }
+    void SetRotation(const DirectX::XMFLOAT3& rot) { rotation = rot; }
+
+    float GetRotationY() const { return rotation.y; }
+    void SetRotationY(float rad) { rotation.y = rad; }
+
     const DirectX::XMFLOAT3& GetVelocity() const { return velocity; }
 
     // Status checks
@@ -30,7 +34,7 @@ private:
     // Physics State
     DirectX::XMFLOAT3 position = { 0, 0, 0 };
     DirectX::XMFLOAT3 velocity = { 0, 0, 0 };
-    float rotationY = 0.0f;
+    DirectX::XMFLOAT3 rotation = { 0, 0, 0 };
 
     // Parameters
     float moveSpeed = 5.0f;

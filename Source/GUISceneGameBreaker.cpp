@@ -414,6 +414,33 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
             ImGui::Unindent();
         }
     }
+
+    // ===========================
+    // SECTION: ENEMIES
+    // ===========================
+    if (scene->m_enemyManager)
+    {
+        if (ImGui::CollapsingHeader("Enemies Paddle List"))
+        {
+            ImGui::Indent();
+
+            auto& enemies = scene->m_enemyManager->GetEnemies();
+            for (size_t i = 0; i < enemies.size(); ++i)
+            {
+                ImGui::PushID((int)i);
+
+                char label[32];
+                snprintf(label, 32, "Enemy %d Color", (int)i + 1);
+
+                ImGui::ColorEdit4(label, &enemies[i]->color.x);
+
+                ImGui::PopID();
+            }
+
+            ImGui::Unindent();
+        }
+        ImGui::Spacing();
+    }
 }
 
 void GameBreakerGUI::DrawSpriteTab(SceneGameBreaker* scene)
@@ -499,6 +526,80 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
             }
 
             ImGui::Unindent();
+        }
+
+        if (scene->m_enemyManager)
+        {
+            if (ImGui::CollapsingHeader("Enemies Transform", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Indent();
+
+                auto& enemies = scene->m_enemyManager->GetEnemies();
+
+                // Loop through every enemy to create individual controls
+                for (size_t i = 0; i < enemies.size(); ++i)
+                {
+                    ImGui::PushID((int)i); 
+
+                    char headerName[32];
+                    snprintf(headerName, 32, "Enemy #%d", (int)i + 1);
+
+                    if (ImGui::TreeNode(headerName))
+                    {
+                        Enemy* e = enemies[i].get();
+
+                        // Get current values
+                        XMFLOAT3 pos = e->GetPosition();
+                        XMFLOAT3 rot = e->GetRotation(); 
+
+                        // Position Sliders                        
+                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
+                        if (ImGui::DragFloat3("XYZ##Pos", &pos.x, 0.1f))
+                        {
+                            e->SetPosition(pos);
+                        }
+
+                        // Rotation Sliders
+                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
+                        if (ImGui::DragFloat3("Pitch/Yaw/Roll##Rot", &rot.x, 1.0f, -2.0f, 2.0f))
+                        {
+                            e->SetRotation(rot);
+                        }
+
+                        // Scale Sliders
+                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
+                        ImGui::DragFloat3("XYZ##Scl", &e->scale.x, 0.01f, 0.1f, 10.0f);
+
+                        ImGui::Spacing();
+
+                        // Reset Button 
+                        if (ImGui::Button("Reset Transform"))
+                        {
+                            e->SetPosition(e->GetOriginalPosition());
+                            e->SetRotation(e->GetOriginalRotation());
+                            e->scale = { 1.0f, 1.0f, 1.0f };      
+                        }
+
+                        ImGui::TreePop();
+                    }
+
+                    ImGui::PopID();
+                    ImGui::Separator();
+                }
+
+                ImGui::Spacing();
+
+                // Helper to spawn more from GUI
+                if (ImGui::Button("+ Spawn New Enemy"))
+                {
+                    EnemySpawnConfig newSpawn;
+                    newSpawn.Position = { 0.0f, 0.0f, 0.0f };    
+                    newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };    
+                    newSpawn.Color = { 1.0f, 0.2f, 0.2f, 1.0f }; 
+                    scene->m_enemyManager->SpawnEnemy(newSpawn);
+                }
+                ImGui::Unindent();
+            }
         }
     }
 }
