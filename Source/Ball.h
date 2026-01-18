@@ -28,12 +28,12 @@ private:
     // ----------------------------------------------------
     // PHYSICS & MOVEMENT SETTINGS
     // ----------------------------------------------------
-    float speed = 3.0f;             // Speed of the ball
+    float speed = 7.0f;             // Speed of the ball
     float radius = 0.25f;           // Collision radius 
 
     // Launch Settings 
-    float launchDirX = 0.3f;        // Initial X direction
-    float launchDirZ = 1.0f;        // Initial Z direction (Forward)
+    float launchMinX = 0.5f;        // Minimum angle (Prevents going straight)
+    float launchMaxX = 1.5f;        // Maximum angle (Prevents going too sideways)
 
     // ----------------------------------------------------
     // ARENA BOUNDARIES

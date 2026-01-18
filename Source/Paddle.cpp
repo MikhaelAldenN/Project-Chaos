@@ -54,9 +54,7 @@ void Paddle::UpdateAI(float elapsedTime, Ball* ball, BlockManager* blockManager)
         launchTimer += elapsedTime;
         if (launchTimer >= aiLaunchDelay)
         {
-            float randX = GetRandomFloat(aiLaunchRandomX);
-            ball->SetVelocity({ randX, 0.0f, aiLaunchSpeed });
-            ball->SetActive(true);
+            ball->Launch();
             launchTimer = 0.0f;
         }
         return;

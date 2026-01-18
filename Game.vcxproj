@@ -133,6 +133,7 @@
     <ClInclude Include="Source\BlockManager.h" />
     <ClInclude Include="Source\LogConsole.h" />
     <ClInclude Include="Source\PostProcessManager.h" />
+    <ClInclude Include="Source\Stage.h" />
     <ClInclude Include="Source\TextDatabase.h" />
     <ClInclude Include="Source\TUIBuilder.h" />
     <ClInclude Include="Source\UberShader.h" />
@@ -229,6 +230,7 @@
     <ClCompile Include="Source\SceneIntroBios.cpp" />
     <ClCompile Include="Source\SceneIntroOS.cpp" />
     <ClCompile Include="Source\SceneTitle.cpp" />
+    <ClCompile Include="Source\Stage.cpp" />
     <ClCompile Include="Source\System\BasicShader.cpp" />
     <ClCompile Include="Source\System\Dialog.cpp" />
     <ClCompile Include="Source\System\GamePad.cpp" />

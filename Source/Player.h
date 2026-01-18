@@ -46,19 +46,24 @@ public:
         float visualMaxShake = 0.8f;            // Max displacement
 
         // [GAMEPLAY] Energy / Mashing Logic    
-        float energyGain = 6.4f;                // Energy added per click
+        float energyGain = 7.2f;                // Energy added per click
         float energyDecay = 40.0f;              // Energy lost per second 
         float energyMax = 100.0f;               // Max bar value
 
         // [THRESHOLDS] When things happen
-        float thresholdFormation = 60.0f;       // Phase 1 (Yellow)
-        float thresholdDestruction = 100.0f;    // Phase 2 (Pale Yellow/Destroy)
+        float thresholdFormation = 60.0f;       // Phase 1 (Pale Yellow)
+        float thresholdDestruction = 100.0f;    // Phase 2 (White/Destroy)
+
+        // [COLORS] 
+        DirectX::XMFLOAT4 colorYellow = { 0.96f, 0.80f, 0.23f, 1.0f };  // Start Color
+        DirectX::XMFLOAT4 colorPale = { 1.0f, 0.89f, 0.58f, 1.0f };     // Phase 1 Target
+        DirectX::XMFLOAT4 colorWhite = { 1.0f, 1.0f, 1.0f, 1.0f };      // Phase 2 Target
     };
 
     BreakoutSettings breakoutSettings;
 
     // Color Setting
-    DirectX::XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+    DirectX::XMFLOAT4 color = { 0.96f, 0.80f, 0.23f, 1.0f };
 
 private:
     void UpdateBreakoutLogic(float elapsedTime);

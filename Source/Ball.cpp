@@ -28,9 +28,13 @@ void Ball::Reset()
 void Ball::Launch()
 {
     if (isActive) return;
-
     isActive = true;
-    velocity = { launchDirX, 0.0f, launchDirZ };
+
+    float dirX = (rand() % 2 == 0) ? 1.0f : -1.0f;
+    float range = launchMaxX - launchMinX;
+    float randomPct = (float)(rand() % 100) / 100.0f; 
+    float strength = launchMinX + (range * randomPct);
+    velocity = { dirX * strength, 0.0f, 1.0f };
     XMVECTOR v = XMLoadFloat3(&velocity);
     v = XMVector3Normalize(v) * speed;
     XMStoreFloat3(&velocity, v);
@@ -48,7 +52,7 @@ void Ball::Update(float elapsedTime, Camera* camera)
     XMFLOAT3 pos = movement->GetPosition();
     prevPosition = pos;
 
-    float minAbsZ = speed * 0.25f; // Require at least 25% vertical speed
+    float minAbsZ = speed * 0.25f; 
 
     if (std::abs(velocity.z) < minAbsZ)
     {
@@ -59,8 +63,6 @@ void Ball::Update(float elapsedTime, Camera* camera)
         XMStoreFloat3(&velocity, v);
     }
 
-    pos.x += velocity.x * elapsedTime;
-    pos.z += velocity.z * elapsedTime;
     pos.x += velocity.x * elapsedTime;
     pos.z += velocity.z * elapsedTime;
 

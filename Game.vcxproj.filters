@@ -228,6 +228,9 @@
     <ClCompile Include="Source\LogConsole.cpp">
       <Filter>Source\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Stage.cpp">
+      <Filter>Source\Stage</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -464,6 +467,9 @@
     <ClInclude Include="Source\UILabel.h">
       <Filter>Source\UI</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Stage.h">
+      <Filter>Source\Stage</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Basic.hlsli">
@@ -536,6 +542,9 @@
     </Filter>
     <Filter Include="Source\Shaders">
       <UniqueIdentifier>{9305fe09-e6fa-4d28-a574-7cb568d9c056}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Stage">
+      <UniqueIdentifier>{97196af7-7764-4f00-b9df-b71d3e6428c5}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

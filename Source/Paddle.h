@@ -58,8 +58,6 @@ private:
     // AI SETTINGS
     // ----------------------------------------------------
     float aiLaunchDelay = 1.0f;     // How long AI waits before serving ball
-    float aiLaunchSpeed = 3.0f;     // Speed of ball when AI serves
-    float aiLaunchRandomX = 1.0f;   // Random X variance on serve (+/-)
 
     // Prediction & Targeting
     int   aiPredictionSteps = 10;   // Safety limit for wall bounce loops

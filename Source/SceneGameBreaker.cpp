@@ -39,8 +39,8 @@ SceneGameBreaker::SceneGameBreaker()
     camCtrl.SetFixedSetting(startPos);
     camCtrl.SetTarget(cameraTarget);
 
-
     m_camScenarioPoints.clear();
+    m_introFinished = false;
 
     // SHOT 1: Intro (Static shot, jadi Start & End sama)
     m_camScenarioPoints.push_back({
@@ -73,7 +73,8 @@ SceneGameBreaker::SceneGameBreaker()
     // Initialize Assets
     // --------------------------------------------------------
     m_spriteBorderBreaker = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathBorderBreaker);
-	//m_spriteDEBUG_LAYOUT = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathDebugLayout);
+    //m_spriteDEBUG_LAYOUT = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathDebugLayout);
+    m_stage = std::make_unique<Stage>(Graphics::Instance().GetDevice());
 
     ball = new Ball();
     paddle = new Paddle();
@@ -138,7 +139,10 @@ void SceneGameBreaker::Update(float elapsedTime)
     if (blockManager)
     {
         blockManager->Update(elapsedTime, activeCam, player);
-        if (ball && ball->IsActive()) blockManager->CheckCollision(ball);
+        if (ball && ball->IsActive())
+        {
+            blockManager->CheckCollision(ball);
+        }
     }
 
     // --------------------------------------------------------
@@ -223,6 +227,12 @@ void SceneGameBreaker::Update(float elapsedTime)
                 uberParams.glitchStrength = 0.0f;
             }
             wasPlayingSequence = false; // Reset flag biar gak ganggu manual slider
+            m_introFinished = true;
+        }
+
+        if (m_introFinished && m_fxState.MasterEnabled && m_fxState.EnableLens)
+        {
+            uberParams.glitchStrength = 0.0f;
         }
     }
 }
@@ -332,7 +342,7 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
     RenderScene(elapsedTime, targetCam);
 
     // --- B. World Space Sprite (Transparent) ---
-    if (m_spriteBorderBreaker)
+    if (m_spriteBorderBreaker && !m_introFinished)
     {
         dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
         dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestOnly), 0);
@@ -427,6 +437,7 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
 
+    if (m_introFinished && m_stage) { m_stage->UpdateTransform(); m_stage->Render(modelRenderer); }
     if (ball) ball->Render(modelRenderer);
     if (blockManager) blockManager->Render(modelRenderer);
     if (paddle && paddle->IsActive()) { modelRenderer->Draw(ShaderId::Phong, paddle->GetModel(), paddle->color); }
@@ -479,7 +490,7 @@ void SceneGameBreaker::ImGuiEditPanel(UI_LayoutData& layout)
         ImGui::DragFloat("Pos X", &layout.x, 1.0f, 0.0f, 1920.0f);
         ImGui::DragFloat("Pos Y", &layout.y, 1.0f, 0.0f, 1080.0f);
         ImGui::DragFloat("Scale", &layout.scale, 0.01f, 0.1f, 5.0f);
-        
+
         ImGui::DragFloat("Line Spacing", &layout.lineSpacing, 1.0f, 0.0f, 200.0f);
         ImGui::ColorEdit4("Color", layout.color);
 
@@ -531,52 +542,19 @@ void SceneGameBreaker::DrawGUI()
                 ImGui::EndTabItem();
             }
 
-            // --- TAB: OBJECT COLOR ---
+            // --- TAB 4: OBJECT TRANSFORM ---
+            if (ImGui::BeginTabItem("Object Transform"))
+            {
+                GUIObjectTransformTab();
+                ImGui::EndTabItem();
+            }
+
+            // --- TAB 5: OBJECT COLOR ---
             if (ImGui::BeginTabItem("Object Color"))
             {
-                ImGui::Spacing();
-
-                // Header "Character"
-                ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "CHARACTER");
-                ImGui::Separator();
-                ImGui::Spacing();
-
-                // 1. Drop down "Paddle"
-                if (paddle)
-                {
-                    if (ImGui::CollapsingHeader("Paddle", ImGuiTreeNodeFlags_DefaultOpen))
-                    {
-                        ImGui::Indent();
-                        ImGui::ColorEdit4("Base Color##Paddle", &paddle->color.x);
-                        ImGui::Unindent();
-                    }
-                }
-
-                // 2. Drop down "Blocks"
-                if (blockManager)
-                {
-                    if (ImGui::CollapsingHeader("Blocks"))
-                    {
-                        ImGui::Indent();
-                        // This controls the 'globalBlockColor' we added to BlockManager
-                        ImGui::ColorEdit4("Base Color##Blocks", &blockManager->globalBlockColor.x);
-                        ImGui::Unindent();
-                    }
-                }
-
-                // 3. Drop down "Player"
-                if (player)
-                {
-                    if (ImGui::CollapsingHeader("Player"))
-                    {
-                        ImGui::Indent();
-                        ImGui::ColorEdit4("Base Color##Player", &player->color.x);
-                        ImGui::Unindent();
-                    }
-                }
-
-				ImGui::EndTabItem();
-			}
+                GUIObjectColorTab();
+                ImGui::EndTabItem();
+            }
             ImGui::EndTabBar();
         }
     }
@@ -959,6 +937,118 @@ void SceneGameBreaker::GUIPostProcessTab()
         ImGui::SliderFloat("Scanline Opacity", &uberParams.scanlineStrength, 0.0f, 1.0f);
         if (!m_fxState.EnableCRT) ImGui::PopStyleVar();
         ImGui::Unindent();
+    }
+}
+
+void SceneGameBreaker::GUIObjectTransformTab()
+{
+    ImGui::Spacing();
+    ImGui::Text("Adjust 3D Object Transforms:");
+    ImGui::Separator();
+
+    if (m_stage)
+    {
+        if (ImGui::CollapsingHeader("Stage Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+
+            // Position Sliders
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
+            ImGui::DragFloat("X##StagePos", &m_stage->position.x, 0.1f);
+            ImGui::DragFloat("Y##StagePos", &m_stage->position.y, 0.1f);
+            ImGui::DragFloat("Z##StagePos", &m_stage->position.z, 0.1f);
+
+            ImGui::Spacing();
+
+            // Rotation Sliders
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
+            ImGui::DragFloat("Pitch##StageRot", &m_stage->rotation.x, 0.1f, -180.0f, 180.0f);
+            ImGui::DragFloat("Yaw##StageRot", &m_stage->rotation.y, 0.1f, -180.0f, 180.0f);
+            ImGui::DragFloat("Roll##StageRot", &m_stage->rotation.z, 0.1f, -180.0f, 180.0f);
+
+            ImGui::Spacing();
+
+            // Scale Sliders
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
+            ImGui::DragFloat("X##StageScl", &m_stage->scale.x, 0.01f, 0.1f, 50.0f);
+            ImGui::DragFloat("Y##StageScl", &m_stage->scale.y, 0.01f, 0.1f, 50.0f);
+            ImGui::DragFloat("Z##StageScl", &m_stage->scale.z, 0.01f, 0.1f, 50.0f);
+
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            // Reset Button
+            if (ImGui::Button("Reset to Defaults", ImVec2(-1, 30)))
+            {
+                m_stage->position = StageConfig::DEFAULT_POS;
+                m_stage->rotation = StageConfig::DEFAULT_ROT;
+                m_stage->scale = StageConfig::DEFAULT_SCALE;
+            }
+
+            ImGui::Unindent();
+        }
+    }
+}
+
+void SceneGameBreaker::GUIObjectColorTab()
+{
+    ImGui::Spacing();
+
+    // ===========================
+    // SECTION: STAGE
+    // ===========================
+    if (m_stage)
+    {
+        ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "STAGE");
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("Stage Color", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+            ImGui::ColorEdit4("Base Color##Stage", &m_stage->color.x);
+            ImGui::Unindent();
+        }
+        ImGui::Spacing();
+    }
+
+    // ===========================
+    // SECTION: CHARACTER
+    // ===========================
+    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "CHARACTER");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Paddle
+    if (paddle)
+    {
+        if (ImGui::CollapsingHeader("Paddle", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+            ImGui::ColorEdit4("Base Color##Paddle", &paddle->color.x);
+            ImGui::Unindent();
+        }
+    }
+
+    // Blocks
+    if (blockManager)
+    {
+        if (ImGui::CollapsingHeader("Blocks"))
+        {
+            ImGui::Indent();
+            ImGui::ColorEdit4("Base Color##Blocks", &blockManager->globalBlockColor.x);
+            ImGui::Unindent();
+        }
+    }
+
+    // Player
+    if (player)
+    {
+        if (ImGui::CollapsingHeader("Player"))
+        {
+            ImGui::Indent();
+            ImGui::ColorEdit4("Base Color##Player", &player->color.x);
+            ImGui::Unindent();
+        }
     }
 }
 

@@ -24,6 +24,8 @@ Player::Player()
     // 3. Init State Machine
     stateMachine = new StateMachine();
     stateMachine->Initialize(new PlayerIdle(), this);
+
+    color = breakoutSettings.colorYellow;
 }
 
 Player::~Player()
@@ -65,6 +67,7 @@ void Player::SetBreakoutMode(bool enable)
     {
         originalPosition = movement->GetPosition();
         currentShakeIntensity = 0.0f; 
+        color = breakoutSettings.colorYellow;
     }
     else
     {
@@ -104,33 +107,33 @@ void Player::UpdateBreakoutLogic(float elapsedTime)
     // --------------------------------------------------------
     // COLOR INTERPOLATION
     // --------------------------------------------------------
-    DirectX::XMFLOAT4 cWhite = { 1.0f, 1.0f, 1.0f, 1.0f };
-    DirectX::XMFLOAT4 cYellow = { 0.96f, 0.80f, 0.23f, 1.0f };
-    DirectX::XMFLOAT4 cPale = { 1.0f, 0.89f, 0.58f, 1.0f };
+    const DirectX::XMFLOAT4& cStart = breakoutSettings.colorYellow; 
+    const DirectX::XMFLOAT4& cPhase1 = breakoutSettings.colorPale;  
+    const DirectX::XMFLOAT4& cPhase2 = breakoutSettings.colorWhite; 
 
     float t1 = breakoutSettings.thresholdFormation;
     float t2 = breakoutSettings.energyMax; 
 
     if (shakeEnergy <= t1)
     {
-        // Phase 0 -> 1: White to Yellow
+        // Phase 0 -> 1: Yellow to Pale
         float t = shakeEnergy / t1;
         if (t > 1.0f) t = 1.0f; if (t < 0.0f) t = 0.0f;
 
-        color.x = cWhite.x + (cYellow.x - cWhite.x) * t;
-        color.y = cWhite.y + (cYellow.y - cWhite.y) * t;
-        color.z = cWhite.z + (cYellow.z - cWhite.z) * t;
+        color.x = cStart.x + (cPhase1.x - cStart.x) * t;
+        color.y = cStart.y + (cPhase1.y - cStart.y) * t;
+        color.z = cStart.z + (cPhase1.z - cStart.z) * t;
     }
     else
     {
-        // Phase 1 -> 2: Yellow to Pale Yellpw
+        // Phase 1 -> 2: Pale to White
         float range = t2 - t1;
         float t = (shakeEnergy - t1) / range;
         if (t > 1.0f) t = 1.0f; if (t < 0.0f) t = 0.0f;
 
-        color.x = cYellow.x + (cPale.x - cYellow.x) * t;
-        color.y = cYellow.y + (cPale.y - cYellow.y) * t;
-        color.z = cYellow.z + (cPale.z - cYellow.z) * t;
+        color.x = cPhase1.x + (cPhase2.x - cPhase1.x) * t;
+        color.y = cPhase1.y + (cPhase2.y - cPhase1.y) * t;
+        color.z = cPhase1.z + (cPhase2.z - cPhase1.z) * t;
     }
     color.w = 1.0f;
 

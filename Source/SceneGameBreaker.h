@@ -17,9 +17,10 @@
 
 // Game Objects
 #include "Ball.h"
+#include "BlockManager.h"
 #include "Paddle.h"
 #include "Player.h"
-#include "BlockManager.h"
+#include "Stage.h"
 
 struct SceneCameraPoint {
     std::string Name;
@@ -72,6 +73,8 @@ private:
     // --- GUI Helpers ---
     void GUICameraTab();       // Tab Inspector: Kamera (Sekarang hanya status)
     void GUIPostProcessTab();  // Tab Inspector: Efek Visual & Filter
+    void GUIObjectTransformTab();
+    void GUIObjectColorTab();
     void GUISpriteTab();       // Tab Inspector: Sprite Border Breaker
     void GUISectionHeader(const char* label);
     void ImGuiEditPanel(UI_LayoutData& layout);
@@ -117,6 +120,7 @@ private:
     Paddle* paddle = nullptr;
     Player* player = nullptr;
     std::unique_ptr<BlockManager> blockManager;
+    std::unique_ptr<Stage> m_stage;
 
     // =========================================================
     // 2. CAMERA SYSTEM
@@ -156,7 +160,7 @@ private:
     // =========================================================
     // Gameplay Config
     int triggerBlockCount = 40;
-    float ballSpawnZOffset = 0.35f;
+    float ballSpawnZOffset = 0.38f;
 
     // Visual Config
     DirectX::XMFLOAT4 bgSpriteColor = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -168,6 +172,7 @@ private:
     // =========================================================
     bool m_hasTriggered = false; // Flag untuk trigger logic game (bukan animasi)
     float m_globalTime = 0.0f;
+    bool m_introFinished = false;
 
     // Background dynamic state
     float m_bgRotation = 0.0f;
