@@ -17,12 +17,23 @@ void EnemyManager::Initialize(ID3D11Device* device)
 void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
 {
     ID3D11Device* device = Graphics::Instance().GetDevice();
+    const char* modelPath = "";
+    if (config.Type == EnemyType::Ball)
+    {
+        modelPath = "Data/Model/Character/PLACEHOLDER_mdl_Ball.glb";
+    }
+    else
+    {
+        modelPath = "Data/Model/Character/PLACEHOLDER_mdl_Paddle.glb";
+    }
+
     auto newEnemy = std::make_unique<Enemy>(
         device,
-        "Data/Model/Character/PLACEHOLDER_mdl_Paddle.glb",
+        modelPath,       
         config.Position,
         config.Rotation,
-        config.Color
+        config.Color,
+        config.Type      
     );
     m_enemies.push_back(std::move(newEnemy));
 }

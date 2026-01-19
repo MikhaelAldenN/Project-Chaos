@@ -420,23 +420,44 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
     // ===========================
     if (scene->m_enemyManager)
     {
-        if (ImGui::CollapsingHeader("Enemies Paddle List"))
+        if (ImGui::CollapsingHeader("Enemies"))
         {
             ImGui::Indent();
 
             auto& enemies = scene->m_enemyManager->GetEnemies();
+            auto DrawEnemyColor = [](Enemy* e, int index, const char* label)
+                {
+                    ImGui::PushID(index);
+                    ImGui::ColorEdit4(label, &e->color.x);
+                    ImGui::PopID();
+                };
+
+            int paddleCounter = 0;
+            int ballCounter = 0;
+
             for (size_t i = 0; i < enemies.size(); ++i)
             {
-                ImGui::PushID((int)i);
-
-                char label[32];
-                snprintf(label, 32, "Enemy %d Color", (int)i + 1);
-
-                ImGui::ColorEdit4(label, &enemies[i]->color.x);
-
-                ImGui::PopID();
+                Enemy* e = enemies[i].get();
+                if (e->GetType() == EnemyType::Paddle)
+                {
+                    paddleCounter++;
+                    char label[64];
+                    snprintf(label, 64, "Enemy Paddle #%d", paddleCounter);
+                    DrawEnemyColor(e, (int)i, label);
+                }
             }
 
+            for (size_t i = 0; i < enemies.size(); ++i)
+            {
+                Enemy* e = enemies[i].get();
+                if (e->GetType() == EnemyType::Ball)
+                {
+                    ballCounter++;
+                    char label[64];
+                    snprintf(label, 64, "Enemy Ball #%d", ballCounter);
+                    DrawEnemyColor(e, (int)i, label);
+                }
+            }
             ImGui::Unindent();
         }
         ImGui::Spacing();
@@ -494,35 +515,29 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
             // Position Sliders
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
-            ImGui::DragFloat("X##StagePos", &scene->m_stage->position.x, 0.1f);
-            ImGui::DragFloat("Y##StagePos", &scene->m_stage->position.y, 0.1f);
-            ImGui::DragFloat("Z##StagePos", &scene->m_stage->position.z, 0.1f);
+            ImGui::DragFloat3("XYZ##StagePos", &scene->m_stage->position.x, 0.1f);
 
             ImGui::Spacing();
 
             // Rotation Sliders
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
-            ImGui::DragFloat("Pitch##StageRot", &scene->m_stage->rotation.x, 0.1f, -180.0f, 180.0f);
-            ImGui::DragFloat("Yaw##StageRot", &scene->m_stage->rotation.y, 0.1f, -180.0f, 180.0f);
-            ImGui::DragFloat("Roll##StageRot", &scene->m_stage->rotation.z, 0.1f, -180.0f, 180.0f);
+            ImGui::DragFloat3("Pitch/Yaw/Roll##StageRot", &scene->m_stage->rotation.x, 0.1f, -180.0f, 180.0f);
 
             ImGui::Spacing();
 
             // Scale Sliders
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
-            ImGui::DragFloat("X##StageScl", &scene->m_stage->scale.x, 0.01f, 0.1f, 50.0f);
-            ImGui::DragFloat("Y##StageScl", &scene->m_stage->scale.y, 0.01f, 0.1f, 50.0f);
-            ImGui::DragFloat("Z##StageScl", &scene->m_stage->scale.z, 0.01f, 0.1f, 50.0f);
+            ImGui::DragFloat3("XYZ##StageScl", &scene->m_stage->scale.x, 0.01f, 0.1f, 100.0f);
 
             ImGui::Spacing();
             ImGui::Separator();
 
             // Reset Button
-            if (ImGui::Button("Reset to Defaults", ImVec2(-1, 30)))
+            if (ImGui::Button("Reset Transform", ImVec2(-1, 30)))
             {
-                scene->m_stage->position = StageConfig::DEFAULT_POS;
-                scene->m_stage->rotation = StageConfig::DEFAULT_ROT;
-                scene->m_stage->scale = StageConfig::DEFAULT_SCALE;
+                scene->m_stage->position    = StageConfig::DEFAULT_POS;
+                scene->m_stage->rotation    = StageConfig::DEFAULT_ROT;
+                scene->m_stage->scale       = StageConfig::DEFAULT_SCALE;
             }
 
             ImGui::Unindent();
@@ -535,69 +550,97 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                 ImGui::Indent();
 
                 auto& enemies = scene->m_enemyManager->GetEnemies();
+                auto DrawEnemyUI = [](Enemy* e, int index, const char* label)
+                {
+                        ImGui::PushID(index); 
 
-                // Loop through every enemy to create individual controls
+                        if (ImGui::TreeNode(label))
+                        {
+                            // Get current values
+                            DirectX::XMFLOAT3 pos = e->GetPosition();
+                            DirectX::XMFLOAT3 rot = e->GetRotation();
+
+                            // Position Sliders                        
+                            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
+                            if (ImGui::DragFloat3("XYZ##Pos", &pos.x, 0.1f)) e->SetPosition(pos);
+
+                            // Rotation Sliders
+                            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
+                            if (ImGui::DragFloat3("Pitch/Yaw/Roll##Rot", &rot.x, 1.0f, -180.0f, 180.0f)) e->SetRotation(rot);
+
+                            // Scale Sliders
+                            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
+                            ImGui::DragFloat3("XYZ##Scl", &e->scale.x, 0.01f, 0.1f, 10.0f);
+
+                            ImGui::Spacing();
+
+                            // Reset Button 
+                            if (ImGui::Button("Reset Transform"))
+                            {
+                                e->SetPosition(e->GetOriginalPosition());
+                                e->SetRotation(e->GetOriginalRotation());
+                                e->scale = { 1.0f, 1.0f, 1.0f };
+                            }
+
+                            ImGui::TreePop();
+                        }
+                        ImGui::PopID();
+                        ImGui::Separator();
+                };
+
+                int paddleCounter = 0;
+                int ballCounter = 0;
+
                 for (size_t i = 0; i < enemies.size(); ++i)
                 {
-                    ImGui::PushID((int)i); 
-
-                    char headerName[32];
-                    snprintf(headerName, 32, "Enemy #%d", (int)i + 1);
-
-                    if (ImGui::TreeNode(headerName))
+                    Enemy* e = enemies[i].get();
+                    if (e->GetType() == EnemyType::Paddle)
                     {
-                        Enemy* e = enemies[i].get();
-
-                        // Get current values
-                        XMFLOAT3 pos = e->GetPosition();
-                        XMFLOAT3 rot = e->GetRotation(); 
-
-                        // Position Sliders                        
-                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
-                        if (ImGui::DragFloat3("XYZ##Pos", &pos.x, 0.1f))
-                        {
-                            e->SetPosition(pos);
-                        }
-
-                        // Rotation Sliders
-                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
-                        if (ImGui::DragFloat3("Pitch/Yaw/Roll##Rot", &rot.x, 1.0f, -2.0f, 2.0f))
-                        {
-                            e->SetRotation(rot);
-                        }
-
-                        // Scale Sliders
-                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
-                        ImGui::DragFloat3("XYZ##Scl", &e->scale.x, 0.01f, 0.1f, 10.0f);
-
-                        ImGui::Spacing();
-
-                        // Reset Button 
-                        if (ImGui::Button("Reset Transform"))
-                        {
-                            e->SetPosition(e->GetOriginalPosition());
-                            e->SetRotation(e->GetOriginalRotation());
-                            e->scale = { 1.0f, 1.0f, 1.0f };      
-                        }
-
-                        ImGui::TreePop();
+                        paddleCounter++;
+                        char headerName[64];
+                        snprintf(headerName, 64, "Enemy Paddle #%d", paddleCounter);
+                        DrawEnemyUI(e, (int)i, headerName);
                     }
+                }
 
-                    ImGui::PopID();
-                    ImGui::Separator();
+                for (size_t i = 0; i < enemies.size(); ++i)
+                {
+                    Enemy* e = enemies[i].get();
+                    if (e->GetType() == EnemyType::Ball)
+                    {
+                        ballCounter++;
+                        char headerName[64];
+                        snprintf(headerName, 64, "Enemy Ball #%d", ballCounter);
+                        DrawEnemyUI(e, (int)i, headerName);
+                    }
                 }
 
                 ImGui::Spacing();
 
                 // Helper to spawn more from GUI
-                if (ImGui::Button("+ Spawn New Enemy"))
+                ImGui::Text("Spawn Controls:");
+                if (ImGui::Button("+ Spawn Paddle"))
                 {
                     EnemySpawnConfig newSpawn;
                     newSpawn.Position = { 0.0f, 0.0f, 0.0f };    
                     newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };    
                     newSpawn.Color = { 1.0f, 0.2f, 0.2f, 1.0f }; 
+                    newSpawn.Type = EnemyType::Paddle;
                     scene->m_enemyManager->SpawnEnemy(newSpawn);
                 }
+
+                ImGui::SameLine();
+
+                if (ImGui::Button("+ Spawn Ball"))
+                {
+                    EnemySpawnConfig newSpawn;
+                    newSpawn.Position = { 0.0f, 0.0f, 0.0f };
+                    newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };
+                    newSpawn.Color = { 1.0f, 0.89f, 0.58f, 1.0f };
+                    newSpawn.Type = EnemyType::Ball;   
+                    scene->m_enemyManager->SpawnEnemy(newSpawn);
+                }
+
                 ImGui::Unindent();
             }
         }

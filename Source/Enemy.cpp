@@ -2,10 +2,11 @@
 
 using namespace DirectX;
 
-Enemy::Enemy(ID3D11Device* device, const char* filePath, XMFLOAT3 startPos, XMFLOAT3 startRot, XMFLOAT4 startColor)
+Enemy::Enemy(ID3D11Device* device, const char* filePath, XMFLOAT3 startPos, XMFLOAT3 startRot, XMFLOAT4 startColor, EnemyType type)
 {
     m_model = std::make_shared<Model>(device, filePath);
     model = m_model; 
+    m_type = type;
 
     // Default Transform
     movement->SetPosition(startPos);
