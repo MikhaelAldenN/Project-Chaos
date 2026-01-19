@@ -22,7 +22,7 @@ public:
     void Render(ModelRenderer* renderer);
     void CheckCollision(Ball* ball);
     void ActivateFormationMode() { isFormationActive = true; }
-
+    void SetOnBlockHitCallback(std::function<void()> callback) { m_onBlockHitCallback = callback; }
     bool IsFormationActive() const { return isFormationActive; }
     int GetActiveBlockCount() const;
     const std::vector<std::unique_ptr<Block>>& GetBlocks() const { return blocks; }
@@ -30,16 +30,13 @@ public:
     // Color Setting
     DirectX::XMFLOAT4 globalBlockColor = { 0.96f, 0.80f, 0.23f, 1.0f };
 
-    void SetOnBlockHitCallback(std::function<void()> callback) {
-        m_onBlockHitCallback = callback;
-    }
-
 private:
     // Helper grid 
     void InitPrioritySlots();
     void UpdateFormationPositions(float elapsedTime, Player* player);
 
     std::vector<std::unique_ptr<Block>> blocks;
+    std::vector<Block*> m_formationBlocks;
 
     // Grid Configuration
     int m_rows = 7;                         // Row Blocks

@@ -36,6 +36,11 @@ public:
 
     // Checkpoint Stages: 0 = Normal, 1 = Yellow (Formation), 2 = Max (Destruction)
     void SetGameStage(int stage) { gameStage = stage; }
+    int GetGameStage() const { return gameStage; }
+
+    // --- ESCAPE LOGIC ---
+    void TriggerEscape();
+    bool IsEscaping() const { return isEscaping; }
 
     // --- SETTINGS ---
     struct BreakoutSettings
@@ -67,6 +72,7 @@ public:
 
 private:
     void UpdateBreakoutLogic(float elapsedTime);
+    void UpdateEscapeLogic(float elapsedTime);
 
     // --- CONFIGURATION ---
     DirectX::XMFLOAT3 defaultScale = { 3.0f, 3.0f, 3.0f }; // Player Model Scale
@@ -79,8 +85,10 @@ private:
 
     // --- Breakout State ---
     bool isBreakoutActive = false;
+    bool isEscaping = false;
     bool wasSpacePressed = false;                               
     float currentShakeIntensity = 0.0f;
+    float escapeTargetZ = -27.0f;
     float shakeEnergy = 0.0f; 
     int gameStage = 0;
     DirectX::XMFLOAT3 originalPosition = { 0.0f, 0.0f, 0.0f }; 

@@ -134,21 +134,31 @@ void SceneGameBreaker::Update(float elapsedTime)
         m_director->Update(elapsedTime, energy, thresholdForm, thresholdDest, player->GetMovement()->GetPosition());
 
         // =========================================================
-        // UPDATE LOGIC GAMEPLAY (STATE SAJA)
+        // UPDATE LOGIC GAMEPLAY 
         // =========================================================
-        // Phase 1 Logic: Ubah formasi balok
         if (energy >= thresholdForm && blockManager && !blockManager->IsFormationActive())
         {
             blockManager->ActivateFormationMode();
             player->SetGameStage(1);
         }
 
-        // Phase 2 Logic: Matikan paddle & boundaries
         if (energy >= thresholdDest)
         {
             if (paddle && paddle->IsActive()) paddle->SetActive(false);
             if (ball) ball->SetBoundariesEnabled(false);
             player->SetGameStage(2);
+        }
+
+        if (player->GetGameStage() == 2 && !player->IsEscaping())
+        {
+            player->TriggerEscape();
+            CameraController::Instance().SetControlMode(CameraControlMode::FixedFollow);
+        }
+
+        if (player->IsEscaping())
+        {
+            DirectX::XMFLOAT3 pPos = player->GetPosition();
+            CameraController::Instance().SetTarget(pPos);
         }
     }
 

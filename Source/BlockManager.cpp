@@ -58,13 +58,12 @@ void BlockManager::InitPrioritySlots()
 {
     m_sortedOffsets.clear();
 
-    // Generate a generic grid around (0,0,0)
     int center = 5;
     for (int r = -center; r <= center; ++r)
     {
         for (int c = -center; c <= center; ++c)
         {
-            if (r == 0 && c == 0) continue; // Skip center
+            if (r == 0 && c == 0) continue; 
 
             DirectX::XMFLOAT3 offset;
             offset.x = (float)c;
@@ -104,79 +103,100 @@ void BlockManager::UpdateFormationPositions(float elapsedTime, Player* player)
     if (!player) return;
     DirectX::XMFLOAT3 playerPos = player->GetMovement()->GetPosition();
 
-    // 1. Identify active blocks
-    std::vector<Block*> activeBlocks;
-    for (const auto& b : blocks) {
-        if (b->IsActive()) activeBlocks.push_back(b.get());
+    // --------------------------------------------------------
+    // SETUP & CLEANUP
+    // --------------------------------------------------------
+    if (m_formationBlocks.size() != m_sortedOffsets.size())
+    {
+        m_formationBlocks.assign(m_sortedOffsets.size(), nullptr);
     }
 
-    if (activeBlocks.empty()) return;
-
-    // 2. Identify Target Positions
-    int count = (int)activeBlocks.size();
-    if (count > m_sortedOffsets.size()) count = (int)m_sortedOffsets.size();
-
-    std::vector<DirectX::XMFLOAT3> targets;
-    for (int i = 0; i < count; ++i)
+    std::vector<Block*> currentFrameSlots = m_formationBlocks;
+    for (size_t i = 0; i < currentFrameSlots.size(); ++i)
     {
-        DirectX::XMFLOAT3 t;
-        t.x = playerPos.x + (m_sortedOffsets[i].x * formationSpacing);
-        t.y = 0.0f;
-        t.z = playerPos.z + (m_sortedOffsets[i].z * formationSpacing);
-        targets.push_back(t);
-    }
-
-    // 3. Assign and Move Blocks
-    std::vector<bool> blockAssigned(activeBlocks.size(), false);
-
-    for (const auto& target : targets)
-    {
-        int bestBlockIdx = -1;
-        float closestDistSq = FLT_MAX;
-
-        // Find nearest block for this target
-        for (int i = 0; i < activeBlocks.size(); ++i)
+        if (currentFrameSlots[i] && !currentFrameSlots[i]->IsActive())
         {
-            if (blockAssigned[i]) continue;
+            currentFrameSlots[i] = nullptr;
+        }
+    }
 
-            float d = GetDistSq(target, activeBlocks[i]->GetMovement()->GetPosition());
-            if (d < closestDistSq)
+    // --------------------------------------------------------
+    // CASCADING FILL 
+    // --------------------------------------------------------
+    for (int i = 0; i < currentFrameSlots.size(); ++i)
+    {
+        if (currentFrameSlots[i] != nullptr) continue;
+        DirectX::XMFLOAT3 target;
+        target.x = playerPos.x + (m_sortedOffsets[i].x * formationSpacing);
+        target.y = 0.0f;
+        target.z = playerPos.z + (m_sortedOffsets[i].z * formationSpacing);
+        Block* bestCandidate = nullptr;
+        int bestCandidateSourceIndex = -1; 
+        float bestDistSq = FLT_MAX;
+        for (const auto& b : blocks)
+        {
+            if (!b->IsActive()) continue;
+            int currentSlotIndex = -1;
+            for (int k = 0; k < currentFrameSlots.size(); ++k)
             {
-                closestDistSq = d;
-                bestBlockIdx = i;
+                if (currentFrameSlots[k] == b.get())
+                {
+                    currentSlotIndex = k;
+                    break;
+                }
+            }
+            if (currentSlotIndex != -1 && currentSlotIndex <= i) continue;
+            float d = GetDistSq(target, b->GetMovement()->GetPosition());
+            if (d < bestDistSq)
+            {
+                bestDistSq = d;
+                bestCandidate = b.get();
+                bestCandidateSourceIndex = currentSlotIndex;
             }
         }
 
-        // Apply Movement
-        if (bestBlockIdx != -1)
+        if (bestCandidate != nullptr)
         {
-            Block* b = activeBlocks[bestBlockIdx];
-            blockAssigned[bestBlockIdx] = true;
-
-            DirectX::XMFLOAT3 currentPos = b->GetMovement()->GetPosition();
-
-            // --- NEW: Check Distance to determine Collision State ---
-            float distSq = GetDistSq(currentPos, target);
-
-            // If far away (moving), disable collision. If close (arrived), enable it.
-            if (distSq > 0.05f)
+            currentFrameSlots[i] = bestCandidate;
+            if (bestCandidateSourceIndex != -1)
             {
-                b->SetRelocating(true); // Disable Collision
+                currentFrameSlots[bestCandidateSourceIndex] = nullptr;
             }
-            else
-            {
-                b->SetRelocating(false); // Enable Collision
-            }
-
-            // Lerp Logic
-            float lerpSpeed = 5.0f * elapsedTime;
-            DirectX::XMFLOAT3 newPos;
-            newPos.x = currentPos.x + (target.x - currentPos.x) * lerpSpeed;
-            newPos.y = currentPos.y + (target.y - currentPos.y) * lerpSpeed;
-            newPos.z = currentPos.z + (target.z - currentPos.z) * lerpSpeed;
-
-            b->GetMovement()->SetPosition(newPos);
         }
+    }
+    m_formationBlocks = currentFrameSlots;
+
+    // --------------------------------------------------------
+    // PHASE 3: MOVEMENT
+    // --------------------------------------------------------
+    DirectX::XMFLOAT3 pVel = player->GetMovement()->GetVelocity();
+    float stepX = pVel.x * elapsedTime;
+    float stepZ = pVel.z * elapsedTime;
+
+    for (int i = 0; i < m_formationBlocks.size(); ++i)
+    {
+        Block* b = m_formationBlocks[i];
+        if (!b) continue;
+        DirectX::XMFLOAT3 target;
+        target.x = playerPos.x + (m_sortedOffsets[i].x * formationSpacing);
+        target.y = 0.0f;
+        target.z = playerPos.z + (m_sortedOffsets[i].z * formationSpacing);
+        DirectX::XMFLOAT3 currentPos = b->GetMovement()->GetPosition();
+        currentPos.x += stepX;
+        currentPos.z += stepZ;
+
+        float distSq = GetDistSq(currentPos, target);
+
+        if (distSq > 0.1f) b->SetRelocating(true);
+        else b->SetRelocating(false);
+
+        float lerpSpeed = 5.0f * elapsedTime;
+
+        DirectX::XMFLOAT3 newPos;
+        newPos.x = currentPos.x + (target.x - currentPos.x) * lerpSpeed;
+        newPos.y = currentPos.y + (target.y - currentPos.y) * lerpSpeed;
+        newPos.z = currentPos.z + (target.z - currentPos.z) * lerpSpeed;
+        b->GetMovement()->SetPosition(newPos);
     }
 }
 

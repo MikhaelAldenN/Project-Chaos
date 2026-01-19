@@ -37,26 +37,32 @@ Player::~Player()
 
 void Player::Update(float elapsedTime, Camera* camera)
 {
-    // Simpan referensi camera frame ini
     SetCamera(camera);
 
-    // 2. Physics 
-    if (isInputEnabled)
+    if (isEscaping)
     {
-        if (stateMachine) stateMachine->Update(this, elapsedTime);
-        movement->Update(elapsedTime);
+        UpdateEscapeLogic(elapsedTime);
     }
 
-    // Breakout Logic
+    else if (isInputEnabled)
+    {
+        if (stateMachine) stateMachine->Update(this, elapsedTime);
+        HandleMovementInput();
+    }
+
+    movement->Update(elapsedTime);
+
+    if (isEscaping)
+    {
+        originalPosition = movement->GetPosition();
+    }
+
     if (isBreakoutActive)
     {
         UpdateBreakoutLogic(elapsedTime);
     }
 
-    // 3. Visuals (Animator hitung pose)
     if (animator) animator->Update(elapsedTime);
-
-    // 4. Sync (Physics -> Graphics)
     SyncData();
 }
 
@@ -74,6 +80,12 @@ void Player::SetBreakoutMode(bool enable)
     {
         movement->SetPosition(originalPosition);
     }
+}
+
+void Player::TriggerEscape()
+{
+    isEscaping = true;
+    isInputEnabled = false; 
 }
 
 void Player::UpdateBreakoutLogic(float elapsedTime)
@@ -165,6 +177,21 @@ void Player::UpdateBreakoutLogic(float elapsedTime)
     {
         movement->SetPosition(originalPosition);
     }
+}
+
+void Player::UpdateEscapeLogic(float elapsedTime)
+{
+    float currentZ = movement->GetPosition().z;
+    float diff = escapeTargetZ - currentZ;
+
+    if (std::abs(diff) < 0.5f)
+    {
+        movement->SetMoveInput(0, 0); 
+        return;
+    }
+
+    float dirZ = (diff > 0) ? 1.0f : -1.0f;
+    movement->SetMoveInput(0, dirZ);
 }
 
 void Player::HandleMovementInput()
