@@ -186,12 +186,18 @@ void Player::UpdateEscapeLogic(float elapsedTime)
 
     if (std::abs(diff) < 0.5f)
     {
-        movement->SetMoveInput(0, 0); 
+        movement->SetMoveInput(0, 0);
+        originalPosition = movement->GetPosition();
+        isBreakoutActive = false;
+        isEscaping = false;      
+        isInputEnabled = true; 
+        gameStage = 3;
         return;
     }
 
     float dirZ = (diff > 0) ? 1.0f : -1.0f;
     movement->SetMoveInput(0, dirZ);
+    movement->SetRotationY(3.14159f);
 }
 
 void Player::HandleMovementInput()
@@ -239,6 +245,7 @@ void Player::HandleMovementInput()
         // Fallback: World Space movement
         movement->SetMoveInput(x, z);
     }
+    movement->SetRotationY(3.14159f);
 }
 
 bool Player::CheckJumpInput()

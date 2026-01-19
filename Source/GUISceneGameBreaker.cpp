@@ -266,6 +266,33 @@ void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
         // [PERBAIKAN] Push ke vector milik director
         scenarios.push_back(newPt);
     }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "LIGHTING SETTINGS");
+
+    DirectionalLight light = scene->m_lightManager.GetDirectionalLight();
+    bool lightChanged = false;
+
+    ImGui::Text("Light Direction");
+    if (ImGui::DragFloat3("##LightDir", &light.direction.x, 0.01f, -1.0f, 1.0f))
+    {
+        lightChanged = true;
+    }
+
+    ImGui::Text("Light Color");
+    if (ImGui::ColorEdit3("##LightColor", &light.color.x))
+    {
+        lightChanged = true;
+    }
+
+    if (lightChanged)
+    {
+        XMVECTOR vDir = XMLoadFloat3(&light.direction);
+        vDir = XMVector3Normalize(vDir);
+        XMStoreFloat3(&light.direction, vDir);
+        scene->m_lightManager.SetDirectionalLight(light);
+    }
 }
 
 void GameBreakerGUI::DrawUI_LayoutTab(SceneGameBreaker* scene)

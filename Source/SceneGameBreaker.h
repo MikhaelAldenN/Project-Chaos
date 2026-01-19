@@ -12,6 +12,7 @@
 #include "CameraController.h"
 #include "UberShader.h"
 #include "System/Sprite.h"
+#include "System/Light.h"
 #include "BitmapFont.h"     
 #include "ResourceManager.h"
 
@@ -123,6 +124,9 @@ private:
     // Camera Settings
     DirectX::XMFLOAT3 cameraPosition = { 0.0f, 18.0f, 0.0f };
     DirectX::XMFLOAT3 cameraTarget = { 0.0f, 0.0f, 0.0f };
+
+    // Light
+    LightManager m_lightManager;
 
     // Graphics
     std::unique_ptr<Sprite> m_spriteBorderBreaker;

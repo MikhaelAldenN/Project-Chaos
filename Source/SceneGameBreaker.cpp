@@ -142,7 +142,7 @@ void SceneGameBreaker::Update(float elapsedTime)
             player->SetGameStage(1);
         }
 
-        if (energy >= thresholdDest)
+        if (energy >= thresholdDest && player->GetGameStage() < 2)
         {
             if (paddle && paddle->IsActive()) paddle->SetActive(false);
             if (ball) ball->SetBoundariesEnabled(false);
@@ -155,7 +155,7 @@ void SceneGameBreaker::Update(float elapsedTime)
             CameraController::Instance().SetControlMode(CameraControlMode::FixedFollow);
         }
 
-        if (player->IsEscaping())
+        if (player->IsEscaping() || player->GetGameStage() == 3)
         {
             DirectX::XMFLOAT3 pPos = player->GetPosition();
             CameraController::Instance().SetTarget(pPos);
@@ -388,7 +388,7 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
     if (!camera) return;
     auto dc = Graphics::Instance().GetDeviceContext();
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
-    RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
+    RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, &m_lightManager };
 
     if (ball) ball->Render(modelRenderer);
     if (blockManager) blockManager->Render(modelRenderer);
