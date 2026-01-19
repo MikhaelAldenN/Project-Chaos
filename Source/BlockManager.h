@@ -30,6 +30,27 @@ public:
     // Color Setting
     DirectX::XMFLOAT4 globalBlockColor = { 0.96f, 0.80f, 0.23f, 1.0f };
 
+    // Formation Settings
+    struct FormationConfig
+    {
+        // Random Wiggle Settings 
+        float wiggleMinDistSq   = 2.5f;   // Blocks closer than this won't wiggle (1.5m^2)
+        float wiggleAmplitude   = 0.5f;   // How far they move (Distance)
+        float noiseFrequency    = 3.5f;   // How fast the "who moves" cycle changes
+        float noiseThreshold    = 0.8f;   // Higher = fewer blocks move at once
+        float intensityScale    = 1.5f;   // Strength multiplier
+        float oscSpeedX         = 10.0f;  // Shake speed X
+        float oscSpeedZ         = 8.0f;   // Shake speed Z
+
+        // Movement Smoothing Settings 
+        float speedFront        = 30.0f;  // Speed when clearing path (Front)
+        float speedTrail        = 20.0f;  // Speed when following (Back)
+        float speedBase         = 20.0f;  // Speed for side blocks
+        float catchUpThreshold  = 0.25f;  // If lagging behind > 0.5m, boost speed
+        float catchUpMult       = 0.6f;   // Speed multiplier when lagging
+    };
+    FormationConfig m_config;
+
 private:
     // Helper grid 
     void InitPrioritySlots();
@@ -56,6 +77,7 @@ private:
     // --------------------------------------------------------
     bool isFormationActive = false;
     float formationSpacing = 1.0f;
+    float m_formationTime = 0.0f;
 
     std::vector<DirectX::XMFLOAT3> m_sortedOffsets;
 

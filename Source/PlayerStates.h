@@ -9,7 +9,7 @@
 // jadi pointer-nya bisa dikenali.
 class PlayerIdle;
 class PlayerRun;
-class PlayerJump;
+//class PlayerJump;
 
 // ==========================================
 // 1. CLASS DEFINITIONS (Hanya Deklarasi)
@@ -60,10 +60,10 @@ inline void PlayerIdle::Update(Player* player, float dt)
         // Disini compiler sudah tahu apa itu PlayerRun karena definisinya ada di atas
         player->GetStateMachine()->ChangeState(player, new PlayerRun());
     }
-    else if (player->CheckJumpInput())
-    {
-        player->GetStateMachine()->ChangeState(player, new PlayerJump());
-    }
+    //else if (player->CheckJumpInput())
+    //{
+    //    player->GetStateMachine()->ChangeState(player, new PlayerJump());
+    //}
 }
 
 // --- RUN IMPLEMENTATION ---
@@ -80,49 +80,49 @@ inline void PlayerRun::Update(Player* player, float dt)
     {
         player->GetStateMachine()->ChangeState(player, new PlayerIdle());
     }
-    else if (player->CheckJumpInput())
-    {
-        player->GetStateMachine()->ChangeState(player, new PlayerJump());
-    }
+    //else if (player->CheckJumpInput())
+    //{
+    //    player->GetStateMachine()->ChangeState(player, new PlayerJump());
+    //}
 }
 
 // --- JUMP IMPLEMENTATION ---
-inline void PlayerJump::Enter(Player* player)
-{
-    player->GetMovement()->Jump();
-    player->GetAnimator()->Play("JumpGoesUp", false, 0.1f);
-}
-
-inline void PlayerJump::Update(Player* player, float dt)
-{
-    player->HandleMovementInput();
-
-    // Logika Animasi Lompat Dinamis
-    float vy = player->GetMovement()->GetVelocity().y;
-
-    if (vy > 2.0f)
-    {
-        player->GetAnimator()->Play("JumpGoesUp", false, 0.2f);
-    }
-    else if (vy >= -2.0f && vy <= 2.0f)
-    {
-        player->GetAnimator()->Play("JumpPeak", true, 0.3f);
-    }
-    else
-    {
-        player->GetAnimator()->Play("JumpGoesDown", false, 0.3f);
-    }
-
-    // Transisi Mendarat
-    if (player->GetMovement()->IsGrounded() && vy <= 0.0f)
-    {
-        if (player->GetMovement()->IsMoving())
-        {
-            player->GetStateMachine()->ChangeState(player, new PlayerRun());
-        }
-        else
-        {
-            player->GetStateMachine()->ChangeState(player, new PlayerIdle());
-        }
-    }
-}
+//inline void PlayerJump::Enter(Player* player)
+//{
+//    player->GetMovement()->Jump();
+//    player->GetAnimator()->Play("JumpGoesUp", false, 0.1f);
+//}
+//
+//inline void PlayerJump::Update(Player* player, float dt)
+//{
+//    player->HandleMovementInput();
+//
+//    // Logika Animasi Lompat Dinamis
+//    float vy = player->GetMovement()->GetVelocity().y;
+//
+//    if (vy > 2.0f)
+//    {
+//        player->GetAnimator()->Play("JumpGoesUp", false, 0.2f);
+//    }
+//    else if (vy >= -2.0f && vy <= 2.0f)
+//    {
+//        player->GetAnimator()->Play("JumpPeak", true, 0.3f);
+//    }
+//    else
+//    {
+//        player->GetAnimator()->Play("JumpGoesDown", false, 0.3f);
+//    }
+//
+//    // Transisi Mendarat
+//    if (player->GetMovement()->IsGrounded() && vy <= 0.0f)
+//    {
+//        if (player->GetMovement()->IsMoving())
+//        {
+//            player->GetStateMachine()->ChangeState(player, new PlayerRun());
+//        }
+//        else
+//        {
+//            player->GetStateMachine()->ChangeState(player, new PlayerIdle());
+//        }
+//    }
+//}

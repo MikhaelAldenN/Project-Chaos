@@ -217,7 +217,7 @@ void Player::HandleMovementInput()
     movement->SetRotationY(DirectX::XM_PI);
 }
 
-bool Player::CheckJumpInput()
-{
-    return (GetAsyncKeyState(VK_SPACE) & 0x8000);
-}
+//bool Player::CheckJumpInput()
+//{
+//    //return (GetAsyncKeyState(VK_SPACE) & 0x8000);
+//}

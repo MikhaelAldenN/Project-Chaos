@@ -24,7 +24,7 @@ public:
 
     // --- Input & Control ---
     void HandleMovementInput();
-    bool CheckJumpInput();
+    //bool CheckJumpInput();
     void SetInputEnabled(bool enable) { isInputEnabled = enable; }
     void SetCamera(Camera* cam) { activeCamera = cam; }
 
