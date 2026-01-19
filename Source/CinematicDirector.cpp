@@ -40,12 +40,13 @@ void CinematicDirector::InitializeScenarios()
         EasingType::EaseOutCubic
         });
 
-    // SHOT 3: Destruction (Index 3)
+    // SHOT 3: Destruction (Index 3) - [MIRRORED X-AXIS]
+    // Changed X from negative to positive (and vice versa) to flip the side
     m_camScenarioPoints.push_back({
         "Shot 3 (Destruction)",
-        {-0.4f, 8.5f, 9.3f}, {-0.5f, 0.0f, 1.4f}, // START
-        {12.2f, 15.0f, 4.3f}, {-1.7f, 0.0f, -4.0f}, // END (Final Position)
-        2.5f,
+        {0.4f, 8.5f, 9.3f}, {0.5f, 0.0f, 1.4f},       // START (Mirrored Right Side)
+        {-14.1f, 20.1f, 16.5f}, {1.3f, 0.0f, 1.8f},   // END (Mirrored Left Side)
+        2.0f,
         EasingType::EaseOutCubic
         });
 }
@@ -74,8 +75,10 @@ void CinematicDirector::Update(float elapsedTime, float playerEnergy, float thre
         m_hasTriggeredDestructionCam = true;
         m_isTransitioningToDestruction = true;
 
-        // Mainkan Index 3 (Destruction)
-        PlaySequence(3);
+        // [CHANGE] Added 'true' to force a Jump Cut.
+        // This makes the camera snap to the Right Side (Mirrored Start) 
+        // before panning to the Left, creating the "Mirror" effect.
+        PlaySequence(3, true);
 
         JuiceEngine::Instance().TriggerShake({ 1.5f, 0.8f, 2.0f, 25.0f, 1.0f });
         JuiceEngine::Instance().TriggerGlitchKick(2.0f, 2.0f);
