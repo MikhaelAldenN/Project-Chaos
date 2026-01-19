@@ -7,15 +7,18 @@ CharacterMovement::CharacterMovement() {}
 
 void CharacterMovement::SetMoveInput(float x, float z)
 {
-    velocity.x = x * moveSpeed;
-    velocity.z = z * moveSpeed;
+    // Get current rotation (Yaw)
+    float yaw = rotation.y;
+    float sinY = sinf(yaw);
+    float cosY = cosf(yaw);
 
-    // Update rotation only if there is significant input
-    if (fabs(x) > 0.01f || fabs(z) > 0.01f)
-    {
-        // Calculate target angle based on input vector
-        rotation.y = atan2f(x, z);
-    }
+    // Rotate Input Vector (Local Space -> World Space)
+    // Formula to transform inputs based on character facing direction:
+    float worldX = (x * cosY) + (z * sinY);
+    float worldZ = (x * -sinY) + (z * cosY);
+
+    velocity.x = worldX * moveSpeed;
+    velocity.z = worldZ * moveSpeed;
 }
 
 void CharacterMovement::Jump()

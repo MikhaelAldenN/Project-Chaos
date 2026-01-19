@@ -195,9 +195,11 @@ void Player::UpdateEscapeLogic(float elapsedTime)
         return;
     }
 
-    float dirZ = (diff > 0) ? 1.0f : -1.0f;
-    movement->SetMoveInput(0, dirZ);
-    movement->SetRotationY(3.14159f);
+    movement->SetMoveInput(0.0f, 1.0f);
+    if (diff > 0)
+        movement->SetRotationY(0.0f);  
+    else
+        movement->SetRotationY(DirectX::XM_PI);
 }
 
 void Player::HandleMovementInput()
@@ -210,42 +212,9 @@ void Player::HandleMovementInput()
     if (GetAsyncKeyState('S') & 0x8000) z -= 1.0f;
     if (GetAsyncKeyState('D') & 0x8000) x += 1.0f;
     if (GetAsyncKeyState('A') & 0x8000) x -= 1.0f;
-
-    // --- Camera Relative Movement ---
-    if (activeCamera)
-    {
-        XMFLOAT3 camFront = activeCamera->GetFront();
-        XMFLOAT3 camRight = activeCamera->GetRight();
-
-        // Flatten Y (biar tidak terbang/menukik saat nunduk/dongak)
-        camFront.y = 0;
-        camRight.y = 0;
-
-        XMVECTOR vFront = XMLoadFloat3(&camFront);
-        XMVECTOR vRight = XMLoadFloat3(&camRight);
-        vFront = XMVector3Normalize(vFront);
-        vRight = XMVector3Normalize(vRight);
-
-        // Calculate Direction
-        XMVECTOR vDir = (vRight * x) + (vFront * z);
-
-        // Normalize vector (biar jalan miring tidak lebih cepat)
-        if (XMVectorGetX(XMVector3LengthSq(vDir)) > 1.0f)
-        {
-            vDir = XMVector3Normalize(vDir);
-        }
-
-        XMFLOAT3 finalDir;
-        XMStoreFloat3(&finalDir, vDir);
-
-        movement->SetMoveInput(finalDir.x, finalDir.z);
-    }
-    else
-    {
-        // Fallback: World Space movement
-        movement->SetMoveInput(x, z);
-    }
-    movement->SetRotationY(3.14159f);
+    
+    movement->SetMoveInput(x, z);
+    movement->SetRotationY(DirectX::XM_PI);
 }
 
 bool Player::CheckJumpInput()

@@ -46,7 +46,7 @@ SceneGameBreaker::SceneGameBreaker()
     paddle->SetAIEnabled(false);
     player = new Player();
     player->SetInputEnabled(false);
-
+    player->GetMovement()->SetRotationY(DirectX::XM_PI);
     blockManager = std::make_unique<BlockManager>();
     blockManager->Initialize(player);
 
