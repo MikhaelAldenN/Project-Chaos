@@ -151,8 +151,11 @@ void SceneGameBreaker::Update(float elapsedTime)
 
         if (player->GetGameStage() == 2 && !player->IsEscaping())
         {
-            player->TriggerEscape();
-            CameraController::Instance().SetControlMode(CameraControlMode::FixedFollow);
+            if (!CameraController::Instance().IsSequencing())
+            {
+                player->TriggerEscape();
+                CameraController::Instance().SetControlMode(CameraControlMode::FixedFollow);
+            }
         }
 
         if (player->IsEscaping() || player->GetGameStage() == 3)
