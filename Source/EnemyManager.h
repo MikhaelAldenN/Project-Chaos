@@ -17,7 +17,16 @@ enum class AttackType
 {
     None,
     Static,   
-    Tracking  
+    Tracking,
+    TrackingHorizontal,
+    TrackingRandom
+};
+
+enum class MoveDir
+{
+    None,
+    Left,
+    Right
 };
 
 struct EnemySpawnConfig
@@ -27,6 +36,11 @@ struct EnemySpawnConfig
     DirectX::XMFLOAT4 Color;    
     EnemyType Type = EnemyType::Paddle;
     AttackType AttackBehavior = AttackType::None;
+    MoveDir Direction = MoveDir::None;
+    float MinX = 0.0f;
+    float MaxX = 0.0f;
+    float MinZ = 0.0f; 
+    float MaxZ = 0.0f; 
 };
 
 namespace EnemyLevelData
@@ -60,37 +74,37 @@ namespace EnemyLevelData
         { { -10.0f, 0.0f, -40.0f }, Rot::Left, Blue, EnemyType::Paddle, AttackType::Static },
 
         // Paddle 3
-        { { 0.0f, 0.0f, -50.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::Static },
+        { { 0.0f, 0.0f, -50.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::Tracking },
 
         // Paddle 4
-        { { 0.0f, 0.0f, -65.5f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::None },
+        { { 0.0f, 0.0f, -65.5f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Left, -4.0f, 4.0f },
 
         // Paddle 5
-        { { 0.0f, 0.0f, -79.1f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::None },
+        { { 0.0f, 0.0f, -79.1f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Right, -4.0f, 4.0f },
 
         // Paddle 6
-        { { 0.0f, 0.0f, -146.8f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::None },
+        { { 0.0f, 0.0f, -146.8f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::Tracking },
 
         // Paddle 7
-        { { -6.5f, 0.0f, -151.6f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::None },
+        { { -6.5f, 0.0f, -151.6f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Right, -5.0f, 5.0f },
 
         // Paddle 8 
-        { { 6.5f, 0.0f, -151.6f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::None },
+        { { 6.5f, 0.0f, -151.6f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Left, -5.0f, 5.0f },
 
         // Paddle 9
-        { { -3.5f, 0.0f, -162.9f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::None },
+        { { -3.5f, 0.0f, -162.9f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Left, -1.5f, 1.5f },
 
         // Paddle 10
-        { { 3.5f, 0.0f, -162.9f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::None },
+        { { 3.5f, 0.0f, -162.9f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Right, -1.5f, 1.5f },
 
         // Paddle 11
-        { { 0.0f, 0.0f, -189.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::None },
+        { { 0.0f, 0.0f, -189.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingRandom, MoveDir::None, -3.0f, 3.0f, -21.0f, 15.0f },
 
         // Paddle 12
-        { { -7.5f, 0.0f, -189.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::None },
+        { { -7.5f, 0.0f, -189.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingRandom, MoveDir::None, -3.0f, 3.0f, -21.0f, 15.0f },
 
         // Paddle 13
-        { { 7.5f, 0.0f, -189.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::None },
+        { { 7.5f, 0.0f, -189.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingRandom, MoveDir::None, -3.0f, 3.0f, -21.0f, 15.0f },
 
         // Paddle 14
         { { -9.5f, 0.0f, -260.5f }, Rot::Left, Blue, EnemyType::Paddle, AttackType::Static },
@@ -113,7 +127,7 @@ public:
     ~EnemyManager();
 
     void Initialize(ID3D11Device* device);
-    void Update(float elapsedTime, Camera* camera);
+    void Update(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos);
     void Render(ModelRenderer* renderer);
     void SpawnEnemy(const EnemySpawnConfig& config);
 

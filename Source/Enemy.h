@@ -13,14 +13,19 @@
 
 enum class EnemyType;
 enum class AttackType;
+enum class MoveDir;
 
 class Enemy : public Character
 {
 public:
-    Enemy(ID3D11Device* device, const char* filePath, DirectX::XMFLOAT3 startPos, DirectX::XMFLOAT3 startRot, DirectX::XMFLOAT4 startColor, EnemyType type, AttackType attackType);
+    Enemy(ID3D11Device* device, const char* filePath, DirectX::XMFLOAT3 startPos, DirectX::XMFLOAT3 startRot, 
+        DirectX::XMFLOAT4 startColor, EnemyType type, AttackType attackType,
+        float minX = 0.0f, float maxX = 0.0f, 
+        float minZ = 0.0f, float maxZ = 0.0f, MoveDir dir = (MoveDir)0);
     ~Enemy() override;
 
     void Update(float elapsedTime, Camera* camera) override;
+    void UpdateTracking(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos);
     void SetPosition(const DirectX::XMFLOAT3& pos);
     void SetRotation(const DirectX::XMFLOAT3& rot);
     void RenderProjectiles(ModelRenderer* renderer);
@@ -35,7 +40,7 @@ public:
     std::shared_ptr<Model> GetModel() const { return m_model; }
 
 private:
-    void UpdateAttackLogic(float elapsedTime, Camera* camera);
+    void UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos);
 
     DirectX::XMFLOAT3 GetForwardVector() const;
     DirectX::XMFLOAT3 originalPosition;
@@ -54,6 +59,18 @@ private:
     float m_projectileSpeed     = 10.0f;  // Speed of the ball
     float m_activationDistance  = 50.0f;  // Enemy starts firing when player is this close
     float m_despawnDistance     = 55.0f;  // Projectiles die when this far from player
+    float m_patrolMinX          = 0.0f;
+    float m_patrolMaxX          = 0.0f;
+    float m_patrolMinZ          = 0.0f; 
+    float m_patrolMaxZ          = 0.0f; 
+    float m_currentSpeed        = 0.0f;
+    float m_baseMoveSpeed       = 2.0f;
+
+    // Helper
+    float GetRandomFloat(float min, float max);
+
+    // Random Movement State
+    DirectX::XMFLOAT3 m_randomTargetPos;
 
     // Constraints
     static constexpr int MAX_PROJECTILES = 5; // Maximum active bullets per enemy

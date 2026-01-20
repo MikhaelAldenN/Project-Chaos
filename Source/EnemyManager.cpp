@@ -19,15 +19,8 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
 {
     ID3D11Device* device = Graphics::Instance().GetDevice();
     const char* modelPath = "";
-    if (config.Type == EnemyType::Ball)
-    {
-        modelPath = "Data/Model/Character/PLACEHOLDER_mdl_Ball.glb";
-    }
-    else
-    {
-        modelPath = "Data/Model/Character/PLACEHOLDER_mdl_Paddle.glb";
-    }
-
+    if (config.Type == EnemyType::Ball) { modelPath = "Data/Model/Character/PLACEHOLDER_mdl_Ball.glb"; }
+    else { modelPath = "Data/Model/Character/PLACEHOLDER_mdl_Paddle.glb"; }
     auto newEnemy = std::make_unique<Enemy>(
         device,
         modelPath,       
@@ -35,16 +28,22 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
         config.Rotation,
         config.Color,
         config.Type,
-        config.AttackBehavior
+        config.AttackBehavior,
+        config.MinX,
+        config.MaxX,
+        config.MinZ, 
+        config.MaxZ, 
+        config.Direction
     );
     m_enemies.push_back(std::move(newEnemy));
 }
 
-void EnemyManager::Update(float elapsedTime, Camera* camera)
+void EnemyManager::Update(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos)
 {
     for (auto& enemy : m_enemies)
     {
         enemy->Update(elapsedTime, camera);
+        enemy->UpdateTracking(elapsedTime, camera, playerPos);
     }
 }
 

@@ -167,7 +167,9 @@ void SceneGameBreaker::Update(float elapsedTime)
 
     if (m_enemyManager)
     {
-        m_enemyManager->Update(elapsedTime, activeCam);
+        XMFLOAT3 targetPos = { 0,0,0 };
+        if (player) { targetPos = player->GetPosition(); }
+        m_enemyManager->Update(elapsedTime, activeCam, targetPos);
     }
 
     // Update Systems
