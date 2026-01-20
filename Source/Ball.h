@@ -1,5 +1,7 @@
 #pragma once
 #include "Character.h"
+#include <memory>        
+#include "System/Model.h"
 
 class Ball : public Character
 {
@@ -9,6 +11,7 @@ public:
 
     void Update(float elapsedTime, Camera* camera) override;
     void Launch();
+    void Fire(const DirectX::XMFLOAT3& startPos, const DirectX::XMFLOAT3& direction, float speed);
     void Reset();
     void SetVelocity(const DirectX::XMFLOAT3& v) { velocity = v; }
     void SetActive(bool active) { isActive = active; }
@@ -17,6 +20,8 @@ public:
     CharacterMovement* GetMovement() const { return movement; }
     DirectX::XMFLOAT3 GetVelocity() const { return velocity; }
     DirectX::XMFLOAT3 GetPreviousPosition() const { return prevPosition; }
+
+    std::shared_ptr<Model> GetModel() const { return model; }
 
     float GetRadius() const { return radius; }
     bool IsActive() const { return isActive; }

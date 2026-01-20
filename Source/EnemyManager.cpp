@@ -1,3 +1,4 @@
+#include "Enemy.h"
 #include "EnemyManager.h"
 
 using namespace DirectX;
@@ -33,7 +34,8 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
         config.Position,
         config.Rotation,
         config.Color,
-        config.Type      
+        config.Type,
+        config.AttackBehavior
     );
     m_enemies.push_back(std::move(newEnemy));
 }
@@ -50,10 +52,7 @@ void EnemyManager::Render(ModelRenderer* renderer)
 {
     for (auto& enemy : m_enemies)
     {
-        renderer->Draw(
-            ShaderId::Phong,
-            enemy->GetModel(),
-            enemy->color
-        );
+        renderer->Draw(ShaderId::Phong, enemy->GetModel(), enemy->color);
+        enemy->RenderProjectiles(renderer);
     }
 }

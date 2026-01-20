@@ -40,6 +40,18 @@ void Ball::Launch()
     XMStoreFloat3(&velocity, v);
 }
 
+void Ball::Fire(const DirectX::XMFLOAT3& startPos, const DirectX::XMFLOAT3& direction, float projectileSpeed)
+{
+    isActive = true;
+    boundariesEnabled = false;
+    movement->SetPosition(startPos);
+    XMVECTOR vDir = XMLoadFloat3(&direction);
+    vDir = XMVector3Normalize(vDir);
+    XMVECTOR vVel = vDir * projectileSpeed;
+    XMStoreFloat3(&velocity, vVel);
+    SyncData();
+}
+
 void Ball::Update(float elapsedTime, Camera* camera)
 {
     if (!isActive)
@@ -51,23 +63,21 @@ void Ball::Update(float elapsedTime, Camera* camera)
 
     XMFLOAT3 pos = movement->GetPosition();
     prevPosition = pos;
-
-    float minAbsZ = speed * 0.25f; 
-
-    if (std::abs(velocity.z) < minAbsZ)
-    {
-        float dirZ = (velocity.z >= 0.0f) ? 1.0f : -1.0f;
-        velocity.z = dirZ * minAbsZ;
-        XMVECTOR v = XMLoadFloat3(&velocity);
-        v = XMVector3Normalize(v) * speed;
-        XMStoreFloat3(&velocity, v);
-    }
-
     pos.x += velocity.x * elapsedTime;
     pos.z += velocity.z * elapsedTime;
+    float minAbsZ = speed * 0.25f;
 
     if (boundariesEnabled)
     {
+        if (std::abs(velocity.z) < minAbsZ)
+        {
+            float dirZ = (velocity.z >= 0.0f) ? 1.0f : -1.0f;
+            velocity.z = dirZ * minAbsZ;
+            XMVECTOR v = XMLoadFloat3(&velocity);
+            v = XMVector3Normalize(v) * speed;
+            XMStoreFloat3(&velocity, v);
+        }
+
         // Right Wall Bounce
         if (pos.x > xLimitRight)
         {
