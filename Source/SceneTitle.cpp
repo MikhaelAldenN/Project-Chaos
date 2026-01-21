@@ -19,6 +19,12 @@ SceneTitle::SceneTitle()
     primitiveBatcher = std::make_unique<Primitive>(Graphics::Instance().GetDevice());
     uiManager = std::make_unique<ButtonManager>(); 
 
+    ShowCursor(FALSE);
+    cursorBlock = std::make_unique<CursorBlock>(Graphics::Instance().GetDevice());
+    cursorBlock->Initialize(14.0f, 24.0f);
+    cursorBlock->SetGridSnap(true, 10.0f, 10.0f);
+    cursorBlock->SetBlink(false);
+
     logConsole = std::make_unique<LogConsole>();
     logConsole->Initialize(335.0f, 695.0f, 6);
     logConsole->SetStyle(0.625f, 30.0f, 0.96f, 0.80f, 0.23f, 0.6f);
@@ -105,6 +111,11 @@ SceneTitle::SceneTitle()
     SetupContent();
     BuildMenu("ROOT");
 }
+
+//SceneTitle::~SceneTitle()
+//{
+//    ShowCursor(TRUE); // Balikin kursor windows
+//}
 
 void SceneTitle::BuildMenu(const std::string& folderName)
 {
@@ -311,6 +322,12 @@ void SceneTitle::Update(float elapsedTime)
     // 2. CEK POPUP / MODAL (BLOCKING AREA)
     // ==============================================================
 
+
+    if (cursorBlock)
+    {
+        cursorBlock->Update(elapsedTime, Input::Instance().GetMouse());
+    }
+
     // Jika Popup Exit muncul...
     if (exitPopup && exitPopup->IsVisible())
     {
@@ -411,6 +428,8 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
     uiManager->Render(dc, targetCamera);
     primitiveBatcher->Render(dc);
 
+
+
     // Text Rendering
     BitmapFont* font = ResourceManager::Instance().GetFont("VGA_FONT");
     if (font)
@@ -435,6 +454,11 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
     if (exitPopup)
     {
         exitPopup->Render(dc);
+    }
+
+    if (cursorBlock)
+    {
+        cursorBlock->Render(dc, primitiveBatcher.get());
     }
 
     // --- STEP 3: Apply Post-Processing & Present ---

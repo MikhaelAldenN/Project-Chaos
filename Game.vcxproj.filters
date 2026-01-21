@@ -246,6 +246,9 @@
     <ClCompile Include="Source\EnemyManager.cpp">
       <Filter>Source\Character</Filter>
     </ClCompile>
+    <ClCompile Include="Source\CursorBlock.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\AnimationController.h">
@@ -499,6 +502,9 @@
     </ClInclude>
     <ClInclude Include="Source\EnemyManager.h">
       <Filter>Source\Character</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\CursorBlock.h">
+      <Filter>Source\UI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
