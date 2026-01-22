@@ -5,6 +5,7 @@
 #include "System/Input.h"
 #include "SceneGameBeyond.h"
 #include "WindowManager.h"
+#include "Framework.h"
 
 using namespace DirectX;
 
@@ -79,6 +80,13 @@ void SceneGameBeyond::InitializeSubWindows()
     lensCamera = std::make_shared<Camera>();
     lensCamera->SetRotation(90.0f, 0.0f, 0.0f); // Pure Top-down
     lensWindow->SetCamera(lensCamera.get());
+
+    if (auto mainWin = Framework::Instance()->GetMainWindow())
+    {
+        // Menyembunyikan window utama agar game terlihat seperti
+        // aplikasi desktop yang "bolong-bolong" (Transparent feel)
+        mainWin->SetVisible(true);
+    }
 
     // Apply priority immediately
     WindowManager::Instance().EnforceWindowPriorities();

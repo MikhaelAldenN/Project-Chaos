@@ -30,6 +30,9 @@ public:
     void DestroyWindow(GameWindow* targetWindow);
     void EnforceWindowPriorities();
 
+    void SetDebugWindow(GameWindow* win) { debugWindow = win; }
+    GameWindow* GetDebugWindow() const { return debugWindow; }
+
     // --------------------------------------------------------
     // [BARU] Tambahkan Helper Functions ini:
     // --------------------------------------------------------
@@ -52,4 +55,6 @@ private:
 
 private:
     std::vector<std::unique_ptr<GameWindow>> windows;
+
+    GameWindow* debugWindow = nullptr;
 };

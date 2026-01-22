@@ -21,36 +21,42 @@ Framework* Framework::pInstance = nullptr;
 Framework::Framework()
 {
     pInstance = this;
-
-    std::cout << "[Framework] CHECKPOINT 1: Init Graphics..." << std::endl;
     Graphics::Instance().Initialize();
 
-    std::cout << "[Framework] CHECKPOINT 2: Creating Main Window..." << std::endl;
-    // Window pertama yang dibuat otomatis jadi index 0
-    WindowManager::Instance().CreateGameWindow("Main Game Window", 1920, 1080);
-
-    GameWindow* mainWin = GetMainWindow();
-    if (!mainWin || !mainWin->GetHWND())
-    {
-        std::cerr << "[Framework] CRITICAL ERROR: Main Window HWND is NULL!" << std::endl;
-        MessageBoxA(NULL, "Main Window failed to init", "Error", MB_OK);
-        exit(-1);
-    }
-
-    std::cout << "[Framework] CHECKPOINT 3: Init Input System..." << std::endl;
+    // 1. Buat Main Window (Background)
+    auto mainWin = WindowManager::Instance().CreateGameWindow("Main Game Window", 1920, 1080);
+    // Input System tetap pakai Main Window (untuk game logic)
     Input::Instance().Initialize(mainWin->GetHWND());
 
-    std::cout << "[Framework] CHECKPOINT 4: Init ImGui..." << std::endl;
-    // Pastikan ini dipanggil SETELAH window siap
-    ImGuiRenderer::Initialize(mainWin->GetHWND(), Graphics::Instance().GetDevice(), Graphics::Instance().GetDeviceContext());
+    // ------------------------------------------------------------
+    // 2. [FIX] BUAT DEDICATED DEBUG WINDOW LEBIH AWAL
+    // ------------------------------------------------------------
 
-    std::cout << "[Framework] CHECKPOINT 5: Load Fonts..." << std::endl;
+    // UBAH UKURAN DI SINI (Contoh: Lebar 800, Tinggi 600)
+    int debugW = 400;
+    int debugH = 600;
+    auto debugWin = WindowManager::Instance().CreateGameWindow("DEBUG CONSOLE", debugW, debugH);
+
+    debugWin->SetPriority(0);
+    WindowManager::Instance().SetDebugWindow(debugWin);
+
+    // [BARU] ATUR POSISI WINDOW DI SINI (X, Y)
+    // Contoh: Pojok Kiri Atas (X=50, Y=50)
+    // Kamu bisa ganti angka 50, 50 dengan koordinat layar yang kamu mau.
+    SDL_SetWindowPosition(debugWin->GetSDLWindow(), 50, 50);
+
+
+    // ------------------------------------------------------------
+    // 3. [FIX] INIT IMGUI MENGGUNAKAN DEBUG WINDOW!
+    // ------------------------------------------------------------
+    // Ini penting agar skala koordinat mouse ImGui sesuai dengan ukuran window console (600x400)
+    ImGuiRenderer::Initialize(debugWin->GetHWND(), Graphics::Instance().GetDevice(), Graphics::Instance().GetDeviceContext());
+
+    // Load Resources
     ResourceManager::Instance().LoadFont("VGA_FONT", "Data/Font/IBM_VGA_32px_0.png", "Data/Font/IBM_VGA_32px.fnt");
 
-    std::cout << "[Framework] CHECKPOINT 6: Create SceneGameBeyond..." << std::endl;
-    scene = std::make_unique<SceneTitle>();
-
-    std::cout << "[Framework] Initialization Complete!" << std::endl;
+    // Init Scene
+    scene = std::make_unique<SceneGameBeyond>();
 }
 
 // ... (Sisa fungsi Destructor, Update, Render, dll SAMA SEPERTI SEBELUMNYA) ...
@@ -111,16 +117,30 @@ void Framework::CalculateFrameStats(float dt)
 {
     static int frames = 0;
     static float timeAccumulator = 0.0f;
+
     frames++;
     timeAccumulator += dt;
+
+    // Update setiap 1 detik
     if (timeAccumulator >= 1.0f)
     {
         float fps = static_cast<float>(frames);
         std::ostringstream outs;
         outs.precision(6);
-        outs << "Main Game Window - FPS: " << fps;
-        GameWindow* mainWin = GetMainWindow();
-        if (mainWin) SetWindowTextA(mainWin->GetHWND(), outs.str().c_str());
+
+        // Format Teks Title Bar
+        outs << "DEBUG CONSOLE | FPS: " << fps << " (" << (1000.0f / fps) << " ms)";
+
+        // [UBAH TARGET KE DEBUG WINDOW]
+        // Kita ambil pointer Debug Window dari Manager
+        GameWindow* debugWin = WindowManager::Instance().GetDebugWindow();
+
+        if (debugWin)
+        {
+            // Ubah judul window Debug Console
+            SetWindowTextA(debugWin->GetHWND(), outs.str().c_str());
+        }
+
         frames = 0;
         timeAccumulator -= 1.0f;
     }

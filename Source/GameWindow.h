@@ -30,6 +30,9 @@ public:
     void SetPriority(int p) { priority = p; }
     int GetPriority() const { return priority; }
 
+    void SetVisible(bool visible);
+    bool IsVisible() const { return isVisible; }
+
 private:
     void CreateBuffers(int w, int h);
 
@@ -48,4 +51,6 @@ private:
     D3D11_VIEWPORT                                  viewport = {};
 
     int priority = 100;
+
+    bool isVisible = true;
 };

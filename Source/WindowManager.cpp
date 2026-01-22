@@ -2,10 +2,7 @@
 #include "Scene.h" 
 #include <algorithm>
 #include "System/ImGuiRenderer.h" 
-#include "System/Graphics.h" // [WAJIB] Tambahkan ini untuk ambil DeviceContext
-
-// Hapus include <imgui.h> di sini karena kita pakai wrapper ImGuiRenderer
-// #include <imgui.h> 
+#include "System/Graphics.h"
 
 void WindowManager::Update(float dt)
 {
@@ -16,34 +13,58 @@ void WindowManager::EnforceWindowPriorities()
 {
     std::vector<GameWindow*> sortedWindows;
 
-    // 1. Ambil window high priority (< 100)
+    // 1. Ambil window game (KECUALIKAN DEBUG WINDOW)
     for (auto& win : windows)
     {
+        // Debug window kita urus terpisah di bawah
+        if (win.get() == debugWindow) continue;
+
         if (win->GetPriority() < 100)
         {
             sortedWindows.push_back(win.get());
         }
     }
 
-    if (sortedWindows.empty()) return;
-
-    // 2. SORT ASCENDING
-    std::sort(sortedWindows.begin(), sortedWindows.end(),
-        [](GameWindow* a, GameWindow* b) {
-            return a->GetPriority() < b->GetPriority();
-        });
-
-    // 3. RELATIVE CHAINING
-    HWND hInsertAfter = HWND_TOPMOST;
-
-    for (GameWindow* win : sortedWindows)
+    // 2. SORT WINDOW GAME (Ascending: 0 paling penting)
+    if (!sortedWindows.empty())
     {
-        SetWindowPos(win->GetHWND(),
-            hInsertAfter,
+        std::sort(sortedWindows.begin(), sortedWindows.end(),
+            [](GameWindow* a, GameWindow* b) {
+                return a->GetPriority() < b->GetPriority();
+            });
+
+        // 3. Tumpuk Window Game
+        // Kita mulai menumpuk window game SEDIKIT DI BAWAH Topmost murni
+        // agar tidak berebut tempat dengan Debug Window.
+        HWND hInsertAfter = HWND_TOPMOST;
+
+        // Opsional: Kalau mau Debug Window benar-benar raja, 
+        // Window game bisa kita taruh di HWND_NOTOPMOST dulu, 
+        // tapi HWND_TOPMOST biasanya cukup aman karena OS memprioritaskan yang aktif.
+
+        for (GameWindow* win : sortedWindows)
+        {
+            SetWindowPos(win->GetHWND(),
+                hInsertAfter,
+                0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
+            hInsertAfter = win->GetHWND();
+        }
+    }
+
+    // -----------------------------------------------------------
+    // [BARU] 4. PAKSA DEBUG WINDOW JADI RAJA (PALING ATAS)
+    // -----------------------------------------------------------
+    if (debugWindow && debugWindow->IsVisible())
+    {
+        // Kita paksa dia jadi HWND_TOPMOST setiap frame.
+        // SWP_NOACTIVATE penting agar dia tidak mencuri fokus keyboard 
+        // saat kita sedang main game, tapi tetap bisa diklik.
+        SetWindowPos(debugWindow->GetHWND(),
+            HWND_TOPMOST,
             0, 0, 0, 0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-
-        hInsertAfter = win->GetHWND();
     }
 }
 
@@ -51,38 +72,55 @@ void WindowManager::RenderAll(float dt, Scene* scene)
 {
     if (!scene) return;
 
-    // -------------------------------------------------------------------------
     // 1. UPDATE GUI CONTENT
-    // -------------------------------------------------------------------------
     scene->DrawGUI();
 
-    // -------------------------------------------------------------------------
+    // Variable untuk melacak apakah kita sudah menutup frame ImGui
+    bool imguiRendered = false;
+
     // 2. RENDER SEMUA WINDOW
-    // -------------------------------------------------------------------------
     for (size_t i = 0; i < windows.size(); ++i)
     {
         auto& win = windows[i];
 
-        // A. Siapkan Layar
-        win->BeginRender(0.5f, 0.5f, 0.5f);
+        // Skip jika sembunyi
+        if (!win->IsVisible()) continue;
 
-        // B. Render Scene Game
-        scene->OnResize(win->GetWidth(), win->GetHeight());
-        scene->Render(dt, win->GetCamera());
-
-        // C. RENDER IMGUI (HANYA DI MAIN WINDOW)
-        if (i == 0)
+        // -----------------------------------------------------------
+        // KASUS A: DEBUG WINDOW (RENDER IMGUI)
+        // -----------------------------------------------------------
+        if (win.get() == debugWindow)
         {
-            // [FIX] Ambil Context dari Graphics system
-            auto context = Graphics::Instance().GetDeviceContext();
+            win->BeginRender(0.1f, 0.1f, 0.1f);
 
-            // Panggil Render milik ImGuiRenderer dengan context
-            // Wrapper ini sudah melakukan ImGui::Render() di dalamnya, jadi aman.
+            // Render ImGui di sini dengan Context yang benar
+            auto context = Graphics::Instance().GetDeviceContext();
             ImGuiRenderer::Render(context);
+
+            win->EndRender();
+
+            // Tandai bahwa kita sudah merender ImGui frame ini
+            imguiRendered = true;
+            continue;
         }
 
-        // D. Tampilkan
+        // -----------------------------------------------------------
+        // KASUS B: WINDOW GAME BIASA
+        // -----------------------------------------------------------
+        win->BeginRender(0.5f, 0.5f, 0.5f);
+        scene->OnResize(win->GetWidth(), win->GetHeight());
+        scene->Render(dt, win->GetCamera());
         win->EndRender();
+    }
+
+    // [FIX ASSERTION]
+    // Jika karena suatu alasan ImGui belum dirender (misal Debug Window hidden),
+    // kita TETAP HARUS memanggil Render() secara internal untuk menutup frame.
+    // Kalau tidak, ImGui akan crash di frame berikutnya.
+    if (!imguiRendered)
+    {
+		auto context = Graphics::Instance().GetDeviceContext();
+        ImGuiRenderer::Render(context);
     }
 }
 
