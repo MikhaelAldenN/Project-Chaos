@@ -132,6 +132,7 @@
     <ClInclude Include="Source\Block.h" />
     <ClInclude Include="Source\BlockManager.h" />
     <ClInclude Include="Source\CinematicDirector.h" />
+    <ClInclude Include="Source\CursorBlock.h" />
     <ClInclude Include="Source\EnemyManager.h" />
     <ClInclude Include="Source\GUISceneGameBreaker.h" />
     <ClInclude Include="Source\JuiceEngine.h" />
@@ -219,6 +220,7 @@
     <ClCompile Include="Source\Character.cpp" />
     <ClCompile Include="Source\CharacterMovement.cpp" />
     <ClCompile Include="Source\CinematicDirector.cpp" />
+    <ClCompile Include="Source\CursorBlock.cpp" />
     <ClCompile Include="Source\Enemy.cpp" />
     <ClCompile Include="Source\EnemyManager.cpp" />
     <ClCompile Include="Source\Framework.cpp" />
