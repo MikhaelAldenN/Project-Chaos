@@ -44,6 +44,12 @@ SceneGameBeyond::SceneGameBeyond()
     // Aktifkan Mode Formasi agar blok yang nanti dispawn langsung nempel ke player
     blockManager->ActivateFormationMode();
 
+    int allyCount = 20;
+    for (int i = 0; i < allyCount; ++i)
+    {
+        blockManager->SpawnAllyBlock(player.get());
+    }
+
     // 3. Setup Secondary Camera (CCTV/Debug)
     subCamera = std::make_shared<Camera>();
     subCamera->SetPerspectiveFov(XMConvertToRadians(60), 4.0f / 3.0f, 0.1f, 1000.0f);
@@ -130,6 +136,7 @@ void SceneGameBeyond::Update(float elapsedTime)
         {
             blockManager->SpawnAllyBlock(player.get());
         }
+
     }
 
     if (isWindowsInitialized)
@@ -319,6 +326,10 @@ void SceneGameBeyond::DrawGUI()
 
     ImGui::Begin("Scene Info");
     ImGui::Text("Controls: WASD (Move), N (New Window)");
+    if (player)
+    {
+        player->DrawDebugGUI();
+    }
     ImGui::End();
 }
 

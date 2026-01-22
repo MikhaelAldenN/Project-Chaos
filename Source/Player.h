@@ -23,7 +23,7 @@ public:
     std::shared_ptr<Model> GetModel() const { return model; }
 
     // --- Input & Control ---
-    void HandleMovementInput();
+    void HandleMovementInput(float elpasedTime);
     //bool CheckJumpInput();
     void SetInputEnabled(bool enable) { isInputEnabled = enable; }
     void SetCamera(Camera* cam) { activeCamera = cam; }
@@ -72,6 +72,8 @@ public:
     // Color Setting
     DirectX::XMFLOAT4 color = { 0.96f, 0.80f, 0.23f, 1.0f };
 
+    void DrawDebugGUI();
+
 private:
     void UpdateBreakoutLogic(float elapsedTime);
     void UpdateEscapeLogic(float elapsedTime);
@@ -96,4 +98,12 @@ private:
     DirectX::XMFLOAT3 originalPosition = { 0.0f, 0.0f, 0.0f }; 
 
 	bool invertControls = false;
+
+    // --- MOVEMENT SETTINGS ---
+    float moveSpeed = 3.0f;          // Kecepatan maksimal
+    float acceleration = 8.0f;      // Seberapa cepat mencapai top speed (Smoothing Start)
+    float deceleration = 10.0f;      // Seberapa cepat berhenti (Smoothing Stop)
+
+    // Menyimpan input yang sudah di-smooth (Current Velocity dalam konteks Input)
+    DirectX::XMFLOAT2 currentSmoothInput = { 0.0f, 0.0f };
 };
