@@ -13,6 +13,8 @@
 #include "UberShader.h"
 #include "System/Sprite.h"
 #include "System/Light.h"
+#include "System/Collision.h"
+#include "System/CollisionManager.h"
 #include "BitmapFont.h"     
 #include "ResourceManager.h"
 
@@ -116,9 +118,9 @@ private:
     Paddle* paddle = nullptr;
     Player* player = nullptr;
     std::unique_ptr<BlockManager> blockManager;
+    std::unique_ptr<CollisionManager> m_collisionManager;
     std::unique_ptr<EnemyManager> m_enemyManager;
     std::unique_ptr<Stage> m_stage;
-
     std::shared_ptr<Camera> mainCamera;
 
     // Camera Settings

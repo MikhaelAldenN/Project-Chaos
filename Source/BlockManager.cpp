@@ -30,7 +30,6 @@ void BlockManager::Initialize(Player* player)
             {
                 if (player)
                 {
-                    // Apply offset to Player
                     float px = startX + (x * m_xSpacing) + m_playerSpawnOffsetX;
                     float pz = startZ + (z * m_zSpacing) + m_zOffsetWorld;
 
@@ -43,11 +42,11 @@ void BlockManager::Initialize(Player* player)
             // HANDLE BLOCKS
             // ---------------------------------------------------------
             auto newBlock = std::make_unique<Block>();
-
-            // Apply offset to Blocks too (so they move with player)
             float posX = startX + (x * m_xSpacing) + m_playerSpawnOffsetX;
             float posZ = startZ + (z * m_zSpacing) + m_zOffsetWorld;
             newBlock->GetMovement()->SetPosition({ posX, 0.0f, posZ });
+            newBlock->GetMovement()->SetGravityEnabled(false);
+            
             blocks.push_back(std::move(newBlock));
         }
     }
@@ -58,7 +57,7 @@ void BlockManager::InitPrioritySlots()
 {
     m_sortedOffsets.clear();
 
-    int center = 5;
+    int center = 6;
     for (int r = -center; r <= center; ++r)
     {
         for (int c = -center; c <= center; ++c)
@@ -73,27 +72,49 @@ void BlockManager::InitPrioritySlots()
         }
     }
 
-    // Sort: Closest offsets to center come first
+    // Sorting Logic: Square Shells (Symmetrical)
     std::sort(m_sortedOffsets.begin(), m_sortedOffsets.end(),
         [](const DirectX::XMFLOAT3& a, const DirectX::XMFLOAT3& b) {
-            float distA = a.x * a.x + a.z * a.z;
-            float distB = b.x * b.x + b.z * b.z;
-            return distA < distB;
+            float layerA = (std::max)(std::abs(a.x), std::abs(a.z));
+            float layerB = (std::max)(std::abs(b.x), std::abs(b.z));
+
+            if (layerA != layerB) return layerA < layerB;
+            if (a.z != b.z) return a.z < b.z;
+            return a.x < b.x;
         });
 }
 
 void BlockManager::Update(float elapsedTime, Camera* camera, Player* player)
 {
+    // 1. Calculate Desired Velocities
     if (isFormationActive && player)
     {
         UpdateFormationPositions(elapsedTime, player);
     }
+    else 
+    {
+        // Stop blocks if formation is inactive
+        for (auto& block : blocks) {
+            block->GetMovement()->SetVelocityX(0);
+            block->GetMovement()->SetVelocityZ(0);
+        }
+    }
 
+    float killPlaneY = -5.0f;
+
+    // 2. Update Physics & Visuals
     for (auto& block : blocks)
     {
         if (block->IsActive())
         {
+            // [FIX] We MUST call Movement Update so velocity actually moves the block!
+            // Your Block::Update only called SyncData, ignoring physics.
+            block->GetMovement()->Update(elapsedTime);
             block->Update(elapsedTime, camera);
+            if (block->GetMovement()->GetPosition().y < killPlaneY)
+            {
+                block->OnHit();
+            }
         }
     }
 }
@@ -171,7 +192,7 @@ void BlockManager::UpdateFormationPositions(float elapsedTime, Player* player)
     m_formationBlocks = currentFrameSlots;
 
     // --------------------------------------------------------
-    // 2. POSITION UPDATE (Movement & Jitter)
+    // 2. VELOCITY UPDATE (Replaces Position Teleport)
     // --------------------------------------------------------
     for (int i = 0; i < m_formationBlocks.size(); ++i)
     {
@@ -182,7 +203,7 @@ void BlockManager::UpdateFormationPositions(float elapsedTime, Player* player)
         DirectX::XMFLOAT3 target;
         target.x = playerPos.x + (m_sortedOffsets[i].x * formationSpacing);
         target.z = playerPos.z + (m_sortedOffsets[i].z * formationSpacing);
-        target.y = 0.0f;
+        target.y = b->GetMovement()->GetPosition().y;
 
         // Apply Random Wiggle (If Moving) 
         if (isMoving)
@@ -193,13 +214,10 @@ void BlockManager::UpdateFormationPositions(float elapsedTime, Player* player)
 
             if (distToPlayerSq > m_config.wiggleMinDistSq)
             {
-                // Unique noise cycle for each block
                 float noise = sinf(m_formationTime * m_config.noiseFrequency + (float)i * 13.1f);
-
                 if (noise > m_config.noiseThreshold)
                 {
                     float intensity = (noise - m_config.noiseThreshold) * m_config.intensityScale;
-
                     float wiggleX = sinf(m_formationTime * m_config.oscSpeedX + i * 7.0f);
                     float wiggleZ = cosf(m_formationTime * m_config.oscSpeedZ + i * 3.0f);
 
@@ -211,35 +229,46 @@ void BlockManager::UpdateFormationPositions(float elapsedTime, Player* player)
 
         // Calculate Smart Speed 
         DirectX::XMFLOAT3 currentPos = b->GetMovement()->GetPosition();
-
-        // Dot product to check if block is "In Front" or "Behind" relative to movement
         float relativeDot = (m_sortedOffsets[i].x * pVel.x) + (m_sortedOffsets[i].z * pVel.z);
-
         float lerpSpeed = m_config.speedBase;
 
-        if (relativeDot > 0.1f)      lerpSpeed = m_config.speedFront; // Snap fast (Front)
-        else if (relativeDot < -0.1f) lerpSpeed = m_config.speedTrail; // Tight/Loose trail (Back)
+        if (relativeDot > 0.1f)      lerpSpeed = m_config.speedFront; 
+        else if (relativeDot < -0.1f) lerpSpeed = m_config.speedTrail;
 
-        // Boost speed if lagging too far behind
         float distSq = GetDistSq(currentPos, target);
+        bool isLongDistance = (distSq > 0.1f);
+        b->SetFilling(isLongDistance);
+
         if (distSq > m_config.catchUpThreshold)
         {
-            lerpSpeed *= m_config.catchUpMult;
+            lerpSpeed = m_config.speedBase * m_config.catchUpMult;
         }
 
-        // Apply Movement 
-        float finalT = std::clamp(lerpSpeed * elapsedTime, 0.0f, 1.0f);
+        float dx = target.x - currentPos.x;
+        float dz = target.z - currentPos.z;
+        float vx = dx * lerpSpeed;
+        float vz = dz * lerpSpeed;
 
-        DirectX::XMFLOAT3 newPos;
-        newPos.x = currentPos.x + (target.x - currentPos.x) * finalT;
-        newPos.y = currentPos.y + (target.y - currentPos.y) * finalT;
-        newPos.z = currentPos.z + (target.z - currentPos.z) * finalT;
+        if (b->IsHittingWall())
+        {
+            DirectX::XMFLOAT3 normal = b->GetWallNormal();
+            float dot = vx * normal.x + vz * normal.z;
 
-        b->GetMovement()->SetPosition(newPos);
+            if (dot < 0.0f)
+            {
+                vx = vx - (normal.x * dot);
+                vz = vz - (normal.z * dot);
+            }
+        }
+
+        b->GetMovement()->SetVelocityX(vx);
+        b->GetMovement()->SetVelocityZ(vz);
+        
         b->SetRelocating(distSq > 0.01f);
     }
 }
 
+// ... (Rest of file: Render, CheckCollision, GetActiveBlockCount are unchanged) ...
 void BlockManager::Render(ModelRenderer* renderer)
 {
     for (auto& block : blocks)

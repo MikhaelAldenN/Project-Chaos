@@ -57,7 +57,7 @@ private:
     float m_attackTimer         = 0.0f;
     float m_fireRate            = 1.5f;   // Time between shots (seconds)
     float m_projectileSpeed     = 10.0f;  // Speed of the ball
-    float m_activationDistance  = 50.0f;  // Enemy starts firing when player is this close
+    float m_activationDistance  = 35.0f;  // Enemy starts firing when player is this close
     float m_despawnDistance     = 55.0f;  // Projectiles die when this far from player
     float m_patrolMinX          = 0.0f;
     float m_patrolMaxX          = 0.0f;

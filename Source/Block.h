@@ -17,13 +17,28 @@ public:
     bool IsRelocating() const { return isRelocating; }
     bool IsActive() const { return isActive; }
 
+    // --- Collision State Management ---
+    void ResetCollisionState() { isHittingWall = false; isStacked = false; wallNormal = { 0,0,0 }; }
+    void SetWallCollision(const DirectX::XMFLOAT3& normal) { isHittingWall = true; isStacked = true; wallNormal = normal; }
+    void SetStacked(bool state) { isStacked = state; }
+    bool IsHittingWall() const { return isHittingWall; }
+    bool IsStacked() const { return isStacked; }
+    const DirectX::XMFLOAT3& GetWallNormal() const { return wallNormal; }
+
+    // --- Filling State Management ---
+    void SetFilling(bool state) { isFilling = state; }
+    bool IsFilling() const { return isFilling; }
+
     CharacterMovement* GetMovement() const { return movement; }
 
 private:
     DirectX::XMFLOAT3 defaultScale = { 3.0f, 3.0f, 3.0f }; // Block Model Size
 
-    bool isActive = true;
-
     // --- Internal State Variable ---
+    bool isActive = true;
+    bool isFilling = false;
     bool isRelocating = false;
+    bool isHittingWall = false;
+    bool isStacked = false;
+    DirectX::XMFLOAT3 wallNormal = { 0,0,0 };
 };

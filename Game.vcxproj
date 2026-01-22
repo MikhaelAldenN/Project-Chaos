@@ -138,6 +138,8 @@
     <ClInclude Include="Source\LogConsole.h" />
     <ClInclude Include="Source\PostProcessManager.h" />
     <ClInclude Include="Source\Stage.h" />
+    <ClInclude Include="Source\System\Collision.h" />
+    <ClInclude Include="Source\System\CollisionManager.h" />
     <ClInclude Include="Source\TextDatabase.h" />
     <ClInclude Include="Source\TUIBuilder.h" />
     <ClInclude Include="Source\UberShader.h" />
@@ -241,6 +243,8 @@
     <ClCompile Include="Source\SceneTitle.cpp" />
     <ClCompile Include="Source\Stage.cpp" />
     <ClCompile Include="Source\System\BasicShader.cpp" />
+    <ClCompile Include="Source\System\Collision.cpp" />
+    <ClCompile Include="Source\System\CollisionManager.cpp" />
     <ClCompile Include="Source\System\Dialog.cpp" />
     <ClCompile Include="Source\System\GamePad.cpp" />
     <ClCompile Include="Source\System\GLTFImporter.cpp" />

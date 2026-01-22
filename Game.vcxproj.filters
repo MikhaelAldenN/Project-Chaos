@@ -246,6 +246,12 @@
     <ClCompile Include="Source\EnemyManager.cpp">
       <Filter>Source\Character</Filter>
     </ClCompile>
+    <ClCompile Include="Source\System\Collision.cpp">
+      <Filter>System</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\System\CollisionManager.cpp">
+      <Filter>System</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\AnimationController.h">
@@ -499,6 +505,12 @@
     </ClInclude>
     <ClInclude Include="Source\EnemyManager.h">
       <Filter>Source\Character</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\System\Collision.h">
+      <Filter>System</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\System\CollisionManager.h">
+      <Filter>System</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -11,6 +11,7 @@ Enemy::Enemy(ID3D11Device* device, const char* filePath, XMFLOAT3 startPos, XMFL
     m_type = type;
     m_attackType = attackType;
 
+    movement->SetGravityEnabled(false);
     movement->SetPosition(startPos);
     movement->SetRotation(startRot);
     originalPosition = startPos;

@@ -72,7 +72,12 @@ void GameBreakerGUI::Draw(SceneGameBreaker* scene)
 				ImGui::EndTabItem();
             }
             
-
+            // --- TAB 6: BLOCK DEBUG TAB ---
+            if (ImGui::BeginTabItem("Block Debug"))
+            {
+                DrawBlockDebugTab(scene);
+                ImGui::EndTabItem();
+            }
             ImGui::EndTabBar();
         }
     }
@@ -673,4 +678,99 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
             }
         }
     }
+}
+
+void GameBreakerGUI::DrawBlockDebugTab(SceneGameBreaker* scene)
+{
+    ImGui::Spacing();
+    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "BLOCK PHYSICS STATES");
+    ImGui::Separator();
+
+    if (!scene->blockManager)
+    {
+        ImGui::Text("BlockManager is null.");
+        return;
+    }
+
+    const auto& blocks = scene->blockManager->GetBlocks();
+
+    // 1. Calculate Summary Stats
+    int activeCount = 0;
+    int wallHitCount = 0;
+    int stackedCount = 0;
+    int fillingCount = 0;
+
+    for (const auto& block : blocks)
+    {
+        if (!block->IsActive()) continue;
+        activeCount++;
+        if (block->IsHittingWall()) wallHitCount++;
+        if (block->IsStacked()) stackedCount++;
+        if (block->IsFilling()) fillingCount++;
+    }
+
+    // 2. Display Summary
+    ImGui::Text("Active Blocks: %d", activeCount);
+
+    // Wall Hits (Red if any)
+    if (wallHitCount > 0) ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Hitting Wall: %d", wallHitCount);
+    else ImGui::Text("Hitting Wall: 0");
+
+    // Stacked (Green if any)
+    if (stackedCount > 0) ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "Stacked / Anchored: %d", stackedCount);
+    else ImGui::Text("Stacked / Anchored: 0");
+
+    ImGui::Text("Filling Mode: %d", fillingCount);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Text("Detailed List:");
+
+    // 3. Scrollable List for Details
+    ImGui::BeginChild("BlockListScroll", ImVec2(0, 300), true); // Height 300px
+
+    for (int i = 0; i < blocks.size(); ++i)
+    {
+        const auto& block = blocks[i];
+        if (!block->IsActive()) continue;
+
+        bool hit = block->IsHittingWall();
+        bool stack = block->IsStacked();
+
+        // Only show interesting blocks (optional filter)
+        // Uncomment next line if you only want to see blocks that are colliding
+        // if (!hit && !stack) continue; 
+
+        ImGui::Text("ID %02d:", i);
+        ImGui::SameLine();
+
+        // Status: Hitting Wall
+        if (hit)
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "[WALL HIT]");
+            // Optional: Show Normal
+            /*
+            ImGui::SameLine();
+            auto n = block->GetWallNormal();
+            ImGui::Text("(%.1f, %.1f)", n.x, n.z);
+            */
+        }
+        else
+        {
+            ImGui::TextDisabled("[Free]");
+        }
+
+        ImGui::SameLine();
+
+        // Status: Stacked
+        if (stack)
+        {
+            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.2f, 1.0f), "[STACKED]");
+        }
+        else
+        {
+            ImGui::TextDisabled("[Loose]");
+        }
+    }
+    ImGui::EndChild();
 }

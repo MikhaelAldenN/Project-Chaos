@@ -50,12 +50,18 @@ SceneGameBreaker::SceneGameBreaker()
     blockManager = std::make_unique<BlockManager>();
     blockManager->Initialize(player);
 
+    m_collisionManager = std::make_unique<CollisionManager>();
+    m_collisionManager->Initialize(player, m_stage.get(), blockManager.get(), m_enemyManager.get());
     m_enemyManager = std::make_unique<EnemyManager>();
     m_enemyManager->Initialize(Graphics::Instance().GetDevice());
 
     // Callback untuk Shake saat blok hancur
     blockManager->SetOnBlockHitCallback([this]()
         {
+            if (player && player->GetGameStage() == 3)
+            {
+                return;
+            }
             if (m_isShakeEnabled)
             {
                 ShakeSettings hitShake;
@@ -170,6 +176,11 @@ void SceneGameBreaker::Update(float elapsedTime)
         XMFLOAT3 targetPos = { 0,0,0 };
         if (player) { targetPos = player->GetPosition(); }
         m_enemyManager->Update(elapsedTime, activeCam, targetPos);
+    }
+
+    if (m_collisionManager)
+    {
+        m_collisionManager->Update();
     }
 
     // Update Systems

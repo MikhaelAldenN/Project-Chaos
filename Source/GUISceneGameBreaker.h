@@ -17,6 +17,7 @@ private:
     static void DrawObjectColorTab(SceneGameBreaker* scene); // Tab baru untuk Color
 	static void DrawObjectTransformTab(SceneGameBreaker* scene); // Tab baru untuk Transform
     static void DrawSpriteTab(SceneGameBreaker* scene);
+    static void DrawBlockDebugTab(SceneGameBreaker* scene);
 
     // Helper untuk edit layout UI
     static void ImGuiEditPanel(const char* label, float& x, float& y, float& scale, float& spacing, float* color);
