@@ -44,6 +44,8 @@ SceneGameBeyond::SceneGameBeyond()
     // Aktifkan Mode Formasi agar blok yang nanti dispawn langsung nempel ke player
     blockManager->ActivateFormationMode();
 
+    boss = std::make_unique<Boss>();
+
     int allyCount = 20;
     for (int i = 0; i < allyCount; ++i)
     {
@@ -87,11 +89,35 @@ void SceneGameBeyond::InitializeSubWindows()
     lensCamera->SetRotation(90.0f, 0.0f, 0.0f); // Pure Top-down
     lensWindow->SetCamera(lensCamera.get());
 
+    // -------------------------------------------------------------
+    // [BARU] INIT POSISI AWAL (Supaya tidak snapping)
+    // -------------------------------------------------------------
+    if (player && trackingWindow)
+    {
+        // Hitung posisi target ideal saat ini (Logic sama seperti di Update)
+        XMFLOAT3 pPos = player->GetPosition();
+        int screenW = GetSystemMetrics(SM_CXSCREEN);
+        int screenH = GetSystemMetrics(SM_CYSCREEN);
+        float targetX = (screenW / 2.0f) + (pPos.x * PIXEL_TO_UNIT_RATIO);
+        float targetY = (screenH / 2.0f) - (pPos.z * PIXEL_TO_UNIT_RATIO);
+
+        // Pusatkan
+        float winW = (float)trackingWindow->GetWidth();
+        float winH = (float)trackingWindow->GetHeight();
+
+        // Simpan ke variabel float kita
+        m_windowX = targetX - (winW / 2.0f);
+        m_windowY = targetY - (winH / 2.0f);
+
+        // Set langsung posisi awal
+        SDL_SetWindowPosition(trackingWindow->GetSDLWindow(), (int)m_windowX, (int)m_windowY);
+    }
+
     if (auto mainWin = Framework::Instance()->GetMainWindow())
     {
         // Menyembunyikan window utama agar game terlihat seperti
         // aplikasi desktop yang "bolong-bolong" (Transparent feel)
-        mainWin->SetVisible(false);
+        mainWin->SetVisible(true);
     }
 
     // Apply priority immediately
@@ -141,10 +167,10 @@ void SceneGameBeyond::Update(float elapsedTime)
 
     if (isWindowsInitialized)
     {
-        UpdateTrackingLogic();
-        UpdateLensLogic();
+        // [UPDATE] Kirim elapsedTime
+        UpdateTrackingLogic(elapsedTime);
 
-        // Ensure Z-Order is maintained every frame
+        UpdateLensLogic();
         WindowManager::Instance().EnforceWindowPriorities();
     }
 
@@ -216,6 +242,7 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
         // tapi pastikan dia digambar.
     }
 
+
     // -------------------------------------------------------------------------
     // 4. RENDER BLOCKS (DENGAN CULLING)
     // -------------------------------------------------------------------------
@@ -232,6 +259,13 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
             // Kalau dekat, masukkan antrian render
             block->Render(modelRenderer, blockManager->globalBlockColor);
         }
+    }
+
+    if (boss)
+    {
+        // Boss perlu update animasi tiap frame render (atau pindah ke Update() lebih baik)
+        boss->Update(elapsedTime);
+        boss->Render(modelRenderer);
     }
 
     // -------------------------------------------------------------------------
@@ -253,40 +287,47 @@ float SceneGameBeyond::GetUnifiedCameraHeight() const
     return (sysScreenH / 2.0f) / (PIXEL_TO_UNIT_RATIO * halfFovTan);
 }
 
-void SceneGameBeyond::UpdateTrackingLogic()
+// [UPDATE] Tambahkan parameter dt
+void SceneGameBeyond::UpdateTrackingLogic(float dt)
 {
     if (!player || !trackingWindow || !trackingCamera) return;
 
-    // 1. Calculate Target Window Position based on Player
+    // 1. Calculate Target (Sama seperti sebelumnya)
     XMFLOAT3 pPos = player->GetPosition();
     int screenW = GetSystemMetrics(SM_CXSCREEN);
     int screenH = GetSystemMetrics(SM_CYSCREEN);
 
-    // Determine target pixel coordinates
     float centerX = screenW / 2.0f;
     float centerY = screenH / 2.0f;
     float targetX = centerX + (pPos.x * PIXEL_TO_UNIT_RATIO);
-    float targetY = centerY - (pPos.z * PIXEL_TO_UNIT_RATIO); // Invert Z for Screen Y
+    float targetY = centerY - (pPos.z * PIXEL_TO_UNIT_RATIO);
 
-    // Center the window on target
     float winW = (float)trackingWindow->GetWidth();
     float winH = (float)trackingWindow->GetHeight();
 
-    int finalWinX = (int)(targetX - (winW / 2.0f) + 0.5f);
-    int finalWinY = (int)(targetY - (winH / 2.0f) + 0.5f);
+    // Target akhir (Centered)
+    float destX = targetX - (winW / 2.0f);
+    float destY = targetY - (winH / 2.0f);
 
-    // 2. Move Window (Only if changed to reduce overhead)
-    static int lastWinX = -9999;
-    static int lastWinY = -9999;
+    // -------------------------------------------------------------
+    // [BARU] SMOOTH DAMPING (LERP)
+    // -------------------------------------------------------------
+    // Rumus: Current += (Target - Current) * Speed * Time
 
-    if (finalWinX != lastWinX || finalWinY != lastWinY)
-    {
-        SDL_SetWindowPosition(trackingWindow->GetSDLWindow(), finalWinX, finalWinY);
-        lastWinX = finalWinX;
-        lastWinY = finalWinY;
-    }
+    // Faktor interpolasi (Clamp biar gak overshoot kalau fps drop)
+    float t = m_windowFollowSpeed * dt;
+    if (t > 1.0f) t = 1.0f;
 
-    // 3. Update Camera Projection
+    m_windowX += (destX - m_windowX) * t;
+    m_windowY += (destY - m_windowY) * t;
+
+    // -------------------------------------------------------------
+    // 3. APPLY TO WINDOW
+    // -------------------------------------------------------------
+    // Kita cast ke int hanya saat set posisi, tapi simpan float-nya
+    SDL_SetWindowPosition(trackingWindow->GetSDLWindow(), (int)m_windowX, (int)m_windowY);
+
+    // 4. Update Camera Projection (Tetap sama)
     float camHeight = (centerY / (PIXEL_TO_UNIT_RATIO * tanf(XMConvertToRadians(FIELD_OF_VIEW) / 2.0f)));
     UpdateOffCenterProjection(trackingCamera.get(), trackingWindow, camHeight);
 }
@@ -373,6 +414,10 @@ void SceneGameBeyond::DrawGUI()
     {
         player->DrawDebugGUI();
     }
+    // Slider untuk mengatur kelicinan window
+    // Nilai kecil (1.0 - 3.0) = Sangat Smooth/Lambat (Cinematic)
+    // Nilai besar (10.0+) = Cepat/Responsif (Arcade)
+    ImGui::DragFloat("Window Follow Speed", &m_windowFollowSpeed, 0.1f, 0.1f, 50.0f);
     ImGui::End();
 }
 

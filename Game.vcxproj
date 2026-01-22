@@ -131,6 +131,7 @@
     <ClInclude Include="Source\BitmapFont.h" />
     <ClInclude Include="Source\Block.h" />
     <ClInclude Include="Source\BlockManager.h" />
+    <ClInclude Include="Source\Boss.h" />
     <ClInclude Include="Source\CinematicDirector.h" />
     <ClInclude Include="Source\CursorBlock.h" />
     <ClInclude Include="Source\EnemyManager.h" />
@@ -215,6 +216,7 @@
     <ClCompile Include="Source\BitmapFont.cpp" />
     <ClCompile Include="Source\Block.cpp" />
     <ClCompile Include="Source\BlockManager.cpp" />
+    <ClCompile Include="Source\Boss.cpp" />
     <ClCompile Include="Source\Camera.cpp" />
     <ClCompile Include="Source\CameraController.cpp" />
     <ClCompile Include="Source\Character.cpp" />
