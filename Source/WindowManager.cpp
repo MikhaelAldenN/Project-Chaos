@@ -75,8 +75,8 @@ void WindowManager::RenderAll(float dt, Scene* scene)
     // 1. UPDATE GUI CONTENT
     scene->DrawGUI();
 
-    // Variable untuk melacak apakah kita sudah menutup frame ImGui
-    bool imguiRendered = false;
+    // Variable untuk melacak apakah VSync sudah dilakukan frame ini
+    bool vSyncTriggered = false;
 
     // 2. RENDER SEMUA WINDOW
     for (size_t i = 0; i < windows.size(); ++i)
@@ -86,41 +86,51 @@ void WindowManager::RenderAll(float dt, Scene* scene)
         // Skip jika sembunyi
         if (!win->IsVisible()) continue;
 
+        // A. TENTUKAN APAKAH INI WINDOW "KETUA" (DEBUG CONSOLE)
+        // Jika ini Debug Window, kita aktifkan VSync (1) agar FPS terkunci di 60.
+        // Window lain (Tracking/Lens) kita set 0 agar render secepat kilat.
+        bool isMasterWindow = (win.get() == debugWindow);
+
         // -----------------------------------------------------------
-        // KASUS A: DEBUG WINDOW (RENDER IMGUI)
+        // RENDER LOGIC
         // -----------------------------------------------------------
-        if (win.get() == debugWindow)
+        if (isMasterWindow)
         {
+            // --- RENDER DEBUG WINDOW (BACKGROUND GELAP) ---
             win->BeginRender(0.1f, 0.1f, 0.1f);
 
-            // Render ImGui di sini dengan Context yang benar
             auto context = Graphics::Instance().GetDeviceContext();
             ImGuiRenderer::Render(context);
 
-            win->EndRender();
-
-            // Tandai bahwa kita sudah merender ImGui frame ini
-            imguiRendered = true;
-            continue;
+            // [PENTING] EndRender(1) artinya "Tunggu Monitor Refresh" (VSync ON)
+            win->EndRender(1);
+            vSyncTriggered = true; // Tandai kita sudah ngerem
         }
+        else
+        {
+            // --- RENDER GAME WINDOW (SCENE 3D) ---
+            win->BeginRender(0.5f, 0.5f, 0.5f);
+            scene->OnResize(win->GetWidth(), win->GetHeight());
+            scene->Render(dt, win->GetCamera());
 
-        // -----------------------------------------------------------
-        // KASUS B: WINDOW GAME BIASA
-        // -----------------------------------------------------------
-        win->BeginRender(0.5f, 0.5f, 0.5f);
-        scene->OnResize(win->GetWidth(), win->GetHeight());
-        scene->Render(dt, win->GetCamera());
-        win->EndRender();
+            // [PENTING] EndRender(0) artinya "Jangan Tunggu, Langsung Tampil" (VSync OFF)
+            // Ini aman KARENA kita sudah menunggu di Debug Window tadi.
+            win->EndRender(0);
+        }
     }
 
-    // [FIX ASSERTION]
-    // Jika karena suatu alasan ImGui belum dirender (misal Debug Window hidden),
-    // kita TETAP HARUS memanggil Render() secara internal untuk menutup frame.
-    // Kalau tidak, ImGui akan crash di frame berikutnya.
-    if (!imguiRendered)
+    // [SAFETY NET / REM DARURAT]
+    // Jika Debug Window sedang disembunyikan/minimize, maka tidak ada yang ngerem (vSyncTriggered = false).
+    // Akibatnya FPS akan loncat ke 2000+ lagi dan bikin layar hitam.
+    // Kita harus ngerem manual pakai SDL_Delay.
+    if (!vSyncTriggered)
     {
-		auto context = Graphics::Instance().GetDeviceContext();
+        // Render ImGui internal (untuk safety assertion)
+        auto context = Graphics::Instance().GetDeviceContext();
         ImGuiRenderer::Render(context);
+
+        // Tidur sebentar ~16ms (kira-kira 60 FPS) agar GPU bisa bernafas
+        SDL_Delay(16);
     }
 }
 

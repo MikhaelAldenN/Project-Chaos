@@ -91,7 +91,7 @@ void SceneGameBeyond::InitializeSubWindows()
     {
         // Menyembunyikan window utama agar game terlihat seperti
         // aplikasi desktop yang "bolong-bolong" (Transparent feel)
-        mainWin->SetVisible(true);
+        mainWin->SetVisible(false);
     }
 
     // Apply priority immediately
@@ -178,24 +178,67 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
     if (!camera) return;
 
     auto dc = Graphics::Instance().GetDeviceContext();
+
+    // [FIX] Ambil Primitive Renderer untuk Grid
     auto primRenderer = Graphics::Instance().GetPrimitiveRenderer();
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
 
-    // Draw Grid
+    // -------------------------------------------------------------------------
+    // 1. RENDER GRID (KEMBALIKAN INI)
+    // -------------------------------------------------------------------------
+    // Kita gambar grid dulu agar ada di paling bawah/background
     primRenderer->DrawGrid(20, 1);
     primRenderer->Render(dc, camera->GetView(), camera->GetProjection(), D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 
-    // Draw Player
+    // -------------------------------------------------------------------------
+    // 2. SETUP CULLING (OPTIMASI)
+    // -------------------------------------------------------------------------
+    RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
+
+    DirectX::XMFLOAT3 camPos = camera->GetPosition();
+    float cullingRadius = 40.0f;
+
+    // Helper Lambda untuk Cek Jarak
+    auto IsVisible = [&](const DirectX::XMFLOAT3& objPos) -> bool {
+        float dx = camPos.x - objPos.x;
+        float dz = camPos.z - objPos.z;
+        // Jarak kuadrat < Radius kuadrat (Lebih cepat daripada sqrt)
+        return (dx * dx + dz * dz) < (cullingRadius * cullingRadius);
+        };
+
+    // -------------------------------------------------------------------------
+    // 3. RENDER PLAYER
+    // -------------------------------------------------------------------------
     if (player)
     {
-        RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
         player->Render(modelRenderer);
-        if (blockManager)
-        {
-            blockManager->Render(modelRenderer);
-        }
-        modelRenderer->Render(rc);
+        // Player kita render terpisah atau gabung batch nanti tidak masalah,
+        // tapi pastikan dia digambar.
     }
+
+    // -------------------------------------------------------------------------
+    // 4. RENDER BLOCKS (DENGAN CULLING)
+    // -------------------------------------------------------------------------
+    if (blockManager)
+    {
+        // Loop manual untuk memilah mana block yang DEKAT kamera
+        for (const auto& block : blockManager->GetBlocks())
+        {
+            if (!block->IsActive()) continue;
+
+            // [OPTIMASI] Cek Jarak! Kalau jauh, SKIP render
+            if (!IsVisible(block->GetMovement()->GetPosition())) continue;
+
+            // Kalau dekat, masukkan antrian render
+            block->Render(modelRenderer, blockManager->globalBlockColor);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. FLUSH DRAW CALL (Kirim ke GPU)
+    // -------------------------------------------------------------------------
+    // Ini akan menggambar Player + Block yang lolos seleksi tadi sekaligus
+    modelRenderer->Render(rc);
 }
 
 // =========================================================
