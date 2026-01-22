@@ -38,11 +38,15 @@ void CursorBlock::SetGridSnap(bool enable, float gw, float gh)
     gridH = gh;
 }
 
-void CursorBlock::SetBlink(bool enable, float speed)
+void CursorBlock::SetBlink(bool enable, float visibleTime, float invisibleTime)
 {
     useBlink = enable;
-    blinkSpeed = speed;
+    blinkVisibleTime = visibleTime;
+    blinkInvisibleTime = invisibleTime;
+
+    // Reset state agar saat diaktifkan, kursor mulai dari kondisi terlihat (fresh start)
     isVisible = true;
+    blinkTimer = 0.0f;
 }
 
 // [UPDATED] Menerima Mouse&
@@ -68,10 +72,13 @@ void CursorBlock::Update(float dt, Mouse& mouse)
     if (useBlink)
     {
         blinkTimer += dt;
-        if (blinkTimer >= blinkSpeed)
+
+        float currentLimit = isVisible ? blinkVisibleTime : blinkInvisibleTime;
+
+        if (blinkTimer >= currentLimit)
         {
-            blinkTimer -= blinkSpeed;
-            isVisible = !isVisible;
+            blinkTimer -= currentLimit; // Reset timer (sisa waktu diteruskan agar akurat)
+            isVisible = !isVisible;     // Balik status (Muncul <-> Hilang)
         }
     }
     else

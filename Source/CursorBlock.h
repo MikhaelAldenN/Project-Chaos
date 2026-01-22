@@ -25,7 +25,7 @@ public:
 
     // Opsi Retro
     void SetGridSnap(bool enable, float gridW, float gridH);
-    void SetBlink(bool enable, float speed = 0.5f);
+    void SetBlink(bool enable, float visibleTime = 0.8f, float invisibleTime = 0.2f);
 
 private:
     Microsoft::WRL::ComPtr<ID3D11BlendState> invertBlendState;
@@ -42,6 +42,7 @@ private:
 
     bool useBlink = true;
     float blinkTimer = 0.0f;
-    float blinkSpeed = 0.5f;
+    float blinkVisibleTime = 0.5f;   // Lama waktu terlihat
+    float blinkInvisibleTime = 0.2f; // Lama waktu hilang
     bool isVisible = true;
 };

@@ -380,6 +380,7 @@ void SceneTitle::Update(float elapsedTime)
     // Ini juga harus diblokir kalau lagi ada popup Exit
     if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN))
     {
+        ShowCursor(TRUE);
         Framework::Instance()->ChangeScene(std::make_unique<SceneGameBreaker>());
     }
 }
