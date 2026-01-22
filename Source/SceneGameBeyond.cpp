@@ -10,17 +10,45 @@ SceneGameBeyond::SceneGameBeyond()
     float screenW = 1280.0f;
     float screenH = 720.0f;
 
-    // 1. Initialize Main Assets (std::make_sharedを使用)
+    // -----------------------------------------------------------
+    // 1. Setup Main Camera dengan FOV 60 (Sama dengan window lain)
+    // -----------------------------------------------------------
     mainCamera = std::make_shared<Camera>();
-    mainCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(45), screenW / screenH, 0.1f, 1000.0f);
-    mainCamera->SetPosition(0, 5, -5);
+    // UBAH DARI 45 KE 60:
+    mainCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(60), screenW / screenH, 0.1f, 1000.0f);
+
+    // Inisialisasi awal (nanti akan ditimpa Controller)
+    mainCamera->SetPosition(0, 5, 0);
     mainCamera->LookAt({ 0, 0, 0 });
 
-    // エラー修正: shared_ptr を渡すのでコンパイルが通ります
     CameraController::Instance().SetActiveCamera(mainCamera);
-    CameraController::Instance().SetControlMode(CameraControlMode::GamePad);
+    CameraController::Instance().SetControlMode(CameraControlMode::FixedStatic);
+
+    // -----------------------------------------------------------
+    // 2. Hitung "Perfect Height" (Logika sama dengan LensWindow)
+    // -----------------------------------------------------------
+    // Ambil tinggi layar monitor asli (bukan window game)
+    int sysScreenH = GetSystemMetrics(SM_CYSCREEN);
+
+    float pixelRatio = 40.0f; // Nilai yang sama dengan tracking/lens window
+    float fovRad = DirectX::XMConvertToRadians(60); // 60 Derajat
+    float halfFovTan = tanf(fovRad / 2.0f);
+
+    // Rumus: Height = (Layar/2) / (Ratio * tan(fov/2))
+    float unifiedHeight = (sysScreenH / 2.0f) / (pixelRatio * halfFovTan);
+
+    // -----------------------------------------------------------
+    // 3. Masukkan Height ke CameraController
+    // -----------------------------------------------------------
+    // X = 0, Y = unifiedHeight, Z = -10 (mundur sedikit biar tidak tegak lurus banget, atau 0 jika mau top-down)
+    CameraController::Instance().SetFixedSetting(DirectX::XMFLOAT3(0.0f, unifiedHeight, 0.0f));
+
+    // Pastikan camera melihat ke titik tengah (atau player)
+    CameraController::Instance().SetTarget(DirectX::XMFLOAT3(0, 0, 0));
 
     player = std::make_unique<Player>();
+
+    player->SetInvertControls(true);
 
     // 2. Initialize Secondary Camera (CCTV)
     subCamera = std::make_shared<Camera>();
@@ -28,19 +56,40 @@ SceneGameBeyond::SceneGameBeyond()
     subCamera->SetPosition(5, 5, 5);
     subCamera->LookAt({ 0, 0, 0 });
 
-    // 3. Initialize Windows
+    //// 3. Initialize Windows
+    //trackingWindow = WindowManager::Instance().CreateGameWindow("Tracking View", 300, 300);
+    //trackingCamera = std::make_shared<Camera>();
+    //trackingCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(60), 1.0f, 0.1f, 1000.0f);
+
+    //// Windowには生ポインタを渡す (.get())
+    //trackingWindow->SetCamera(trackingCamera.get());
+
+    //lensWindow = WindowManager::Instance().CreateGameWindow("Lens View (Drag Me!)", 300, 300);
+    //lensCamera = std::make_shared<Camera>();
+    //lensCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(60), 1.0f, 0.1f, 1000.0f);
+    //lensCamera->SetRotation(90.0f, 0.0f, 0.0f); // Top-down
+    //lensWindow->SetCamera(lensCamera.get());
+    trackingWindow = nullptr;
+    lensWindow = nullptr;
+
+}
+
+void SceneGameBeyond::InitializeSubWindows()
+{
+    // 1. Initialize Tracking Window
     trackingWindow = WindowManager::Instance().CreateGameWindow("Tracking View", 300, 300);
     trackingCamera = std::make_shared<Camera>();
     trackingCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(60), 1.0f, 0.1f, 1000.0f);
-
-    // Windowには生ポインタを渡す (.get())
     trackingWindow->SetCamera(trackingCamera.get());
 
+    // 2. Initialize Lens Window
     lensWindow = WindowManager::Instance().CreateGameWindow("Lens View (Drag Me!)", 300, 300);
     lensCamera = std::make_shared<Camera>();
     lensCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(60), 1.0f, 0.1f, 1000.0f);
-    lensCamera->SetRotation(90.0f, 0.0f, 0.0f); // Top-down
+    lensCamera->SetRotation(90.0f, 0.0f, 0.0f);
     lensWindow->SetCamera(lensCamera.get());
+
+    areWindowsInitialized = true;
 }
 
 SceneGameBeyond::~SceneGameBeyond()
@@ -60,15 +109,31 @@ SceneGameBeyond::~SceneGameBeyond()
 
 void SceneGameBeyond::Update(float elapsedTime)
 {
-    // エラー修正: Controllerから戻ってくるshared_ptrから生ポインタを取り出す (.get())
+    // -----------------------------------------------------------
+    // [BARU] LOGIKA DEFERRED INITIALIZATION
+    // Tunggu sebentar (misal 0.2 detik) sebelum membuat window anak
+    // agar Main Window & Input System stabil dulu.
+    // -----------------------------------------------------------
+    if (!areWindowsInitialized)
+    {
+        startupTimer += elapsedTime;
+        if (startupTimer > 0.2f)
+        {
+            InitializeSubWindows();
+        }
+        else
+        {
+            // Jangan jalankan update logic lain kalau belum siap
+            return;
+        }
+    }
+
     Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
 
     if (player)
     {
         player->Update(elapsedTime, activeCam);
-        CameraController::Instance().SetTarget(player->GetPosition());
 
-        // Update CCTV Camera
         if (subCamera)
         {
             subCamera->SetPosition(5, 5.0f, 5);
@@ -76,10 +141,14 @@ void SceneGameBeyond::Update(float elapsedTime)
         }
     }
 
-    UpdateTrackingWindow();
-    UpdateLensWindow();
-    HandleDebugInput();
+    // Pastikan dicek window sudah ada atau belum
+    if (areWindowsInitialized)
+    {
+        UpdateTrackingWindow();
+        UpdateLensWindow();
+    }
 
+    HandleDebugInput();
     CameraController::Instance().Update(elapsedTime);
 }
 
@@ -133,6 +202,10 @@ void SceneGameBeyond::UpdateTrackingWindow()
     if (!player || !trackingWindow || !trackingCamera) return;
 
     static float currentPixelRatio = 40.0f;
+
+    static int lastWinX = -9999;
+    static int lastWinY = -9999;
+
     DirectX::XMFLOAT3 pPos = player->GetPosition();
 
     int screenW = GetSystemMetrics(SM_CXSCREEN);
@@ -150,6 +223,13 @@ void SceneGameBeyond::UpdateTrackingWindow()
     // Snap to Integer pixels to prevent jitter
     int finalWinX = (int)(targetX - (winW / 2.0f) + 0.5f);
     int finalWinY = (int)(targetY - (winH / 2.0f) + 0.5f);
+
+    if (finalWinX != lastWinX || finalWinY != lastWinY)
+    {
+        SDL_SetWindowPosition(trackingWindow->GetSDLWindow(), finalWinX, finalWinY);
+        lastWinX = finalWinX;
+        lastWinY = finalWinY;
+    }
 
     SDL_SetWindowPosition(trackingWindow->GetSDLWindow(), finalWinX, finalWinY);
 

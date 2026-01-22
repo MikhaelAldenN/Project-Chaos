@@ -21,7 +21,7 @@ public:
 
     // ¶ƒ|ƒCƒ“ƒ^‚ğ•Ô‚· (ŒİŠ·«‚Ì‚½‚ß)
     Camera* GetMainCamera() const { return mainCamera.get(); }
-    Camera* GetSubCamera() const { return subCamera.get(); }
+    Camera* GetSubCamera() const { return subCamera.get(); }   
 
 private:
     void RenderScene(float elapsedTime, Camera* camera);
@@ -44,4 +44,9 @@ private:
     // --- Lens Window (Draggable by user) ---
     GameWindow* lensWindow = nullptr;
     std::shared_ptr<Camera> lensCamera;
+
+    bool areWindowsInitialized = false;
+    float startupTimer = 0.0f;
+
+    void InitializeSubWindows();
 };

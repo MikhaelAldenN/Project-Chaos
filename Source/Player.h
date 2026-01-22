@@ -42,6 +42,8 @@ public:
     void TriggerEscape();
     bool IsEscaping() const { return isEscaping; }
 
+    void SetInvertControls(bool enable) { invertControls = enable; }
+
     // --- SETTINGS ---
     struct BreakoutSettings
     {
@@ -92,4 +94,6 @@ private:
     float shakeEnergy = 0.0f; 
     int gameStage = 0;
     DirectX::XMFLOAT3 originalPosition = { 0.0f, 0.0f, 0.0f }; 
+
+	bool invertControls = false;
 };

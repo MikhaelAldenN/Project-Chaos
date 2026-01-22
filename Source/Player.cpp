@@ -212,6 +212,13 @@ void Player::HandleMovementInput()
     if (GetAsyncKeyState('S') & 0x8000) z -= 1.0f;
     if (GetAsyncKeyState('D') & 0x8000) x += 1.0f;
     if (GetAsyncKeyState('A') & 0x8000) x -= 1.0f;
+
+    // plis lah tinggal rotate player doang
+    if (invertControls)
+    {
+        x = -x;
+        z = -z;
+    }
     
     movement->SetMoveInput(x, z);
     movement->SetRotationY(DirectX::XM_PI);
