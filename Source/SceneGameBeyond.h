@@ -9,6 +9,8 @@
 #include "Player.h" 
 #include "Boss.h"
 #include "BlockManager.h"
+#include "BitmapFont.h"
+#include "ResourceManager.h"
 
 class SceneGameBeyond : public Scene
 {
@@ -74,4 +76,26 @@ private:
     // [BARU] Boss Window Position State
     float m_bossWinX = 0.0f;
     float m_bossWinY = 0.0f;
+
+    // --- 3D TEXT EDITOR DATA ---
+    // Gunakan char array biar bisa diedit pakai ImGui::InputText
+// --- 3D TEXT EDITOR DATA ---
+
+    // Label Content: >C:\_ (Backslash harus double)
+    char m_textLabel[128] = ">C:\\_";
+
+    // Offset Position: -2.3, 3.8, 0.0
+    DirectX::XMFLOAT3 m_textOffset = { -2.3f, 3.8f, 0.0f };
+
+    // Rotation: 68, 0, 0
+    DirectX::XMFLOAT3 m_textRotation = { 68.0f, 0.0f, 0.0f };
+
+    // Scale: 0.0110
+    float m_textScale = 0.011f;
+
+    // Text Color (R:237 G:192 B:17) -> Dikonversi ke Float
+    DirectX::XMFLOAT4 m_textColor = { 237.0f / 255.0f, 192.0f / 255.0f, 17.0f / 255.0f, 1.0f };
+
+    // Checkbox opsi tambahan
+    bool m_textUseBillboard = true;
 };

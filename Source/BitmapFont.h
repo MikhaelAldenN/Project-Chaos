@@ -26,6 +26,13 @@ public:
     void Draw(const std::string& text, float x, float y, float scale, float r = 1.0f, float g = 1.0f, float b = 1.0f, float a = 1.0f);
     DirectX::XMFLOAT2 MeasureText(const std::string& text, float scale);
 
+    void Draw3D(const std::string& text,
+        const Camera* camera,
+        DirectX::XMFLOAT3 worldPos,
+        float scale,
+        DirectX::XMFLOAT3 rotation = { 0,0,0 }, // Pitch, Yaw, Roll
+        DirectX::XMFLOAT4 color = { 1,1,1,1 });
+
 private:
     std::unique_ptr<Sprite> sprite; // Pointer ke Sprite sistem kamu
     std::map<int, CharData> chars;  // Database koordinat huruf

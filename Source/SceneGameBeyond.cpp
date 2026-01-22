@@ -299,7 +299,54 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
     // 5. Render Boss
     if (boss) boss->Render(modelRenderer);
 
+    BitmapFont* text = ResourceManager::Instance().GetFont("VGA_FONT");
+
+
     modelRenderer->Render(rc);
+
+    if (boss)
+    {
+        // 1. Hitung Posisi Akhir (Posisi Boss + Offset Editor)
+        DirectX::XMFLOAT3 basePos = boss->GetVisualPosition();
+        DirectX::XMFLOAT3 finalPos = {
+            basePos.x + m_textOffset.x,
+            basePos.y + m_textOffset.y,
+            basePos.z + m_textOffset.z
+        };
+
+        // 2. Logika Rotasi
+        DirectX::XMFLOAT3 rotationInRadians;
+
+        rotationInRadians.x = DirectX::XMConvertToRadians(m_textRotation.x);
+        rotationInRadians.y = DirectX::XMConvertToRadians(m_textRotation.y);
+        rotationInRadians.z = DirectX::XMConvertToRadians(m_textRotation.z);
+
+        // [FITUR KEREN] Billboard Mode
+        // Kalau dicentang, text otomatis menghadap kamera (mengabaikan rotasi Y manual)
+        if (m_textUseBillboard && camera)
+        {
+            // Ambil rotasi kamera, lalu balik 180 derajat (atau sesuaikan)
+            // Di engine sederhana, biasanya cukup ambil Y rotation camera + 180 (PI)
+            // Tapi karena kita kirim Euler Angles, kita set manual 0 jika kamera statis
+            // Atau logic billboard sederhana: biarkan 0,0,0 kalau kamera Top Down murni.
+
+            // Note: Untuk Full Billboard 3D butuh perhitungan Matrix LookAt,
+            // tapi untuk sekarang kita pakai rotasi manual editor saja biar aman.
+            // (Kamu bisa uncheck billboard di GUI kalau mau putar manual)
+        }
+
+        // 3. Gambar!
+        // Pastikan pakai m_textLabel (char array) bukan string literal
+        text->Draw3D(
+            m_textLabel,
+            camera,
+            finalPos,
+            m_textScale,
+            rotationInRadians,
+            m_textColor
+        );
+    }
+
 }
 
 void SceneGameBeyond::DrawGUI()
@@ -321,6 +368,38 @@ void SceneGameBeyond::DrawGUI()
         ImGui::Text("Boss Window Offset (World Space):");
         ImGui::DragFloat3("Offset XYZ", &m_bossTrackingOffset.x, 0.1f);
         ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "Gunakan Y untuk naik/turunkan window");
+    }
+
+    ImGui::Separator();
+
+    // --- TEXT EDITOR WINDOW ---
+    if (ImGui::CollapsingHeader("3D Text Editor", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        // 1. Edit Isi Teks
+        ImGui::InputText("Label Content", m_textLabel, sizeof(m_textLabel));
+
+        // 2. Edit Offset (Relatif terhadap Boss)
+        ImGui::DragFloat3("Offset Position", &m_textOffset.x, 0.1f);
+
+        // 3. Edit Rotasi
+        // Gunakan Slider/Drag. Ingat ini dalam Degree (Derajat)
+        ImGui::DragFloat3("Rotation (Pitch/Yaw/Roll)", &m_textRotation.x, 1.0f, -360.0f, 360.0f);
+
+        // 4. Edit Scale (Penting! Font 3D itu sensitif ukurannya)
+        ImGui::DragFloat("Scale", &m_textScale, 0.001f, 0.001f, 1.0f, "%.4f");
+
+        // 5. Edit Warna
+        ImGui::ColorEdit4("Text Color", &m_textColor.x);
+
+        // 6. Tombol Reset (Biar gampang kalau teksnya hilang entah kemana)
+        if (ImGui::Button("Reset Text Config"))
+        {
+            sprintf_s(m_textLabel, ">C:\\_"); // Reset teks juga
+            m_textOffset = { -2.3f, 3.8f, 0.0f };
+            m_textRotation = { 68.0f, 0.0f, 0.0f };
+            m_textScale = 0.011f;
+            m_textColor = { 237.0f / 255.0f, 192.0f / 255.0f, 17.0f / 255.0f, 1.0f };
+        }
     }
 
     ImGui::DragFloat("Window Follow Speed", &m_windowFollowSpeed, 0.1f, 0.1f, 50.0f);

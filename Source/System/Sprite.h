@@ -40,6 +40,17 @@ public:
 		float r, float g, float b, float a  // 色
 	) const;
 
+	// Render 3D dengan dukungan UV Slicing (Khusus untuk Font / Partikel)
+	void Render3D(ID3D11DeviceContext* dc,
+		const Camera* camera,
+		float wx, float wy, float wz,       // Posisi Dunia
+		float w, float h,                   // Ukuran Dunia
+		float sx, float sy,                 // UV Start (Pixel)
+		float sw, float sh,                 // UV Size (Pixel)
+		float pitch, float yaw, float roll, // Rotasi
+		float r, float g, float b, float a  // Warna
+	) const;
+
 	// 描画実行（テクスチャ切り抜き指定なし）
 	void Render(ID3D11DeviceContext* dc,
 		float dx, float dy,					// 左上位置
