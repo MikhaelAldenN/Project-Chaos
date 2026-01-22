@@ -6,7 +6,7 @@
 #include <windows.h>
 #include "GameWindow.h"
 
-// Forward Declaration biar tidak berat compile
+// Forward Declaration
 class Scene;
 
 class WindowManager
@@ -19,29 +19,37 @@ public:
         return instance;
     }
 
-    // --- CORE FUNCTIONS (Dipanggil Framework) ---
+    // --- CORE FUNCTIONS ---
     void Update(float dt);
     void RenderAll(float dt, Scene* scene);
     void HandleResize(HWND hWnd, int width, int height);
-    void ClearAll(); // Hapus semua window anak (misal saat Reset/Shutdown)
+    void ClearAll();
 
-    // --- USER FUNCTIONS (Dipanggil SceneGame) ---
-    // Membuat window baru dan mengembalikannya agar bisa disetting (Camera, Posisi, dll)
+    // --- USER FUNCTIONS ---
     GameWindow* CreateGameWindow(const char* title, int width, int height);
-
-    // Menghancurkan window tertentu
     void DestroyWindow(GameWindow* targetWindow);
-
     void EnforceWindowPriorities();
+
+    // --------------------------------------------------------
+    // [BARU] Tambahkan Helper Functions ini:
+    // --------------------------------------------------------
+
+    // 1. Cek apakah ada window yang hidup (Dipakai di Main.cpp)
+    bool HasWindows() const { return !windows.empty(); }
+
+    // 2. Ambil window berdasarkan index (Dipakai di Framework.cpp untuk ambil Main Window)
+    GameWindow* GetWindowByIndex(size_t index)
+    {
+        if (index < windows.size()) return windows[index].get();
+        return nullptr;
+    }
 
 private:
     WindowManager() = default;
     ~WindowManager() = default;
-    // Mencegah copy/assignment
     WindowManager(const WindowManager&) = delete;
     void operator=(const WindowManager&) = delete;
 
 private:
-    // Gudang penyimpanan window anak (Dynamic Windows)
     std::vector<std::unique_ptr<GameWindow>> windows;
 };

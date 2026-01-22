@@ -1,10 +1,14 @@
 #include "WindowManager.h"
 #include "Scene.h" 
 #include <algorithm>
+#include "System/ImGuiRenderer.h" 
+#include "System/Graphics.h" // [WAJIB] Tambahkan ini untuk ambil DeviceContext
+
+// Hapus include <imgui.h> di sini karena kita pakai wrapper ImGuiRenderer
+// #include <imgui.h> 
 
 void WindowManager::Update(float dt)
 {
-    // ... logika update window ...
     EnforceWindowPriorities();
 }
 
@@ -23,36 +27,22 @@ void WindowManager::EnforceWindowPriorities()
 
     if (sortedWindows.empty()) return;
 
-    // -------------------------------------------------------------------------
-    // PERUBAHAN 1: SORT ASCENDING (0, 1, 2...)
-    // Kita urutkan dari yang PALING PENTING (0) ke yang kurang penting.
-    // Urutan: [LENS (0), TRACKING (1)]
-    // -------------------------------------------------------------------------
+    // 2. SORT ASCENDING
     std::sort(sortedWindows.begin(), sortedWindows.end(),
         [](GameWindow* a, GameWindow* b) {
-            return a->GetPriority() < b->GetPriority(); // <--- Ganti jadi Smaller (<) First
+            return a->GetPriority() < b->GetPriority();
         });
 
-    // -------------------------------------------------------------------------
-    // PERUBAHAN 2: RELATIVE CHAINING
-    // Kita tumpuk window seperti kue lapis dari atas ke bawah.
-    // -------------------------------------------------------------------------
-
-    // Awalnya, "Atap" kita adalah posisi paling atas absolut (HWND_TOPMOST)
+    // 3. RELATIVE CHAINING
     HWND hInsertAfter = HWND_TOPMOST;
 
     for (GameWindow* win : sortedWindows)
     {
-        // Posisikan window ini TEPAT DI BAWAH 'hInsertAfter'
-        // Loop 1 (Lens): Ditaruh di bawah HWND_TOPMOST (Jadi paling atas)
-        // Loop 2 (Tracking): Ditaruh di bawah LENS (Jadi nomor 2)
-
         SetWindowPos(win->GetHWND(),
             hInsertAfter,
             0, 0, 0, 0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
-        // Window ini sekarang menjadi "Atap" untuk window berikutnya
         hInsertAfter = win->GetHWND();
     }
 }
@@ -61,56 +51,63 @@ void WindowManager::RenderAll(float dt, Scene* scene)
 {
     if (!scene) return;
 
-    // Loop semua window di gudang
-    for (auto& win : windows)
+    // -------------------------------------------------------------------------
+    // 1. UPDATE GUI CONTENT
+    // -------------------------------------------------------------------------
+    scene->DrawGUI();
+
+    // -------------------------------------------------------------------------
+    // 2. RENDER SEMUA WINDOW
+    // -------------------------------------------------------------------------
+    for (size_t i = 0; i < windows.size(); ++i)
     {
-        // 1. Siapkan Layar Window Ini
-        //    Kita kasih warna background agak merah biar beda sama Main Window
+        auto& win = windows[i];
+
+        // A. Siapkan Layar
         win->BeginRender(0.5f, 0.5f, 0.5f);
 
-        // 2. Resize Aspect Ratio Scene
-        //    PENTING: Agar gambar tidak gepeng di window kecil
+        // B. Render Scene Game
         scene->OnResize(win->GetWidth(), win->GetHeight());
-
-        // 3. Render Scene
-        //    Menggunakan Kamera yang dipegang oleh Window tersebut
         scene->Render(dt, win->GetCamera());
 
-        // 4. Tampilkan
+        // C. RENDER IMGUI (HANYA DI MAIN WINDOW)
+        if (i == 0)
+        {
+            // [FIX] Ambil Context dari Graphics system
+            auto context = Graphics::Instance().GetDeviceContext();
+
+            // Panggil Render milik ImGuiRenderer dengan context
+            // Wrapper ini sudah melakukan ImGui::Render() di dalamnya, jadi aman.
+            ImGuiRenderer::Render(context);
+        }
+
+        // D. Tampilkan
         win->EndRender();
     }
 }
 
 void WindowManager::HandleResize(HWND hWnd, int width, int height)
 {
-    // Cari window mana yang punya HWND ini
     for (auto& win : windows)
     {
         if (win->GetHWND() == hWnd)
         {
             win->Resize(width, height);
-            return; // Ketemu, selesai
+            return;
         }
     }
 }
 
 GameWindow* WindowManager::CreateGameWindow(const char* title, int width, int height)
 {
-    // 1. Buat Window Baru
     auto newWindow = std::make_unique<GameWindow>(title, width, height);
-
-    // 2. Ambil Raw Pointer untuk dikembalikan ke peminta (SceneGame)
     GameWindow* ptr = newWindow.get();
-
-    // 3. Simpan ke vector (ownership pindah ke Manager)
     windows.push_back(std::move(newWindow));
-
     return ptr;
 }
 
 void WindowManager::DestroyWindow(GameWindow* targetWindow)
 {
-    // Hapus window dari vector (Otomatis men-trigger destructor GameWindow -> Close Window)
     windows.erase(
         std::remove_if(windows.begin(), windows.end(),
             [targetWindow](const std::unique_ptr<GameWindow>& p) {

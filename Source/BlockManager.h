@@ -27,7 +27,11 @@ public:
     int GetActiveBlockCount() const;
 
     void SpawnAllyBlock(Player* player);
-    void ClearBlocks() { blocks.clear(); }
+    void ClearBlocks()
+    {
+        blocks.clear();
+        m_formationBlocks.clear(); // <--- TAMBAHKAN INI
+    }
 
     const std::vector<std::unique_ptr<Block>>& GetBlocks() const { return blocks; }
 

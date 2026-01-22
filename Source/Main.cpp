@@ -1,161 +1,92 @@
 ﻿#include <windows.h>
 #include <memory>
 #include <SDL3/SDL.h> 
+#include <iostream> // Untuk print error
+#include <exception> // Untuk menangkap error
+#include "WindowManager.h"
 
 #include "Framework.h"
 
-// --- GLOBAL VARIABLES ---
-Framework* g_frameworkPtr = nullptr;
-WNDPROC g_originalWndProc = nullptr;
-const UINT_PTR IDT_GAME_LOOP = 1;
-
-// Waktu Global
-Uint64 g_lastTime = 0;
-Uint64 g_frequency = 0;
-
-// --- FUNGSI HELPER: FORCE RENDER (SAAT RESIZE) ---
-void ForceGameLoop()
-{
-    if (g_frameworkPtr)
-    {
-        if (g_lastTime == 0) g_lastTime = SDL_GetPerformanceCounter();
-
-        Uint64 currentTime = SDL_GetPerformanceCounter();
-        float elapsedTime = (float)(currentTime - g_lastTime) / (float)g_frequency;
-        g_lastTime = currentTime;
-
-        // Safety cap
-        if (elapsedTime > 0.1f) elapsedTime = 0.016f;
-        if (elapsedTime < 0.0001f) return;
-
-        // Cukup panggil Render utama. 
-        // Framework sekarang otomatis merender Window Utama DAN Sub Window sekaligus.
-        g_frameworkPtr->Update(elapsedTime);
-        g_frameworkPtr->Render(elapsedTime);
-    }
-}
-
-// --- WINDOW PROCEDURE HOOK ---
-LRESULT CALLBACK WndProcHook(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    // 1. Serahkan pesan ke Framework dulu (untuk ImGui & Resize internal)
-    if (g_frameworkPtr)
-    {
-        g_frameworkPtr->HandleMessage(hWnd, msg, wParam, lParam);
-    }
-
-    switch (msg)
-    {
-        // ---------------------------------------------------------
-        // LOGIKA RESIZE MULUS (Tetap Pertahankan)
-        // ---------------------------------------------------------
-    case WM_ENTERSIZEMOVE:
-        SetTimer(hWnd, IDT_GAME_LOOP, 1, NULL);
-        return 0;
-
-    case WM_EXITSIZEMOVE:
-        KillTimer(hWnd, IDT_GAME_LOOP);
-        return 0;
-
-    case WM_TIMER:
-        if (wParam == IDT_GAME_LOOP)
-        {
-            ForceGameLoop();
-            return 0;
-        }
-        break;
-
-    case WM_GETMINMAXINFO:
-    {
-        MINMAXINFO* mmi = (MINMAXINFO*)lParam;
-        mmi->ptMinTrackSize.x = 640;
-        mmi->ptMinTrackSize.y = 480;
-        return 0;
-    }
-
-    case WM_SIZE:
-    {
-        if (wParam == SIZE_MINIMIZED) return 0;
-
-        // Tidak perlu panggil OnResize manual lagi, HandleMessage di atas sudah mengurusnya.
-        // Kita hanya perlu ForceGameLoop agar visualnya update realtime saat ditarik.
-        if (g_frameworkPtr)
-        {
-            ForceGameLoop();
-        }
-        return 0;
-    }
-    }
-
-    return CallWindowProc(g_originalWndProc, hWnd, msg, wParam, lParam);
-}
-
-// --- MAIN ENTRY POINT ---
 int main(int argc, char* argv[])
 {
-#if defined(DEBUG) | defined(_DEBUG)
-    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-#endif
+    AllocConsole();
 
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        SDL_Log("Gagal Init SDL: %s", SDL_GetError());
+    // 1. Setup Console untuk melihat error log (Optional tapi berguna)
+    FILE* stream;
+    freopen_s(&stream, "CONOUT$", "w", stdout);
+    freopen_s(&stream, "CONOUT$", "w", stderr);
+
+    // 2. Init SDL
+    if (SDL_Init(SDL_INIT_VIDEO) < 0)
+    {
+        MessageBoxA(NULL, SDL_GetError(), "SDL Init Failed", MB_OK | MB_ICONERROR);
         return -1;
     }
-    g_frequency = SDL_GetPerformanceFrequency();
 
-    // 1. BUAT FRAMEWORK (Window dibuat otomatis di dalam sini)
-    //    Tidak perlu SDL_CreateWindow manual lagi!
-    auto framework = std::make_unique<Framework>();
-    g_frameworkPtr = framework.get();
-
-    // 2. SETUP HOOK KE MAIN WINDOW
-    //    Ambil HWND dari framework yang baru dibuat
-    GameWindow* mainWindow = framework->GetMainWindow();
-    if (mainWindow)
+    try
     {
-        HWND hWnd = mainWindow->GetHWND();
-        g_originalWndProc = (WNDPROC)SetWindowLongPtr(hWnd, GWLP_WNDPROC, (LONG_PTR)WndProcHook);
-    }
+        // =========================================================
+        // PROGRAM UTAMA DI DALAM BLOK TRY
+        // =========================================================
 
-    // 3. GAME LOOP
-    bool running = true;
-    g_lastTime = SDL_GetPerformanceCounter();
+        // Buat Framework (Ini akan memicu semua constructor Scene, Player, dll)
+        auto framework = std::make_unique<Framework>();
 
-    while (running)
-    {
-        SDL_Event event;
-        while (SDL_PollEvent(&event))
+        bool running = true;
+        Uint64 lastTime = SDL_GetPerformanceCounter();
+        Uint64 frequency = SDL_GetPerformanceFrequency();
+
+        while (running)
         {
-            // Input::Instance().HandleSDLEvent(&event); // Opsional
-            if (event.type == SDL_EVENT_QUIT)
-                running = false;
+            SDL_Event event;
+            while (SDL_PollEvent(&event))
+            {
+                if (event.type == SDL_EVENT_QUIT) running = false;
+                if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) running = false;
+                if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) running = false;
+            }
 
-            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)
+            Uint64 currentTime = SDL_GetPerformanceCounter();
+            float elapsedTime = (float)(currentTime - lastTime) / (float)frequency;
+            lastTime = currentTime;
+
+            if (elapsedTime > 0.05f) elapsedTime = 0.05f;
+
+            if (framework)
+            {
+                framework->Update(elapsedTime);
+                framework->Render(elapsedTime);
+            }
+
+            if (!WindowManager::Instance().HasWindows())
             {
                 running = false;
             }
         }
-
-        // Time Step
-        Uint64 currentTime = SDL_GetPerformanceCounter();
-        float elapsedTime = (float)(currentTime - g_lastTime) / (float)g_frequency;
-        g_lastTime = currentTime;
-
-        if (elapsedTime > 0.05f) elapsedTime = 0.05f;
-
-        // Update & Render (Otomatis handle semua window)
-        framework->Update(elapsedTime);
-        framework->Render(elapsedTime);
+        // =========================================================
     }
-
-    // Restore WndProc sebelum keluar (Good practice)
-    if (mainWindow && g_originalWndProc)
+    catch (const std::exception& e)
     {
-        SetWindowLongPtr(mainWindow->GetHWND(), GWLP_WNDPROC, (LONG_PTR)g_originalWndProc);
+        // TANGKAP ERRORNYA DAN TAMPILKAN DI LAYAR!
+        std::string errorMessage = "Runtime Error Occurred:\n";
+        errorMessage += e.what();
+
+        // Tampilkan Popup Error agar kita tahu apa salahnya
+        MessageBoxA(NULL, errorMessage.c_str(), "CRITICAL ERROR", MB_OK | MB_ICONERROR);
+
+        // Print ke console juga
+        std::cerr << "!!! CRITICAL ERROR: " << e.what() << std::endl;
+
+        SDL_Quit();
+        return -1;
+    }
+    catch (...)
+    {
+        MessageBoxA(NULL, "Unknown Error Occurred!", "CRITICAL ERROR", MB_OK | MB_ICONERROR);
+        SDL_Quit();
+        return -1;
     }
 
-    framework.reset();
     SDL_Quit();
-
     return 0;
 }
