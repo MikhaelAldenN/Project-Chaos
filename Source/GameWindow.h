@@ -33,6 +33,9 @@ public:
     void SetVisible(bool visible);
     bool IsVisible() const { return isVisible; }
 
+    void SetDraggable(bool enable) { isDraggable = enable; }
+    bool IsDraggable() const { return isDraggable; }
+
 private:
     void CreateBuffers(int w, int h);
 
@@ -53,4 +56,6 @@ private:
     int priority = 100;
 
     bool isVisible = true;
+
+    bool isDraggable = true;
 };

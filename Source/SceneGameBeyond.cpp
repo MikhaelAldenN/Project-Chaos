@@ -82,6 +82,7 @@ void SceneGameBeyond::InitializeSubWindows()
     // ---------------------------------------------
     trackingWindow = WindowManager::Instance().CreateGameWindow("Player View", 300, 300);
     trackingWindow->SetPriority(1);
+    trackingWindow->SetDraggable(false);
     trackingCamera = std::make_shared<Camera>();
     trackingWindow->SetCamera(trackingCamera.get());
 
@@ -99,6 +100,7 @@ void SceneGameBeyond::InitializeSubWindows()
     // ---------------------------------------------
     bossWindow = WindowManager::Instance().CreateGameWindow("Boss Monitor", 370, 370);
     bossWindow->SetPriority(2); // Di bawah player dikit (semakin kecil semakin atas, 0=top)
+	bossWindow->SetDraggable(false);
     bossCamera = std::make_shared<Camera>();
     bossWindow->SetCamera(bossCamera.get());
 

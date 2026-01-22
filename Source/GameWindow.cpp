@@ -12,6 +12,24 @@ static const UINT_PTR IDT_RESIZE_TIMER = 101;
 
 LRESULT CALLBACK UnifiedWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+
+    // 1. Ambil pointer GameWindow dari HWND
+    GameWindow* pWindow = (GameWindow*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+
+    // 2. Cegat Perintah Move (Drag Title Bar)
+    if (msg == WM_SYSCOMMAND)
+    {
+        // Cek apakah perintahnya adalah SC_MOVE (sedang mau didrag)
+        if ((wParam & 0xFFF0) == SC_MOVE)
+        {
+            // Kalau window ini diset TIDAK BOLEH DRAG, kita return 0 (batalkan)
+            if (pWindow && !pWindow->IsDraggable())
+            {
+                return 0;
+            }
+        }
+    }
+
     // 1. ImGui Priority
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
         return true;
@@ -74,6 +92,9 @@ GameWindow::GameWindow(const char* title, int w, int h)
     std::cout << "[GameWindow] Creating Window: " << title << "..." << std::endl;
     sdlWindow = SDL_CreateWindow(title, w, h, SDL_WINDOW_RESIZABLE);
     hWnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(sdlWindow), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+    
+    SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)this);
+    
     Graphics::Instance().CreateSwapChain(hWnd, width, height, swapChain.GetAddressOf());
     CreateBuffers(width, height);
     WNDPROC oldProc = (WNDPROC)SetWindowLongPtr(hWnd, GWLP_WNDPROC, (LONG_PTR)UnifiedWindowProc);
