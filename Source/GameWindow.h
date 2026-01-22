@@ -27,6 +27,9 @@ public:
     int GetWidth() const { return width; }
     int GetHeight() const { return height; }
 
+    void SetPriority(int p) { priority = p; }
+    int GetPriority() const { return priority; }
+
 private:
     void CreateBuffers(int w, int h);
 
@@ -43,4 +46,6 @@ private:
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  renderTargetView;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilView>  depthStencilView;
     D3D11_VIEWPORT                                  viewport = {};
+
+    int priority = 100;
 };

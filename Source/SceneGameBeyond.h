@@ -2,11 +2,11 @@
 
 #include <memory>
 #include <vector>
-#include "GameWindow.h"
 #include "Scene.h"
 #include "Camera.h"
 #include "CameraController.h"
 #include "Player.h" 
+#include "GameWindow.h"
 
 class SceneGameBeyond : public Scene
 {
@@ -19,34 +19,45 @@ public:
     void DrawGUI() override;
     void OnResize(int width, int height) override;
 
-    // 生ポインタを返す (互換性のため)
+    // Getters for raw pointers (compatibility)
     Camera* GetMainCamera() const { return mainCamera.get(); }
-    Camera* GetSubCamera() const { return subCamera.get(); }   
+    Camera* GetSubCamera() const { return subCamera.get(); }
 
 private:
+    // --- Constants ---
+    static constexpr float PIXEL_TO_UNIT_RATIO = 40.0f; // 40 pixels = 1 Unity Unit
+    static constexpr float FIELD_OF_VIEW = 60.0f;       // Vertical FOV in degrees
+    static constexpr float DEFERRED_INIT_TIME = 0.2f;   // Seconds to wait before spawning windows
+
+private:
+    // --- Internal Helpers ---
+    void InitializeSubWindows();
+    void UpdateTrackingLogic();
+    void UpdateLensLogic();
+    void HandleDebugInput();
     void RenderScene(float elapsedTime, Camera* camera);
 
-    // --- Update Helpers ---
-    void UpdateTrackingWindow();
-    void UpdateLensWindow();
-    void HandleDebugInput();
+    // Core math to sync window view with world position (DRY implementation)
+    void UpdateOffCenterProjection(Camera* targetCam, GameWindow* targetWin, float camHeight);
 
-    // --- Main Assets (Smart Pointers化) ---
+    // Calculates the Y-height required to match 1:1 pixel mapping
+    float GetUnifiedCameraHeight() const;
+
+private:
+    // --- Components ---
     std::shared_ptr<Camera> mainCamera;
     std::shared_ptr<Camera> subCamera;
-    std::unique_ptr<Player> player; // PlayerはUniqueで十分
+    std::unique_ptr<Player> player;
     std::vector<std::shared_ptr<Camera>> additionalCameras;
 
-    // --- Tracking Window (Auto-follows player) ---
-    GameWindow* trackingWindow = nullptr; // WindowManagerが管理するのでRaw Pointerのまま
+    // --- Sub-Windows (Owned by WindowManager) ---
+    GameWindow* trackingWindow = nullptr;
     std::shared_ptr<Camera> trackingCamera;
 
-    // --- Lens Window (Draggable by user) ---
     GameWindow* lensWindow = nullptr;
     std::shared_ptr<Camera> lensCamera;
 
-    bool areWindowsInitialized = false;
+    // --- State ---
+    bool isWindowsInitialized = false;
     float startupTimer = 0.0f;
-
-    void InitializeSubWindows();
 };

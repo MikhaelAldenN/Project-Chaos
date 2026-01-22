@@ -32,6 +32,8 @@ public:
     // Menghancurkan window tertentu
     void DestroyWindow(GameWindow* targetWindow);
 
+    void EnforceWindowPriorities();
+
 private:
     WindowManager() = default;
     ~WindowManager() = default;

@@ -1,9 +1,60 @@
 #include "WindowManager.h"
 #include "Scene.h" 
+#include <algorithm>
 
 void WindowManager::Update(float dt)
 {
-    // Di sini nanti bisa tambah logika animasi window (misal window bergetar saat kena damage)
+    // ... logika update window ...
+    EnforceWindowPriorities();
+}
+
+void WindowManager::EnforceWindowPriorities()
+{
+    std::vector<GameWindow*> sortedWindows;
+
+    // 1. Ambil window high priority (< 100)
+    for (auto& win : windows)
+    {
+        if (win->GetPriority() < 100)
+        {
+            sortedWindows.push_back(win.get());
+        }
+    }
+
+    if (sortedWindows.empty()) return;
+
+    // -------------------------------------------------------------------------
+    // PERUBAHAN 1: SORT ASCENDING (0, 1, 2...)
+    // Kita urutkan dari yang PALING PENTING (0) ke yang kurang penting.
+    // Urutan: [LENS (0), TRACKING (1)]
+    // -------------------------------------------------------------------------
+    std::sort(sortedWindows.begin(), sortedWindows.end(),
+        [](GameWindow* a, GameWindow* b) {
+            return a->GetPriority() < b->GetPriority(); // <--- Ganti jadi Smaller (<) First
+        });
+
+    // -------------------------------------------------------------------------
+    // PERUBAHAN 2: RELATIVE CHAINING
+    // Kita tumpuk window seperti kue lapis dari atas ke bawah.
+    // -------------------------------------------------------------------------
+
+    // Awalnya, "Atap" kita adalah posisi paling atas absolut (HWND_TOPMOST)
+    HWND hInsertAfter = HWND_TOPMOST;
+
+    for (GameWindow* win : sortedWindows)
+    {
+        // Posisikan window ini TEPAT DI BAWAH 'hInsertAfter'
+        // Loop 1 (Lens): Ditaruh di bawah HWND_TOPMOST (Jadi paling atas)
+        // Loop 2 (Tracking): Ditaruh di bawah LENS (Jadi nomor 2)
+
+        SetWindowPos(win->GetHWND(),
+            hInsertAfter,
+            0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
+        // Window ini sekarang menjadi "Atap" untuk window berikutnya
+        hInsertAfter = win->GetHWND();
+    }
 }
 
 void WindowManager::RenderAll(float dt, Scene* scene)
