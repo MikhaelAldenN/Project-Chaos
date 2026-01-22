@@ -25,6 +25,10 @@ public:
     void SetOnBlockHitCallback(std::function<void()> callback) { m_onBlockHitCallback = callback; }
     bool IsFormationActive() const { return isFormationActive; }
     int GetActiveBlockCount() const;
+
+    void SpawnAllyBlock(Player* player);
+    void ClearBlocks() { blocks.clear(); }
+
     const std::vector<std::unique_ptr<Block>>& GetBlocks() const { return blocks; }
 
     // Color Setting

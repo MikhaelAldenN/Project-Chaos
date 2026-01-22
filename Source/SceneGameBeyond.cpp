@@ -32,6 +32,17 @@ SceneGameBeyond::SceneGameBeyond()
     player = std::make_unique<Player>();
     player->SetInvertControls(true);
 
+    // 2. Setup Block Manager (Companion System)
+    blockManager = std::make_unique<BlockManager>();
+
+    // Initialize dengan player agar referensinya tersambung
+    blockManager->Initialize(player.get());
+
+    blockManager->ClearBlocks();
+
+    // Aktifkan Mode Formasi agar blok yang nanti dispawn langsung nempel ke player
+    blockManager->ActivateFormationMode();
+
     // 3. Setup Secondary Camera (CCTV/Debug)
     subCamera = std::make_shared<Camera>();
     subCamera->SetPerspectiveFov(XMConvertToRadians(60), 4.0f / 3.0f, 0.1f, 1000.0f);
@@ -76,6 +87,7 @@ void SceneGameBeyond::InitializeSubWindows()
 
 void SceneGameBeyond::Update(float elapsedTime)
 {
+
     // --- Deferred Initialization ---
     if (!isWindowsInitialized)
     {
@@ -98,6 +110,17 @@ void SceneGameBeyond::Update(float elapsedTime)
         {
             subCamera->SetPosition(5, 5.0f, 5);
             subCamera->LookAt(player->GetPosition());
+        }
+    }
+
+    if (blockManager)
+    {
+        blockManager->Update(elapsedTime, activeCam, player.get());
+
+        // INPUT SPAWN: Tekan 'R' untuk memunculkan teman baru
+        if (Input::Instance().GetKeyboard().IsTriggered('R'))
+        {
+            blockManager->SpawnAllyBlock(player.get());
         }
     }
 
@@ -152,6 +175,10 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
     {
         RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
         player->Render(modelRenderer);
+        if (blockManager)
+        {
+            blockManager->Render(modelRenderer);
+        }
         modelRenderer->Render(rc);
     }
 }
