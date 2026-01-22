@@ -68,6 +68,7 @@ SceneGameBeyond::SceneGameBeyond()
 
 SceneGameBeyond::~SceneGameBeyond()
 {
+    WindowShatterManager::Instance().Clear();
     CameraController::Instance().ClearCamera();
     WindowManager::Instance().DestroyWindow(trackingWindow);
     WindowManager::Instance().DestroyWindow(lensWindow);
@@ -169,6 +170,46 @@ void SceneGameBeyond::UpdateWindowTracking(float dt, GameWindow* win, Camera* ca
 
 void SceneGameBeyond::Update(float elapsedTime)
 {
+    // ==========================================
+    // [INTRO EFFECT] Window Shatter Explosion
+    // ==========================================
+    if (!m_shatterSpawned)
+    {
+        m_shatterTimer += elapsedTime;
+
+        // Tunggu sebentar sebelum spawn (agar player siap)
+        if (m_shatterTimer >= m_shatterDelay)
+        {
+            // Hitung posisi spawn di screen space (di bawah player)
+            if (player)
+            {
+                // Konversi posisi player (world space) ke screen space
+                int screenW = GetSystemMetrics(SM_CXSCREEN);
+                int screenH = GetSystemMetrics(SM_CYSCREEN);
+
+                DirectX::XMFLOAT3 playerPos = player->GetPosition();
+
+                float screenX = (screenW / 2.0f) + (playerPos.x * PIXEL_TO_UNIT_RATIO);
+                float screenY = (screenH / 2.0f) - (playerPos.z * PIXEL_TO_UNIT_RATIO);
+
+                // Offset ke bawah player sedikit (misal 100 pixel)
+                screenY += 100.0f;
+
+                // Spawn shatter explosion!
+                WindowShatterManager::Instance().SpawnShatterExplosion(
+                    DirectX::XMFLOAT2(screenX, screenY),
+                    8,      // 10 windows
+                    4000.0f,  // Min speed
+                    4000.0f   // Max speed
+                );
+
+                m_shatterSpawned = true;
+            }
+        }
+    }
+
+    WindowShatterManager::Instance().Update(elapsedTime);
+
     if (!isWindowsInitialized)
     {
         startupTimer += elapsedTime;
@@ -323,20 +364,6 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
         rotationInRadians.y = DirectX::XMConvertToRadians(m_textRotation.y);
         rotationInRadians.z = DirectX::XMConvertToRadians(m_textRotation.z);
 
-        // [FITUR KEREN] Billboard Mode
-        // Kalau dicentang, text otomatis menghadap kamera (mengabaikan rotasi Y manual)
-        if (m_textUseBillboard && camera)
-        {
-            // Ambil rotasi kamera, lalu balik 180 derajat (atau sesuaikan)
-            // Di engine sederhana, biasanya cukup ambil Y rotation camera + 180 (PI)
-            // Tapi karena kita kirim Euler Angles, kita set manual 0 jika kamera statis
-            // Atau logic billboard sederhana: biarkan 0,0,0 kalau kamera Top Down murni.
-
-            // Note: Untuk Full Billboard 3D butuh perhitungan Matrix LookAt,
-            // tapi untuk sekarang kita pakai rotasi manual editor saja biar aman.
-            // (Kamu bisa uncheck billboard di GUI kalau mau putar manual)
-        }
-
         // 3. Gambar!
         // Pastikan pakai m_textLabel (char array) bukan string literal
         text->Draw3D(
@@ -405,6 +432,39 @@ void SceneGameBeyond::DrawGUI()
     }
 
     ImGui::DragFloat("Window Follow Speed", &m_windowFollowSpeed, 0.1f, 0.1f, 50.0f);
+
+    if (ImGui::CollapsingHeader("Window Shatter Debug"))
+    {
+        ImGui::Text("Active Shatter: %d", WindowShatterManager::Instance().GetActiveCount());
+
+        if (ImGui::Button("Spawn Test Explosion (Center)"))
+        {
+            int sw = GetSystemMetrics(SM_CXSCREEN);
+            int sh = GetSystemMetrics(SM_CYSCREEN);
+            WindowShatterManager::Instance().SpawnShatterExplosion(
+                DirectX::XMFLOAT2(sw / 2.0f, sh / 2.0f),
+                10, 300.0f, 800.0f
+            );
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Clear All Shatter"))
+        {
+            WindowShatterManager::Instance().Clear();
+        }
+
+        // Option untuk re-trigger intro
+        if (ImGui::Button("Reset Intro (Re-spawn Shatter)"))
+        {
+            m_shatterSpawned = false;
+            m_shatterTimer = 0.0f;
+        }
+
+        // Tweak parameters
+        ImGui::DragFloat("Shatter Delay", &m_shatterDelay, 0.1f, 0.0f, 5.0f);
+    }
+
     ImGui::End();
 }
 

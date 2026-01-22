@@ -11,6 +11,7 @@
 #include "BlockManager.h"
 #include "BitmapFont.h"
 #include "ResourceManager.h"
+#include "WindowShatter.h"
 
 class SceneGameBeyond : public Scene
 {
@@ -96,6 +97,7 @@ private:
     // Text Color (R:237 G:192 B:17) -> Dikonversi ke Float
     DirectX::XMFLOAT4 m_textColor = { 237.0f / 255.0f, 192.0f / 255.0f, 17.0f / 255.0f, 1.0f };
 
-    // Checkbox opsi tambahan
-    bool m_textUseBillboard = true;
+    bool m_shatterSpawned = false;  // Flag agar hanya spawn sekali
+    float m_shatterDelay = 0.3f;    // Delay sebelum spawn (opsional)
+    float m_shatterTimer = 0.0f;
 };

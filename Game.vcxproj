@@ -199,6 +199,7 @@
     <ClInclude Include="Source\UILabel.h" />
     <ClInclude Include="Source\UIPanel.h" />
     <ClInclude Include="Source\WindowManager.h" />
+    <ClInclude Include="Source\WindowShatter.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="External\imgui-docking\imgui.cpp" />
@@ -270,6 +271,7 @@
     <ClCompile Include="Source\UIComponents.cpp" />
     <ClCompile Include="Source\UIPanel.cpp" />
     <ClCompile Include="Source\WindowManager.cpp" />
+    <ClCompile Include="Source\WindowShatter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Basic.hlsli" />
