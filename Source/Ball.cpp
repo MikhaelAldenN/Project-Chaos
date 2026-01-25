@@ -107,3 +107,24 @@ void Ball::Update(float elapsedTime, Camera* camera)
     movement->SetPosition(pos);
     SyncData();
 }
+
+DirectX::XMFLOAT3 Ball::PredictNextPosition(float elapsedTime) const
+{
+    DirectX::XMFLOAT3 predicted = movement->GetPosition();
+    predicted.x += velocity.x * elapsedTime;
+    predicted.z += velocity.z * elapsedTime;
+    predicted.y = 0.0f; // Keep on ground
+    return predicted;
+}
+
+void Ball::ApplyMovement(const DirectX::XMFLOAT3& newPos, const DirectX::XMFLOAT3& newVel)
+{
+    movement->SetPosition(newPos);
+    velocity = newVel;
+    SyncData();
+}
+
+void Ball::UpdatePreviousPosition()
+{
+    prevPosition = movement->GetPosition();
+}

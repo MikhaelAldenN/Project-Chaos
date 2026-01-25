@@ -2,12 +2,12 @@
 
 using namespace DirectX;
 
-Enemy::Enemy(ID3D11Device* device, const char* filePath, XMFLOAT3 startPos, XMFLOAT3 startRot, 
+Enemy::Enemy(ID3D11Device* device, const char* filePath, XMFLOAT3 startPos, XMFLOAT3 startRot,
     XMFLOAT4 startColor, EnemyType type, AttackType attackType,
     float minX, float maxX, float minZ, float maxZ, MoveDir dir)
 {
     m_model = std::make_shared<Model>(device, filePath);
-    model = m_model; 
+    model = m_model;
     m_type = type;
     m_attackType = attackType;
 
@@ -20,10 +20,10 @@ Enemy::Enemy(ID3D11Device* device, const char* filePath, XMFLOAT3 startPos, XMFL
     m_patrolMinX = startPos.x + minX;
     m_patrolMaxX = startPos.x + maxX;
     m_patrolMinZ = startPos.z + minZ;
-	m_patrolMaxZ = startPos.z + maxZ;
+    m_patrolMaxZ = startPos.z + maxZ;
     m_randomTargetPos = startPos;
-    if (dir == MoveDir::Right)      m_currentSpeed = m_baseMoveSpeed;  
-    else if (dir == MoveDir::Left)  m_currentSpeed = -m_baseMoveSpeed; 
+    if (dir == MoveDir::Right)      m_currentSpeed = m_baseMoveSpeed;
+    else if (dir == MoveDir::Left)  m_currentSpeed = -m_baseMoveSpeed;
     else                            m_currentSpeed = 0.0f;
 }
 
@@ -34,7 +34,7 @@ float Enemy::GetRandomFloat(float min, float max)
     return (random * range) + min;
 }
 
-Enemy::~Enemy(){}
+Enemy::~Enemy() {}
 
 void Enemy::Update(float elapsedTime, Camera* camera)
 {
@@ -46,13 +46,13 @@ void Enemy::Update(float elapsedTime, Camera* camera)
         if (pos.x >= m_patrolMaxX)
         {
             pos.x = m_patrolMaxX;
-            m_currentSpeed = -std::abs(m_baseMoveSpeed); 
+            m_currentSpeed = -std::abs(m_baseMoveSpeed);
         }
 
         else if (pos.x <= m_patrolMinX)
         {
             pos.x = m_patrolMinX;
-            m_currentSpeed = std::abs(m_baseMoveSpeed); 
+            m_currentSpeed = std::abs(m_baseMoveSpeed);
         }
 
         movement->SetPosition(pos);
@@ -69,7 +69,7 @@ void Enemy::Update(float elapsedTime, Camera* camera)
         {
             m_randomTargetPos.x = GetRandomFloat(m_patrolMinX, m_patrolMaxX);
             m_randomTargetPos.z = GetRandomFloat(m_patrolMinZ, m_patrolMaxZ);
-            m_randomTargetPos.y = pos.y; 
+            m_randomTargetPos.y = pos.y;
         }
 
         XMVECTOR vPos = XMLoadFloat3(&pos);
@@ -149,6 +149,10 @@ void Enemy::UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::
             spawnPos.y += SPAWN_OFFSET_Y;
 
             newBall->Fire(spawnPos, fwd, m_projectileSpeed);
+
+            // [FIX] Disable default boundaries so CollisionManager handles it!
+            newBall->SetBoundariesEnabled(false);
+
             m_projectiles.push_back(std::move(newBall));
         }
     }
@@ -157,7 +161,6 @@ void Enemy::UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::
     while (it != m_projectiles.end())
     {
         auto& ball = *it;
-        ball->Update(elapsedTime, camera);
 
         XMFLOAT3 bPos = ball->GetMovement()->GetPosition();
         float bDx = targetPos.x - bPos.x;
@@ -181,6 +184,19 @@ void Enemy::RenderProjectiles(ModelRenderer* renderer)
     for (auto& ball : m_projectiles)
     {
         if (ball->IsActive()) renderer->Draw(ShaderId::Phong, ball->GetModel(), m_projectileColor);
+    }
+}
+
+void Enemy::RenderDebugProjectiles(ShapeRenderer* renderer)
+{
+    for (const auto& ball : m_projectiles)
+    {
+        if (ball && ball->IsActive())
+        {
+            DirectX::XMFLOAT3 pos = ball->GetMovement()->GetPosition();
+            float radius = ball->GetRadius();
+            renderer->DrawSphere(pos, radius, { 1.0f, 0.0f, 0.0f, 1.0f });
+        }
     }
 }
 

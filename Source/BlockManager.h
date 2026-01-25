@@ -21,11 +21,13 @@ public:
     void Update(float elapsedTime, Camera* camera, Player* player);
     void Render(ModelRenderer* renderer);
     void CheckCollision(Ball* ball);
+    bool CheckEnemyCollision(Ball* ball);
     void ActivateFormationMode() { isFormationActive = true; }
     void SetOnBlockHitCallback(std::function<void()> callback) { m_onBlockHitCallback = callback; }
     bool IsFormationActive() const { return isFormationActive; }
     int GetActiveBlockCount() const;
-    const std::vector<std::unique_ptr<Block>>& GetBlocks() const { return blocks; }
+    const std::vector<Block>& GetBlocks() const { return blocks; }
+    std::vector<Block>& GetBlocks() { return blocks; }
 
     // Color Setting
     DirectX::XMFLOAT4 globalBlockColor = { 0.96f, 0.80f, 0.23f, 1.0f };
@@ -56,12 +58,12 @@ private:
     void InitPrioritySlots();
     void UpdateFormationPositions(float elapsedTime, Player* player);
 
-    std::vector<std::unique_ptr<Block>> blocks;
+    std::vector<Block> blocks;
     std::vector<Block*> m_formationBlocks;
 
     // Grid Configuration
-    int m_rows = 7;                         // Row Blocks
-    int m_columns = 7;                      // Column Blocks
+    int m_rows = 11;                         // Row Blocks
+    int m_columns = 11;                      // Column Blocks
     float m_xSpacing = 0.7f;                // Space between blocks X
     float m_zSpacing = 0.7f;                // Space between blocks Z
     float m_zOffsetWorld = 2.5f;            // Start Z position in World

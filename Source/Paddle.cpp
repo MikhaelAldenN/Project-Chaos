@@ -100,9 +100,9 @@ void Paddle::UpdateAI(float elapsedTime, Ball* ball, BlockManager* blockManager)
 
             for (const auto& block : blockManager->GetBlocks())
             {
-                if (!block->IsActive()) continue;
+                if (!block.IsActive()) continue;
 
-                XMFLOAT3 bPos = block->GetMovement()->GetPosition();
+                XMFLOAT3 bPos = block.GetMovement()->GetPosition();
                 float dx = bPos.x - myPos.x;
                 float dz = bPos.z - myPos.z;
                 float dist = (dx * dx) + (dz * dz);

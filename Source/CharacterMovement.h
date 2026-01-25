@@ -23,6 +23,7 @@ public:
 
     float GetRotationY() const { return rotation.y; }
     void SetRotationY(float rad) { rotation.y = rad; }
+    void SetVelocity(const DirectX::XMFLOAT3& vel) { velocity = vel; }
     void SetVelocityY(float y) { velocity.y = y; }
     void SetVelocityX(float x) { velocity.x = x; }
     void SetVelocityZ(float z) { velocity.z = z; }

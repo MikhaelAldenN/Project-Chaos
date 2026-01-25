@@ -110,7 +110,7 @@ void Framework::Render(float elapsedTime)
         }
 
         ImGuiRenderer::Render(Graphics::Instance().GetDeviceContext());
-        mainWindow->EndRender(1); // VSync On
+        mainWindow->EndRender(0); // VSync On
     }
 
     // Render Sub-windows

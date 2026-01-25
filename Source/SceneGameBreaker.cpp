@@ -38,7 +38,6 @@ SceneGameBreaker::SceneGameBreaker()
 
     // 2. Initialize Assets
     m_spriteBorderBreaker = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathBorderBreaker);
-    //m_spriteDEBUG_LAYOUT = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), pathDebugLayout);
     m_stage = std::make_unique<Stage>(Graphics::Instance().GetDevice());
 
     ball = new Ball();
@@ -50,10 +49,11 @@ SceneGameBreaker::SceneGameBreaker()
     blockManager = std::make_unique<BlockManager>();
     blockManager->Initialize(player);
 
-    m_collisionManager = std::make_unique<CollisionManager>();
-    m_collisionManager->Initialize(player, m_stage.get(), blockManager.get(), m_enemyManager.get());
     m_enemyManager = std::make_unique<EnemyManager>();
     m_enemyManager->Initialize(Graphics::Instance().GetDevice());
+
+    m_collisionManager = std::make_unique<CollisionManager>();
+    m_collisionManager->Initialize(player, m_stage.get(), blockManager.get(), m_enemyManager.get());
 
     // Callback untuk Shake saat blok hancur
     blockManager->SetOnBlockHitCallback([this]()
@@ -103,18 +103,6 @@ void SceneGameBreaker::Update(float elapsedTime)
         paddle->Update(elapsedTime, activeCam);
     }
 
-    if (ball)
-    {
-        if (paddle && !ball->IsActive())
-        {
-            XMFLOAT3 padPos = paddle->GetPosition();
-            padPos.z += Config::BALL_SPAWN_Z_OFFSET;
-            padPos.y = 0.0f;
-            ball->GetMovement()->SetPosition(padPos);
-        }
-        ball->Update(elapsedTime, activeCam);
-        if (paddle && ball->IsActive()) paddle->CheckCollision(ball);
-    }
 
     if (blockManager)
     {
@@ -136,7 +124,6 @@ void SceneGameBreaker::Update(float elapsedTime)
         // =========================================================
         // UPDATE LOGIC KAMERA (VIA DIRECTOR)
         // =========================================================
-        // Semua logika kamera formation & destruction pindah ke sini
         m_director->Update(elapsedTime, energy, thresholdForm, thresholdDest, player->GetMovement()->GetPosition());
 
         // =========================================================
@@ -180,9 +167,21 @@ void SceneGameBreaker::Update(float elapsedTime)
 
     if (m_collisionManager)
     {
-        m_collisionManager->Update();
+        m_collisionManager->Update(elapsedTime);
     }
 
+    if (ball)
+    {
+        if (paddle && !ball->IsActive())
+        {
+            XMFLOAT3 padPos = paddle->GetPosition();
+            padPos.z += Config::BALL_SPAWN_Z_OFFSET;
+            padPos.y = 0.0f;
+            ball->GetMovement()->SetPosition(padPos);
+        }
+        ball->Update(elapsedTime, activeCam);
+        if (paddle && ball->IsActive()) paddle->CheckCollision(ball);
+    }
     // Update Systems
     CameraController::Instance().Update(elapsedTime);
     JuiceEngine::Instance().Update(elapsedTime);
@@ -200,9 +199,8 @@ void SceneGameBreaker::Update(float elapsedTime)
         m_isShakeEnabled = true;
     }
 
-    // [MODIFIKASI] Ambil nilai dari variabel Class (Config), bukan hardcode lokal!
-    float normalDensity = m_configFineDensity; // Nilai dari ImGui
-    float zoomDensity = m_configZoomDensity;   // Nilai dari ImGui
+    float normalDensity = m_configFineDensity;
+    float zoomDensity = m_configZoomDensity;
     float baseStrength = Config::FX_CRT_BASE_STRENGTH;
 
     // Config Rotasi
@@ -238,12 +236,12 @@ void SceneGameBreaker::Update(float elapsedTime)
     {
         // IDLE: Pakai nilai Config Normal
         uberParams.fineOpacity = 1.0f;
-        uberParams.fineDensity = normalDensity; // Ini akan ngikutin slider ImGui secara realtime
+        uberParams.fineDensity = normalDensity;
         uberParams.fineRotation = startRotation;
         uberParams.scanlineStrength = baseStrength;
     }
 
-    // Auto Glitch Transition (Optional: Bisa dipindah ke Director juga kalau mau lebih bersih)
+    // Auto Glitch Transition
     static bool wasPlayingSequence = false;
     if (seqInfo.IsPlaying && m_fxState.MasterEnabled && m_fxState.EnableLens)
     {
@@ -267,15 +265,13 @@ void SceneGameBreaker::Update(float elapsedTime)
     }
     else if (wasPlayingSequence)
     {
-        // LOGIKA RESET (JALAN HANYA SEKALI SAAT SEQUENCE BERHENTI)
         if (wasPlayingSequence)
         {
-            // Sequence baru saja mati frame ini, paksa glitch jadi 0
             if (m_fxState.MasterEnabled && m_fxState.EnableLens)
             {
                 uberParams.glitchStrength = 0.0f;
             }
-            wasPlayingSequence = false; // Reset flag biar gak ganggu manual slider
+            wasPlayingSequence = false;
             m_introFinished = true;
         }
 
@@ -303,8 +299,6 @@ void SceneGameBreaker::UpdateGameTriggers(float elapsedTime)
             player->SetInputEnabled(false);
         }
 
-        // Panggil Director untuk mainkan sequence intro lagi (atau sequence lain)
-        // Di sini saya pakai intro lagi sesuai logika lama
         m_director->TriggerIntroSequence();
     }
 }
@@ -315,13 +309,8 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
     auto dc = Graphics::Instance().GetDeviceContext();
     auto rs = Graphics::Instance().GetRenderState();
 
-    // =========================================================
-    // BEGIN POST PROCESS CAPTURE
-    // =========================================================
     m_postProcess->SetEnabled(m_fxState.MasterEnabled);
 
-    // If PostProcess is enabled, this swaps RTV to internal texture
-    // If disabled, this simply clears the BackBuffer
     if (m_fxState.MasterEnabled) {
         m_postProcess->BeginCapture();
     }
@@ -340,22 +329,17 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
         }
     }
 
-    // =========================================================
-    // 2. RENDER SCENE CONTENTS
-    // =========================================================
-    // Transparent Sprite (Debug Layout)
     if (m_spriteDEBUG_LAYOUT) {
         dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
         dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
     }
 
-    // 3D Objects
     dc->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), nullptr, 0xFFFFFFFF);
     dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestAndWrite), 0);
     dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullBack));
+
     RenderScene(elapsedTime, targetCam);
 
-    // --- World Space Sprite (Transparent) ---
     if (m_spriteBorderBreaker && !m_introFinished)
     {
         dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
@@ -369,32 +353,37 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
             bgSpriteColor.x, bgSpriteColor.y, bgSpriteColor.z, bgSpriteColor.w);
     }
 
-    // Text
     BitmapFont* text = ResourceManager::Instance().GetFont("VGA_FONT");
     if (text) {
         dc->OMSetBlendState(Graphics::Instance().GetAlphaBlendState(), nullptr, 0xFFFFFFFF);
         text->Draw(tutorialText.c_str(), tutorialLayout.x, tutorialLayout.y, tutorialLayout.scale, tutorialLayout.color[0], tutorialLayout.color[1], tutorialLayout.color[2], tutorialLayout.color[3]);
     }
 
-    // Debug Shapes
+    // DEBUG RENDERING
     if (targetCam == mainCamera.get()) {
-        Graphics::Instance().GetShapeRenderer()->Render(dc, targetCam->GetView(), targetCam->GetProjection());
+        auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
+        auto primRenderer = Graphics::Instance().GetPrimitiveRenderer(); // Get PrimitiveRenderer
+
+        // Pass both renderers to Stage
+        if (m_stage) m_stage->RenderDebug(shapeRenderer, primRenderer);
+
+        if (m_enemyManager) m_enemyManager->RenderDebug(shapeRenderer);
+
+        shapeRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection());
+
+        // Render Lines
+        primRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection(), D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
     }
 
-    // =========================================================
-    // END POST PROCESS CAPTURE (DRAW TO SCREEN)
-    // =========================================================
     if (m_fxState.MasterEnabled)
     {
         UberShader::UberData& activeData = m_postProcess->GetData();
-        activeData = this->uberParams; 
+        activeData = this->uberParams;
 
-        // Apply visual toggles
         if (!m_fxState.EnableVignette) activeData.intensity = 0.0f;
         if (!m_fxState.EnableLens) { activeData.glitchStrength = 0.0f; activeData.distortion = 0.0f; }
         if (!m_fxState.EnableCRT) { activeData.scanlineStrength = 0.0f; activeData.fineOpacity = 0.0f; }
 
-        // Draw the fullscreen quad with effects
         m_postProcess->EndCapture(elapsedTime);
     }
 }
@@ -417,19 +406,15 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
 
 void SceneGameBreaker::DrawGUI()
 {
-    // Hanya satu baris ini sekarang!
     GameBreakerGUI::Draw(this);
 }
 
 void SceneGameBreaker::OnResize(int width, int height)
 {
-    // Mencegah pembagian dengan nol
     if (height <= 0) height = 1;
 
-    // 1. Update Aspect Ratio Kamera Utama
     if (mainCamera)
     {
-        // Update FOV dengan aspect ratio baru (Width / Height)
         mainCamera->SetPerspectiveFov(
             DirectX::XMConvertToRadians(Config::CAM_FOV),
             (float)width / (float)height,
@@ -438,8 +423,6 @@ void SceneGameBreaker::OnResize(int width, int height)
         );
     }
 
-    // 2. Buat Ulang Render Target (Texture layar)
-    // Penting! Kalau tidak dipanggil, Post-Process akan error atau gepeng saat window di-resize.
     if (m_postProcess)
     {
         m_postProcess->OnResize(width, height);

@@ -6,6 +6,7 @@
 #include <imgui.h>
 #include <vector>
 #include <string>
+#include <cstdio> 
 
 using namespace DirectX;
 
@@ -65,19 +66,13 @@ void GameBreakerGUI::Draw(SceneGameBreaker* scene)
                 ImGui::EndTabItem();
             }
 
-			// --- TAB 5: OBJECT TRANSFORM ---
+            // --- TAB 5: OBJECT TRANSFORM ---
             if (ImGui::BeginTabItem("Object Transform"))
             {
                 DrawObjectTransformTab(scene);
-				ImGui::EndTabItem();
-            }
-            
-            // --- TAB 6: BLOCK DEBUG TAB ---
-            if (ImGui::BeginTabItem("Block Debug"))
-            {
-                DrawBlockDebugTab(scene);
                 ImGui::EndTabItem();
             }
+
             ImGui::EndTabBar();
         }
     }
@@ -394,7 +389,7 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
     // ===========================
     // SECTION: STAGE
     // ===========================
-	if (scene->m_stage)
+    if (scene->m_stage)
     {
         ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "STAGE");
         ImGui::Separator();
@@ -416,7 +411,7 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
     ImGui::Spacing();
 
     // Paddle
-	if (scene->paddle)
+    if (scene->paddle)
     {
         if (ImGui::CollapsingHeader("Paddle", ImGuiTreeNodeFlags_DefaultOpen))
         {
@@ -542,72 +537,168 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
     if (scene->m_stage)
     {
+        // 1. ORIGINAL STAGE TRANSFORM
         if (ImGui::CollapsingHeader("Stage Transform", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Indent();
-
-            // Position Sliders
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
             ImGui::DragFloat3("XYZ##StagePos", &scene->m_stage->position.x, 0.1f);
 
             ImGui::Spacing();
-
-            // Rotation Sliders
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
             ImGui::DragFloat3("Pitch/Yaw/Roll##StageRot", &scene->m_stage->rotation.x, 0.1f, -180.0f, 180.0f);
 
             ImGui::Spacing();
-
-            // Scale Sliders
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
             ImGui::DragFloat3("XYZ##StageScl", &scene->m_stage->scale.x, 0.01f, 0.1f, 100.0f);
 
             ImGui::Spacing();
             ImGui::Separator();
 
-            // Reset Button
             if (ImGui::Button("Reset Transform", ImVec2(-1, 30)))
             {
-                scene->m_stage->position    = StageConfig::DEFAULT_POS;
-                scene->m_stage->rotation    = StageConfig::DEFAULT_ROT;
-                scene->m_stage->scale       = StageConfig::DEFAULT_SCALE;
+                scene->m_stage->position = StageConfig::DEFAULT_POS;
+                scene->m_stage->rotation = StageConfig::DEFAULT_ROT;
+                scene->m_stage->scale = StageConfig::DEFAULT_SCALE;
+            }
+            ImGui::Unindent();
+        }
+
+        // 2. DEBUG WALL TRANSFORM (DYNAMIC)
+        ImGui::Spacing();
+        if (ImGui::CollapsingHeader("Debug Wall Transform", ImGuiTreeNodeFlags_None))
+        {
+            ImGui::Indent();
+            ImGui::TextDisabled("Edit debug boxes for collision setup.");
+
+            // Iterate through the walls
+            for (int i = 0; i < scene->m_stage->m_debugWalls.size(); ++i)
+            {
+                auto& wall = scene->m_stage->m_debugWalls[i];
+                char label[32];
+                snprintf(label, 32, "Wall #%d", i + 1);
+
+                ImGui::PushID(i);
+                if (ImGui::TreeNode(label))
+                {
+                    ImGui::DragFloat3("Pos", &wall.Position.x, 0.1f);
+                    ImGui::DragFloat3("Rot", &wall.Rotation.x, 0.1f, -180.0f, 180.0f);
+                    ImGui::DragFloat3("Scale", &wall.Scale.x, 0.05f, 0.0f, 100.0f);
+
+                    if (ImGui::Button("Reset This Wall"))
+                    {
+                        // Check if there is a config default for this index
+                        if (i < StageConfig::DEBUG_WALLS.size()) {
+                            wall = StageConfig::DEBUG_WALLS[i];
+                        }
+                        else {
+                            wall.Position = { 0,0,0 };
+                            wall.Rotation = { 0,0,0 };
+                            wall.Scale = StageConfig::WALL_DEFAULT_SCALE;
+                        }
+                    }
+
+                    // --- NEW: Copy Value Button ---
+                    ImGui::SameLine();
+                    if (ImGui::Button("Copy Value"))
+                    {
+                        char buffer[256];
+                        // Using %.6g to ensure exact value without trailing zeros or 'f'
+                        snprintf(buffer, sizeof(buffer),
+                            "// Wall %d\n{ {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g} },",
+                            i + 1,
+                            wall.Position.x, wall.Position.y, wall.Position.z,
+                            wall.Rotation.x, wall.Rotation.y, wall.Rotation.z,
+                            wall.Scale.x, wall.Scale.y, wall.Scale.z
+                        );
+                        ImGui::SetClipboardText(buffer);
+                    }
+                    // ------------------------------
+
+                    ImGui::TreePop();
+                }
+                ImGui::PopID();
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            // === NEW: ADD WALL BUTTON ===
+            if (ImGui::Button("+ Add Wall Debug", ImVec2(-1, 30)))
+            {
+                scene->m_stage->AddDebugWall();
             }
 
             ImGui::Unindent();
         }
 
+        ImGui::Spacing();
+        if (ImGui::CollapsingHeader("Debug Line Transform (Lines)", ImGuiTreeNodeFlags_None))
+        {
+            ImGui::Indent();
+            ImGui::TextColored(ImVec4(0, 1, 1, 1), "Lines are X-Axis aligned. Scale.X = Length.");
+
+            for (int i = 0; i < scene->m_stage->m_debugLines.size(); ++i)
+            {
+                auto& line = scene->m_stage->m_debugLines[i];
+                char label[32]; snprintf(label, 32, "Line #%d", i + 1);
+                ImGui::PushID(i + 1000);
+                if (ImGui::TreeNode(label))
+                {
+                    ImGui::DragFloat3("Pos", &line.Position.x, 0.1f);
+                    ImGui::DragFloat3("Rot", &line.Rotation.x, 0.1f);
+                    // Scale.X controls length
+                    ImGui::DragFloat("Length (Scale.X)", &line.Scale.x, 0.1f);
+
+                    // Copy Value (Formatted for StageConfig::DEBUG_LINES)
+                    if (ImGui::Button("Copy Value")) {
+                        char buffer[256];
+                        snprintf(buffer, sizeof(buffer), "// Line %d\n{ {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g} },",
+                            i + 1, line.Position.x, line.Position.y, line.Position.z,
+                            line.Rotation.x, line.Rotation.y, line.Rotation.z,
+                            line.Scale.x, line.Scale.y, line.Scale.z);
+                        ImGui::SetClipboardText(buffer);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Reset")) {
+                        line.Position = { 0,0,0 }; line.Rotation = { 0,0,0 }; line.Scale = StageConfig::LINE_DEFAULT_SCALE;
+                    }
+                    ImGui::TreePop();
+                }
+                ImGui::PopID();
+            }
+            if (ImGui::Button("+ Add Line Debug")) scene->m_stage->AddDebugLine();
+            ImGui::Unindent();
+        }
+
+        // 3. ENEMY TRANSFORMS (Existing Code)
         if (scene->m_enemyManager)
         {
-            if (ImGui::CollapsingHeader("Enemies Transform", ImGuiTreeNodeFlags_DefaultOpen))
+            if (ImGui::CollapsingHeader("Enemies Transform", ImGuiTreeNodeFlags_None))
             {
                 ImGui::Indent();
 
                 auto& enemies = scene->m_enemyManager->GetEnemies();
                 auto DrawEnemyUI = [](Enemy* e, int index, const char* label)
-                {
-                        ImGui::PushID(index); 
+                    {
+                        ImGui::PushID(index);
 
                         if (ImGui::TreeNode(label))
                         {
-                            // Get current values
                             DirectX::XMFLOAT3 pos = e->GetPosition();
                             DirectX::XMFLOAT3 rot = e->GetRotation();
 
-                            // Position Sliders                        
                             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
                             if (ImGui::DragFloat3("XYZ##Pos", &pos.x, 0.1f)) e->SetPosition(pos);
 
-                            // Rotation Sliders
                             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
                             if (ImGui::DragFloat3("Pitch/Yaw/Roll##Rot", &rot.x, 1.0f, -180.0f, 180.0f)) e->SetRotation(rot);
 
-                            // Scale Sliders
                             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
                             ImGui::DragFloat3("XYZ##Scl", &e->scale.x, 0.01f, 0.1f, 10.0f);
 
                             ImGui::Spacing();
 
-                            // Reset Button 
                             if (ImGui::Button("Reset Transform"))
                             {
                                 e->SetPosition(e->GetOriginalPosition());
@@ -619,7 +710,7 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                         }
                         ImGui::PopID();
                         ImGui::Separator();
-                };
+                    };
 
                 int paddleCounter = 0;
                 int ballCounter = 0;
@@ -650,14 +741,13 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
                 ImGui::Spacing();
 
-                // Helper to spawn more from GUI
                 ImGui::Text("Spawn Controls:");
                 if (ImGui::Button("+ Spawn Paddle"))
                 {
                     EnemySpawnConfig newSpawn;
-                    newSpawn.Position = { 0.0f, 0.0f, 0.0f };    
-                    newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };    
-                    newSpawn.Color = { 1.0f, 0.2f, 0.2f, 1.0f }; 
+                    newSpawn.Position = { 0.0f, 0.0f, 0.0f };
+                    newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };
+                    newSpawn.Color = { 1.0f, 0.2f, 0.2f, 1.0f };
                     newSpawn.Type = EnemyType::Paddle;
                     scene->m_enemyManager->SpawnEnemy(newSpawn);
                 }
@@ -670,7 +760,7 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                     newSpawn.Position = { 0.0f, 0.0f, 0.0f };
                     newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };
                     newSpawn.Color = { 1.0f, 0.89f, 0.58f, 1.0f };
-                    newSpawn.Type = EnemyType::Ball;   
+                    newSpawn.Type = EnemyType::Ball;
                     scene->m_enemyManager->SpawnEnemy(newSpawn);
                 }
 
@@ -680,97 +770,3 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
     }
 }
 
-void GameBreakerGUI::DrawBlockDebugTab(SceneGameBreaker* scene)
-{
-    ImGui::Spacing();
-    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "BLOCK PHYSICS STATES");
-    ImGui::Separator();
-
-    if (!scene->blockManager)
-    {
-        ImGui::Text("BlockManager is null.");
-        return;
-    }
-
-    const auto& blocks = scene->blockManager->GetBlocks();
-
-    // 1. Calculate Summary Stats
-    int activeCount = 0;
-    int wallHitCount = 0;
-    int stackedCount = 0;
-    int fillingCount = 0;
-
-    for (const auto& block : blocks)
-    {
-        if (!block->IsActive()) continue;
-        activeCount++;
-        if (block->IsHittingWall()) wallHitCount++;
-        if (block->IsStacked()) stackedCount++;
-        if (block->IsFilling()) fillingCount++;
-    }
-
-    // 2. Display Summary
-    ImGui::Text("Active Blocks: %d", activeCount);
-
-    // Wall Hits (Red if any)
-    if (wallHitCount > 0) ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Hitting Wall: %d", wallHitCount);
-    else ImGui::Text("Hitting Wall: 0");
-
-    // Stacked (Green if any)
-    if (stackedCount > 0) ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "Stacked / Anchored: %d", stackedCount);
-    else ImGui::Text("Stacked / Anchored: 0");
-
-    ImGui::Text("Filling Mode: %d", fillingCount);
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Text("Detailed List:");
-
-    // 3. Scrollable List for Details
-    ImGui::BeginChild("BlockListScroll", ImVec2(0, 300), true); // Height 300px
-
-    for (int i = 0; i < blocks.size(); ++i)
-    {
-        const auto& block = blocks[i];
-        if (!block->IsActive()) continue;
-
-        bool hit = block->IsHittingWall();
-        bool stack = block->IsStacked();
-
-        // Only show interesting blocks (optional filter)
-        // Uncomment next line if you only want to see blocks that are colliding
-        // if (!hit && !stack) continue; 
-
-        ImGui::Text("ID %02d:", i);
-        ImGui::SameLine();
-
-        // Status: Hitting Wall
-        if (hit)
-        {
-            ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "[WALL HIT]");
-            // Optional: Show Normal
-            /*
-            ImGui::SameLine();
-            auto n = block->GetWallNormal();
-            ImGui::Text("(%.1f, %.1f)", n.x, n.z);
-            */
-        }
-        else
-        {
-            ImGui::TextDisabled("[Free]");
-        }
-
-        ImGui::SameLine();
-
-        // Status: Stacked
-        if (stack)
-        {
-            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.2f, 1.0f), "[STACKED]");
-        }
-        else
-        {
-            ImGui::TextDisabled("[Loose]");
-        }
-    }
-    ImGui::EndChild();
-}

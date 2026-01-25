@@ -12,8 +12,17 @@ public:
     void Render(ModelRenderer* renderer, const DirectX::XMFLOAT4& color);
     void OnHit();
 
+    // --- SLEEP OPTIMIZATION SYSTEM ---
+    // Checks if the block is still enough to stop processing physics
+    void TrySleep(float elapsedTime);
+
+    // Forces the block to wake up (call this when hit by Player/Ball)
+    void WakeUp();
+
+    bool IsSleeping() const { return isSleeping; }
+
     // --- Relocation State Accessors ---
-    void SetRelocating(bool state) { isRelocating = state; }
+    void SetRelocating(bool state) { isRelocating = state; if (state) WakeUp(); } // Auto-wake if moving
     bool IsRelocating() const { return isRelocating; }
     bool IsActive() const { return isActive; }
 
@@ -26,7 +35,7 @@ public:
     const DirectX::XMFLOAT3& GetWallNormal() const { return wallNormal; }
 
     // --- Filling State Management ---
-    void SetFilling(bool state) { isFilling = state; }
+    void SetFilling(bool state) { isFilling = state; if (state) WakeUp(); } // Auto-wake if moving
     bool IsFilling() const { return isFilling; }
 
     CharacterMovement* GetMovement() const { return movement; }
@@ -40,5 +49,14 @@ private:
     bool isRelocating = false;
     bool isHittingWall = false;
     bool isStacked = false;
+
+    // --- Sleep Vars ---
+    bool isSleeping = false;
+    float sleepTimer = 0.0f;
+
+    // Constants
+    const float SLEEP_VEL_SQ = 0.05f * 0.05f; // Velocity threshold (squared)
+    const float SLEEP_TIME_REQ = 0.5f;        // Time (seconds) required to trigger sleep
+
     DirectX::XMFLOAT3 wallNormal = { 0,0,0 };
 };

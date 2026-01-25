@@ -12,6 +12,7 @@ BlockManager::~BlockManager()
 void BlockManager::Initialize(Player* player)
 {
     blocks.clear();
+    blocks.reserve(m_rows * m_columns);
 
     float startX = -((m_columns - 1) * m_xSpacing) / 2.0f;
     float startZ = -((m_rows - 1) * m_zSpacing) / 2.0f;
@@ -41,13 +42,17 @@ void BlockManager::Initialize(Player* player)
             // ---------------------------------------------------------
             // HANDLE BLOCKS
             // ---------------------------------------------------------
-            auto newBlock = std::make_unique<Block>();
+            blocks.emplace_back();
+            Block& newBlock = blocks.back(); // Get reference to the new block
+
             float posX = startX + (x * m_xSpacing) + m_playerSpawnOffsetX;
             float posZ = startZ + (z * m_zSpacing) + m_zOffsetWorld;
-            newBlock->GetMovement()->SetPosition({ posX, 0.0f, posZ });
-            newBlock->GetMovement()->SetGravityEnabled(false);
-            
-            blocks.push_back(std::move(newBlock));
+
+            // Use dot (.) instead of arrow (->)
+            newBlock.GetMovement()->SetPosition({ posX, 0.0f, posZ });
+            newBlock.GetMovement()->SetGravityEnabled(false);
+
+            // No push_back needed, it's already in there via emplace_back
         }
     }
     InitPrioritySlots();
@@ -95,8 +100,10 @@ void BlockManager::Update(float elapsedTime, Camera* camera, Player* player)
     {
         // Stop blocks if formation is inactive
         for (auto& block : blocks) {
-            block->GetMovement()->SetVelocityX(0);
-            block->GetMovement()->SetVelocityZ(0);
+            if (block.IsActive()) { // ? Dot
+                block.GetMovement()->SetVelocityX(0); // ? Dot
+                block.GetMovement()->SetVelocityZ(0); // ? Dot
+            }
         }
     }
 
@@ -105,17 +112,30 @@ void BlockManager::Update(float elapsedTime, Camera* camera, Player* player)
     // 2. Update Physics & Visuals
     for (auto& block : blocks)
     {
-        if (block->IsActive())
+        if (!block.IsActive()) continue;
+
+        // 1. Try to sleep
+        block.TrySleep(elapsedTime);
+
+        // 2. OPTIMIZATION: If sleeping, SKIP physics update completely
+        if (block.IsSleeping()) // ? Dot
         {
-            // [FIX] We MUST call Movement Update so velocity actually moves the block!
-            // Your Block::Update only called SyncData, ignoring physics.
-            block->GetMovement()->Update(elapsedTime);
-            block->Update(elapsedTime, camera);
-            if (block->GetMovement()->GetPosition().y < killPlaneY)
-            {
-                block->OnHit();
-            }
+            block.Update(elapsedTime, camera); // ? Dot
+            continue;
         }
+
+        // Normal Update
+        block.GetMovement()->Update(elapsedTime);
+
+        // Kill plane check (inline)
+        if (block.GetMovement()->GetPosition().y < killPlaneY) // ? Dot
+        {
+            block.OnHit(); // ? Dot
+            continue;
+        }
+
+        // Visual update only for alive blocks
+        block.Update(elapsedTime, camera);
     }
 }
 
@@ -162,23 +182,24 @@ void BlockManager::UpdateFormationPositions(float elapsedTime, Player* player)
         int bestCandidateSourceIndex = -1;
         float bestDistSq = FLT_MAX;
 
-        for (const auto& b : blocks)
+        for (auto& b : blocks)
         {
-            if (!b->IsActive()) continue;
+            if (!b.IsActive()) continue;
 
-            // Check if block is already assigned to a higher priority slot
             int currentSlotIndex = -1;
             for (int k = 0; k < currentFrameSlots.size(); ++k)
             {
-                if (currentFrameSlots[k] == b.get()) { currentSlotIndex = k; break; }
+                if (currentFrameSlots[k] == &b) { currentSlotIndex = k; break; }
             }
             if (currentSlotIndex != -1 && currentSlotIndex <= i) continue;
 
-            float d = GetDistSq(target, b->GetMovement()->GetPosition());
+            float d = GetDistSq(target, b.GetMovement()->GetPosition());
+
             if (d < bestDistSq)
             {
                 bestDistSq = d;
-                bestCandidate = b.get();
+                bestCandidate = &b;
+
                 bestCandidateSourceIndex = currentSlotIndex;
             }
         }
@@ -273,9 +294,9 @@ void BlockManager::Render(ModelRenderer* renderer)
 {
     for (auto& block : blocks)
     {
-        if (block->IsActive())
+        if (block.IsActive())
         {
-            block->Render(renderer, globalBlockColor);
+            block.Render(renderer, globalBlockColor);
         }
     }
 }
@@ -293,9 +314,9 @@ void BlockManager::CheckCollision(Ball* ball)
 
     for (auto& block : blocks)
     {
-        if (!block->IsActive()) continue;
+        if (!block.IsActive()) continue;
 
-        DirectX::XMFLOAT3 blockPos = block->GetMovement()->GetPosition();
+        DirectX::XMFLOAT3 blockPos = block.GetMovement()->GetPosition();
 
         float deltaX = ballPos.x - blockPos.x;
         float deltaZ = ballPos.z - blockPos.z;
@@ -330,7 +351,7 @@ void BlockManager::CheckCollision(Ball* ball)
             }
 
             ball->SetVelocity(ballVel);
-            block->OnHit();
+            block.OnHit();
 
             if (m_onBlockHitCallback)
             {
@@ -342,12 +363,57 @@ void BlockManager::CheckCollision(Ball* ball)
     }
 }
 
+bool BlockManager::CheckEnemyCollision(Ball* ball)
+{
+    if (!ball || !ball->IsActive()) return false;
+
+    // ? FIX: Added DirectX:: prefix
+    DirectX::XMFLOAT3 ballPos = ball->GetMovement()->GetPosition();
+    float ballRadius = ball->GetRadius();
+    float blockHalfSize = m_blockHalfSize;
+
+    // ? PRE-CALCULATE: Max interaction distance
+    float maxInteractionDist = blockHalfSize + ballRadius;
+    float maxInteractionDistSq = maxInteractionDist * maxInteractionDist;
+
+    for (auto& block : blocks)
+    {
+        if (!block.IsActive()) continue;
+
+        // ? FIX: Added DirectX:: prefix
+        DirectX::XMFLOAT3 blockPos = block.GetMovement()->GetPosition();
+
+        // ? FAST REJECT: Distance check BEFORE detailed overlap test
+        float deltaX = ballPos.x - blockPos.x;
+        float deltaZ = ballPos.z - blockPos.z;
+        float distSq = deltaX * deltaX + deltaZ * deltaZ;
+
+        // If too far, skip (avoids abs() calculations)
+        if (distSq > maxInteractionDistSq) continue;
+
+        // Now do the detailed check
+        float absX = std::abs(deltaX);
+        float absZ = std::abs(deltaZ);
+
+        float overlapX = (blockHalfSize + ballRadius) - absX;
+        float overlapZ = (blockHalfSize + ballRadius) - absZ;
+
+        if (overlapX > 0 && overlapZ > 0)
+        {
+            block.OnHit();
+            return true;
+        }
+    }
+
+    return false;
+}
+
 int BlockManager::GetActiveBlockCount() const
 {
     int count = 0;
     for (const auto& block : blocks)
     {
-        if (block->IsActive())
+        if (block.IsActive())
         {
             count++;
         }
