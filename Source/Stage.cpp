@@ -9,19 +9,15 @@ std::vector<DebugWallData> Stage::SegmentLongWall(const DebugWallData& wall)
 
     std::vector<DebugWallData> segments;
 
-    // ? CRITICAL: Your Scale values are HALF-EXTENTS, not full size
-    // So the actual full length is Scale * 2
     float halfExtentX = wall.Scale.x;
     float halfExtentZ = wall.Scale.z;
 
     float longestHalfExtent = (std::max)(halfExtentX, halfExtentZ);
     float shortestHalfExtent = (std::min)(halfExtentX, halfExtentZ);
 
-    // Full length for comparison
     float fullLength = longestHalfExtent * 2.0f;
     float aspectRatio = fullLength / (shortestHalfExtent * 2.0f);
 
-    // Check if segmentation needed (using FULL length)
     bool needsSegmentation = (aspectRatio > ASPECT_RATIO_LIMIT) ||
         (fullLength > MAX_SEGMENT_LENGTH);
 
@@ -30,29 +26,24 @@ std::vector<DebugWallData> Stage::SegmentLongWall(const DebugWallData& wall)
         return segments;
     }
 
-    // Determine segmentation axis
     bool segmentX = (halfExtentX > halfExtentZ);
     float originalHalfExtent = segmentX ? halfExtentX : halfExtentZ;
     float originalFullLength = originalHalfExtent * 2.0f;
 
-    // Calculate number of segments based on FULL length
     int numSegments = (int)std::ceil(originalFullLength / MAX_SEGMENT_LENGTH);
     float newFullSegmentLength = originalFullLength / numSegments;
     float newHalfSegmentLength = newFullSegmentLength * 0.5f;
 
-    // Create rotation matrix for offset calculation
     XMMATRIX matRot = XMMatrixRotationRollPitchYaw(
         XMConvertToRadians(wall.Rotation.x),
         XMConvertToRadians(wall.Rotation.y),
         XMConvertToRadians(wall.Rotation.z)
     );
 
-    // Generate segments
     for (int i = 0; i < numSegments; i++)
     {
         DebugWallData segment = wall;
 
-        // ? Update scale (store as HALF-EXTENT)
         if (segmentX) {
             segment.Scale.x = newHalfSegmentLength;
         }
@@ -60,11 +51,8 @@ std::vector<DebugWallData> Stage::SegmentLongWall(const DebugWallData& wall)
             segment.Scale.z = newHalfSegmentLength;
         }
 
-        // ? Calculate offset from wall center
-        // Start at -originalHalfExtent, place segment centers at regular intervals
         float localOffset = -originalHalfExtent + (i * newFullSegmentLength) + newHalfSegmentLength;
 
-        // Apply offset in local space, then rotate to world space
         XMVECTOR vLocalOffset = segmentX ?
             XMVectorSet(localOffset, 0, 0, 0) :
             XMVectorSet(0, 0, localOffset, 0);
@@ -74,7 +62,6 @@ std::vector<DebugWallData> Stage::SegmentLongWall(const DebugWallData& wall)
         XMFLOAT3 worldOffset;
         XMStoreFloat3(&worldOffset, vWorldOffset);
 
-        // Update position
         segment.Position.x = wall.Position.x + worldOffset.x;
         segment.Position.y = wall.Position.y + worldOffset.y;
         segment.Position.z = wall.Position.z + worldOffset.z;
@@ -103,7 +90,9 @@ Stage::Stage(ID3D11Device* device)
         auto segments = SegmentLongWall(originalWall);
         m_debugWalls.insert(m_debugWalls.end(), segments.begin(), segments.end());
     }
-    m_debugLines = StageConfig::DEBUG_LINES;
+    m_linesVoid = StageConfig::DEBUG_LINES_VOID;
+    m_linesDisable = StageConfig::DEBUG_LINES_DISABLE;
+    m_linesEnable = StageConfig::DEBUG_LINES_ENABLE;
 
     RebuildSpatialGrid();
     UpdateTransform();
@@ -157,7 +146,7 @@ void Stage::Render(ModelRenderer* renderer)
 
 void Stage::RenderDebug(ShapeRenderer* shapeRenderer, PrimitiveRenderer* primRenderer)
 {
-    // 1. Draw Debug Walls (GREEN BOXES)
+    // Draw Debug Walls (GREEN BOXES)
     if (shapeRenderer)
     {
         DirectX::XMFLOAT4 wallColor = { 0.0f, 1.0f, 0.0f, 1.0f };
@@ -172,37 +161,49 @@ void Stage::RenderDebug(ShapeRenderer* shapeRenderer, PrimitiveRenderer* primRen
         }
     }
 
-    // 2. Draw Debug Lines 
+    // Draw Debug Lines
     if (primRenderer)
     {
-        DirectX::XMFLOAT4 lineColor = { 0.0f, 1.0f, 1.0f, 1.0f }; // Cyan
+        auto DrawLineList = [&](const std::vector<DebugLineData>& lines, DirectX::XMFLOAT4 defaultColor, DebugLineType listType)
+            {
+                for (int i = 0; i < lines.size(); ++i)
+                {
+                    const auto& line = lines[i];
+                    DirectX::XMFLOAT4 finalColor = defaultColor;
 
-        for (const auto& line : m_debugLines)
-        {
-            // Build Matrix for Line
-            XMMATRIX T = XMMatrixTranslation(line.Position.x, line.Position.y, line.Position.z);
-            XMMATRIX R = XMMatrixRotationRollPitchYaw(
-                XMConvertToRadians(line.Rotation.x),
-                XMConvertToRadians(line.Rotation.y),
-                XMConvertToRadians(line.Rotation.z)
-            );
+                    if (m_highlightState.index == i && m_highlightState.type == listType)
+                    {
+                        finalColor = { 1.0f, 1.0f, 0.0f, 1.0f }; // Bright Yellow Highlight
+                    }
 
-            float halfLen = line.Scale.x * 0.5f;
-            XMVECTOR p0 = XMVectorSet(-halfLen, 0, 0, 1);
-            XMVECTOR p1 = XMVectorSet(halfLen, 0, 0, 1);
+                    XMMATRIX T = XMMatrixTranslation(line.Position.x, line.Position.y, line.Position.z);
+                    XMMATRIX R = XMMatrixRotationRollPitchYaw(
+                        XMConvertToRadians(line.Rotation.x),
+                        XMConvertToRadians(line.Rotation.y),
+                        XMConvertToRadians(line.Rotation.z)
+                    );
 
-            // Transform points to world space
-            XMMATRIX W = R * T;
-            p0 = XMVector3TransformCoord(p0, W);
-            p1 = XMVector3TransformCoord(p1, W);
+                    float halfLen = line.Scale.x * 0.5f;
+                    XMVECTOR p0 = XMVectorSet(-halfLen, 0, 0, 1);
+                    XMVECTOR p1 = XMVectorSet(halfLen, 0, 0, 1);
 
-            XMFLOAT3 v0, v1;
-            XMStoreFloat3(&v0, p0);
-            XMStoreFloat3(&v1, p1);
+                    XMMATRIX W = R * T;
+                    p0 = XMVector3TransformCoord(p0, W);
+                    p1 = XMVector3TransformCoord(p1, W);
 
-            primRenderer->AddVertex(v0, lineColor);
-            primRenderer->AddVertex(v1, lineColor);
-        }
+                    XMFLOAT3 v0, v1;
+                    XMStoreFloat3(&v0, p0);
+                    XMStoreFloat3(&v1, p1);
+
+                    primRenderer->AddVertex(v0, finalColor);
+                    primRenderer->AddVertex(v1, finalColor);
+                }
+            };
+
+        // Draw Lists with their Type identifier
+        DrawLineList(m_linesVoid, { 0.0f, 1.0f, 1.0f, 1.0f }, DebugLineType::Void);         // Cyan
+        DrawLineList(m_linesDisable, { 1.0f, 0.0f, 0.0f, 1.0f }, DebugLineType::Disable);   // Red
+        DrawLineList(m_linesEnable, { 0.0f, 1.0f, 0.0f, 1.0f }, DebugLineType::Enable);     // Green
     }
 }
 
@@ -210,7 +211,6 @@ void Stage::AddDebugWall()
 {
     DebugWallData newWall;
 
-    // If walls already exist, copy the last one's data
     if (!m_debugWalls.empty())
     {
         newWall = m_debugWalls.back();
@@ -226,14 +226,32 @@ void Stage::AddDebugWall()
     m_debugWalls.push_back(newWall);
 }
 
-void Stage::AddDebugLine()
+void Stage::AddDebugLine(DebugLineType type)
 {
     DebugLineData newLine;
-    if (!m_debugLines.empty()) newLine = m_debugLines.back();
-    else {
-        newLine.Position = { 0,0,0 };
-        newLine.Rotation = { 0,0,0 };
-        newLine.Scale = StageConfig::LINE_DEFAULT_SCALE; 
+    newLine.Position = { 0,0,0 };
+    newLine.Rotation = { 0,0,0 };
+    newLine.Scale = StageConfig::LINE_DEFAULT_SCALE;
+
+    // Determine which list to add to
+    std::vector<DebugLineData>* targetList = nullptr;
+
+    switch (type)
+    {
+    case DebugLineType::Void:
+        targetList = &m_linesVoid;
+        break;
+    case DebugLineType::Disable:
+        targetList = &m_linesDisable;
+        break;
+    case DebugLineType::Enable:
+        targetList = &m_linesEnable;
+        break;
     }
-    m_debugLines.push_back(newLine);
+
+    if (targetList)
+    {
+        if (!targetList->empty()) newLine = targetList->back();
+        targetList->push_back(newLine);
+    }
 }

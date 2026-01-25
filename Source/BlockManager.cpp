@@ -107,7 +107,7 @@ void BlockManager::Update(float elapsedTime, Camera* camera, Player* player)
         }
     }
 
-    float killPlaneY = -5.0f;
+    float killPlaneY = -30.0f;
 
     // 2. Update Physics & Visuals
     for (auto& block : blocks)
@@ -219,6 +219,7 @@ void BlockManager::UpdateFormationPositions(float elapsedTime, Player* player)
     {
         Block* b = m_formationBlocks[i];
         if (!b) continue;
+        if (b->IsFalling()) continue;
 
         // Calculate Base Target 
         DirectX::XMFLOAT3 target;

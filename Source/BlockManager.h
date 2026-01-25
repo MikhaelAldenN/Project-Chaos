@@ -62,8 +62,8 @@ private:
     std::vector<Block*> m_formationBlocks;
 
     // Grid Configuration
-    int m_rows = 11;                         // Row Blocks
-    int m_columns = 11;                      // Column Blocks
+    int m_rows = 7;                         // Row Blocks
+    int m_columns = 7;                      // Column Blocks
     float m_xSpacing = 0.7f;                // Space between blocks X
     float m_zSpacing = 0.7f;                // Space between blocks Z
     float m_zOffsetWorld = 2.5f;            // Start Z position in World

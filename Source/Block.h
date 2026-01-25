@@ -13,12 +13,8 @@ public:
     void OnHit();
 
     // --- SLEEP OPTIMIZATION SYSTEM ---
-    // Checks if the block is still enough to stop processing physics
     void TrySleep(float elapsedTime);
-
-    // Forces the block to wake up (call this when hit by Player/Ball)
     void WakeUp();
-
     bool IsSleeping() const { return isSleeping; }
 
     // --- Relocation State Accessors ---
@@ -38,6 +34,16 @@ public:
     void SetFilling(bool state) { isFilling = state; if (state) WakeUp(); } // Auto-wake if moving
     bool IsFilling() const { return isFilling; }
 
+    // --- Falling Logic ---
+    void SetFalling(bool state) {
+        isFalling = state;
+        if (state) {
+            WakeUp(); 
+            movement->SetGravityEnabled(true); 
+        }
+    }
+    bool IsFalling() const { return isFalling; }
+
     CharacterMovement* GetMovement() const { return movement; }
 
 private:
@@ -45,17 +51,16 @@ private:
 
     // --- Internal State Variable ---
     bool isActive = true;
+    bool isFalling = false;
     bool isFilling = false;
-    bool isRelocating = false;
     bool isHittingWall = false;
-    bool isStacked = false;
-
-    // --- Sleep Vars ---
+    bool isRelocating = false;
     bool isSleeping = false;
+    bool isStacked = false;
     float sleepTimer = 0.0f;
 
     // Constants
-    const float SLEEP_VEL_SQ = 0.05f * 0.05f; // Velocity threshold (squared)
+    const float SLEEP_VEL_SQ = 0.05f * 0.05f; 
     const float SLEEP_TIME_REQ = 0.5f;        // Time (seconds) required to trigger sleep
 
     DirectX::XMFLOAT3 wallNormal = { 0,0,0 };

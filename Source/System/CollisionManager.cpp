@@ -90,13 +90,16 @@ void CollisionManager::Update(float elapsedTime)
 
     if (m_blockManager)
     {
-        // ? FIX: Use auto& (reference) and Dot (.) syntax
         for (auto& block : m_blockManager->GetBlocks())
         {
-            if (block.IsActive()) // ? Changed -> to .
+            if (block.IsActive())
             {
-                block.GetMovement()->SetGravityEnabled(false); // ? Changed -> to .
-                block.GetMovement()->SetVelocityY(0.0f);       // ? Changed -> to .
+                // [CHANGED] Only disable gravity if the block is NOT falling
+                if (!block.IsFalling())
+                {
+                    block.GetMovement()->SetGravityEnabled(false);
+                    block.GetMovement()->SetVelocityY(0.0f);
+                }
             }
         }
     }
@@ -106,6 +109,7 @@ void CollisionManager::Update(float elapsedTime)
     CheckEnemyProjectilesFull(elapsedTime);
     CheckStageCollision();
     CheckBlockVsStage();
+    CheckBlockVsVoidLines();
 
     if (m_blockManager)
     {
@@ -776,6 +780,56 @@ void CollisionManager::CheckPlayerVsBlocks()
                     if ((dz > 0 && playerVel.z < 0) || (dz < 0 && playerVel.z > 0)) playerMove->SetVelocityZ(0.0f);
                 }
                 playerVel = playerMove->GetVelocity();
+            }
+        }
+    }
+}
+
+void CollisionManager::CheckBlockVsVoidLines()
+{
+    if (!m_blockManager || !m_stage) return;
+
+    const float BLOCK_RADIUS = 0.5f;
+    const float FALL_THRESHOLD = 0.1f; 
+    const float TRIGGER_RANGE = 2.0f; 
+
+    for (const auto& line : m_stage->m_linesVoid)
+    {
+        XMMATRIX matRot = XMMatrixRotationRollPitchYaw(
+            XMConvertToRadians(line.Rotation.x),
+            XMConvertToRadians(line.Rotation.y),
+            XMConvertToRadians(line.Rotation.z)
+        );
+        XMMATRIX matInvRot = XMMatrixTranspose(matRot);
+
+        float lineHalfLength = line.Scale.x * 0.5f;
+
+        for (auto& block : m_blockManager->GetBlocks())
+        {
+            if (!block.IsActive() || block.IsFalling()) continue;
+
+            // --- Transform to Local Space ---
+            XMVECTOR vLocalPos = TransformToLocalLine(block.GetMovement()->GetPosition(), line);
+            XMFLOAT3 localPos;
+            XMStoreFloat3(&localPos, vLocalPos);
+
+            // --- Length Check ---
+            if (localPos.x < -lineHalfLength - 0.5f || localPos.x > lineHalfLength + 0.5f)
+            {
+                continue;
+            }
+
+            // --- ONE-WAY TRIGGER CHECK ---
+            XMVECTOR vWorldVel = XMLoadFloat3(&block.GetMovement()->GetVelocity());
+            XMVECTOR vLocalVel = XMVector3TransformNormal(vWorldVel, matInvRot);
+            float velZ = XMVectorGetZ(vLocalVel);
+
+            if (velZ < 0.05f)
+            {
+                if (localPos.z < -FALL_THRESHOLD && localPos.z > -TRIGGER_RANGE)
+                {
+                    block.SetFalling(true);
+                }
             }
         }
     }

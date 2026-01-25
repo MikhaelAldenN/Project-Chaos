@@ -22,11 +22,12 @@ public:
     void Update(float elapsedTime);
 
 private:
-    void CheckStageCollision();
-    void CheckBlockVsStage();
-    void CheckPlayerVsBlocks();
     void CheckBlockVsBlocks();
     void UpdateBlockStackFlags();
+    void CheckBlockVsStage();
+    void CheckBlockVsVoidLines();
+    void CheckPlayerVsBlocks();
+    void CheckStageCollision();
     void CheckEnemyProjectilesFull(float elapsedTime);
 
     Player* m_player = nullptr;

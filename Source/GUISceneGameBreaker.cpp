@@ -633,41 +633,89 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
         }
 
         ImGui::Spacing();
-        if (ImGui::CollapsingHeader("Debug Line Transform (Lines)", ImGuiTreeNodeFlags_None))
+        if (ImGui::CollapsingHeader("Debug Line Transform", ImGuiTreeNodeFlags_None))
         {
+            scene->m_stage->ClearLineHighlight();
+
             ImGui::Indent();
-            ImGui::TextColored(ImVec4(0, 1, 1, 1), "Lines are X-Axis aligned. Scale.X = Length.");
+            ImGui::TextDisabled("Lines are X-Axis aligned. Scale.X = Length.");
+            ImGui::TextDisabled("Yellow = Currently Editing");
 
-            for (int i = 0; i < scene->m_stage->m_debugLines.size(); ++i)
-            {
-                auto& line = scene->m_stage->m_debugLines[i];
-                char label[32]; snprintf(label, 32, "Line #%d", i + 1);
-                ImGui::PushID(i + 1000);
-                if (ImGui::TreeNode(label))
+            auto DrawLineCategory = [&](const char* categoryName, std::vector<DebugLineData>& lines,
+                const char* codePrefix, DebugLineType type, int idSeed)
                 {
-                    ImGui::DragFloat3("Pos", &line.Position.x, 0.1f);
-                    ImGui::DragFloat3("Rot", &line.Rotation.x, 0.1f);
-                    // Scale.X controls length
-                    ImGui::DragFloat("Length (Scale.X)", &line.Scale.x, 0.1f);
+                    ImGui::PushID(idSeed);
 
-                    // Copy Value (Formatted for StageConfig::DEBUG_LINES)
-                    if (ImGui::Button("Copy Value")) {
-                        char buffer[256];
-                        snprintf(buffer, sizeof(buffer), "// Line %d\n{ {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g} },",
-                            i + 1, line.Position.x, line.Position.y, line.Position.z,
-                            line.Rotation.x, line.Rotation.y, line.Rotation.z,
-                            line.Scale.x, line.Scale.y, line.Scale.z);
-                        ImGui::SetClipboardText(buffer);
+                    if (ImGui::CollapsingHeader(categoryName))
+                    {
+                        ImGui::Indent();
+                        for (int i = 0; i < lines.size(); ++i)
+                        {
+                            auto& line = lines[i];
+                            char label[64];
+                            snprintf(label, 64, "%s #%d", codePrefix, i + 1);
+
+                            ImGui::PushID(i);
+
+                            bool isNodeOpen = ImGui::TreeNode(label);
+
+                            if (isNodeOpen)
+                            {
+                                scene->m_stage->SetLineHighlight(type, i);
+
+                                ImGui::DragFloat3("Pos", &line.Position.x, 0.1f);
+                                ImGui::DragFloat3("Rot", &line.Rotation.x, 0.1f);
+                                ImGui::DragFloat("Length", &line.Scale.x, 0.1f);
+
+                                if (ImGui::Button("Copy Value"))
+                                {
+                                    char buffer[256];
+                                    snprintf(buffer, sizeof(buffer),
+                                        "// Line %s %d\n{ {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g} },",
+                                        codePrefix, i + 1,
+                                        line.Position.x, line.Position.y, line.Position.z,
+                                        line.Rotation.x, line.Rotation.y, line.Rotation.z,
+                                        line.Scale.x, line.Scale.y, line.Scale.z);
+                                    ImGui::SetClipboardText(buffer);
+                                }
+
+                                ImGui::SameLine();
+                                if (ImGui::Button("Delete")) {
+                                    lines.erase(lines.begin() + i);
+                                    ImGui::TreePop();
+                                    ImGui::PopID();
+                                    break;
+                                }
+
+                                ImGui::TreePop();
+                            }
+                            ImGui::PopID();
+                        }
+
+                        if (ImGui::Button("+ Add Line")) 
+                        {
+                            scene->m_stage->AddDebugLine(type);
+                        }
+                        ImGui::Unindent();
                     }
-                    ImGui::SameLine();
-                    if (ImGui::Button("Reset")) {
-                        line.Position = { 0,0,0 }; line.Rotation = { 0,0,0 }; line.Scale = StageConfig::LINE_DEFAULT_SCALE;
-                    }
-                    ImGui::TreePop();
-                }
-                ImGui::PopID();
-            }
-            if (ImGui::Button("+ Add Line Debug")) scene->m_stage->AddDebugLine();
+                    ImGui::PopID();
+                };
+
+            // VOID LINES (Cyan)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 1.0f, 1.0f));
+            DrawLineCategory("Line Void", scene->m_stage->m_linesVoid, "Void", DebugLineType::Void, 2000);
+            ImGui::PopStyleColor();
+
+            // DISABLE LINES (Red)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+            DrawLineCategory("Line Disable", scene->m_stage->m_linesDisable, "Disable", DebugLineType::Disable, 3000);
+            ImGui::PopStyleColor();
+
+            // ENABLE LINES (Green)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 1.0f, 0.4f, 1.0f));
+            DrawLineCategory("Line Enable", scene->m_stage->m_linesEnable, "Enable", DebugLineType::Enable, 4000);
+            ImGui::PopStyleColor();
+
             ImGui::Unindent();
         }
 

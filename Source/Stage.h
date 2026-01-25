@@ -30,7 +30,7 @@ struct DebugLineData {
 struct SpatialHashGrid
 {
     // ==========================================
-    // ? OPTIMIZATION: Fixed Grid Settings
+    // OPTIMIZATION: Fixed Grid Settings
     // ==========================================
     static constexpr float CELL_SIZE = 10.0f;   // Larger cells = faster for large objects
 
@@ -39,16 +39,13 @@ struct SpatialHashGrid
     // Z Range: Covers -900 to +100
     static constexpr int COLS = 20;
     static constexpr int ROWS = 100;
-    static constexpr float OFFSET_X = 100.0f; // Shift X so -100 becomes 0
-    static constexpr float OFFSET_Z = 900.0f; // Shift Z so -900 becomes 0
+    static constexpr float OFFSET_X = 100.0f; 
+    static constexpr float OFFSET_Z = 900.0f; 
 
-    // ? Flat Array instead of Map (No allocations!)
     std::vector<size_t> cells[COLS * ROWS];
 
     void Clear()
     {
-        // ? CRITICAL: Just resize to 0. capacity() stays high.
-        // This prevents re-allocating memory next frame.
         for (auto& cell : cells)
         {
             cell.clear();
@@ -105,7 +102,6 @@ struct SpatialHashGrid
             }
         }
 
-        // Remove duplicates (Faster than using unordered_set every frame)
         std::sort(results.begin(), results.end());
         auto last = std::unique(results.begin(), results.end());
         results.erase(last, results.end());
@@ -113,6 +109,7 @@ struct SpatialHashGrid
         return results;
     }
 };
+
 namespace StageConfig
 {
     static const char* MODEL_PATH = "Data/Model/Stage/StageBeyondBreaker.glb";
@@ -268,14 +265,60 @@ namespace StageConfig
     };
 
     // =========================================================
-    // DEBUG LINE CONFIGURATION
+    // VOID LINES (Cyan) - Causes falling
     // =========================================================
-    static const std::vector<DebugLineData> DEBUG_LINES =
+    static const std::vector<DebugLineData> DEBUG_LINES_VOID =
     {
-        // Line 1
-        { {0,0,-24.1}, {0,0,0}, {10,0,0} },
+        // Line Void 1
+        { {-3.25,0,-78.1}, {0,90,0}, {15.4,0,0} },
+        // Line Void 2
+        { {-3.45,0,-96.9}, {0,-45.9,0}, {2.5,0,0} },
+        // Line Void 3
+        { {-4.25,0,-99}, {0,-90,0}, {2.5,0,0} },
+        // Line Void 4
+        { {-5.15,0,-184.4}, {0,82.8,0}, {17.5,0,0} },
+        // Line Void 5
+        { {-2.85,0,-197.4}, {0,74.5,0}, {25,0,0} },
+        // Line Void 6
+        { {-14.95,0,-500.5}, {0,104.9,0}, {3.7,0,0} },
+        // Line Void 7
+        { {-13.25,0,-509.9}, {0,74.9,0}, {25.5,0,0} },
+        // Line Void 8
+        { {-21.55,0,-533.9}, {0,134.8,0}, {33.1,0,0} },
+        // Line Void 9
+        { {-22.95,0,-540.9}, {0,60.4,0}, {23.4,0,0} },
+        // Line Void 10
+        { {-22.85,0,-556.6}, {0,135.8,0}, {15.9,0,0} },
+        // Line Void 11
+        { {14.65,0,-501.3}, {0,-74.6,0}, {1.5,0,0} },
+        // Line Void 12
+        { {18.85,0,-518}, {0,-105.1,0}, {33.1,0,0} },
+        // Line Void 13
+        { {17.05,0,-536.2}, {0,-44.8,0}, {16.7,0,0} },
+        // Line Void 14
+        { {15.45,0,-549.7}, {0,-119.8,0}, {17.6,0,0} },
+        // Line Void 15
+        { {17.75,0,-556.9}, {0,-45.2,0}, {3.7,0,0} },
+    };
+
+    // =========================================================
+    // DISABLE LINES (Red) - Disables Input/Mechanic
+    // =========================================================
+    static const std::vector<DebugLineData> DEBUG_LINES_DISABLE =
+    {
+        // Add default values here if needed
+    };
+
+    // =========================================================
+    // ENABLE LINES (Green) - Enables Input/Mechanic
+    // =========================================================
+    static const std::vector<DebugLineData> DEBUG_LINES_ENABLE =
+    {
+        // Add default values here if needed
     };
 }
+
+enum class DebugLineType { Void, Disable, Enable };
 
 class Stage
 {
@@ -289,7 +332,9 @@ public:
 
     // Dynamic Debug Tools
     void AddDebugWall();
-    void AddDebugLine();
+    void AddDebugLine(DebugLineType type);
+    void SetLineHighlight(DebugLineType type, int index) { m_highlightState = { type, index }; }
+    void ClearLineHighlight() { m_highlightState.index = -1; }
 
     std::shared_ptr<Model> GetModel() const { return model; }
     const SpatialHashGrid& GetSpatialGrid() const { return m_spatialGrid; }
@@ -302,9 +347,16 @@ public:
     DirectX::XMFLOAT4 color;
 
     std::vector<DebugWallData> m_debugWalls;
-    std::vector<DebugLineData> m_debugLines;
+    std::vector<DebugLineData> m_linesVoid;
+    std::vector<DebugLineData> m_linesDisable;
+    std::vector<DebugLineData> m_linesEnable;
 
 private:
+    struct HighlightData {
+        DebugLineType type = DebugLineType::Void; 
+        int index = -1; 
+    } m_highlightState;
+
     void RebuildSpatialGrid();
 
     SpatialHashGrid m_spatialGrid;
