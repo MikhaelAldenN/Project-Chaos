@@ -657,6 +657,7 @@ void CollisionManager::UpdateBlockStackFlags()
 void CollisionManager::CheckBlockVsBlocks()
 {
     if (!m_blockManager) return;
+    if (m_blockManager->IsShieldActive()) return;
 
     float boxRadius = 0.4f;
     float minTouchDist = boxRadius * 2.45f;
@@ -754,6 +755,7 @@ void CollisionManager::CheckBlockVsBlocks()
 void CollisionManager::CheckPlayerVsBlocks()
 {
     if (!m_player || !m_blockManager) return;
+    if (m_blockManager->IsShieldActive()) return;
     XMFLOAT3 playerSize = { 0.4f, 0.4f, 0.4f };
     XMFLOAT3 blockSize = { 0.4f, 0.4f, 0.4f };
     CharacterMovement* playerMove = m_player->GetMovement();
@@ -788,6 +790,7 @@ void CollisionManager::CheckPlayerVsBlocks()
 void CollisionManager::CheckBlockVsVoidLines()
 {
     if (!m_blockManager || !m_stage) return;
+    if (m_blockManager->IsShieldActive()) return;
 
     const float BLOCK_RADIUS = 0.5f;
     const float FALL_THRESHOLD = 0.1f; 

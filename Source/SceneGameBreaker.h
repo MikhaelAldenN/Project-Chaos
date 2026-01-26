@@ -81,6 +81,8 @@ private:
     void RenderScene(float elapsedTime, Camera* camera);
     void UpdateGameTriggers(float elapsedTime);
 
+    DirectX::XMFLOAT3 GetMouseOnGround(Camera* camera);
+
     // =========================================================
     // SPRITE CONTROLS & LAYOUT
     // =========================================================

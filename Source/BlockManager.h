@@ -19,12 +19,14 @@ public:
 
     void Initialize(Player* player);
     void Update(float elapsedTime, Camera* camera, Player* player);
+    void UpdateShieldLogic(bool isInputHeld, const DirectX::XMFLOAT3& mouseWorldPos, const DirectX::XMFLOAT3& playerPos, float elapsedTime);
     void Render(ModelRenderer* renderer);
     void CheckCollision(Ball* ball);
     bool CheckEnemyCollision(Ball* ball);
     void ActivateFormationMode() { isFormationActive = true; }
     void SetOnBlockHitCallback(std::function<void()> callback) { m_onBlockHitCallback = callback; }
     bool IsFormationActive() const { return isFormationActive; }
+    bool IsShieldActive() const { return isShieldActive; }
     int GetActiveBlockCount() const;
     const std::vector<Block>& GetBlocks() const { return blocks; }
     std::vector<Block>& GetBlocks() { return blocks; }
@@ -53,8 +55,20 @@ public:
     };
     FormationConfig m_config;
 
+    // Shield settings
+    struct ShieldConfig {
+        bool  Enabled = true;
+        float MaxTetherDistance = 5.0f;   // How far from player the shield can go
+        float MoveSpeed = 6.0f;           // Lerp speed for blocks
+        float Spacing = 1.4f;             // Gap between shield blocks
+        float ArrivalThresholdSq = 0.1f;  // Distance squared to consider "Arrived" (for collision)
+        float WakeUpDistanceSq = 0.05f;   // Min movement to wake up a block
+    };
+    ShieldConfig shieldSettings;
+
 private:
     // Helper grid 
+    void CalculateShieldOffsets();
     void InitPrioritySlots();
     void UpdateFormationPositions(float elapsedTime, Player* player);
 
@@ -62,8 +76,8 @@ private:
     std::vector<Block*> m_formationBlocks;
 
     // Grid Configuration
-    int m_rows = 7;                         // Row Blocks
-    int m_columns = 7;                      // Column Blocks
+    int m_rows = 8;                         // Row Blocks
+    int m_columns = 8;                      // Column Blocks
     float m_xSpacing = 0.7f;                // Space between blocks X
     float m_zSpacing = 0.7f;                // Space between blocks Z
     float m_zOffsetWorld = 2.5f;            // Start Z position in World
@@ -74,12 +88,16 @@ private:
     // Player Spawn Adjustments
     float m_playerSpawnOffsetX = -0.5f;     // X Value Player
 
-    // --------------------------------------------------------
-    // FORMATION SETTINGS
-    // --------------------------------------------------------
+    // Formation State
     bool isFormationActive = false;
     float formationSpacing = 1.0f;
     float m_formationTime = 0.0f;
+
+    // Shield State
+    bool isShieldActive = false;
+    bool wasShieldActive = false;
+    std::vector<DirectX::XMFLOAT3> m_shieldOffsets;
+    std::vector<Block*> m_shieldAssignments;
 
     std::vector<DirectX::XMFLOAT3> m_sortedOffsets;
 

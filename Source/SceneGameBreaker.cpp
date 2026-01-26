@@ -158,6 +158,23 @@ void SceneGameBreaker::Update(float elapsedTime)
         }
     }
 
+    if (blockManager && player)
+    {
+        bool canUseShield = (player->GetGameStage() >= 3);
+        bool isShielding = (GetKeyState(VK_LSHIFT) & 0x8000) && canUseShield;
+
+        DirectX::XMFLOAT3 mousePos = GetMouseOnGround(activeCam);
+        DirectX::XMFLOAT3 playerPos = player->GetPosition();
+
+        blockManager->UpdateShieldLogic(isShielding, mousePos, playerPos, elapsedTime);
+        blockManager->Update(elapsedTime, activeCam, player);
+
+        if (ball && ball->IsActive())
+        {
+            blockManager->CheckCollision(ball);
+        }
+    }
+
     if (m_enemyManager)
     {
         XMFLOAT3 targetPos = { 0,0,0 };
@@ -427,4 +444,44 @@ void SceneGameBreaker::OnResize(int width, int height)
     {
         m_postProcess->OnResize(width, height);
     }
+}
+
+DirectX::XMFLOAT3 SceneGameBreaker::GetMouseOnGround(Camera* camera)
+{
+    if (!camera) return { 0,0,0 };
+
+    auto& input = Input::Instance();
+    int mx = input.GetMouse().GetPositionX();
+    int my = input.GetMouse().GetPositionY();
+
+    auto window = Framework::Instance()->GetMainWindow();
+    float w = (float)window->GetWidth();
+    float h = (float)window->GetHeight();
+
+    float ndcX = (2.0f * mx) / w - 1.0f;
+    float ndcY = 1.0f - (2.0f * my) / h;
+
+    DirectX::XMMATRIX P = DirectX::XMLoadFloat4x4(&camera->GetProjection());
+    DirectX::XMMATRIX V = DirectX::XMLoadFloat4x4(&camera->GetView());
+    DirectX::XMMATRIX InvVP = DirectX::XMMatrixInverse(nullptr, V * P);
+
+    DirectX::XMVECTOR nearPoint = DirectX::XMVector3TransformCoord(DirectX::XMVectorSet(ndcX, ndcY, 0.0f, 1.0f), InvVP);
+    DirectX::XMVECTOR farPoint = DirectX::XMVector3TransformCoord(DirectX::XMVectorSet(ndcX, ndcY, 1.0f, 1.0f), InvVP);
+
+    DirectX::XMVECTOR directionVec = DirectX::XMVectorSubtract(farPoint, nearPoint);
+    DirectX::XMVECTOR dir = DirectX::XMVector3Normalize(directionVec);
+
+    DirectX::XMFLOAT3 rayOrigin, rayDir;
+    DirectX::XMStoreFloat3(&rayOrigin, nearPoint);
+    DirectX::XMStoreFloat3(&rayDir, dir);
+
+    if (std::abs(rayDir.y) < 1e-6) return { rayOrigin.x, 0, rayOrigin.z };
+
+    float t = -rayOrigin.y / rayDir.y;
+
+    return {
+        rayOrigin.x + rayDir.x * t,
+        0.0f,
+        rayOrigin.z + rayDir.z * t
+    };
 }
