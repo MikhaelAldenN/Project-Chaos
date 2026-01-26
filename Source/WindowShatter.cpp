@@ -11,23 +11,18 @@ WindowShatter::WindowShatter(
     , m_currentWidth(static_cast<float>(initialWidth))
     , m_currentHeight(static_cast<float>(initialHeight))
 {
+
     m_screenWidth = GetSystemMetrics(SM_CXSCREEN);
     m_screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
-    m_window = WindowManager::Instance().CreateGameWindow(title, initialWidth, initialHeight);
+    // 1. JANGAN PANGGIL WindowManager::CreateGameWindow DI SINI.
+    m_isNativeWindow = false;
+    m_window = nullptr;
 
-    // Setup Top-down Camera
-    m_camera = std::make_shared<Camera>();
-    m_camera->SetRotation(90.0f, 0.0f, 0.0f);
-    m_window->SetCamera(m_camera.get());
+    // 2. Simpan posisi awal sebagai posisi 3D di dunia game (Konversi dari screen ke world)
+    m_fakeWorldPos = { startPos.x, 0.0f, startPos.y }; // Asumsi Y adalah atas/bawah jika top-down
 
-    SDL_SetWindowPosition(m_window->GetSDLWindow(), static_cast<int>(startPos.x), static_cast<int>(startPos.y));
-
-    // Priority setup
-    m_window->SetPriority(-1);
-    m_window->SetDraggable(false);
-
-    // Physics init
+    // Setup Fisika awal
     m_physics.velocity = initialVelocity;
     m_physics.deceleration = deceleration;
     m_physics.angularVelocity = static_cast<float>(rand() % 200 - 100) * 2.0f;
@@ -46,22 +41,30 @@ void WindowShatter::Update(float dt)
 {
     if (m_markedForDestroy) return;
 
-    UpdatePhysics(dt);
-    UpdateSize(dt);
-    CheckBounds();
-
-    // Condition 1: Speed dropped below threshold
-    float velocitySq = (m_physics.velocity.x * m_physics.velocity.x) +
-        (m_physics.velocity.y * m_physics.velocity.y);
-    bool isStopped = (velocitySq < STOP_THRESHOLD_SQ);
-
-    // Condition 2: Size reached minimum
-    bool isTooSmall = (m_currentWidth <= MIN_SIZE || m_currentHeight <= MIN_SIZE);
-
-    // Mark for deletion
-    if (isStopped || isTooSmall)
+    if (!m_isNativeWindow)
     {
-        m_markedForDestroy = true;
+        // --- LOGIKA SAAT MASIH JADI OBJEK 3D (FAKE) ---
+        // 1. Update posisi di dunia 3D
+        m_fakeWorldPos.x += m_physics.velocity.x * dt;
+        m_fakeWorldPos.z += m_physics.velocity.y * dt; // Sesuaikan dengan sumbu Z/Y game Anda
+
+        // 2. Cek apakah sudah menyentuh batas layar
+        float screenX, screenY;
+        // Asumsi Anda punya akses ke fungsi WorldToScreenPos dari sini atau Scene
+        ConvertWorldToScreen(m_fakeWorldPos, screenX, screenY);
+
+        if (screenX <= 0 || screenX >= m_screenWidth || screenY <= 0 || screenY >= m_screenHeight)
+        {
+            // Saat keluar batas, BERUBAH MENJADI WINDOW ASLI
+            TransitionToNativeWindow();
+        }
+    }
+    else
+    {
+        // --- LOGIKA SAAT SUDAH JADI WINDOW ASLI (NATIVE) ---
+        UpdatePhysics(dt); // Kode SDL_SetWindowPosition Anda yang asli
+        UpdateSize(dt);
+        CheckBounds();
     }
 }
 
@@ -247,4 +250,31 @@ void WindowShatterManager::SpawnSingleShatter(DirectX::XMFLOAT2 centerPos, int i
         title, spawnPos, velocity, size, size,
         0.95f, 50.0f, priority // Deceleration & Shrink Rate
     ));
+}
+
+void WindowShatter::TransitionToNativeWindow()
+{
+    // 1. Hitung posisi layar terakhir
+    float screenX, screenY;
+    ConvertWorldToScreen(m_fakeWorldPos, screenX, screenY);
+
+    // 2. Spawn OS Window SEKARANG (Hanya 1 window per frame maksimal karena tersebar)
+    m_window = WindowManager::Instance().CreateGameWindow("Shatter", static_cast<int>(m_currentWidth), static_cast<int>(m_currentHeight));
+
+    // 3. Set posisi SDL di perbatasan tempat dia keluar
+    SDL_SetWindowPosition(m_window->GetSDLWindow(), static_cast<int>(screenX), static_cast<int>(screenY));
+
+    // 4. Inisialisasi Kamera Top-Down untuk window ini
+    m_camera = std::make_shared<Camera>();
+    m_camera->SetRotation(90.0f, 0.0f, 0.0f);
+    m_window->SetCamera(m_camera.get());
+
+    m_isNativeWindow = true; // Flag diubah, frame berikutnya pakai logika Native
+}
+
+void WindowShatter::ConvertWorldToScreen(const DirectX::XMFLOAT3& worldPos, float& outScreenX, float& outScreenY) const
+{
+    // Titik pusat layar adalah koordinat Dunia (0,0)
+    outScreenX = (m_screenWidth * 0.5f) + (worldPos.x * PIXEL_TO_UNIT_RATIO);
+    outScreenY = (m_screenHeight * 0.5f) - (worldPos.z * PIXEL_TO_UNIT_RATIO); // Z dibalik untuk sumbu Y layar
 }

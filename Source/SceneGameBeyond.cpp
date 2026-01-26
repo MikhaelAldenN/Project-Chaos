@@ -49,6 +49,9 @@ SceneGameBeyond::SceneGameBeyond()
     m_subCamera->SetPerspectiveFov(XMConvertToRadians(60), 4.0f / 3.0f, 0.1f, 1000.0f);
     m_subCamera->SetPosition(5, 5, 5);
     m_subCamera->LookAt({ 0, 0, 0 });
+
+    auto device = Graphics::Instance().GetDevice();
+    m_primitive2D = std::make_unique<Primitive>(device);
 }
 
 SceneGameBeyond::~SceneGameBeyond()
@@ -162,23 +165,26 @@ void SceneGameBeyond::Update(float elapsedTime)
         m_shatterTimer += elapsedTime;
         if (m_shatterTimer >= m_shatterDelay && m_player)
         {
-            float screenX, screenY;
-            WorldToScreenPos(m_player->GetPosition(), screenX, screenY);
-            screenY += 100.0f;
+            auto pPos = m_player->GetPosition();
+            m_shatterSpawnPos = { pPos.x, pPos.z + 2.0f };
 
-            // Simpan data, jangan langsung spawn semuanya
-            m_shatterSpawnPos = { screenX, screenY };
-            m_shatterToSpawn = 8; // Jumlah total pecahan
-            m_shatterSpawned = true;
+            m_shatterToSpawn = 8; // Set jumlah pecahan
+            m_shatterSpawned = true; // Tandai sudah trigger
+
+            // RESET Timer untuk dipakai sebagai interval antar-spawn
+            m_shatterTimer = 0.0f;
         }
     }
-
-    // Spawn 1 window per frame untuk menghindari frame drop
-    if (m_shatterToSpawn > 0)
+    else if (m_shatterToSpawn > 0) // Gunakan ELSE IF agar tidak langsung spawn di frame yang sama
     {
-        // Spawn 1 window saja frame ini
-        WindowShatterManager::Instance().SpawnSingleShatter(m_shatterSpawnPos, m_shatterToSpawn);
-        m_shatterToSpawn--;
+        // Pakai Timer lagi agar tidak spawn setiap frame (Beri jeda 0.05 detik)
+        m_shatterTimer += elapsedTime;
+        if (m_shatterTimer > 0.05f)
+        {
+            WindowShatterManager::Instance().SpawnSingleShatter(m_shatterSpawnPos, m_shatterToSpawn);
+            m_shatterToSpawn--;
+            m_shatterTimer = 0.0f; // Reset timer lagi
+        }
     }
 
     WindowShatterManager::Instance().Update(elapsedTime);
@@ -187,6 +193,7 @@ void SceneGameBeyond::Update(float elapsedTime)
     float unifiedHeight = GetUnifiedCameraHeight();
     for (const auto& shatter : WindowShatterManager::Instance().GetShatters())
     {
+        if (!shatter->IsNativeWindow()) continue;
         UpdateOffCenterProjection(shatter->GetCamera(), shatter->GetWindow(), unifiedHeight);
     }
 
@@ -293,6 +300,31 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
                 block->Render(modelRenderer, m_blockManager->globalBlockColor);
         }
     }
+
+// --- RENDER FAKE SHATTERS ---
+    const auto& shatters = WindowShatterManager::Instance().GetShatters();
+    for (const auto& shatter : shatters)
+    {
+        if (!shatter->IsNativeWindow())
+        {
+            DirectX::XMFLOAT3 worldPos = shatter->GetFakeWorldPos();
+            DirectX::XMFLOAT2 size = shatter->GetCurrentSize();
+
+            float screenX, screenY;
+            WorldToScreenPos(worldPos, screenX, screenY);
+
+            // Gunakan m_primitive2D yang baru kita buat
+            m_primitive2D->Rect(
+                screenX, screenY,
+                size.x, size.y,
+                size.x * 0.5f, size.y * 0.5f,
+                0.0f,
+                1.0f, 1.0f, 1.0f, 1.0f
+            );
+        }
+    }
+
+    m_primitive2D->Render(dc);
 
     modelRenderer->Render(rc);
 

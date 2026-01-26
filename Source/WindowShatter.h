@@ -6,6 +6,7 @@
 #include <DirectXMath.h>
 #include "GameWindow.h"
 #include "Camera.h"
+#include "System/ModelRenderer.h"
 
 // Physics state for shatter instances
 struct ShatterPhysics
@@ -37,6 +38,13 @@ public:
 
     void Update(float dt);
 
+    void RenderFake(ModelRenderer* renderer);
+
+    // --- TAMBAHKAN 3 FUNGSI INI ---
+    [[nodiscard]] bool IsNativeWindow() const { return m_isNativeWindow; }
+    [[nodiscard]] DirectX::XMFLOAT3 GetFakeWorldPos() const { return m_fakeWorldPos; }
+    [[nodiscard]] DirectX::XMFLOAT2 GetCurrentSize() const { return { m_currentWidth, m_currentHeight }; }    // ------------------------------
+
     // Getters
     [[nodiscard]] bool ShouldDestroy() const { return m_markedForDestroy; }
     [[nodiscard]] GameWindow* GetWindow() const { return m_window; }
@@ -47,6 +55,11 @@ private:
     void UpdateSize(float dt);
     void CheckBounds();
     void ApplyBounce(bool horizontal);
+    void TransitionToNativeWindow();
+
+    // --- TAMBAHKAN 2 BARIS INI ---
+    static constexpr float PIXEL_TO_UNIT_RATIO = 40.0f; // Sesuai dengan yang ada di SceneGameBeyond
+    void ConvertWorldToScreen(const DirectX::XMFLOAT3& worldPos, float& outScreenX, float& outScreenY) const;
 
 private:
     GameWindow* m_window = nullptr;
@@ -63,6 +76,10 @@ private:
     bool m_markedForDestroy = false;
     int m_screenWidth = 0;
     int m_screenHeight = 0;
+
+    bool m_isNativeWindow = false;
+    DirectX::XMFLOAT3 m_fakeWorldPos; // Posisi 3D di dalam engine
+
 };
 
 // ============================================================

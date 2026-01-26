@@ -13,6 +13,7 @@
 #include "BitmapFont.h"
 #include "ResourceManager.h"
 #include "WindowShatter.h"
+#include "Primitive.h"
 
 // Grouped settings for 3D Text rendering
 struct Text3DConfig
@@ -100,4 +101,6 @@ private:
 
     int m_shatterToSpawn = 0;
     DirectX::XMFLOAT2 m_shatterSpawnPos;
+
+    std::unique_ptr<Primitive> m_primitive2D;
 };
