@@ -3,6 +3,7 @@
 #include <algorithm>
 #include "System/ImGuiRenderer.h" 
 #include "System/Graphics.h"
+#include "SceneGameBeyond.h"
 
 void WindowManager::Update(float dt)
 {
@@ -51,16 +52,19 @@ void WindowManager::RenderAll(float dt, Scene* scene)
 
     bool vSyncTriggered = false;
 
+    // [PERBAIKAN] Cek apakah scene saat ini adalah SceneGameBeyond
+    // Jangan lupa #include "SceneGameBeyond.h" di bagian atas file jika belum ada
+    bool isBeyondScene = (dynamic_cast<SceneGameBeyond*>(scene) != nullptr);
+
     for (auto& win : windows)
     {
         if (!win->IsVisible()) continue;
 
         bool isMaster = (win.get() == debugWindow);
 
-        // Render Logic
         if (isMaster)
         {
-            // Debug Window: Clears with dark color, renders ImGui, and WAITS for VSync (Interval 1)
+            // Debug Window tetap gelap (hitam/dark gray)
             win->BeginRender(0.1f, 0.1f, 0.1f);
             ImGuiRenderer::Render(Graphics::Instance().GetDeviceContext());
             win->EndRender(1);
@@ -68,20 +72,27 @@ void WindowManager::RenderAll(float dt, Scene* scene)
         }
         else
         {
-            // Game Windows: Clears with gray, renders Scene, NO VSync wait (Interval 0)
-            win->BeginRender(0.5f, 0.5f, 0.5f);
+            // [LOGIKA BARU] Tentukan warna berdasarkan scene
+            if (isBeyondScene) {
+                // Abu-abu gelap (0.3f) khusus untuk SceneGameBeyond
+                win->BeginRender(0.3f, 0.3f, 0.3f);
+            }
+            else {
+                // Hitam murni (0.0f) untuk scene lainnya
+                win->BeginRender(0.0f, 0.0f, 0.0f);
+            }
+
             scene->OnResize(win->GetWidth(), win->GetHeight());
             scene->Render(dt, win->GetCamera());
             win->EndRender(0);
         }
     }
 
-    // Failsafe: If no VSync window was rendered (e.g. Debug is hidden), manually sleep
-    // to prevent GPU usage from spiking to 100% (Infinite FPS)
+    // Failsafe VSync logic...
     if (!vSyncTriggered)
     {
         ImGuiRenderer::Render(Graphics::Instance().GetDeviceContext());
-        SDL_Delay(16); // ~60 FPS cap
+        SDL_Delay(16);
     }
 }
 

@@ -15,6 +15,16 @@ private:
     ~Graphics() = default;
 
 public:
+
+    void SetClearColor(float r, float g, float b) {
+        clearColor[0] = r;
+        clearColor[1] = g;
+        clearColor[2] = b;
+        clearColor[3] = 1.0f; // Alpha penuh
+    }
+
+    const float* GetClearColor() const { return clearColor; }
+
     static Graphics& Instance() { static Graphics i; return i; }
 
     void Initialize();
@@ -39,4 +49,6 @@ private:
     std::unique_ptr<PrimitiveRenderer> primitiveRenderer;
     std::unique_ptr<ShapeRenderer>     shapeRenderer;
     std::unique_ptr<ModelRenderer>     modelRenderer;
+
+    float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 };
