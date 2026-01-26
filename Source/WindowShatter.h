@@ -66,7 +66,7 @@ private:
     static constexpr float MIN_SIZE = 150.0f;
     static constexpr float PIXEL_TO_UNIT_RATIO = 40.0f;
 
-    float m_shrinkRate = 40.0f;
+    float m_shrinkRate = 90.0f;
     float m_timeAlive = 0.0f;
 };
 

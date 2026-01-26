@@ -8,7 +8,7 @@
 WindowShatter::WindowShatter(const char* title, DirectX::XMFLOAT2 startPos, DirectX::XMFLOAT2 velocity, int size, int priority)
     : m_width(static_cast<float>(size))
     , m_height(static_cast<float>(size))
-    , m_title(title) // [FIX] Simpan title
+    , m_title(title)
 {
     m_screenWidth = GetSystemMetrics(SM_CXSCREEN);
     m_screenHeight = GetSystemMetrics(SM_CYSCREEN);
@@ -18,7 +18,7 @@ WindowShatter::WindowShatter(const char* title, DirectX::XMFLOAT2 startPos, Dire
     m_virtualWorldPos = { startPos.x, 0.0f, startPos.y };
 
     m_physics.velocity = velocity;
-    m_physics.deceleration = 0.99f;
+    m_physics.deceleration = 0.98f;
 }
 
 WindowShatter::~WindowShatter()
@@ -63,28 +63,50 @@ void WindowShatter::UpdateNativeState(float dt)
 {
     if (!m_window) return;
 
+    // 1. UPDATE FISIKA (GERAKAN)
     m_physics.velocity.x *= m_physics.deceleration;
     m_physics.velocity.y *= m_physics.deceleration;
 
     int curX, curY;
     SDL_GetWindowPosition(m_window->GetSDLWindow(), &curX, &curY);
 
-    float moveX = m_physics.velocity.x * dt;
-    float moveY = m_physics.velocity.y * dt;
+    int nextX = curX + static_cast<int>(m_physics.velocity.x * dt);
+    int nextY = curY + static_cast<int>(m_physics.velocity.y * dt);
 
-    int nextX = curX + static_cast<int>(moveX);
-    int nextY = curY + static_cast<int>(moveY);
+    // 2. LOGIKA SHRINK (MENGECIL)
+    float shrinkAmount = m_shrinkRate * dt;
+    m_width -= shrinkAmount;
+    m_height -= shrinkAmount;
 
+    // Batas minimum logika agar tidak minus/crash
+    if (m_width < 10.0f) m_width = 10.0f;
+    if (m_height < 10.0f) m_height = 10.0f;
+
+    // 3. APPLY KE WINDOW FISIK (INI YANG HILANG KEMARIN!)
+    // Kita paksa Windows OS mengubah ukuran window.
+    SDL_SetWindowSize(m_window->GetSDLWindow(), static_cast<int>(m_width), static_cast<int>(m_height));
+
+    // 4. SINKRONISASI (ANTI-ZOOM)
+    // Setelah kita minta resize, kita TANYA BALIK ke OS: "Dikasih ukuran berapa sebenarnya?"
+    // Karena kalau kita minta 50px tapi OS maksa 136px, kita HARUS ikut 136px.
+    int realW, realH;
+    SDL_GetWindowSize(m_window->GetSDLWindow(), &realW, &realH);
+
+    // Update posisi window (supaya mengecil ke tengah/center)
+    // Kita geser sedikit posisinya berdasarkan selisih ukuran agar terlihat menyusut ke pusat
+    // (Opsional, tapi bagus untuk visual)
     SDL_SetWindowPosition(m_window->GetSDLWindow(), nextX, nextY);
 
-    float shrink = m_shrinkRate * dt;
-    m_width = max(10.0f, m_width - shrink);
-    m_height = max(10.0f, m_height - shrink);
+    // KUNCI UTAMA: Resize engine mengikuti ukuran REAL fisik window.
+    // Jika fisik 136px, engine 136px. Jika fisik 100px, engine 100px.
+    // Hasil: GAMBAR TIDAK AKAN ZOOM/STRETCH.
+    m_window->Resize(realW, realH);
 
-    if (m_width > 20 && m_height > 20) {
-        m_window->Resize(static_cast<int>(m_width), static_cast<int>(m_height));
-    }
-    else {
+    // 5. LOGIKA PENGHANCURAN
+    // Kita gunakan variabel m_width (keinginan kita), bukan realW (kenyataan OS).
+    // Jadi meskipun window fisik tertahan di 136px, saat m_width menyentuh 50px, window akan hilang.
+    if (m_width <= 100.0f)
+    {
         m_markedForDestroy = true;
     }
 
@@ -96,11 +118,16 @@ void WindowShatter::TransitionToNativeWindow()
     float screenX, screenY;
     ConvertWorldToScreen(m_virtualWorldPos, screenX, screenY);
 
-    // [FIX] Gunakan m_title yang unik agar WindowManager tidak menolak duplikat
     m_window = WindowManager::Instance().CreateGameWindow(m_title.c_str(), (int)m_width, (int)m_height);
 
     if (m_window)
     {
+        m_window->SetPriority(-1);
+        SetWindowPos(m_window->GetHWND(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
+        // Border Aktif
+        SDL_SetWindowBordered(m_window->GetSDLWindow(), true);
+
         int finalX = (int)(screenX - (m_width * 0.5f));
         int finalY = (int)(screenY - (m_height * 0.5f));
 
@@ -114,7 +141,6 @@ void WindowShatter::TransitionToNativeWindow()
     }
     else
     {
-        // Debugging: Jika window gagal dibuat (misal null), hancurkan objek agar tidak menumpuk di memori
         m_markedForDestroy = true;
     }
 }
@@ -124,13 +150,18 @@ void WindowShatter::EnforceScreenBounds()
     if (!m_window) return;
     int x, y;
     SDL_GetWindowPosition(m_window->GetSDLWindow(), &x, &y);
+
+    // Ambil ukuran FISIK real (karena mungkin beda sama m_width logika)
+    int realW, realH;
+    SDL_GetWindowSize(m_window->GetSDLWindow(), &realW, &realH);
+
     bool bounced = false;
 
     if (x <= 0) { x = 0; m_physics.velocity.x *= -m_physics.bounceDamping; bounced = true; }
-    else if (x + m_width >= m_screenWidth) { x = m_screenWidth - (int)m_width; m_physics.velocity.x *= -m_physics.bounceDamping; bounced = true; }
+    else if (x + realW >= m_screenWidth) { x = m_screenWidth - realW; m_physics.velocity.x *= -m_physics.bounceDamping; bounced = true; }
 
     if (y <= 0) { y = 0; m_physics.velocity.y *= -m_physics.bounceDamping; bounced = true; }
-    else if (y + m_height >= m_screenHeight) { y = m_screenHeight - (int)m_height; m_physics.velocity.y *= -m_physics.bounceDamping; bounced = true; }
+    else if (y + realH >= m_screenHeight) { y = m_screenHeight - realH; m_physics.velocity.y *= -m_physics.bounceDamping; bounced = true; }
 
     if (bounced) {
         SDL_SetWindowPosition(m_window->GetSDLWindow(), x, y);
@@ -144,7 +175,10 @@ void WindowShatter::ConvertWorldToScreen(const DirectX::XMFLOAT3& worldPos, floa
     outY = (m_screenHeight * 0.5f) - (worldPos.z * PIXEL_TO_UNIT_RATIO);
 }
 
-// Manager Implementation
+// =========================================================
+// MANAGER IMPLEMENTATION
+// =========================================================
+
 void WindowShatterManager::TriggerExplosion(DirectX::XMFLOAT2 centerWorldPos, int count)
 {
     for (int i = 0; i < count; ++i)
@@ -169,28 +203,28 @@ void WindowShatterManager::SpawnSingleInstance(DirectX::XMFLOAT2 centerPos, int 
 {
     static std::mt19937 gen(std::random_device{}());
 
+    // 1. Angle & Speed
     float angleStep = 360.0f / totalCount;
-    std::uniform_real_distribution<float> jitterAngle(-5.0f, 5.0f);
+    std::uniform_real_distribution<float> jitterAngle(-10.0f, 10.0f);
     float angleRad = DirectX::XMConvertToRadians((index * angleStep) + jitterAngle(gen));
 
-    std::uniform_real_distribution<float> speedDist(800.0f, 1500.0f);
+    // Speed kencang (800-1200)
+    std::uniform_real_distribution<float> speedDist(4000.0f, 5000.0f);
     float speed = speedDist(gen);
-
     DirectX::XMFLOAT2 velocity = { cosf(angleRad) * speed, sinf(angleRad) * speed };
 
+    // 2. Position Offset
     std::uniform_real_distribution<float> offsetDist(-2.0f, 2.0f);
     DirectX::XMFLOAT2 spawnPos = { centerPos.x + offsetDist(gen), centerPos.y + offsetDist(gen) };
 
-    int size = static_cast<int>(std::uniform_real_distribution<float>(250.0f, 350.0f)(gen));
+    // 3. Size (Agak besar supaya kelihatan mengecilnya)
+    int size = static_cast<int>(std::uniform_real_distribution<float>(200.0f, 400.0f)(gen));
 
-    // [PENTING] Gunakan nama unik agar WindowManager bisa membedakan
+    // 4. Unique Name
     char title[64];
     sprintf_s(title, "Shatter_%u_%d", SDL_GetTicks(), index);
 
-    // Priority
-    int priority = (index % 2 == 0) ? -1 : 999;
-
-    m_shatters.push_back(std::make_unique<WindowShatter>(title, spawnPos, velocity, size, priority));
+    m_shatters.push_back(std::make_unique<WindowShatter>(title, spawnPos, velocity, size, 1));
 }
 
 void WindowShatterManager::Clear()

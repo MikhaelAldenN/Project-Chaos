@@ -161,15 +161,25 @@ void SceneGameBeyond::UpdateWindowTracking(float dt, GameWindow* win, Camera* ca
 void SceneGameBeyond::Update(float elapsedTime)
 {
     // --- 1. INTRO: Trigger Explosion Once ---
+// ==========================================
+    // [INTRO EFFECT] Window Shatter Explosion
+    // ==========================================
     if (!m_shatterTriggered)
     {
         m_introTimer += elapsedTime;
-        if (m_introTimer >= INTRO_DELAY && m_player)
+
+        // Tunggu sebentar (0.5 detik)
+        if (m_introTimer >= INTRO_DELAY)
         {
-            auto pPos = m_player->GetPosition();
-            // Trigger the explosion effect. Manager handles the staggered spawning.
-            WindowShatterManager::Instance().TriggerExplosion({ pPos.x, pPos.z + 2.0f }, 8);
-            m_shatterTriggered = true;
+            if (m_player)
+            {
+                // Gunakan fungsi BARU: TriggerExplosion
+                // Parameter: Posisi World (Player X, Z), Jumlah Pecahan (8)
+                auto pPos = m_player->GetPosition();
+                WindowShatterManager::Instance().TriggerExplosion({ pPos.x, pPos.z }, 10);
+
+                m_shatterTriggered = true;
+            }
         }
     }
 
@@ -397,19 +407,21 @@ void SceneGameBeyond::DrawGUI()
     {
         ImGui::Text("Active Shatter: %d", WindowShatterManager::Instance().GetActiveCount());
 
-        // [PERBAIKAN] Menggunakan nama fungsi baru: TriggerExplosion
         if (ImGui::Button("Spawn Test Explosion"))
         {
-            int sw, sh;
-            GetScreenDimensions(sw, sh);
-            // Parameter disesuaikan: Posisi dan Count
+            // Spawn di tengah dunia (0,0)
             WindowShatterManager::Instance().TriggerExplosion(DirectX::XMFLOAT2(0.0f, 0.0f), 10);
         }
+
         ImGui::SameLine();
         if (ImGui::Button("Clear All")) WindowShatterManager::Instance().Clear();
-        if (ImGui::Button("Reset Intro")) { m_shatterTriggered = false; m_introTimer = 0.0f; }
-    }
 
+        if (ImGui::Button("Reset Intro"))
+        {
+            m_shatterTriggered = false;
+            m_introTimer = 0.0f;
+        }
+    }
     ImGui::End();
 }
 
