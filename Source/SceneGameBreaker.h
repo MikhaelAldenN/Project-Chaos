@@ -113,6 +113,7 @@ private:
         bool MasterEnabled = true;
         bool EnableVignette = true;
         bool EnableLens = true;
+        bool EnableChromatic = true;
         bool EnableCRT = true;
     };
 

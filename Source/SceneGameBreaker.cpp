@@ -255,11 +255,12 @@ void SceneGameBreaker::Update(float elapsedTime)
     if (isInsideProgram)
     {
         // DALAM PROGRAM: Hilang
-        uberParams.fineOpacity = 0.0f;
-        uberParams.scanlineStrength = 0.0f;
+        uberParams.chromaticAberration = 0.00404f;
         uberParams.distortion = 0.0f;   
-        uberParams.intensity = 0.7f;
+        uberParams.fineOpacity = 0.0f;
         uberParams.fineRotation = targetRotation;
+        uberParams.intensity = 0.7f;
+        uberParams.scanlineStrength = 0.0f;
     }
     else if (seqInfo.IsPlaying && seqInfo.CurrentIndex == 0)
     {
@@ -424,6 +425,7 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
 
         if (!m_fxState.EnableVignette) activeData.intensity = 0.0f;
         if (!m_fxState.EnableLens) { activeData.glitchStrength = 0.0f; activeData.distortion = 0.0f; }
+        if (!m_fxState.EnableChromatic) { activeData.chromaticAberration = 0.0f; }
         if (!m_fxState.EnableCRT) { activeData.scanlineStrength = 0.0f; activeData.fineOpacity = 0.0f; }
 
         m_postProcess->EndCapture(elapsedTime);

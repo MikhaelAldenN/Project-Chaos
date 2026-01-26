@@ -379,6 +379,21 @@ void GameBreakerGUI::DrawPostProcessTab(SceneGameBreaker* scene)
         if (!scene->m_fxState.EnableCRT) ImGui::PopStyleVar();
         ImGui::Unindent();
     }
+
+    if (ImGui::CollapsingHeader("Chromatic Aberration"))
+    {
+        ImGui::Indent();
+        ImGui::Checkbox("ACTIVATE: Chromatic", &scene->m_fxState.EnableChromatic);
+
+        if (!scene->m_fxState.EnableChromatic) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
+
+        ImGui::SliderFloat("Intensity", &scene->uberParams.chromaticAberration, -0.02f, 0.02f, "%.5f");
+
+        if (ImGui::Button("Reset CA")) scene->uberParams.chromaticAberration = 0.0f;
+
+        if (!scene->m_fxState.EnableChromatic) ImGui::PopStyleVar();
+        ImGui::Unindent();
+    }
 }
 
 

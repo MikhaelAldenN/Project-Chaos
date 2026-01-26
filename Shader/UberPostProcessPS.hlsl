@@ -10,6 +10,7 @@ cbuffer UberConstantBuffer : register(b0)
     
     // --- LENS & GLITCH FX ---
     float fx_blurStrength;
+    float fx_chromaticAberration;
     float fx_distortion;
     float fx_glitchStrength;
     
@@ -73,17 +74,24 @@ float4 main(VS_OUT pin) : SV_TARGET
     }
 
     // -----------------------------------------------------
-    // STEP 2: LENS DISTORTION & RGB SPLIT
+    // STEP 2: LENS DISTORTION & CHROMATIC ABERRATION
     // -----------------------------------------------------
-    // We use the separate 'distortion' variable now
-    float distStrength = fx_distortion;
+    // Calculate Base UV with Lens Distortion (if active)
+    float2 distortedUV = LensDistortion(uv, fx_distortion);
 
-    float2 uvR = LensDistortion(uv, distStrength * 1.0f);
-    float2 uvG = LensDistortion(uv, distStrength * 1.1f); 
-    float2 uvB = LensDistortion(uv, distStrength * 1.2f);
+    // --- [UNIFORM / LATERAL CHROMATIC ABERRATION]---
+    
+    // A small multiplier to make the slider values easier to manage in the GUI
+    float shiftAmount = fx_chromaticAberration * 0.5f;
+
+    // Red shifts Left, Blue shifts Right (relative to center Green)
+    float2 uvR = distortedUV + float2(shiftAmount, 0.0f);
+    float2 uvG = distortedUV; 
+    float2 uvB = distortedUV - float2(shiftAmount, 0.0f);
 
     // Black Border Check 
-    if (uvG.x < 0.0 || uvG.x > 1.0 || uvG.y < 0.0 || uvG.y > 1.0)
+    [flatten]
+    if (any(uvR < 0.0) || any(uvR > 1.0) || any(uvB < 0.0) || any(uvB > 1.0))
     {
         return float4(0, 0, 0, 1);
     }
@@ -129,7 +137,6 @@ float4 main(VS_OUT pin) : SV_TARGET
     }
     else
     {
-        // No Blur: Just sample the RGB split
         finalColor.r = sceneTexture.Sample(samplerState, uvR).r;
         finalColor.g = sceneTexture.Sample(samplerState, uvG).g;
         finalColor.b = sceneTexture.Sample(samplerState, uvB).b;

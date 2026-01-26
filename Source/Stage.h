@@ -116,7 +116,7 @@ namespace StageConfig
     static const DirectX::XMFLOAT3 DEFAULT_POS = { 0.0f, -0.3f, -30.0f };
     static const DirectX::XMFLOAT3 DEFAULT_ROT = { 0.0f, 270.0f, 0.0f };
     static const DirectX::XMFLOAT3 DEFAULT_SCALE = { 900.0f, 900.0f, 900.0f };
-    static const DirectX::XMFLOAT4 DEFAULT_COLOR = { 1.0f, 1.0f, 1.0f, 1.0f };
+    static const DirectX::XMFLOAT4 DEFAULT_COLOR = { 0.275f, 0.275f, 0.275f, 1.0f };
 
     static const DirectX::XMFLOAT3 WALL_DEFAULT_SCALE = { 1.0f, 1.0f, 1.0f };
     static const DirectX::XMFLOAT3 LINE_DEFAULT_SCALE = { 10.0f, 0.0f, 0.0f };
