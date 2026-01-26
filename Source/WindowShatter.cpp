@@ -2,264 +2,249 @@
 #include "WindowManager.h"
 #include <SDL3/SDL.h>
 #include <random>
-#include <cmath>
-#include <algorithm> // WAJIB: Untuk std::remove_if dan std::remove
-#include <windows.h> // Untuk GetSystemMetrics
+#include <algorithm>
+#include <windows.h> // GetSystemMetrics
 
 WindowShatter::WindowShatter(
-    const char* title,
-    DirectX::XMFLOAT2 startPos,
-    DirectX::XMFLOAT2 initialVelocity,
-    int initialWidth,
-    int initialHeight,
-    float deceleration,
-    float shrinkRate)
-    : shrinkRate(shrinkRate)
-    , currentWidth(static_cast<float>(initialWidth))
-    , currentHeight(static_cast<float>(initialHeight))
-    , markedForDestroy(false)
+    const char* title, DirectX::XMFLOAT2 startPos, DirectX::XMFLOAT2 initialVelocity,
+    int initialWidth, int initialHeight, float deceleration, float shrinkRate, int priority) : m_shrinkRate(shrinkRate)
+    , m_currentWidth(static_cast<float>(initialWidth))
+    , m_currentHeight(static_cast<float>(initialHeight))
 {
-    screenWidth = GetSystemMetrics(SM_CXSCREEN);
-    screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    m_screenWidth = GetSystemMetrics(SM_CXSCREEN);
+    m_screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
-    window = WindowManager::Instance().CreateGameWindow(title, initialWidth, initialHeight);
+    m_window = WindowManager::Instance().CreateGameWindow(title, initialWidth, initialHeight);
 
-    SDL_SetWindowPosition(window->GetSDLWindow(),
-        static_cast<int>(startPos.x),
-        static_cast<int>(startPos.y));
+    // Setup Top-down Camera
+    m_camera = std::make_shared<Camera>();
+    m_camera->SetRotation(90.0f, 0.0f, 0.0f);
+    m_window->SetCamera(m_camera.get());
 
-    window->SetPriority(999);
-    window->SetDraggable(false);
+    SDL_SetWindowPosition(m_window->GetSDLWindow(), static_cast<int>(startPos.x), static_cast<int>(startPos.y));
 
-    physics.velocity = initialVelocity;
-    physics.deceleration = deceleration;
-    physics.gravity = 0.0f;
-    physics.bounceDamping = 0.7f;
-    physics.bounceCount = 0;
-    physics.maxBounces = 3;
-    physics.angularVelocity = static_cast<float>(rand() % 200 - 100) * 2.0f;
+    // Priority setup
+    m_window->SetPriority(-1);
+    m_window->SetDraggable(false);
+
+    // Physics init
+    m_physics.velocity = initialVelocity;
+    m_physics.deceleration = deceleration;
+    m_physics.angularVelocity = static_cast<float>(rand() % 200 - 100) * 2.0f;
 }
 
 WindowShatter::~WindowShatter()
 {
-    if (window)
+    if (m_window)
     {
-        WindowManager::Instance().DestroyWindow(window);
-        window = nullptr;
+        WindowManager::Instance().DestroyWindow(m_window);
+        m_window = nullptr;
     }
 }
 
 void WindowShatter::Update(float dt)
 {
-    if (markedForDestroy) return;
+    if (m_markedForDestroy) return;
 
-    // Jalankan simulasi fisika dan perubahan ukuran
     UpdatePhysics(dt);
     UpdateSize(dt);
     CheckBounds();
 
-    // --- KONDISI 1: Cek Kecepatan (Speed) ---
-    // Menggunakan kuadrat kecepatan (v^2) untuk efisiensi
-    // $v^2 = vx^2 + vy^2$
-    float velocitySq = (physics.velocity.x * physics.velocity.x) +
-        (physics.velocity.y * physics.velocity.y);
-
-    // Anggap berhenti jika kecepatan di bawah 5 pixel/detik
-    const float STOP_THRESHOLD_SQ = 5.0f * 5.0f;
+    // Condition 1: Speed dropped below threshold
+    float velocitySq = (m_physics.velocity.x * m_physics.velocity.x) +
+        (m_physics.velocity.y * m_physics.velocity.y);
     bool isStopped = (velocitySq < STOP_THRESHOLD_SQ);
 
-    // --- KONDISI 2: Cek Ukuran (Size) ---
-    // Mengacu pada MIN_SIZE yang didefinisikan di WindowShatter.h
-    bool isTooSmall = (currentWidth <= MIN_SIZE || currentHeight <= MIN_SIZE);
+    // Condition 2: Size reached minimum
+    bool isTooSmall = (m_currentWidth <= MIN_SIZE || m_currentHeight <= MIN_SIZE);
 
-    // --- EKSEKUSI PENGHANCURAN ---
-    // Window ditandai untuk dihancurkan jika berhenti ATAU sudah mencapai ukuran minimum
+    // Mark for deletion
     if (isStopped || isTooSmall)
     {
-        markedForDestroy = true;
+        m_markedForDestroy = true;
     }
 }
 
 void WindowShatter::UpdatePhysics(float dt)
 {
-    //physics.velocity.y += physics.gravity * dt;
-    float decelFactor = physics.deceleration;
+    float decelFactor = m_physics.deceleration;
 
-    if (physics.bounceCount > physics.maxBounces)
+    // Apply extra friction if bounced too many times
+    if (m_physics.bounceCount > m_physics.maxBounces)
     {
         decelFactor *= 0.9f;
     }
 
-    physics.velocity.x *= decelFactor;
-    physics.velocity.y *= decelFactor;
+    m_physics.velocity.x *= decelFactor;
+    m_physics.velocity.y *= decelFactor;
 
-    int currentX, currentY;
-    SDL_GetWindowPosition(window->GetSDLWindow(), &currentX, &currentY);
+    int curX, curY;
+    SDL_GetWindowPosition(m_window->GetSDLWindow(), &curX, &curY);
 
-    float newX = static_cast<float>(currentX) + physics.velocity.x * dt;
-    float newY = static_cast<float>(currentY) + physics.velocity.y * dt;
+    float newX = static_cast<float>(curX) + m_physics.velocity.x * dt;
+    float newY = static_cast<float>(curY) + m_physics.velocity.y * dt;
 
-    SDL_SetWindowPosition(window->GetSDLWindow(),
-        static_cast<int>(newX),
-        static_cast<int>(newY));
+    int nextX = static_cast<int>(newX);
+    int nextY = static_cast<int>(newY);
+
+    if (nextX != curX || nextY != curY)
+    {
+        SDL_SetWindowPosition(m_window->GetSDLWindow(), nextX, nextY);
+    }
+
+    //SDL_SetWindowPosition(m_window->GetSDLWindow(), static_cast<int>(newX), static_cast<int>(newY));
 }
 
 void WindowShatter::UpdateSize(float dt)
 {
-    // 1. Simpan ukuran lama untuk perhitungan centering
-    float oldWidth = currentWidth;
-    float oldHeight = currentHeight;
+    float oldWidth = m_currentWidth;
+    float oldHeight = m_currentHeight;
 
-    // 2. Hitung pengurangan ukuran
-    float shrinkAmount = shrinkRate * dt;
-    currentWidth -= shrinkAmount;
-    currentHeight -= shrinkAmount;
+    // Apply shrink
+    float shrinkAmount = m_shrinkRate * dt;
+    m_currentWidth = max(MIN_SIZE, m_currentWidth - shrinkAmount);
+    m_currentHeight = max(MIN_SIZE, m_currentHeight - shrinkAmount);
 
-    // 3. Clamp ke minimum (agar tidak menghilang tiba-tiba sebelum di-destroy)
-    if (currentWidth < MIN_SIZE) currentWidth = MIN_SIZE;
-    if (currentHeight < MIN_SIZE) currentHeight = MIN_SIZE;
+    // Centering logic
+    float deltaW = oldWidth - m_currentWidth;
+    float deltaH = oldHeight - m_currentHeight;
 
-    // 4. Hitung berapa banyak ukuran sebenarnya berkurang (setelah clamp)
-    float deltaW = oldWidth - currentWidth;
-    float deltaH = oldHeight - currentHeight;
-
-    // 5. Ambil posisi window saat ini
     int curX, curY;
-    SDL_GetWindowPosition(window->GetSDLWindow(), &curX, &curY);
+    SDL_GetWindowPosition(m_window->GetSDLWindow(), &curX, &curY);
 
-    // 6. Hitung posisi baru agar tetap di tengah (Centering Logic)
-    float newX = static_cast<float>(curX) + (deltaW / 2.0f);
-    float newY = static_cast<float>(curY) + (deltaH / 2.0f);
+    float newX = static_cast<float>(curX) + (deltaW * 0.5f);
+    float newY = static_cast<float>(curY) + (deltaH * 0.5f);
 
-    // --- BAGIAN KRUSIAL ---
-
-    // 7. Ubah UKURAN FISIK jendela di desktop (Agar bingkai jendela mengecil)
-    SDL_SetWindowSize(window->GetSDLWindow(),
-        static_cast<int>(currentWidth),
-        static_cast<int>(currentHeight));
-
-    // 8. Ubah POSISI jendela agar tetap sinkron dengan pengecilan (Centering)
-    SDL_SetWindowPosition(window->GetSDLWindow(),
-        static_cast<int>(newX),
-        static_cast<int>(newY));
-
-    // 9. Update internal engine (untuk resolusi/viewport DirectX)
-    window->Resize(static_cast<int>(currentWidth), static_cast<int>(currentHeight));
+    // Apply physical size and position updates
+    SDL_SetWindowSize(m_window->GetSDLWindow(), static_cast<int>(m_currentWidth), static_cast<int>(m_currentHeight));
+    SDL_SetWindowPosition(m_window->GetSDLWindow(), static_cast<int>(newX), static_cast<int>(newY));
+    m_window->Resize(static_cast<int>(m_currentWidth), static_cast<int>(m_currentHeight));
 }
 
 void WindowShatter::CheckBounds()
 {
     int x, y;
-    SDL_GetWindowPosition(window->GetSDLWindow(), &x, &y);
-    int w = window->GetWidth();
-    int h = window->GetHeight();
+    SDL_GetWindowPosition(m_window->GetSDLWindow(), &x, &y);
+    int w = m_window->GetWidth();
+    int h = m_window->GetHeight();
 
     bool bounced = false;
     if (x <= 0) { x = 0; ApplyBounce(true); bounced = true; }
-    else if (x + w >= screenWidth) { x = screenWidth - w; ApplyBounce(true); bounced = true; }
+    else if (x + w >= m_screenWidth) { x = m_screenWidth - w; ApplyBounce(true); bounced = true; }
 
     if (y <= 0) { y = 0; ApplyBounce(false); bounced = true; }
-    else if (y + h >= screenHeight) { y = screenHeight - h; ApplyBounce(false); bounced = true; }
+    else if (y + h >= m_screenHeight) { y = m_screenHeight - h; ApplyBounce(false); bounced = true; }
 
     if (bounced)
     {
-        SDL_SetWindowPosition(window->GetSDLWindow(), x, y);
-        physics.bounceCount++;
+        SDL_SetWindowPosition(m_window->GetSDLWindow(), x, y);
+        m_physics.bounceCount++;
     }
 }
 
 void WindowShatter::ApplyBounce(bool horizontal)
 {
-    if (horizontal) physics.velocity.x = -physics.velocity.x * physics.bounceDamping;
-    else physics.velocity.y = -physics.velocity.y * physics.bounceDamping;
+    if (horizontal) m_physics.velocity.x = -m_physics.velocity.x * m_physics.bounceDamping;
+    else m_physics.velocity.y = -m_physics.velocity.y * m_physics.bounceDamping;
 
+    // Apply small random deflection
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dist(-50.0f, 50.0f);
-    physics.velocity.x += dist(gen);
+    m_physics.velocity.x += dist(gen);
 }
 
-void WindowShatterManager::SpawnShatterExplosion(
-    DirectX::XMFLOAT2 centerPos,
-    int count,
-    float minSpeed,
-    float maxSpeed)
+void WindowShatterManager::SpawnShatterExplosion(DirectX::XMFLOAT2 centerPos, int count, float minSpeed, float maxSpeed)
 {
     std::random_device rd;
     std::mt19937 gen(rd());
 
-    // Hitung berapa derajat jatah untuk setiap pecahan agar rata
     float angleStep = 360.0f / static_cast<float>(count);
 
+    std::vector<int> priorities(count);
+    int halfCount = count / 2;
+    for (int i = 0; i < count; ++i)
+    {
+        // Set -1 untuk Top Priority (di atas Player), 999 untuk Bottom (di belakang Scene)
+        priorities[i] = (i < halfCount) ? -1 : 999;
+    }
+    // Acak urutannya agar tidak selalu window pertama yang di atas
+    std::shuffle(priorities.begin(), priorities.end(), gen);
+
+    // Distribution setup
     std::uniform_real_distribution<float> speedDist(minSpeed, maxSpeed);
     std::uniform_real_distribution<float> sizeDist(200.0f, 300.0f);
-    std::uniform_real_distribution<float> decelDist(0.92f, 0.98f); // Nilai decel lebih kuat agar cepat berhenti
+    std::uniform_real_distribution<float> decelDist(0.92f, 0.98f);
     std::uniform_real_distribution<float> shrinkDist(40.0f, 60.0f);
-
-    // Jitter: variasi kecil agar tidak terlihat seperti lingkaran sempurna (bintang)
-    // Kita beri variasi sekitar 40% dari ukuran satu slice
     std::uniform_real_distribution<float> jitterDist(-angleStep * 0.4f, angleStep * 0.4f);
+    std::uniform_real_distribution<float> offsetDist(-20.0f, 20.0f);
 
     for (int i = 0; i < count; ++i)
     {
-        // Tentukan sudut dasar untuk pecahan ke-i
-        float baseAngle = i * angleStep;
-
-        // Tambahkan sedikit jitter agar tetap terasa acak tapi tetap merata
-        float finalAngle = baseAngle + jitterDist(gen);
-        float angleRad = DirectX::XMConvertToRadians(finalAngle);
-
+        float angleRad = DirectX::XMConvertToRadians((i * angleStep) + jitterDist(gen));
         float speed = speedDist(gen);
-        DirectX::XMFLOAT2 velocity = {
-            cosf(angleRad) * speed,
-            sinf(angleRad) * speed
-        };
+
+        DirectX::XMFLOAT2 velocity = { cosf(angleRad) * speed, sinf(angleRad) * speed };
+        DirectX::XMFLOAT2 spawnPos = { centerPos.x + offsetDist(gen), centerPos.y + offsetDist(gen) };
 
         int size = static_cast<int>(sizeDist(gen));
         float decel = decelDist(gen);
         float shrink = shrinkDist(gen);
 
-        // Spawn position sedikit random di sekitar center
-        std::uniform_real_distribution<float> offsetDist(-20.0f, 20.0f);
-        DirectX::XMFLOAT2 spawnPos = {
-            centerPos.x + offsetDist(gen),
-            centerPos.y + offsetDist(gen)
-        };
-
-        char title[64];
+        char title[32];
         sprintf_s(title, "Shatter_%d", i);
 
-        auto shatter = std::make_unique<WindowShatter>(
-            title,
-            spawnPos,
-            velocity,
-            size, size,
-            decel,
-            shrink // ShrinkRate 0 jika kamu ingin ukuran tetap sampai berhenti
-        );
-
-        shatters.push_back(std::move(shatter));
+        m_shatters.push_back(std::make_unique<WindowShatter>(title, spawnPos, velocity, size, size, decel, shrink, priorities[i]));
     }
 }
 
 void WindowShatterManager::Update(float dt)
 {
-    for (auto& shatter : shatters)
-    {
-        shatter->Update(dt);
-    }
+    for (auto& shatter : m_shatters) shatter->Update(dt);
 
-    shatters.erase(
-        std::remove_if(shatters.begin(), shatters.end(),
-            [](const std::unique_ptr<WindowShatter>& s) {
-                return s->ShouldDestroy();
-            }),
-        shatters.end()
-    );
+    m_shatters.erase(std::remove_if(m_shatters.begin(), m_shatters.end(),
+        [](const std::unique_ptr<WindowShatter>& s) { return s->ShouldDestroy(); }),
+        m_shatters.end());
 }
 
 void WindowShatterManager::Clear()
 {
-    shatters.clear();
+    m_shatters.clear();
 }
-// JANGAN ADA KURUNG KURAWAL TUTUP DI SINI
+void WindowShatterManager::SpawnSingleShatter(DirectX::XMFLOAT2 centerPos, int index)
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    // Hitung sudut ledakan berdasarkan index (misal total 8 pecahan)
+    float totalShatters = 8.0f;
+    float angleStep = 360.0f / totalShatters;
+
+    // Beri sedikit random jitter pada sudutnya
+    std::uniform_real_distribution<float> jitterDist(-15.0f, 15.0f);
+    float angleRad = DirectX::XMConvertToRadians((index * angleStep) + jitterDist(gen));
+
+    // Randomisasi Kecepatan dan Ukuran
+    std::uniform_real_distribution<float> speedDist(300.0f, 700.0f);
+    std::uniform_real_distribution<float> sizeDist(200.0f, 300.0f);
+    std::uniform_real_distribution<float> offsetDist(-10.0f, 10.0f);
+
+    float speed = speedDist(gen);
+    DirectX::XMFLOAT2 velocity = { cosf(angleRad) * speed, sinf(angleRad) * speed };
+    DirectX::XMFLOAT2 spawnPos = { centerPos.x + offsetDist(gen), centerPos.y + offsetDist(gen) };
+
+    int size = static_cast<int>(sizeDist(gen));
+
+    // Beri nama window yang unik
+    char title[32];
+    sprintf_s(title, "Shatter_%d", index);
+
+    // Tentukan prioritas (Sebagian di depan player (-1), sebagian di belakang (999))
+    int priority = (index % 2 == 0) ? -1 : 999;
+
+    // Masukkan 1 pecahan ke dalam vector manager
+    m_shatters.push_back(std::make_unique<WindowShatter>(
+        title, spawnPos, velocity, size, size,
+        0.95f, 50.0f, priority // Deceleration & Shrink Rate
+    ));
+}

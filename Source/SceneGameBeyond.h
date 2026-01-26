@@ -2,8 +2,9 @@
 
 #include <memory>
 #include <vector>
-#include "GameWindow.h"
+#include <DirectXMath.h>
 #include "Scene.h"
+#include "GameWindow.h"
 #include "Camera.h"
 #include "CameraController.h"
 #include "Player.h" 
@@ -12,6 +13,19 @@
 #include "BitmapFont.h"
 #include "ResourceManager.h"
 #include "WindowShatter.h"
+
+// Grouped settings for 3D Text rendering
+struct Text3DConfig
+{
+    char label[128] = ">C:\\_";
+    DirectX::XMFLOAT3 offset = { -2.3f, 3.8f, 0.0f };
+    DirectX::XMFLOAT3 rotation = { 68.0f, 0.0f, 0.0f };
+    float scale = 0.011f;
+    DirectX::XMFLOAT4 color = { 237.0f / 255.0f, 192.0f / 255.0f, 17.0f / 255.0f, 1.0f };
+};
+
+// State to track current window positions
+struct WindowPos { float x = 0.0f; float y = 0.0f; };
 
 class SceneGameBeyond : public Scene
 {
@@ -24,80 +38,66 @@ public:
     void DrawGUI() override;
     void OnResize(int width, int height) override;
 
-    Camera* GetMainCamera() const { return mainCamera.get(); }
+    [[nodiscard]] Camera* GetMainCamera() const { return m_mainCamera.get(); }
 
 private:
+    // Core Functions
     void RenderScene(float elapsedTime, Camera* camera);
     void InitializeSubWindows();
-
-    // [BARU] Fungsi Generik untuk menggerakkan Window apapun mengejar Target apapun
-    void UpdateWindowTracking(float dt, GameWindow* win, Camera* cam, const DirectX::XMFLOAT3& targetPos, float& currentX, float& currentY);
-
-    // Fungsi spesifik
-    void UpdateLensLogic();
     void HandleDebugInput();
+
+    // Window & Camera Utilities
+    void UpdateWindowTracking(float dt, GameWindow* win, Camera* cam, const DirectX::XMFLOAT3& targetPos, WindowPos& winPos);
+    void UpdateLensLogic();
     void UpdateOffCenterProjection(Camera* targetCam, GameWindow* targetWin, float camHeight);
-    float GetUnifiedCameraHeight() const;
 
-    // --- Main Assets ---
-    std::shared_ptr<Camera> mainCamera;
-    std::shared_ptr<Camera> subCamera;
-    std::unique_ptr<Player> player;
-    std::unique_ptr<Boss> boss;
-    std::unique_ptr<BlockManager> blockManager;
-    std::vector<std::shared_ptr<Camera>> additionalCameras;
+    // Screen Math Helpers (DRY implementations)
+    void WorldToScreenPos(const DirectX::XMFLOAT3& worldPos, float& outScreenX, float& outScreenY) const;
+    void GetScreenDimensions(int& outWidth, int& outHeight) const;
+    [[nodiscard]] float GetUnifiedCameraHeight() const;
 
-    // --- Windows ---
-    GameWindow* trackingWindow = nullptr; // Player Window
-    std::shared_ptr<Camera> trackingCamera;
-
-    GameWindow* lensWindow = nullptr;     // Lens Window
-    std::shared_ptr<Camera> lensCamera;
-
-    // [BARU] Boss Window
-    GameWindow* bossWindow = nullptr;
-    std::shared_ptr<Camera> bossCamera;
-
-    bool isWindowsInitialized = false;
-    float startupTimer = 0.0f;
-
-    // --- Constants ---
+private:
+    // Constants
     static constexpr float PIXEL_TO_UNIT_RATIO = 40.0f;
     static constexpr float FIELD_OF_VIEW = 60.0f;
     static constexpr float DEFERRED_INIT_TIME = 0.2f;
 
-    // --- Window Physics State ---
-    float m_windowFollowSpeed = 100.0f; // Shared speed setting
+    // Assets & Core Cameras
+    std::shared_ptr<Camera> m_mainCamera;
+    std::shared_ptr<Camera> m_subCamera;
+    std::vector<std::shared_ptr<Camera>> m_additionalCameras;
+
+    std::unique_ptr<Player> m_player;
+    std::unique_ptr<Boss> m_boss;
+    std::unique_ptr<BlockManager> m_blockManager;
+
+    // Windows & Associated Cameras
+    GameWindow* m_trackingWindow = nullptr;
+    std::shared_ptr<Camera> m_trackingCamera;
+
+    GameWindow* m_lensWindow = nullptr;
+    std::shared_ptr<Camera> m_lensCamera;
+
+    GameWindow* m_bossWindow = nullptr;
+    std::shared_ptr<Camera> m_bossCamera;
+
+    // States & Settings
+    bool m_isWindowsInitialized = false;
+    float m_startupTimer = 0.0f;
+
+    float m_windowFollowSpeed = 100.0f;
     DirectX::XMFLOAT3 m_bossTrackingOffset = { 0.0f, 0.0f, 1.6f };
+    WindowPos m_playerWinPos;
+    WindowPos m_bossWinPos;
 
-    // Player Window Position State
-    float m_playerWinX = 0.0f;
-    float m_playerWinY = 0.0f;
-
-    // [BARU] Boss Window Position State
-    float m_bossWinX = 0.0f;
-    float m_bossWinY = 0.0f;
-
-    // --- 3D TEXT EDITOR DATA ---
-    // Gunakan char array biar bisa diedit pakai ImGui::InputText
-// --- 3D TEXT EDITOR DATA ---
-
-    // Label Content: >C:\_ (Backslash harus double)
-    char m_textLabel[128] = ">C:\\_";
-
-    // Offset Position: -2.3, 3.8, 0.0
-    DirectX::XMFLOAT3 m_textOffset = { -2.3f, 3.8f, 0.0f };
-
-    // Rotation: 68, 0, 0
-    DirectX::XMFLOAT3 m_textRotation = { 68.0f, 0.0f, 0.0f };
-
-    // Scale: 0.0110
-    float m_textScale = 0.011f;
-
-    // Text Color (R:237 G:192 B:17) -> Dikonversi ke Float
-    DirectX::XMFLOAT4 m_textColor = { 237.0f / 255.0f, 192.0f / 255.0f, 17.0f / 255.0f, 1.0f };
-
-    bool m_shatterSpawned = false;  // Flag agar hanya spawn sekali
-    float m_shatterDelay = 0.3f;    // Delay sebelum spawn (opsional)
+    // Intro & Effects
+    bool m_shatterSpawned = false;
+    float m_shatterDelay = 0.3f;
     float m_shatterTimer = 0.0f;
+
+    // UI/Text
+    Text3DConfig m_textConfig;
+
+    int m_shatterToSpawn = 0;
+    DirectX::XMFLOAT2 m_shatterSpawnPos;
 };

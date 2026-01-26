@@ -1,21 +1,22 @@
 #pragma once
 
+#include <memory>
+#include <vector>
+#include <string>
 #include <DirectXMath.h>
 #include "GameWindow.h"
-#include <memory>
-#include <vector>    // WAJIB: Untuk std::vector
-#include <string>    // Untuk sprintf atau string jika perlu
+#include "Camera.h"
 
-// Struct untuk menyimpan state fisika window shatter
+// Physics state for shatter instances
 struct ShatterPhysics
 {
-    DirectX::XMFLOAT2 velocity;
-    float angularVelocity;
-    float deceleration;
-    float gravity;
-    float bounceDamping;
-    int bounceCount;
-    int maxBounces;
+    DirectX::XMFLOAT2 velocity{ 0.0f, 0.0f };
+    float angularVelocity = 0.0f;
+    float deceleration = 0.0f;
+    float gravity = 0.0f;
+    float bounceDamping = 0.7f;
+    int bounceCount = 0;
+    int maxBounces = 3;
 };
 
 class WindowShatter
@@ -28,14 +29,18 @@ public:
         int initialWidth,
         int initialHeight,
         float deceleration,
-        float shrinkRate
+        float shrinkRate,
+        int priority
     );
 
     ~WindowShatter();
 
     void Update(float dt);
-    bool ShouldDestroy() const { return markedForDestroy; }
-    GameWindow* GetWindow() const { return window; }
+
+    // Getters
+    [[nodiscard]] bool ShouldDestroy() const { return m_markedForDestroy; }
+    [[nodiscard]] GameWindow* GetWindow() const { return m_window; }
+    [[nodiscard]] Camera* GetCamera() const { return m_camera.get(); }
 
 private:
     void UpdatePhysics(float dt);
@@ -44,22 +49,24 @@ private:
     void ApplyBounce(bool horizontal);
 
 private:
-    GameWindow* window;
-    ShatterPhysics physics;
+    GameWindow* m_window = nullptr;
+    std::shared_ptr<Camera> m_camera;
+    ShatterPhysics m_physics;
 
-    float shrinkRate;
-    float currentWidth;
-    float currentHeight;
+    float m_shrinkRate = 0.0f;
+    float m_currentWidth = 0.0f;
+    float m_currentHeight = 0.0f;
 
     static constexpr float MIN_SIZE = 150.0f;
-    bool markedForDestroy;
+    static constexpr float STOP_THRESHOLD_SQ = 100.0f; // 10.0f * 10.0f
 
-    int screenWidth;
-    int screenHeight;
+    bool m_markedForDestroy = false;
+    int m_screenWidth = 0;
+    int m_screenHeight = 0;
 };
 
 // ============================================================
-// MANAGER CLASS
+// MANAGER CLASS (Singleton)
 // ============================================================
 class WindowShatterManager
 {
@@ -74,13 +81,16 @@ public:
         DirectX::XMFLOAT2 centerPos,
         int count = 10,
         float minSpeed = 300.0f,
-        float maxSpeed = 800.0f
-    );
+        float maxSpeed = 800.0f);
 
     void Update(float dt);
     void Clear();
-    bool HasActiveShatter() const { return !shatters.empty(); }
-    int GetActiveCount() const { return static_cast<int>(shatters.size()); }
+
+    [[nodiscard]] bool HasActiveShatter() const { return !m_shatters.empty(); }
+    [[nodiscard]] int GetActiveCount() const { return static_cast<int>(m_shatters.size()); }
+    [[nodiscard]] const std::vector<std::unique_ptr<WindowShatter>>& GetShatters() const { return m_shatters; }
+
+    void SpawnSingleShatter(DirectX::XMFLOAT2 centerPos, int index);
 
 private:
     WindowShatterManager() = default;
@@ -88,7 +98,6 @@ private:
     WindowShatterManager(const WindowShatterManager&) = delete;
     void operator=(const WindowShatterManager&) = delete;
 
-    // Baris ini sering error jika <vector> tidak di-include
-    std::vector<std::unique_ptr<WindowShatter>> shatters;
+private:
+    std::vector<std::unique_ptr<WindowShatter>> m_shatters;
 };
-// JANGAN ADA KURUNG KURAWAL TUTUP DI SINI JIKA TIDAK ADA NAMESPACE
