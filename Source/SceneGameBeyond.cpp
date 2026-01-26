@@ -263,38 +263,33 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
     auto primRenderer = Graphics::Instance().GetPrimitiveRenderer();
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
 
-    // Render Grid
+    // 1. Render Grid
     primRenderer->DrawGrid(20, 1);
     primRenderer->Render(dc, camera->GetView(), camera->GetProjection(), D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
 
-    // Distance Culling
-    DirectX::XMFLOAT3 camPos = camera->GetPosition();
-    float cullRadiusSq = 40.0f * 40.0f;
-    auto IsVisible = [&](const DirectX::XMFLOAT3& objPos) -> bool {
-        float dx = camPos.x - objPos.x;
-        float dz = camPos.z - objPos.z;
-        return (dx * dx + dz * dz) < cullRadiusSq;
-        };
-
-    // Render Entities
+    // 2. Render Models
     if (m_player) m_player->Render(modelRenderer);
     if (m_boss) m_boss->Render(modelRenderer);
     if (m_blockManager)
     {
         for (const auto& block : m_blockManager->GetBlocks())
         {
-            if (block->IsActive() && IsVisible(block->GetMovement()->GetPosition()))
+            if (block->IsActive())
                 block->Render(modelRenderer, m_blockManager->globalBlockColor);
         }
     }
 
-    // --- RENDER VIRTUAL (FAKE) SHATTERS ---
+    // Flush Model Renderer
+    modelRenderer->Render(rc);
+
+    // 3. [FIX] Render Virtual Shatters (Overlay 2D)
+    dc->OMSetDepthStencilState(Graphics::Instance().GetRenderState()->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
     const auto& shatters = WindowShatterManager::Instance().GetShatters();
     for (const auto& shatter : shatters)
     {
-        // Only render primitives for windows that haven't spawned as OS windows yet
         if (!shatter->IsNativeWindow())
         {
             DirectX::XMFLOAT3 worldPos = shatter->GetVirtualWorldPos();
@@ -303,23 +298,34 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
             float screenX, screenY;
             WorldToScreenPos(worldPos, screenX, screenY);
 
-            // Draw Wireframe Rect using 2D Primitive Renderer
             m_primitive2D->Rect(
                 screenX, screenY,
                 size.x, size.y,
-                size.x * 0.5f, size.y * 0.5f, // Center pivot
+                size.x * 0.5f, size.y * 0.5f,
                 0.0f,
-                1.0f, 1.0f, 1.0f, 1.0f // White color
+                1.0f, 1.0f, 1.0f, 1.0f
             );
         }
     }
-    // Execute Batch Render
-    m_primitive2D->Render(dc);
 
-    modelRenderer->Render(rc);
+    // [FIX] Buat Matriks Orthographic untuk Screen Space Rendering
+    // Ini memetakan koordinat Pixel (0..W, 0..H) ke koordinat GPU (-1..1)
+    int sw, sh;
+    GetScreenDimensions(sw, sh);
+    DirectX::XMMATRIX viewOrtho = DirectX::XMMatrixIdentity();
+    DirectX::XMMATRIX projOrtho = DirectX::XMMatrixOrthographicOffCenterLH(
+        0.0f, (float)sw,  // Left, Right
+        (float)sh, 0.0f,  // Bottom, Top (Y-Axis ke bawah)
+        0.0f, 1.0f        // Near, Far
+    );
 
-    // Render Boss 3D Text
-    if (m_boss)
+    // Panggil Render dengan Matriks Ortho
+
+    // Restore Depth State
+    dc->OMSetDepthStencilState(Graphics::Instance().GetRenderState()->GetDepthStencilState(DepthState::TestAndWrite), 0);
+
+    // Render Boss Text
+    if (m_boss) 
     {
         DirectX::XMFLOAT3 basePos = m_boss->GetVisualPosition();
         DirectX::XMFLOAT3 finalPos = { basePos.x + m_textConfig.offset.x, basePos.y + m_textConfig.offset.y, basePos.z + m_textConfig.offset.z };
@@ -361,6 +367,32 @@ void SceneGameBeyond::DrawGUI()
         }
     }
 
+    // --- PERBAIKAN: RENDER SHATTER OVERLAY MENGGUNAKAN IMGUI ---
+    // Gunakan ForegroundDrawList agar digambar paling atas (seperti HUD)
+    ImDrawList* drawList = ImGui::GetForegroundDrawList();
+    const auto& shatters = WindowShatterManager::Instance().GetShatters();
+
+    for (const auto& shatter : shatters)
+    {
+        if (!shatter->IsNativeWindow()) // Jika masih berupa kotak virtual
+        {
+            DirectX::XMFLOAT3 worldPos = shatter->GetVirtualWorldPos();
+            DirectX::XMFLOAT2 size = shatter->GetSize();
+
+            // Konversi posisi World ke Screen (Pixel)
+            float screenX, screenY;
+            WorldToScreenPos(worldPos, screenX, screenY);
+
+            // Gambar kotak putih solid
+            // (Posisi X,Y dikurangi setengah ukuran agar pivot di tengah)
+            drawList->AddRectFilled(
+                ImVec2(screenX - size.x * 0.5f, screenY - size.y * 0.5f), // Kiri-Atas
+                ImVec2(screenX + size.x * 0.5f, screenY + size.y * 0.5f), // Kanan-Bawah
+                IM_COL32(255, 255, 255, 255) // Warna Putih
+            );
+        }
+    }
+
     if (ImGui::CollapsingHeader("Window Shatter Debug"))
     {
         ImGui::Text("Active Shatter: %d", WindowShatterManager::Instance().GetActiveCount());
@@ -371,7 +403,7 @@ void SceneGameBeyond::DrawGUI()
             int sw, sh;
             GetScreenDimensions(sw, sh);
             // Parameter disesuaikan: Posisi dan Count
-            WindowShatterManager::Instance().TriggerExplosion(DirectX::XMFLOAT2(sw * 0.5f, sh * 0.5f), 10);
+            WindowShatterManager::Instance().TriggerExplosion(DirectX::XMFLOAT2(0.0f, 0.0f), 10);
         }
         ImGui::SameLine();
         if (ImGui::Button("Clear All")) WindowShatterManager::Instance().Clear();
