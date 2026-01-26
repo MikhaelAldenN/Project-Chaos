@@ -44,6 +44,18 @@ public:
     }
     bool IsFalling() const { return isFalling; }
 
+    // --- Projectile Logic ---
+    void SetProjectile(bool state) {
+        isProjectile = state;
+        if (state) {
+            WakeUp();
+            movement->SetGravityEnabled(false);
+            isRelocating = false; 
+            isFilling = false;
+        }
+    }
+    bool IsProjectile() const { return isProjectile; }
+
     CharacterMovement* GetMovement() const { return movement; }
 
 private:
@@ -57,6 +69,8 @@ private:
     bool isRelocating = false;
     bool isSleeping = false;
     bool isStacked = false;
+    bool isProjectile = false;
+
     float sleepTimer = 0.0f;
 
     // Constants

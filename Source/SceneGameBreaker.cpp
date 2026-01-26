@@ -161,12 +161,16 @@ void SceneGameBreaker::Update(float elapsedTime)
     if (blockManager && player)
     {
         bool canUseShield = (player->GetGameStage() >= 3);
+        bool canShoot = (player->GetGameStage() >= 3);
+
         bool isShielding = (GetKeyState(VK_LSHIFT) & 0x8000) && canUseShield;
+        bool isShooting = (GetKeyState(VK_SPACE) & 0x8000) && canShoot;
 
         DirectX::XMFLOAT3 mousePos = GetMouseOnGround(activeCam);
         DirectX::XMFLOAT3 playerPos = player->GetPosition();
 
         blockManager->UpdateShieldLogic(isShielding, mousePos, playerPos, elapsedTime);
+        blockManager->UpdateShootLogic(isShooting, mousePos, playerPos, elapsedTime);
         blockManager->Update(elapsedTime, activeCam, player);
 
         if (ball && ball->IsActive())

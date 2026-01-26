@@ -570,6 +570,36 @@ void CollisionManager::CheckBlockVsStage()
 
         auto* moveComp = block.GetMovement(); // 
 
+        if (block.IsProjectile())
+        {
+            XMFLOAT3 blockPos = moveComp->GetPosition();
+            float queryRadius = blockRadius + 3.0f;
+            auto nearbyWallIndices = m_stage->GetSpatialGrid().QueryRadius(blockPos, queryRadius);
+
+            for (size_t wallIdx : nearbyWallIndices)
+            {
+                const auto& wall = m_stage->m_debugWalls[wallIdx];
+                float dx = blockPos.x - wall.Position.x;
+                float dz = blockPos.z - wall.Position.z;
+                float distSq = (dx * dx) + (dz * dz);
+                float checkRadius = wall.WorldRadius + blockRadius + 1.0f;
+
+                if (distSq > (checkRadius * checkRadius)) continue;
+
+                DebugWallData solidWall = wall;
+                solidWall.Scale.y = 1000.0f;
+                XMFLOAT3 fixPos = blockPos;
+
+                // If collision detected -> Destroy Block
+                if (Collision::ResolveOBB(blockPos, blockRadius, solidWall, fixPos))
+                {
+                    block.OnHit(); // Destroy!
+                    break;
+                }
+            }
+            continue; // Skip the physics push logic below
+        }
+
         for (int iter = 0; iter < iterations; ++iter)
         {
             XMFLOAT3 blockPos = moveComp->GetPosition();
@@ -685,14 +715,11 @@ void CollisionManager::CheckBlockVsBlocks()
     size_t count = blocks.size();
     int physicsIterations = 4;
 
-    // ? BUILD TEMPORARY SPATIAL GRID FOR BLOCKS
-    // This is rebuilt every frame (cheap for hundreds of blocks)
     m_blockGrid.Clear();
 
     for (size_t i = 0; i < count; ++i)
     {
         if (!blocks[i].IsActive() || blocks[i].IsFilling()) continue;
-
         XMFLOAT3 pos = blocks[i].GetMovement()->GetPosition();
         m_blockGrid.Insert(pos, boxRadius, i);
     }
@@ -701,21 +728,18 @@ void CollisionManager::CheckBlockVsBlocks()
     {
         for (size_t i = 0; i < count; ++i)
         {
-            if (!blocks[i].IsActive() || blocks[i].IsFilling()) continue;
+            if (!blocks[i].IsActive() || blocks[i].IsFilling() || blocks[i].IsProjectile()) continue;
 
             auto* movA = blocks[i].GetMovement();
             XMFLOAT3 posA = movA->GetPosition();
-
-            // ? SPATIAL QUERY: Only get blocks within interaction range
             float queryRadius = minTouchDist + 0.5f;
             auto nearbyBlockIndices = m_blockGrid.QueryRadius(posA, queryRadius);
 
-            // ? NOW: Only check ~5-10 blocks instead of 200!
             for (size_t j : nearbyBlockIndices)
             {
                 // Skip self and already-processed pairs
                 if (j <= i) continue;
-                if (!blocks[j].IsActive() || blocks[j].IsFilling()) continue;
+                if (!blocks[j].IsActive() || blocks[j].IsFilling() || blocks[j].IsProjectile()) continue;
 
                 auto* movB = blocks[j].GetMovement();
                 XMFLOAT3 posB = movB->GetPosition();
@@ -865,6 +889,7 @@ void CollisionManager::CheckPlayerVsBlocks()
         for (const auto& block : m_blockManager->GetBlocks())
         {
             if (!block.IsActive() || block.IsFilling()) continue;
+            if (block.IsProjectile()) continue;
             XMFLOAT3 blockPos = block.GetMovement()->GetPosition();
             XMFLOAT3 outPos;
             if (Collision::IntersectCubeVsCube(blockPos, blockSize, playerPos, playerSize, outPos))
@@ -977,6 +1002,7 @@ void CollisionManager::CheckBlockVsVoidLines()
         for (auto& block : m_blockManager->GetBlocks())
         {
             if (!block.IsActive() || block.IsFalling()) continue;
+            if (block.IsProjectile()) continue;
 
             // --- Transform to Local Space ---
             XMVECTOR vLocalPos = TransformToLocalLine(block.GetMovement()->GetPosition(), line);
