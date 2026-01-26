@@ -62,9 +62,9 @@ private:
         static constexpr float BALL_SPAWN_Z_OFFSET = 0.38f;
 
         // Screen Shake (On Block Hit)
-        static constexpr float SHAKE_DURATION = 0.5f;
-        static constexpr float SHAKE_AMP_POS = 0.5f;
-        static constexpr float SHAKE_AMP_ROT = 0.5f;
+        static constexpr float SHAKE_DURATION = 1.3f;
+        static constexpr float SHAKE_AMP_POS = 0.3f;
+        static constexpr float SHAKE_AMP_ROT = 0.3f;
         static constexpr float SHAKE_FREQ = 35.0f;
         static constexpr float SHAKE_TRAUMA = 4.0f;
 

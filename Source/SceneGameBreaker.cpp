@@ -58,10 +58,6 @@ SceneGameBreaker::SceneGameBreaker()
     // Callback untuk Shake saat blok hancur
     blockManager->SetOnBlockHitCallback([this]()
         {
-            if (player && player->GetGameStage() == 3)
-            {
-                return;
-            }
             if (m_isShakeEnabled)
             {
                 ShakeSettings hitShake;
@@ -202,6 +198,21 @@ void SceneGameBreaker::Update(float elapsedTime)
         }
         ball->Update(elapsedTime, activeCam);
         if (paddle && ball->IsActive()) paddle->CheckCollision(ball);
+        if (player && player->GetGameStage() >= 2)
+        {
+            DirectX::XMFLOAT3 bPos = ball->GetMovement()->GetPosition();
+            DirectX::XMFLOAT3 pPos = player->GetPosition();
+
+            float dx = pPos.x - bPos.x;
+            float dz = pPos.z - bPos.z;
+            float distSq = dx * dx + dz * dz;
+
+            if (distSq > (55.0f * 55.0f))
+            {
+                delete ball;     
+                ball = nullptr;  
+            }
+        }
     }
     // Update Systems
     CameraController::Instance().Update(elapsedTime);
@@ -214,10 +225,21 @@ void SceneGameBreaker::Update(float elapsedTime)
 
     auto seqInfo = CameraController::Instance().GetSequenceProgress();
 
-    // 1. LOCK STATE
+    if (m_hasTriggered && !seqInfo.IsPlaying && player)
+    {
+        static bool s_hasEnabledMashing = false;
+        if (!s_hasEnabledMashing)
+        {
+            s_hasEnabledMashing = true;
+            player->SetBreakoutMode(true); 
+        }
+    }
+
+    // LOCK STATE
     if (seqInfo.IsPlaying && seqInfo.CurrentIndex >= 1)
     {
         m_isShakeEnabled = true;
+        tutorialText = "";
     }
 
     float normalDensity = m_configFineDensity;
@@ -235,6 +257,8 @@ void SceneGameBreaker::Update(float elapsedTime)
         // DALAM PROGRAM: Hilang
         uberParams.fineOpacity = 0.0f;
         uberParams.scanlineStrength = 0.0f;
+        uberParams.distortion = 0.0f;   
+        uberParams.intensity = 0.7f;
         uberParams.fineRotation = targetRotation;
     }
     else if (seqInfo.IsPlaying && seqInfo.CurrentIndex == 0)
@@ -314,11 +338,8 @@ void SceneGameBreaker::UpdateGameTriggers(float elapsedTime)
     if (triggerCondition)
     {
         m_hasTriggered = true;
+        if (player) player->SetInputEnabled(false);
         if (paddle) paddle->SetAIEnabled(true);
-        if (player) {
-            player->SetBreakoutMode(true);
-            player->SetInputEnabled(false);
-        }
 
         m_director->TriggerIntroSequence();
     }
@@ -421,7 +442,7 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
     if (paddle && paddle->IsActive()) modelRenderer->Draw(ShaderId::Phong, paddle->GetModel(), paddle->color);
     if (player) modelRenderer->Draw(ShaderId::Phong, player->GetModel(), player->color);
     if (m_introFinished && m_enemyManager) { m_enemyManager->Render(modelRenderer); }
-    if (m_introFinished && m_stage) { m_stage->UpdateTransform(); m_stage->Render(modelRenderer); }
+    if (m_isShakeEnabled && m_stage) { m_stage->UpdateTransform(); m_stage->Render(modelRenderer); }
     modelRenderer->Render(rc);
 }
 

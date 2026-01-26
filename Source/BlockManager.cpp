@@ -511,7 +511,7 @@ bool BlockManager::CheckEnemyCollision(Ball* ball)
         float absX = std::abs(deltaX); float absZ = std::abs(deltaZ);
         float overlapX = (blockHalfSize + ballRadius) - absX;
         float overlapZ = (blockHalfSize + ballRadius) - absZ;
-        if (overlapX > 0 && overlapZ > 0) { block.OnHit(); return true; }
+        if (overlapX > 0 && overlapZ > 0) { block.OnHit(); if (m_onBlockHitCallback) m_onBlockHitCallback(); return true; }
     }
     return false;
 }
