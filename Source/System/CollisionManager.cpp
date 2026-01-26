@@ -53,9 +53,26 @@ static XMVECTOR TransformNormalToWorld(const XMVECTOR& localNorm, const DebugWal
         XMConvertToRadians(wall.Rotation.z)
     );
 
-    // Normals need special handling for non-uniform scales
-    // For now, we assume uniform scale, so just rotate
     return XMVector3TransformNormal(localNorm, matRot);
+}
+
+// =========================================================
+// HELPER: Transform World Point to Enemy Local Space
+// =========================================================
+static XMVECTOR TransformToEnemyLocal(const XMFLOAT3& worldPos, const Enemy* enemy)
+{
+    XMVECTOR vWorldPos = XMLoadFloat3(&worldPos);
+    XMVECTOR vEnemyPos = XMLoadFloat3(&enemy->GetPosition()); 
+
+    // 1. Translate
+    XMVECTOR vRelative = XMVectorSubtract(vWorldPos, vEnemyPos);
+
+    // 2. Rotate (Inverse)
+    XMFLOAT3 rot = enemy->GetRotation();
+    XMMATRIX matRot = XMMatrixRotationRollPitchYaw(rot.x, rot.y, rot.z);
+    XMMATRIX matInvRot = XMMatrixTranspose(matRot); 
+
+    return XMVector3TransformNormal(vRelative, matInvRot);
 }
 
 static XMVECTOR TransformToLocalLine(const XMFLOAT3& worldPos, const DebugLineData& line)
@@ -110,6 +127,7 @@ void CollisionManager::Update(float elapsedTime)
     CheckStageCollision();
     CheckBlockVsStage();
     CheckBlockVsVoidLines();
+    CheckPlayerVsEnemies();
 
     if (m_blockManager)
     {
@@ -120,6 +138,7 @@ void CollisionManager::Update(float elapsedTime)
         }
         CheckBlockVsBlocks();
         CheckPlayerVsBlocks();
+        CheckBlockVsEnemies();
     }
 }
 
@@ -752,6 +771,85 @@ void CollisionManager::CheckBlockVsBlocks()
     }
 }
 
+void CollisionManager::CheckBlockVsEnemies()
+{
+    if (!m_blockManager || !m_enemyManager) return;
+    if (m_blockManager->IsShieldActive()) return;
+
+    auto& enemies = m_enemyManager->GetEnemies();
+    auto& blocks = m_blockManager->GetBlocks();
+
+    float blockRadius = 0.01f;
+    const XMFLOAT3 PADDLE_EXTENTS = { 3.5f, 1.0f, 0.8f };
+    const float BALL_RADIUS = 1.0f;
+
+    for (auto it = enemies.begin(); it != enemies.end(); )
+    {
+        Enemy* enemy = it->get();
+        if (!enemy) { ++it; continue; }
+
+        XMFLOAT3 enemyPos = enemy->GetPosition();
+        bool enemyDestroyed = false;
+
+        // --- OPTIMIZATION: SPATIAL GRID ---
+        float queryRadius = 5.0f;
+        auto nearbyIndices = m_blockGrid.QueryRadius(enemyPos, queryRadius);
+
+        for (size_t i : nearbyIndices)
+        {
+            if (i >= blocks.size()) continue;
+            Block& block = blocks[i];
+
+            if (!block.IsActive() || block.IsFalling()) continue;
+
+            XMFLOAT3 blockPos = block.GetMovement()->GetPosition();
+
+            // Broad Phase
+            float dx = blockPos.x - enemyPos.x;
+            float dz = blockPos.z - enemyPos.z;
+            float distSq = dx * dx + dz * dz;
+
+            bool isHit = false;
+
+            if (enemy->GetType() == EnemyType::Ball)
+            {
+                float rSum = blockRadius + BALL_RADIUS;
+                if (distSq < rSum * rSum) isHit = true;
+            }
+            else // Paddle
+            {
+                // Accurate OBB Check
+                XMVECTOR vLocalPos = TransformToEnemyLocal(blockPos, enemy);
+                XMFLOAT3 localPos;
+                XMStoreFloat3(&localPos, vLocalPos);
+
+                float closestX = (std::max)(-PADDLE_EXTENTS.x, (std::min)(localPos.x, PADDLE_EXTENTS.x));
+                float closestZ = (std::max)(-PADDLE_EXTENTS.z, (std::min)(localPos.z, PADDLE_EXTENTS.z));
+                float dX = localPos.x - closestX;
+                float dZ = localPos.z - closestZ;
+
+                if ((dX * dX + dZ * dZ) < (blockRadius * blockRadius)) isHit = true;
+            }
+
+            if (isHit)
+            {
+                block.OnHit();   
+                enemyDestroyed = true; 
+                break; 
+            }
+        }
+
+        if (enemyDestroyed)
+        {
+            it = enemies.erase(it); 
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
 void CollisionManager::CheckPlayerVsBlocks()
 {
     if (!m_player || !m_blockManager) return;
@@ -783,6 +881,75 @@ void CollisionManager::CheckPlayerVsBlocks()
                 }
                 playerVel = playerMove->GetVelocity();
             }
+        }
+    }
+}
+
+void CollisionManager::CheckPlayerVsEnemies()
+{
+    if (!m_player || !m_enemyManager) return;
+
+    auto& enemies = m_enemyManager->GetEnemies();
+    XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
+    float playerRadius = 0.01f; // Approx player size
+
+    // Basic Shapes
+    const XMFLOAT3 PADDLE_EXTENTS = { 3.5f, 1.0f, 0.8f }; 
+    const float BALL_RADIUS = 1.0f;
+
+    for (auto it = enemies.begin(); it != enemies.end(); )
+    {
+        Enemy* enemy = it->get();
+        if (!enemy) { ++it; continue; }
+
+        XMFLOAT3 enemyPos = enemy->GetPosition();
+        bool isHit = false;
+
+        // Broad Phase (Distance Squared)
+        float dx = playerPos.x - enemyPos.x;
+        float dz = playerPos.z - enemyPos.z;
+        float distSq = dx * dx + dz * dz;
+        float maxReach = 6.0f;
+
+        if (distSq > maxReach * maxReach) {
+            ++it; continue;
+        }
+
+        // Narrow Phase (Shape Specific)
+        if (enemy->GetType() == EnemyType::Ball)
+        {
+            // Sphere vs Sphere
+            float rSum = playerRadius + BALL_RADIUS;
+            if (distSq < rSum * rSum) isHit = true;
+        }
+        else // Paddle (OBB)
+        {
+            XMVECTOR vLocalPos = TransformToEnemyLocal(playerPos, enemy);
+            XMFLOAT3 localPos;
+            XMStoreFloat3(&localPos, vLocalPos);
+
+            float closestX = (std::max)(-PADDLE_EXTENTS.x, (std::min)(localPos.x, PADDLE_EXTENTS.x));
+            float closestZ = (std::max)(-PADDLE_EXTENTS.z, (std::min)(localPos.z, PADDLE_EXTENTS.z));
+            float dX = localPos.x - closestX;
+            float dZ = localPos.z - closestZ;
+
+            if ((dX * dX + dZ * dZ) < (playerRadius * playerRadius)) isHit = true;
+        }
+
+        if (isHit)
+        {
+            // Destroy Enemy
+            it = enemies.erase(it);
+
+            // Destroy Player
+            m_player->SetInputEnabled(false);
+            m_player->GetMovement()->SetPosition({ 0, -1000, 0 }); // Send to void
+
+            // Optional: You could add m_player->OnHit() in Player.h later
+        }
+        else
+        {
+            ++it;
         }
     }
 }

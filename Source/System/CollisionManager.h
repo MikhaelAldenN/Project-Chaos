@@ -24,9 +24,11 @@ public:
 private:
     void CheckBlockVsBlocks();
     void UpdateBlockStackFlags();
+    void CheckBlockVsEnemies();
     void CheckBlockVsStage();
     void CheckBlockVsVoidLines();
     void CheckPlayerVsBlocks();
+    void CheckPlayerVsEnemies();
     void CheckStageCollision();
     void CheckEnemyProjectilesFull(float elapsedTime);
 
