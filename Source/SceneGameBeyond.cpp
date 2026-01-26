@@ -50,6 +50,7 @@ SceneGameBeyond::SceneGameBeyond()
     m_subCamera->SetPosition(5, 5, 5);
     m_subCamera->LookAt({ 0, 0, 0 });
 
+    // 4. Setup Primitive Renderer for Fake Shatter
     auto device = Graphics::Instance().GetDevice();
     m_primitive2D = std::make_unique<Primitive>(device);
 }
@@ -159,45 +160,33 @@ void SceneGameBeyond::UpdateWindowTracking(float dt, GameWindow* win, Camera* ca
 
 void SceneGameBeyond::Update(float elapsedTime)
 {
-    // --- INTRO: Shatter Explosion ---
-    if (!m_shatterSpawned)
+    // --- 1. INTRO: Trigger Explosion Once ---
+    if (!m_shatterTriggered)
     {
-        m_shatterTimer += elapsedTime;
-        if (m_shatterTimer >= m_shatterDelay && m_player)
+        m_introTimer += elapsedTime;
+        if (m_introTimer >= INTRO_DELAY && m_player)
         {
             auto pPos = m_player->GetPosition();
-            m_shatterSpawnPos = { pPos.x, pPos.z + 2.0f };
-
-            m_shatterToSpawn = 8; // Set jumlah pecahan
-            m_shatterSpawned = true; // Tandai sudah trigger
-
-            // RESET Timer untuk dipakai sebagai interval antar-spawn
-            m_shatterTimer = 0.0f;
-        }
-    }
-    else if (m_shatterToSpawn > 0) // Gunakan ELSE IF agar tidak langsung spawn di frame yang sama
-    {
-        // Pakai Timer lagi agar tidak spawn setiap frame (Beri jeda 0.05 detik)
-        m_shatterTimer += elapsedTime;
-        if (m_shatterTimer > 0.05f)
-        {
-            WindowShatterManager::Instance().SpawnSingleShatter(m_shatterSpawnPos, m_shatterToSpawn);
-            m_shatterToSpawn--;
-            m_shatterTimer = 0.0f; // Reset timer lagi
+            // Trigger the explosion effect. Manager handles the staggered spawning.
+            WindowShatterManager::Instance().TriggerExplosion({ pPos.x, pPos.z + 2.0f }, 8);
+            m_shatterTriggered = true;
         }
     }
 
+    // --- 2. Update Managers ---
     WindowShatterManager::Instance().Update(elapsedTime);
 
-    // Update Shatter Projections
+    // Update Shatter Projections (Only for NATIVE windows to avoid crash)
     float unifiedHeight = GetUnifiedCameraHeight();
     for (const auto& shatter : WindowShatterManager::Instance().GetShatters())
     {
-        if (!shatter->IsNativeWindow()) continue;
-        UpdateOffCenterProjection(shatter->GetCamera(), shatter->GetWindow(), unifiedHeight);
+        if (shatter->IsNativeWindow())
+        {
+            UpdateOffCenterProjection(shatter->GetCamera(), shatter->GetWindow(), unifiedHeight);
+        }
     }
 
-    // --- DEFERRED WINDOW INIT ---
+    // --- 3. DEFERRED WINDOW INIT ---
     if (!m_isWindowsInitialized)
     {
         m_startupTimer += elapsedTime;
@@ -205,7 +194,7 @@ void SceneGameBeyond::Update(float elapsedTime)
         else return;
     }
 
-    // --- GAME LOGIC ---
+    // --- 4. GAME LOGIC ---
     Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
 
     if (m_player)
@@ -222,7 +211,7 @@ void SceneGameBeyond::Update(float elapsedTime)
         if (Input::Instance().GetKeyboard().IsTriggered('R')) m_blockManager->SpawnAllyBlock(m_player.get());
     }
 
-    // --- WINDOW TRACKING ---
+    // --- 5. WINDOW TRACKING ---
     if (m_player)
     {
         UpdateWindowTracking(elapsedTime, m_trackingWindow, m_trackingCamera.get(), m_player->GetPosition(), m_playerWinPos);
@@ -301,29 +290,30 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
         }
     }
 
-// --- RENDER FAKE SHATTERS ---
+    // --- RENDER VIRTUAL (FAKE) SHATTERS ---
     const auto& shatters = WindowShatterManager::Instance().GetShatters();
     for (const auto& shatter : shatters)
     {
+        // Only render primitives for windows that haven't spawned as OS windows yet
         if (!shatter->IsNativeWindow())
         {
-            DirectX::XMFLOAT3 worldPos = shatter->GetFakeWorldPos();
-            DirectX::XMFLOAT2 size = shatter->GetCurrentSize();
+            DirectX::XMFLOAT3 worldPos = shatter->GetVirtualWorldPos();
+            DirectX::XMFLOAT2 size = shatter->GetSize();
 
             float screenX, screenY;
             WorldToScreenPos(worldPos, screenX, screenY);
 
-            // Gunakan m_primitive2D yang baru kita buat
+            // Draw Wireframe Rect using 2D Primitive Renderer
             m_primitive2D->Rect(
                 screenX, screenY,
                 size.x, size.y,
-                size.x * 0.5f, size.y * 0.5f,
+                size.x * 0.5f, size.y * 0.5f, // Center pivot
                 0.0f,
-                1.0f, 1.0f, 1.0f, 1.0f
+                1.0f, 1.0f, 1.0f, 1.0f // White color
             );
         }
     }
-
+    // Execute Batch Render
     m_primitive2D->Render(dc);
 
     modelRenderer->Render(rc);
@@ -374,15 +364,18 @@ void SceneGameBeyond::DrawGUI()
     if (ImGui::CollapsingHeader("Window Shatter Debug"))
     {
         ImGui::Text("Active Shatter: %d", WindowShatterManager::Instance().GetActiveCount());
+
+        // [PERBAIKAN] Menggunakan nama fungsi baru: TriggerExplosion
         if (ImGui::Button("Spawn Test Explosion"))
         {
             int sw, sh;
             GetScreenDimensions(sw, sh);
-            WindowShatterManager::Instance().SpawnShatterExplosion(DirectX::XMFLOAT2(sw * 0.5f, sh * 0.5f), 10, 300.0f, 800.0f);
+            // Parameter disesuaikan: Posisi dan Count
+            WindowShatterManager::Instance().TriggerExplosion(DirectX::XMFLOAT2(sw * 0.5f, sh * 0.5f), 10);
         }
         ImGui::SameLine();
         if (ImGui::Button("Clear All")) WindowShatterManager::Instance().Clear();
-        if (ImGui::Button("Reset Intro")) { m_shatterSpawned = false; m_shatterTimer = 0.0f; }
+        if (ImGui::Button("Reset Intro")) { m_shatterTriggered = false; m_introTimer = 0.0f; }
     }
 
     ImGui::End();

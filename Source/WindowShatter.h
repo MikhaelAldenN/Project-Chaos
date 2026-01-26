@@ -2,19 +2,15 @@
 
 #include <memory>
 #include <vector>
-#include <string>
 #include <DirectXMath.h>
 #include "GameWindow.h"
 #include "Camera.h"
-#include "System/ModelRenderer.h"
 
-// Physics state for shatter instances
+// Physics parameters for the shatter effect
 struct ShatterPhysics
 {
     DirectX::XMFLOAT2 velocity{ 0.0f, 0.0f };
-    float angularVelocity = 0.0f;
     float deceleration = 0.0f;
-    float gravity = 0.0f;
     float bounceDamping = 0.7f;
     int bounceCount = 0;
     int maxBounces = 3;
@@ -26,64 +22,59 @@ public:
     WindowShatter(
         const char* title,
         DirectX::XMFLOAT2 startPos,
-        DirectX::XMFLOAT2 initialVelocity,
-        int initialWidth,
-        int initialHeight,
-        float deceleration,
-        float shrinkRate,
+        DirectX::XMFLOAT2 velocity,
+        int size,
         int priority
     );
-
     ~WindowShatter();
 
     void Update(float dt);
 
-    void RenderFake(ModelRenderer* renderer);
-
-    // --- TAMBAHKAN 3 FUNGSI INI ---
+    // --- State Getters ---
     [[nodiscard]] bool IsNativeWindow() const { return m_isNativeWindow; }
-    [[nodiscard]] DirectX::XMFLOAT3 GetFakeWorldPos() const { return m_fakeWorldPos; }
-    [[nodiscard]] DirectX::XMFLOAT2 GetCurrentSize() const { return { m_currentWidth, m_currentHeight }; }    // ------------------------------
-
-    // Getters
     [[nodiscard]] bool ShouldDestroy() const { return m_markedForDestroy; }
+
+    // --- Data Getters ---
+    [[nodiscard]] DirectX::XMFLOAT3 GetVirtualWorldPos() const { return m_virtualWorldPos; }
+    [[nodiscard]] DirectX::XMFLOAT2 GetSize() const { return { m_width, m_height }; }
     [[nodiscard]] GameWindow* GetWindow() const { return m_window; }
     [[nodiscard]] Camera* GetCamera() const { return m_camera.get(); }
 
 private:
-    void UpdatePhysics(float dt);
-    void UpdateSize(float dt);
-    void CheckBounds();
-    void ApplyBounce(bool horizontal);
+    void UpdateVirtualState(float dt);
+    void UpdateNativeState(float dt);
     void TransitionToNativeWindow();
 
-    // --- TAMBAHKAN 2 BARIS INI ---
-    static constexpr float PIXEL_TO_UNIT_RATIO = 40.0f; // Sesuai dengan yang ada di SceneGameBeyond
-    void ConvertWorldToScreen(const DirectX::XMFLOAT3& worldPos, float& outScreenX, float& outScreenY) const;
+    // Helper to keep window inside screen bounds
+    void EnforceScreenBounds();
+    void ConvertWorldToScreen(const DirectX::XMFLOAT3& worldPos, float& outX, float& outY) const;
 
 private:
+    // Core Components
     GameWindow* m_window = nullptr;
     std::shared_ptr<Camera> m_camera;
     ShatterPhysics m_physics;
 
-    float m_shrinkRate = 0.0f;
-    float m_currentWidth = 0.0f;
-    float m_currentHeight = 0.0f;
-
-    static constexpr float MIN_SIZE = 150.0f;
-    static constexpr float STOP_THRESHOLD_SQ = 100.0f; // 10.0f * 10.0f
-
+    // State
+    bool m_isNativeWindow = false;
     bool m_markedForDestroy = false;
+    DirectX::XMFLOAT3 m_virtualWorldPos; // Position in 3D world before becoming a window
+
+    // Dimensions
+    float m_width = 0.0f;
+    float m_height = 0.0f;
+    float m_shrinkRate = 50.0f;
     int m_screenWidth = 0;
     int m_screenHeight = 0;
 
-    bool m_isNativeWindow = false;
-    DirectX::XMFLOAT3 m_fakeWorldPos; // Posisi 3D di dalam engine
-
+    // Constants
+    static constexpr float MIN_SIZE = 150.0f;
+    static constexpr float PIXEL_TO_UNIT_RATIO = 40.0f;
 };
 
 // ============================================================
 // MANAGER CLASS (Singleton)
+// Handles the lifecycle and optimization (staggered spawning)
 // ============================================================
 class WindowShatterManager
 {
@@ -94,27 +85,28 @@ public:
         return instance;
     }
 
-    void SpawnShatterExplosion(
-        DirectX::XMFLOAT2 centerPos,
-        int count = 10,
-        float minSpeed = 300.0f,
-        float maxSpeed = 800.0f);
+    // Queues an explosion effect. The manager handles the staggered spawning internally.
+    void TriggerExplosion(DirectX::XMFLOAT2 centerWorldPos, int count = 8);
 
     void Update(float dt);
     void Clear();
 
-    [[nodiscard]] bool HasActiveShatter() const { return !m_shatters.empty(); }
-    [[nodiscard]] int GetActiveCount() const { return static_cast<int>(m_shatters.size()); }
     [[nodiscard]] const std::vector<std::unique_ptr<WindowShatter>>& GetShatters() const { return m_shatters; }
-
-    void SpawnSingleShatter(DirectX::XMFLOAT2 centerPos, int index);
+    [[nodiscard]] int GetActiveCount() const { return static_cast<int>(m_shatters.size()); }
 
 private:
     WindowShatterManager() = default;
     ~WindowShatterManager() { Clear(); }
-    WindowShatterManager(const WindowShatterManager&) = delete;
-    void operator=(const WindowShatterManager&) = delete;
+
+    // Internal helper to spawn a single instance
+    void SpawnSingleInstance(DirectX::XMFLOAT2 centerPos, int index);
 
 private:
     std::vector<std::unique_ptr<WindowShatter>> m_shatters;
+
+    // Staggered Spawning State
+    DirectX::XMFLOAT2 m_pendingSpawnPos = { 0,0 };
+    int m_pendingSpawnCount = 0;
+    float m_spawnTimer = 0.0f;
+    static constexpr float SPAWN_INTERVAL = 0.05f; // 50ms delay between windows to prevent freeze
 };

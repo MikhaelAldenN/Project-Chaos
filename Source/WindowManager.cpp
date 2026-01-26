@@ -11,126 +11,77 @@ void WindowManager::Update(float dt)
 
 void WindowManager::EnforceWindowPriorities()
 {
+    // Filter valid game windows
     std::vector<GameWindow*> sortedWindows;
+    sortedWindows.reserve(windows.size());
 
-    // 1. Ambil window game (KECUALIKAN DEBUG WINDOW)
     for (auto& win : windows)
     {
-        // Debug window kita urus terpisah di bawah
-        if (win.get() == debugWindow) continue;
-
-        if (win->GetPriority() < 100)
+        if (win.get() != debugWindow && win->GetPriority() < 100)
         {
             sortedWindows.push_back(win.get());
         }
     }
 
-    // 2. SORT WINDOW GAME (Ascending: 0 paling penting)
-    if (!sortedWindows.empty())
+    // Sort by priority (Ascending)
+    std::sort(sortedWindows.begin(), sortedWindows.end(),
+        [](GameWindow* a, GameWindow* b) {
+            return a->GetPriority() < b->GetPriority();
+        });
+
+    // Apply Z-Order
+    HWND hInsertAfter = HWND_TOPMOST;
+    for (GameWindow* win : sortedWindows)
     {
-        std::sort(sortedWindows.begin(), sortedWindows.end(),
-            [](GameWindow* a, GameWindow* b) {
-                return a->GetPriority() < b->GetPriority();
-            });
-
-        // 3. Tumpuk Window Game
-        // Kita mulai menumpuk window game SEDIKIT DI BAWAH Topmost murni
-        // agar tidak berebut tempat dengan Debug Window.
-        HWND hInsertAfter = HWND_TOPMOST;
-
-        // Opsional: Kalau mau Debug Window benar-benar raja, 
-        // Window game bisa kita taruh di HWND_NOTOPMOST dulu, 
-        // tapi HWND_TOPMOST biasanya cukup aman karena OS memprioritaskan yang aktif.
-
-        for (GameWindow* win : sortedWindows)
-        {
-            SetWindowPos(win->GetHWND(),
-                hInsertAfter,
-                0, 0, 0, 0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-
-            hInsertAfter = win->GetHWND();
-        }
+        SetWindowPos(win->GetHWND(), hInsertAfter, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        hInsertAfter = win->GetHWND();
     }
 
-    // -----------------------------------------------------------
-    // [BARU] 4. PAKSA DEBUG WINDOW JADI RAJA (PALING ATAS)
-    // -----------------------------------------------------------
+    // Force Debug Window to be always on top
     if (debugWindow && debugWindow->IsVisible())
     {
-        // Kita paksa dia jadi HWND_TOPMOST setiap frame.
-        // SWP_NOACTIVATE penting agar dia tidak mencuri fokus keyboard 
-        // saat kita sedang main game, tapi tetap bisa diklik.
-        SetWindowPos(debugWindow->GetHWND(),
-            HWND_TOPMOST,
-            0, 0, 0, 0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        SetWindowPos(debugWindow->GetHWND(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     }
 }
 
 void WindowManager::RenderAll(float dt, Scene* scene)
 {
     if (!scene) return;
-
-    // 1. UPDATE GUI CONTENT
     scene->DrawGUI();
 
-    // Variable untuk melacak apakah VSync sudah dilakukan frame ini
     bool vSyncTriggered = false;
 
-    // 2. RENDER SEMUA WINDOW
-    for (size_t i = 0; i < windows.size(); ++i)
+    for (auto& win : windows)
     {
-        auto& win = windows[i];
-
-        // Skip jika sembunyi
         if (!win->IsVisible()) continue;
 
-        // A. TENTUKAN APAKAH INI WINDOW "KETUA" (DEBUG CONSOLE)
-        // Jika ini Debug Window, kita aktifkan VSync (1) agar FPS terkunci di 60.
-        // Window lain (Tracking/Lens) kita set 0 agar render secepat kilat.
-        bool isMasterWindow = (win.get() == debugWindow);
+        bool isMaster = (win.get() == debugWindow);
 
-        // -----------------------------------------------------------
-        // RENDER LOGIC
-        // -----------------------------------------------------------
-        if (isMasterWindow)
+        // Render Logic
+        if (isMaster)
         {
-            // --- RENDER DEBUG WINDOW (BACKGROUND GELAP) ---
+            // Debug Window: Clears with dark color, renders ImGui, and WAITS for VSync (Interval 1)
             win->BeginRender(0.1f, 0.1f, 0.1f);
-
-            auto context = Graphics::Instance().GetDeviceContext();
-            ImGuiRenderer::Render(context);
-
-            // [PENTING] EndRender(1) artinya "Tunggu Monitor Refresh" (VSync ON)
+            ImGuiRenderer::Render(Graphics::Instance().GetDeviceContext());
             win->EndRender(1);
-            vSyncTriggered = true; // Tandai kita sudah ngerem
+            vSyncTriggered = true;
         }
         else
         {
-            // --- RENDER GAME WINDOW (SCENE 3D) ---
+            // Game Windows: Clears with gray, renders Scene, NO VSync wait (Interval 0)
             win->BeginRender(0.5f, 0.5f, 0.5f);
             scene->OnResize(win->GetWidth(), win->GetHeight());
             scene->Render(dt, win->GetCamera());
-
-            // [PENTING] EndRender(0) artinya "Jangan Tunggu, Langsung Tampil" (VSync OFF)
-            // Ini aman KARENA kita sudah menunggu di Debug Window tadi.
             win->EndRender(0);
         }
     }
 
-    // [SAFETY NET / REM DARURAT]
-    // Jika Debug Window sedang disembunyikan/minimize, maka tidak ada yang ngerem (vSyncTriggered = false).
-    // Akibatnya FPS akan loncat ke 2000+ lagi dan bikin layar hitam.
-    // Kita harus ngerem manual pakai SDL_Delay.
+    // Failsafe: If no VSync window was rendered (e.g. Debug is hidden), manually sleep
+    // to prevent GPU usage from spiking to 100% (Infinite FPS)
     if (!vSyncTriggered)
     {
-        // Render ImGui internal (untuk safety assertion)
-        auto context = Graphics::Instance().GetDeviceContext();
-        ImGuiRenderer::Render(context);
-
-        // Tidur sebentar ~16ms (kira-kira 60 FPS) agar GPU bisa bernafas
-        SDL_Delay(16);
+        ImGuiRenderer::Render(Graphics::Instance().GetDeviceContext());
+        SDL_Delay(16); // ~60 FPS cap
     }
 }
 

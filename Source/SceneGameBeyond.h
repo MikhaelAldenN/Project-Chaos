@@ -62,6 +62,7 @@ private:
     static constexpr float PIXEL_TO_UNIT_RATIO = 40.0f;
     static constexpr float FIELD_OF_VIEW = 60.0f;
     static constexpr float DEFERRED_INIT_TIME = 0.2f;
+    static constexpr float INTRO_DELAY = 0.5f; // [BARU] Delay sebelum kaca pecah
 
     // Assets & Core Cameras
     std::shared_ptr<Camera> m_mainCamera;
@@ -92,15 +93,11 @@ private:
     WindowPos m_bossWinPos;
 
     // Intro & Effects
-    bool m_shatterSpawned = false;
-    float m_shatterDelay = 0.3f;
-    float m_shatterTimer = 0.0f;
+    bool m_shatterTriggered = false; // [BARU] Flag untuk intro
+    float m_introTimer = 0.0f;       // [BARU] Timer intro
 
     // UI/Text
     Text3DConfig m_textConfig;
-
-    int m_shatterToSpawn = 0;
-    DirectX::XMFLOAT2 m_shatterSpawnPos;
 
     std::unique_ptr<Primitive> m_primitive2D;
 };
