@@ -91,16 +91,25 @@ private:
     GameWindow* m_bossWindow = nullptr;
     std::shared_ptr<Camera> m_bossCamera;
 
+    GameWindow* m_cpuWindow = nullptr;
+    std::shared_ptr<Camera> m_cpuCamera;
+
     // States & Settings
     bool m_isWindowsInitialized = false;
     float m_startupTimer = 0.0f;
 
     float m_windowFollowSpeed = 100.0f;
-    DirectX::XMFLOAT3 m_bossTrackingOffset = { 0.0f, 0.0f, 1.6f };
+    DirectX::XMFLOAT3 m_bossTrackingOffset = { -0.3f, 0.0f, 2.1f };
+    DirectX::XMFLOAT3 m_cpuTrackingOffset = { -8.2f, 0.0f, 4.0f };
+
+    int m_bossWindowSize[2] = { 340, 340 };
+    int m_cpuWindowSize[2] = { 186, 370 };
 
     // [GANTI DARI WindowPos KE WindowState]
     WindowState m_playerWindowState;
     WindowState m_bossWindowState;
+
+    WindowState m_cpuWindowState;
 
     // Intro & Effects
     bool m_shatterTriggered = false;

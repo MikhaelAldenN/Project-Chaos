@@ -40,10 +40,10 @@ SceneGameBeyond::SceneGameBeyond()
     for (int i = 0; i < 20; ++i) m_blockManager->SpawnAllyBlock(m_player.get());
 
     m_boss = std::make_unique<Boss>();
-    m_boss->SetPosition(0.0f, 0.6f, 6.5f);
-    m_boss->SetRotation(65.0f, 0.0f, 0.0f);
-    m_boss->SetScale(10.0f, 10.0f, 10.0f);
-    m_boss->SetFloatingConfig(true, 2.0f, 0.2f, { 0.0f, 0.0f, 1.0f });
+    //m_boss->SetPosition(0.0f, 0.6f, 6.5f);
+    //m_boss->SetRotation(65.0f, 0.0f, 0.0f);
+    //m_boss->SetScale(10.0f, 10.0f, 10.0f);
+    //m_boss->SetFloatingConfig(true, 2.0f, 0.2f, { 0.0f, 0.0f, 1.0f });
 
     m_player->SetPosition(0.0f, 0.0f, -8.0f);
 
@@ -65,6 +65,7 @@ SceneGameBeyond::~SceneGameBeyond()
     WindowManager::Instance().DestroyWindow(m_trackingWindow);
     WindowManager::Instance().DestroyWindow(m_lensWindow);
     WindowManager::Instance().DestroyWindow(m_bossWindow);
+    WindowManager::Instance().DestroyWindow(m_cpuWindow);
 }
 
 void SceneGameBeyond::InitializeSubWindows()
@@ -76,19 +77,30 @@ void SceneGameBeyond::InitializeSubWindows()
     m_trackingCamera = std::make_shared<Camera>();
     m_trackingWindow->SetCamera(m_trackingCamera.get());
 
-    // 2. Lens Window
-    m_lensWindow = WindowManager::Instance().CreateGameWindow("Lens View", 300, 300);
-    m_lensWindow->SetPriority(0);
-    m_lensCamera = std::make_shared<Camera>();
-    m_lensCamera->SetRotation(90.0f, 0.0f, 0.0f);
-    m_lensWindow->SetCamera(m_lensCamera.get());
+    //// 2. Lens Window
+    //m_lensWindow = WindowManager::Instance().CreateGameWindow("Lens View", 300, 300);
+    //m_lensWindow->SetPriority(0);
+    //m_lensCamera = std::make_shared<Camera>();
+    //m_lensCamera->SetRotation(90.0f, 0.0f, 0.0f);
+    //m_lensWindow->SetCamera(m_lensCamera.get());
 
     // 3. Boss Tracking Window
-    m_bossWindow = WindowManager::Instance().CreateGameWindow("Boss Monitor", 370, 370);
-    m_bossWindow->SetPriority(2); // Slightly below player
-    m_bossWindow->SetDraggable(false);
+    m_bossWindow = WindowManager::Instance().CreateGameWindow(
+        "Boss Monitor",
+        m_bossWindowSize[0],
+        m_bossWindowSize[1]
+    );
     m_bossCamera = std::make_shared<Camera>();
     m_bossWindow->SetCamera(m_bossCamera.get());
+    m_bossWindow->SetPriority(0);
+
+    m_cpuWindow = WindowManager::Instance().CreateGameWindow(
+        "System Unit",
+        m_cpuWindowSize[0],
+        m_cpuWindowSize[1]
+    );
+    m_cpuCamera = std::make_shared<Camera>();
+    m_cpuWindow->SetCamera(m_cpuCamera.get());
 
     // Center Initial Positions
     auto CenterWindow = [&](GameWindow* win, const XMFLOAT3& pos, WindowState& winState) {
@@ -106,7 +118,7 @@ void SceneGameBeyond::InitializeSubWindows()
         };
 
     if (m_player) CenterWindow(m_trackingWindow, m_player->GetPosition(), m_playerWindowState);
-    if (m_boss) CenterWindow(m_bossWindow, m_boss->GetPosition(), m_bossWindowState);
+    //if (m_boss) CenterWindow(m_bossWindow, m_boss->GetPosition(), m_bossWindowState);
 
     //if (auto mainWin = Framework::Instance()->GetMainWindow()) mainWin->SetVisible(false);
 
@@ -262,17 +274,36 @@ void SceneGameBeyond::Update(float elapsedTime)
             m_player->GetPosition(), m_playerWindowState);
     }
 
-    // --- Boss Tracking Window ---
-    if (m_boss && m_bossWindow && m_bossCamera)
+    if(m_boss && m_bossWindow && m_bossCamera)
     {
-        DirectX::XMFLOAT3 bossPos = m_boss->GetPosition();
-        DirectX::XMFLOAT3 offsetPos = {
-            bossPos.x + m_bossTrackingOffset.x,
-            bossPos.y + m_bossTrackingOffset.y,
-            bossPos.z + m_bossTrackingOffset.z
+        DirectX::XMFLOAT3 bossPos = m_boss->GetMonitorVisualPos();
+
+        // TRIK: Tambahkan bossPos.y ke dalam komponen Z
+        // Ini membuat gerakan "Naik Turun (Y)" diterjemahkan menjadi "Naik Turun di Layar (Z)"
+        DirectX::XMFLOAT3 targetPos = {
+                    bossPos.x + m_bossTrackingOffset.x,
+                    0.0f,
+                    // Cukup Z asli + Offset. HAPUS " + (bossPos.y * 1.0f)"
+                    bossPos.z + m_bossTrackingOffset.z
         };
-        UpdateWindowTracking(elapsedTime, m_bossWindow, m_bossCamera.get(),
-            offsetPos, m_bossWindowState);
+
+        UpdateWindowTracking(elapsedTime, m_bossWindow, m_bossCamera.get(), targetPos, m_bossWindowState);
+    }
+
+    // [FIX] TRACKING BOSS CPU (BADAN)
+    if (m_boss && m_cpuWindow && m_cpuCamera)
+    {
+        DirectX::XMFLOAT3 cpuPos = m_boss->GetCPUVisualPos();
+
+        // GUNAKAN VARIABEL OFFSET BARU
+        DirectX::XMFLOAT3 targetPos = {
+                    cpuPos.x + m_cpuTrackingOffset.x,
+                    0.0f,
+                    // Cukup Z asli + Offset. HAPUS " + (cpuPos.y * 1.0f)"
+                    cpuPos.z + m_cpuTrackingOffset.z
+        };
+
+        UpdateWindowTracking(elapsedTime, m_cpuWindow, m_cpuCamera.get(), targetPos, m_cpuWindowState);
     }
 
     UpdateLensLogic();
@@ -414,7 +445,7 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
     // Render Boss Text
     if (m_boss) 
     {
-        DirectX::XMFLOAT3 basePos = m_boss->GetVisualPosition();
+        DirectX::XMFLOAT3 basePos = m_boss->GetMonitorVisualPos();
         DirectX::XMFLOAT3 finalPos = { basePos.x + m_textConfig.offset.x, basePos.y + m_textConfig.offset.y, basePos.z + m_textConfig.offset.z };
         DirectX::XMFLOAT3 radRotation = { XMConvertToRadians(m_textConfig.rotation.x), XMConvertToRadians(m_textConfig.rotation.y), XMConvertToRadians(m_textConfig.rotation.z) };
 
@@ -437,7 +468,37 @@ void SceneGameBeyond::DrawGUI()
     if (ImGui::CollapsingHeader("Window Tracking Config"))
     {
         ImGui::DragFloat("Follow Speed", &m_windowFollowSpeed, 0.1f, 0.1f, 50.0f);
-        ImGui::DragFloat3("Boss Offset XYZ", &m_bossTrackingOffset.x, 0.1f);
+
+        // Boss Monitor Offset
+        ImGui::DragFloat3("Boss Monitor Offset", &m_bossTrackingOffset.x, 0.1f);
+        
+        ImGui::DragFloat3("CPU Monitor Offset", &m_cpuTrackingOffset.x, 0.1f);
+
+        // 1. MONITOR SIZE
+        if (ImGui::DragInt2("Monitor Size (WxH)", m_bossWindowSize, 1, 100, 1000))
+        {
+            if (m_bossWindow)
+            {
+                // [FIX] Perintah OS untuk ubah ukuran fisik window
+                SDL_SetWindowSize(m_bossWindow->GetSDLWindow(), m_bossWindowSize[0], m_bossWindowSize[1]);
+
+                // Update internal buffer engine (agar tidak stretch)
+                m_bossWindow->Resize(m_bossWindowSize[0], m_bossWindowSize[1]);
+            }
+        }
+
+        // 2. CPU SIZE
+        if (ImGui::DragInt2("CPU Size (WxH)", m_cpuWindowSize, 1, 100, 1000))
+        {
+            if (m_cpuWindow)
+            {
+                // [FIX] Perintah OS untuk ubah ukuran fisik window
+                SDL_SetWindowSize(m_cpuWindow->GetSDLWindow(), m_cpuWindowSize[0], m_cpuWindowSize[1]);
+
+                // Update internal buffer engine
+                m_cpuWindow->Resize(m_cpuWindowSize[0], m_cpuWindowSize[1]);
+            }
+        }
     }
 
     if (ImGui::CollapsingHeader("3D Text Editor"))
@@ -486,7 +547,6 @@ void SceneGameBeyond::DrawGUI()
 
         if (ImGui::Button("Spawn Test Explosion"))
         {
-            // Spawn di tengah dunia (0,0)
             WindowShatterManager::Instance().TriggerExplosion(DirectX::XMFLOAT2(0.0f, 0.0f), 10);
         }
 
