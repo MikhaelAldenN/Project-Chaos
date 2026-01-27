@@ -4,6 +4,7 @@
 #include <memory>
 #include <algorithm>
 #include <windows.h>
+#include <mutex>
 #include "GameWindow.h"
 
 // Forward Declaration
@@ -57,4 +58,6 @@ private:
     std::vector<std::unique_ptr<GameWindow>> windows;
 
     GameWindow* debugWindow = nullptr;
+
+    mutable std::mutex m_windowsMutex;
 };

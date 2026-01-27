@@ -48,8 +48,14 @@ public:
     DirectX::XMFLOAT3 GetCPUVisualPos() const { return partCPU.visualPosition; }
     BossPart& GetCPUPart() { return partCPU; }
 
+    // [BARU] Monitor 2 (Side/Extra)
+    DirectX::XMFLOAT3 GetMonitor2VisualPos() const { return partMonitor2.visualPosition; }
+    BossPart& GetMonitor2Part() { return partMonitor2; }
+
+
 private:
     // Kita memecah Boss menjadi komponen-komponen
     BossPart partMonitor;
     BossPart partCPU;
+    BossPart partMonitor2;
 };

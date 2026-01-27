@@ -56,7 +56,7 @@ private:
 
     // Window & Camera Utilities (SIGNATURE BERUBAH!)
     void UpdateWindowTracking(float dt, GameWindow* win, Camera* cam,
-        const DirectX::XMFLOAT3& targetPos, WindowState& winState);
+    const DirectX::XMFLOAT3& targetPos, WindowState& winState);
     void UpdateLensLogic();
     void UpdateOffCenterProjection(Camera* targetCam, GameWindow* targetWin, float camHeight);
 
@@ -71,6 +71,11 @@ private:
     static constexpr float FIELD_OF_VIEW = 60.0f;
     static constexpr float DEFERRED_INIT_TIME = 0.2f;
     static constexpr float INTRO_DELAY = 0.5f;
+
+    mutable int m_cachedScreenWidth = 0;
+    mutable int m_cachedScreenHeight = 0;
+    mutable float m_cacheUpdateTimer = 0.0f;
+    static constexpr float CACHE_REFRESH_INTERVAL = 1.0f; // Update tiap 1 detik
 
     // Assets & Core Cameras
     std::shared_ptr<Camera> m_mainCamera;
@@ -94,6 +99,9 @@ private:
     GameWindow* m_cpuWindow = nullptr;
     std::shared_ptr<Camera> m_cpuCamera;
 
+    GameWindow* m_monitor2Window = nullptr;
+    std::shared_ptr<Camera> m_monitor2Camera;
+
     // States & Settings
     bool m_isWindowsInitialized = false;
     float m_startupTimer = 0.0f;
@@ -105,11 +113,14 @@ private:
     int m_bossWindowSize[2] = { 340, 340 };
     int m_cpuWindowSize[2] = { 186, 370 };
 
+    DirectX::XMFLOAT3 m_monitor2TrackingOffset = { 0.5f, 0.0f, -0.3f }; // Default offset
+    int m_monitor2WindowSize[2] = { 240, 210 }; // Default size
+
     // [GANTI DARI WindowPos KE WindowState]
     WindowState m_playerWindowState;
     WindowState m_bossWindowState;
-
     WindowState m_cpuWindowState;
+    WindowState m_monitor2WindowState;
 
     // Intro & Effects
     bool m_shatterTriggered = false;
@@ -119,5 +130,9 @@ private:
     Text3DConfig m_textConfig;
     std::unique_ptr<Primitive> m_primitive2D;
 
+
     bool m_gameStarted = false;
+
+    float m_priorityEnforceTimer = 0.0f;
+    static constexpr float PRIORITY_ENFORCE_INTERVAL = 0.5f;
 };

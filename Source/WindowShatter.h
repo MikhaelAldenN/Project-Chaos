@@ -39,6 +39,14 @@ public:
     [[nodiscard]] GameWindow* GetWindow() const { return m_window; }
     [[nodiscard]] Camera* GetCamera() const { return m_camera.get(); }
 
+    // [TAMBAH] Flag untuk safe destruction
+    void PrepareForDestruction() { m_preparedForDestroy = true; }
+    [[nodiscard]] bool IsPreppedForDestroy() const { return m_preparedForDestroy; }
+
+    // [TAMBAH] Manual cleanup method
+    void Cleanup();
+
+
 private:
     void UpdateVirtualState(float dt);
     void UpdateNativeState(float dt);
@@ -68,6 +76,8 @@ private:
 
     float m_shrinkRate = 90.0f;
     float m_timeAlive = 0.0f;
+
+    bool m_preparedForDestroy = false;
 };
 
 // Manager definition (tidak berubah, copy paste saja bagian class WindowShatterManager seperti sebelumnya)

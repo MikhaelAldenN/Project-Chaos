@@ -23,13 +23,20 @@ WindowShatter::WindowShatter(const char* title, DirectX::XMFLOAT2 startPos, Dire
 
 WindowShatter::~WindowShatter()
 {
-    if (m_window)
+    m_window = nullptr;
+}
+
+void WindowShatter::Cleanup()
+{
+    if (m_window && !m_preparedForDestroy)
     {
         WindowManager::Instance().DestroyWindow(m_window);
         m_window = nullptr;
+        m_preparedForDestroy = true;
     }
 }
 
+// [TAMBAH] Implementasi Update yang hilang
 void WindowShatter::Update(float dt)
 {
     if (m_markedForDestroy) return;
@@ -63,51 +70,49 @@ void WindowShatter::UpdateNativeState(float dt)
 {
     if (!m_window) return;
 
-    // Update fisika
     m_physics.velocity.x *= m_physics.deceleration;
     m_physics.velocity.y *= m_physics.deceleration;
 
-    // CRITICAL: Get current ACTUAL position
-    int curX, curY;
-    SDL_GetWindowPosition(m_window->GetSDLWindow(), &curX, &curY);
+    try {
+        // [WRAPPED] Protect SDL calls
+        int curX, curY;
+        SDL_GetWindowPosition(m_window->GetSDLWindow(), &curX, &curY);
 
-    // Calculate next position (use roundf for consistency)
-    int nextX = static_cast<int>(roundf(curX + m_physics.velocity.x * dt));
-    int nextY = static_cast<int>(roundf(curY + m_physics.velocity.y * dt));
+        int nextX = static_cast<int>(roundf(curX + m_physics.velocity.x * dt));
+        int nextY = static_cast<int>(roundf(curY + m_physics.velocity.y * dt));
 
-    // Only update if changed
-    if (nextX != curX || nextY != curY)
-    {
-        SDL_SetWindowPosition(m_window->GetSDLWindow(), nextX, nextY);
+        if (nextX != curX || nextY != curY)
+        {
+            SDL_SetWindowPosition(m_window->GetSDLWindow(), nextX, nextY);
+        }
+
+        float shrinkAmount = m_shrinkRate * dt;
+        m_width -= shrinkAmount;
+        m_height -= shrinkAmount;
+
+        if (m_width < 10.0f) m_width = 10.0f;
+        if (m_height < 10.0f) m_height = 10.0f;
+
+        SDL_SetWindowSize(m_window->GetSDLWindow(), static_cast<int>(m_width), static_cast<int>(m_height));
+
+        int realW, realH;
+        SDL_GetWindowSize(m_window->GetSDLWindow(), &realW, &realH);
+        m_window->Resize(realW, realH);
+
+        if (m_width <= 100.0f)
+        {
+            m_markedForDestroy = true;
+        }
+
+        EnforceScreenBounds();
     }
-
-    // Shrink logic
-    float shrinkAmount = m_shrinkRate * dt;
-    m_width -= shrinkAmount;
-    m_height -= shrinkAmount;
-
-    if (m_width < 10.0f) m_width = 10.0f;
-    if (m_height < 10.0f) m_height = 10.0f;
-
-    // Apply size
-    SDL_SetWindowSize(m_window->GetSDLWindow(), static_cast<int>(m_width), static_cast<int>(m_height));
-
-    // Get ACTUAL size after SDL processes it
-    int realW, realH;
-    SDL_GetWindowSize(m_window->GetSDLWindow(), &realW, &realH);
-
-    // Sync engine dengan ukuran real
-    m_window->Resize(realW, realH);
-
-    // Destruction check
-    if (m_width <= 100.0f)
-    {
+    catch (...) {
+        // [FAILSAFE] Mark for destruction if SDL fails
         m_markedForDestroy = true;
     }
-
-    EnforceScreenBounds();
 }
 
+// [TAMBAH] Implementasi TransitionToNativeWindow yang hilang
 void WindowShatter::TransitionToNativeWindow()
 {
     float screenX, screenY;
@@ -184,14 +189,29 @@ void WindowShatterManager::TriggerExplosion(DirectX::XMFLOAT2 centerWorldPos, in
 
 void WindowShatterManager::Update(float dt)
 {
+    // 1. Update semua shatter
     for (auto& shatter : m_shatters)
     {
         shatter->Update(dt);
     }
 
-    m_shatters.erase(std::remove_if(m_shatters.begin(), m_shatters.end(),
-        [](const std::unique_ptr<WindowShatter>& s) { return s->ShouldDestroy(); }),
-        m_shatters.end());
+    // 2. [BARU] Cleanup window SEBELUM erase
+    for (auto& shatter : m_shatters)
+    {
+        if (shatter->ShouldDestroy())
+        {
+            shatter->Cleanup(); // Safe cleanup window dulu
+        }
+    }
+
+    // 3. Baru hapus dari container (safe karena window sudah di-cleanup)
+    m_shatters.erase(
+        std::remove_if(m_shatters.begin(), m_shatters.end(),
+            [](const std::unique_ptr<WindowShatter>& s) {
+                return s->IsPreppedForDestroy();
+            }),
+        m_shatters.end()
+    );
 }
 
 void WindowShatterManager::SpawnSingleInstance(DirectX::XMFLOAT2 centerPos, int index, int totalCount)

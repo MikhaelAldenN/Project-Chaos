@@ -4,6 +4,7 @@
 #include "System/ImGuiRenderer.h" 
 #include "System/Graphics.h"
 #include "SceneGameBeyond.h"
+#include <mutex>
 
 void WindowManager::Update(float dt)
 {
@@ -110,6 +111,8 @@ void WindowManager::HandleResize(HWND hWnd, int width, int height)
 
 GameWindow* WindowManager::CreateGameWindow(const char* title, int width, int height)
 {
+    std::lock_guard<std::mutex> lock(m_windowsMutex); // [BARU]
+
     auto newWindow = std::make_unique<GameWindow>(title, width, height);
     GameWindow* ptr = newWindow.get();
     windows.push_back(std::move(newWindow));
@@ -118,6 +121,8 @@ GameWindow* WindowManager::CreateGameWindow(const char* title, int width, int he
 
 void WindowManager::DestroyWindow(GameWindow* targetWindow)
 {
+    std::lock_guard<std::mutex> lock(m_windowsMutex); // [BARU]
+
     windows.erase(
         std::remove_if(windows.begin(), windows.end(),
             [targetWindow](const std::unique_ptr<GameWindow>& p) {
@@ -128,5 +133,6 @@ void WindowManager::DestroyWindow(GameWindow* targetWindow)
 
 void WindowManager::ClearAll()
 {
+    std::lock_guard<std::mutex> lock(m_windowsMutex); // [BARU]
     windows.clear();
 }
