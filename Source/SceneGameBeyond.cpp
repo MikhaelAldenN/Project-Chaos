@@ -1,7 +1,8 @@
-﻿#include <imgui.h>
+﻿// SceneGameBeyond_Refactored.cpp
+#include <imgui.h>
 #include <SDL3/SDL.h>
 #include <cmath>
-#include <windows.h> // GetSystemMetrics
+#include <windows.h>
 #include "System/Graphics.h"
 #include "System/Input.h"
 #include "SceneGameBeyond.h"
@@ -10,6 +11,9 @@
 
 using namespace DirectX;
 
+// =========================================================
+// CONSTRUCTOR
+// =========================================================
 SceneGameBeyond::SceneGameBeyond()
 {
     float screenW = 1280.0f;
@@ -29,7 +33,7 @@ SceneGameBeyond::SceneGameBeyond()
 
     // 2. Setup Assets
     m_player = std::make_unique<Player>();
-    m_player->SetPosition(0.0f, 0.0f, 0.0f);
+    m_player->SetPosition(0.0f, 0.0f, -8.0f);
     m_player->SetInvertControls(true);
 
     m_blockManager = std::make_unique<BlockManager>();
@@ -40,12 +44,6 @@ SceneGameBeyond::SceneGameBeyond()
     for (int i = 0; i < 20; ++i) m_blockManager->SpawnAllyBlock(m_player.get());
 
     m_boss = std::make_unique<Boss>();
-    //m_boss->SetPosition(0.0f, 0.6f, 6.5f);
-    //m_boss->SetRotation(65.0f, 0.0f, 0.0f);
-    //m_boss->SetScale(10.0f, 10.0f, 10.0f);
-    //m_boss->SetFloatingConfig(true, 2.0f, 0.2f, { 0.0f, 0.0f, 1.0f });
-
-    m_player->SetPosition(0.0f, 0.0f, -8.0f);
 
     // 3. Sub Camera
     m_subCamera = std::make_shared<Camera>();
@@ -53,177 +51,260 @@ SceneGameBeyond::SceneGameBeyond()
     m_subCamera->SetPosition(5, 5, 5);
     m_subCamera->LookAt({ 0, 0, 0 });
 
-    // 4. Setup Primitive Renderer for Fake Shatter
+    // 4. Setup Primitive Renderer
     auto device = Graphics::Instance().GetDevice();
     m_primitive2D = std::make_unique<Primitive>(device);
 }
 
+// =========================================================
+// DESTRUCTOR
+// =========================================================
 SceneGameBeyond::~SceneGameBeyond()
 {
     WindowShatterManager::Instance().Clear();
     CameraController::Instance().ClearCamera();
-    WindowManager::Instance().DestroyWindow(m_trackingWindow);
-    WindowManager::Instance().DestroyWindow(m_lensWindow);
-    WindowManager::Instance().DestroyWindow(m_bossWindow);
-    WindowManager::Instance().DestroyWindow(m_cpuWindow);
-    WindowManager::Instance().DestroyWindow(m_monitor2Window);
+
+    // Clean up all tracked windows
+    for (auto& tracked : m_trackedWindows)
+    {
+        if (tracked->window)
+        {
+            WindowManager::Instance().DestroyWindow(tracked->window);
+        }
+    }
+    m_trackedWindows.clear();
+    m_windowLookup.clear();
 }
 
+// =========================================================
+// INITIALIZE SUB WINDOWS - SIMPLIFIED!
+// =========================================================
 void SceneGameBeyond::InitializeSubWindows()
 {
+    // =====================================================
+    // KONFIGURASI WINDOWS - EDIT DI SINI!
+    // =====================================================
+
     // 1. Player Tracking Window
-    m_trackingWindow = WindowManager::Instance().CreateGameWindow("Player View", 300, 300);
-    m_trackingWindow->SetPriority(1);
-    m_trackingWindow->SetDraggable(false);
-    m_trackingCamera = std::make_shared<Camera>();
-    m_trackingWindow->SetCamera(m_trackingCamera.get());
-
-    //// 2. Lens Window
-    //m_lensWindow = WindowManager::Instance().CreateGameWindow("Lens View", 300, 300);
-    //m_lensWindow->SetPriority(0);
-    //m_lensCamera = std::make_shared<Camera>();
-    //m_lensCamera->SetRotation(90.0f, 0.0f, 0.0f);
-    //m_lensWindow->SetCamera(m_lensCamera.get());
-
-    // 3. Boss Tracking Window
-    m_bossWindow = WindowManager::Instance().CreateGameWindow(
-        "Boss Monitor",
-        m_bossWindowSize[0],
-        m_bossWindowSize[1]
+    AddTrackedWindow(
+        { "player", "Player View", 300, 300, 1, { 0.0f, 0.0f, 0.0f } },
+        [this]() { return m_player->GetPosition(); }
     );
-    m_bossCamera = std::make_shared<Camera>();
-    m_bossWindow->SetCamera(m_bossCamera.get());
-    m_bossWindow->SetPriority(0);
 
-    m_cpuWindow = WindowManager::Instance().CreateGameWindow(
-        "System Unit",
-        m_cpuWindowSize[0],
-        m_cpuWindowSize[1]
-    );
-    m_cpuCamera = std::make_shared<Camera>();
-    m_cpuWindow->SetCamera(m_cpuCamera.get());
+    // 2. Boss Monitor 1 (Main Head)
+    if (m_boss->HasPart("monitor1"))
+    {
+        AddTrackedWindow(
+            { "monitor1", "Boss Monitor", 340, 340, 0, { -0.3f, 0.0f, 2.1f } },
+            [this]() {
+                auto pos = m_boss->GetMonitorVisualPos();
+                return XMFLOAT3{ pos.x, 0.0f, pos.z };
+            }
+        );
+    }
 
-    m_monitor2Window = WindowManager::Instance().CreateGameWindow(
-        "Side Monitor",
-        m_monitor2WindowSize[0],
-        m_monitor2WindowSize[1]
-    );
-    // Priority rendah agar di bawah monitor utama
-    m_monitor2Window->SetPriority(4);
+    // 3. CPU (Body)
+    if (m_boss->HasPart("cpu"))
+    {
+        AddTrackedWindow(
+            { "cpu", "System Unit", 186, 370, 0, { -8.2f, 0.0f, 4.0f } },
+            [this]() {
+                auto pos = m_boss->GetCPUVisualPos();
+                return XMFLOAT3{ pos.x, 0.0f, pos.z };
+            }
+        );
+    }
 
-    m_monitor2Camera = std::make_shared<Camera>();
-    m_monitor2Window->SetCamera(m_monitor2Camera.get());
+    // 4. Monitor 2 (Side Left)
+    if (m_boss->HasPart("monitor2"))
+    {
+        AddTrackedWindow(
+            { "monitor2", "Side Monitor L", 240, 210, 4, { 0.5f, 0.0f, -0.3f } },
+            [this]() {
+                auto pos = m_boss->GetMonitor2VisualPos();
+                return XMFLOAT3{ pos.x, 0.0f, pos.z };
+            }
+        );
+    }
 
-    // Center Initial Positions
-    auto CenterWindow = [&](GameWindow* win, const XMFLOAT3& pos, WindowState& winState) {
-        float screenX, screenY;
-        WorldToScreenPos(pos, screenX, screenY);
+    // 5. Monitor 3 (Side Right) - BARU! TINGGAL TAMBAH DI SINI!
+    if (m_boss->HasPart("monitor3"))
+    {
+        AddTrackedWindow(
+            { "monitor3", "Side Monitor R", 200, 200, 3, { 0.8f, 0.0f, 1.2f } },
+            [this]() {
+                auto pos = m_boss->GetMonitor3VisualPos();
+                return XMFLOAT3{ pos.x, 0.0f, pos.z };
+            }
+        );
+    }
 
-        winState.targetX = screenX - (win->GetWidth() * 0.5f);
-        winState.targetY = screenY - (win->GetHeight() * 0.5f);
+    // CARA TAMBAH WINDOW BARU:
+    // Tinggal copy paste block AddTrackedWindow di atas!
+    // Ganti name, title, size, priority, offset, dan lambda function
 
-        // Round immediately untuk posisi awal
-        winState.actualX = static_cast<int>(roundf(winState.targetX));
-        winState.actualY = static_cast<int>(roundf(winState.targetY));
-
-        SDL_SetWindowPosition(win->GetSDLWindow(), winState.actualX, winState.actualY);
-        };
-
-    if (m_player) CenterWindow(m_trackingWindow, m_player->GetPosition(), m_playerWindowState);
-    //if (m_boss) CenterWindow(m_bossWindow, m_boss->GetPosition(), m_bossWindowState);
-
-    //if (auto mainWin = Framework::Instance()->GetMainWindow()) mainWin->SetVisible(false);
+    /*
+    // Contoh: Keyboard Window
+    if (m_boss->HasPart("keyboard"))
+    {
+        AddTrackedWindow(
+            { "keyboard", "Keyboard", 400, 150, 5, { 0.0f, 0.0f, 0.0f } },
+            [this]() {
+                auto pos = m_boss->GetPartVisualPos("keyboard");
+                return XMFLOAT3{ pos.x, 0.0f, pos.z };
+            }
+        );
+    }
+    */
 
     WindowManager::Instance().EnforceWindowPriorities();
     m_isWindowsInitialized = true;
 }
 
 // =========================================================
-// SCREEN MATH UTILITIES (DRY Principle)
+// ADD TRACKED WINDOW - Helper Function
 // =========================================================
-void SceneGameBeyond::GetScreenDimensions(int& outWidth, int& outHeight) const
+bool SceneGameBeyond::AddTrackedWindow(
+    const TrackedWindowConfig& config,
+    std::function<DirectX::XMFLOAT3()> getTargetPos)
 {
-    // [BARU] Return cache jika masih valid
-    if (m_cachedScreenWidth > 0 && m_cachedScreenHeight > 0)
+    // Create window
+    GameWindow* window = WindowManager::Instance().CreateGameWindow(
+        config.title.c_str(),
+        config.width,
+        config.height
+    );
+
+    if (!window)
     {
-        outWidth = m_cachedScreenWidth;
-        outHeight = m_cachedScreenHeight;
-        return;
+        char msg[256];
+        sprintf_s(msg, "❌ Failed to create window: %s\n", config.name.c_str());
+        OutputDebugStringA(msg);
+        return false;
     }
 
-    // [FALLBACK] Query OS jika cache kosong
-    outWidth = GetSystemMetrics(SM_CXSCREEN);
-    outHeight = GetSystemMetrics(SM_CYSCREEN);
-    m_cachedScreenWidth = outWidth;
-    m_cachedScreenHeight = outHeight;
-}
+    window->SetPriority(config.priority);
+    if (config.name == "player") window->SetDraggable(false);
 
-void SceneGameBeyond::WorldToScreenPos(const DirectX::XMFLOAT3& worldPos, float& outScreenX, float& outScreenY) const
-{
-    int screenW, screenH;
-    GetScreenDimensions(screenW, screenH);
+    // Create camera
+    auto camera = std::make_shared<Camera>();
+    window->SetCamera(camera.get());
 
-    // Center of screen is World (0,0), Z axis is inverted visually
-    outScreenX = (screenW * 0.5f) + (worldPos.x * PIXEL_TO_UNIT_RATIO);
-    outScreenY = (screenH * 0.5f) - (worldPos.z * PIXEL_TO_UNIT_RATIO);
-}
+    // Create tracked window object
+    auto tracked = std::make_unique<TrackedWindow>();
+    tracked->name = config.name;
+    tracked->window = window;
+    tracked->camera = camera;
+    tracked->trackingOffset = config.trackingOffset;
+    tracked->getTargetPositionFunc = getTargetPos;
 
-float SceneGameBeyond::GetUnifiedCameraHeight() const
-{
-    int screenW, screenH;
-    GetScreenDimensions(screenW, screenH);
-    float halfFovTan = tanf(XMConvertToRadians(FIELD_OF_VIEW) * 0.5f);
-    return (screenH * 0.5f) / (PIXEL_TO_UNIT_RATIO * halfFovTan);
+    // Initialize position
+    if (getTargetPos)
+    {
+        XMFLOAT3 initialPos = getTargetPos();
+        float screenX, screenY;
+        WorldToScreenPos(initialPos, screenX, screenY);
+
+        tracked->state.targetX = screenX - (window->GetWidth() * 0.5f);
+        tracked->state.targetY = screenY - (window->GetHeight() * 0.5f);
+        tracked->state.actualX = static_cast<int>(roundf(tracked->state.targetX));
+        tracked->state.actualY = static_cast<int>(roundf(tracked->state.targetY));
+
+        SDL_SetWindowPosition(window->GetSDLWindow(),
+            tracked->state.actualX,
+            tracked->state.actualY);
+    }
+
+    // Add to lookup
+    m_windowLookup[config.name] = tracked.get();
+
+    // Add to vector
+    m_trackedWindows.push_back(std::move(tracked));
+
+    char msg[256];
+    sprintf_s(msg, "✓ Created tracked window: %s\n", config.name.c_str());
+    OutputDebugStringA(msg);
+
+    return true;
 }
 
 // =========================================================
-// CORE UPDATE LOGIC
+// GET TRACKED WINDOW
 // =========================================================
-void SceneGameBeyond::UpdateWindowTracking(float dt, GameWindow* win, Camera* cam,
-    const DirectX::XMFLOAT3& targetPos, WindowState& winState)
+TrackedWindow* SceneGameBeyond::GetTrackedWindow(const std::string& name)
 {
-    if (!win || !cam) return;
+    auto it = m_windowLookup.find(name);
+    if (it != m_windowLookup.end()) return it->second;
+    return nullptr;
+}
 
-    // [OPTIMIZATION] Cache SDL window pointer
-    SDL_Window* sdlWin = win->GetSDLWindow();
-    if (!sdlWin) return;
+// =========================================================
+// UPDATE ALL TRACKED WINDOWS - SIMPLIFIED!
+// =========================================================
+void SceneGameBeyond::UpdateAllTrackedWindows(float dt)
+{
+    for (auto& tracked : m_trackedWindows)
+    {
+        UpdateSingleWindow(dt, *tracked);
+    }
+}
 
+// =========================================================
+// UPDATE SINGLE WINDOW
+// =========================================================
+void SceneGameBeyond::UpdateSingleWindow(float dt, TrackedWindow& tracked)
+{
+    if (!tracked.window || !tracked.camera || !tracked.getTargetPositionFunc)
+        return;
+
+    // Get target position dari lambda function
+    XMFLOAT3 targetWorldPos = tracked.getTargetPositionFunc();
+
+    // Apply offset
+    targetWorldPos.x += tracked.trackingOffset.x;
+    targetWorldPos.y += tracked.trackingOffset.y;
+    targetWorldPos.z += tracked.trackingOffset.z;
+
+    // Convert to screen
     float targetScreenX, targetScreenY;
-    WorldToScreenPos(targetPos, targetScreenX, targetScreenY);
+    WorldToScreenPos(targetWorldPos, targetScreenX, targetScreenY);
 
-    float destX = targetScreenX - (win->GetWidth() * 0.5f);
-    float destY = targetScreenY - (win->GetHeight() * 0.5f);
+    float destX = targetScreenX - (tracked.window->GetWidth() * 0.5f);
+    float destY = targetScreenY - (tracked.window->GetHeight() * 0.5f);
 
+    // Smooth lerp
     float t = min(m_windowFollowSpeed * dt, 1.0f);
-    winState.targetX += (destX - winState.targetX) * t;
-    winState.targetY += (destY - winState.targetY) * t;
+    tracked.state.targetX += (destX - tracked.state.targetX) * t;
+    tracked.state.targetY += (destY - tracked.state.targetY) * t;
 
-    int newX = static_cast<int>(roundf(winState.targetX));
-    int newY = static_cast<int>(roundf(winState.targetY));
+    // Convert to integer
+    int newX = static_cast<int>(roundf(tracked.state.targetX));
+    int newY = static_cast<int>(roundf(tracked.state.targetY));
 
+    // Threshold untuk reduce SDL calls
     static constexpr int MIN_MOVEMENT_THRESHOLD = 2;
 
-    int deltaX = abs(newX - winState.actualX);
-    int deltaY = abs(newY - winState.actualY);
+    int deltaX = abs(newX - tracked.state.actualX);
+    int deltaY = abs(newY - tracked.state.actualY);
 
-    // [OPTIMIZATION] Single SDL call for position update
     if (deltaX >= MIN_MOVEMENT_THRESHOLD || deltaY >= MIN_MOVEMENT_THRESHOLD)
     {
-        // [BARU] Try-catch untuk handle SDL errors
-        try {
-            SDL_SetWindowPosition(sdlWin, newX, newY);
-            winState.actualX = newX;
-            winState.actualY = newY;
-        }
-        catch (...) {
-            // Failsafe: mark window as invalid
-            return;
-        }
+        SDL_SetWindowPosition(tracked.window->GetSDLWindow(), newX, newY);
+        tracked.state.actualX = newX;
+        tracked.state.actualY = newY;
     }
 
-    UpdateOffCenterProjection(cam, win, GetUnifiedCameraHeight());
+    // Update projection
+    UpdateOffCenterProjection(
+        tracked.camera.get(),
+        tracked.window,
+        GetUnifiedCameraHeight()
+    );
 }
 
+// =========================================================
+// UPDATE LOOP - SIMPLIFIED!
+// =========================================================
 void SceneGameBeyond::Update(float elapsedTime)
 {
     // Update screen cache
@@ -235,7 +316,7 @@ void SceneGameBeyond::Update(float elapsedTime)
         m_cacheUpdateTimer = 0.0f;
     }
 
-    // 1. Logika Menunggu Enter
+    // 1. Wait for Enter to start
     if (!m_gameStarted)
     {
         if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN))
@@ -255,7 +336,7 @@ void SceneGameBeyond::Update(float elapsedTime)
         }
     }
 
-    // 2. SINGLE DEFERRED WINDOW INIT CHECK
+    // 2. Deferred window initialization
     if (!m_isWindowsInitialized)
     {
         m_startupTimer += elapsedTime;
@@ -263,10 +344,8 @@ void SceneGameBeyond::Update(float elapsedTime)
         {
             InitializeSubWindows();
         }
-        return; // Exit early jika windows belum ready
+        return; // Exit early
     }
-
-    // --- HAPUS DUPLICATE CHECK DI SINI! (Line 279-285) ---
 
     // 3. Update Managers
     WindowShatterManager::Instance().Update(elapsedTime);
@@ -277,11 +356,15 @@ void SceneGameBeyond::Update(float elapsedTime)
     {
         if (shatter->IsNativeWindow())
         {
-            UpdateOffCenterProjection(shatter->GetCamera(), shatter->GetWindow(), unifiedHeight);
+            UpdateOffCenterProjection(
+                shatter->GetCamera(),
+                shatter->GetWindow(),
+                unifiedHeight
+            );
         }
     }
 
-    // 4. GAME LOGIC
+    // 4. Game Logic
     Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
 
     if (m_player)
@@ -299,51 +382,10 @@ void SceneGameBeyond::Update(float elapsedTime)
             m_blockManager->SpawnAllyBlock(m_player.get());
     }
 
-    // 5. WINDOW TRACKING
-    if (m_player && m_trackingWindow && m_trackingCamera)
-    {
-        UpdateWindowTracking(elapsedTime, m_trackingWindow, m_trackingCamera.get(),
-            m_player->GetPosition(), m_playerWindowState);
-    }
+    // 5. Update ALL tracked windows (SIMPLE!)
+    UpdateAllTrackedWindows(elapsedTime);
 
-    if (m_boss && m_bossWindow && m_bossCamera)
-    {
-        DirectX::XMFLOAT3 bossPos = m_boss->GetMonitorVisualPos();
-        DirectX::XMFLOAT3 targetPos = {
-            bossPos.x + m_bossTrackingOffset.x,
-            0.0f,
-            bossPos.z + m_bossTrackingOffset.z
-        };
-        UpdateWindowTracking(elapsedTime, m_bossWindow, m_bossCamera.get(),
-            targetPos, m_bossWindowState);
-    }
-
-    if (m_boss && m_cpuWindow && m_cpuCamera)
-    {
-        DirectX::XMFLOAT3 cpuPos = m_boss->GetCPUVisualPos();
-        DirectX::XMFLOAT3 targetPos = {
-            cpuPos.x + m_cpuTrackingOffset.x,
-            0.0f,
-            cpuPos.z + m_cpuTrackingOffset.z
-        };
-        UpdateWindowTracking(elapsedTime, m_cpuWindow, m_cpuCamera.get(),
-            targetPos, m_cpuWindowState);
-    }
-
-    if (m_boss && m_monitor2Window && m_monitor2Camera)
-    {
-        DirectX::XMFLOAT3 pos = m_boss->GetMonitor2VisualPos();
-        DirectX::XMFLOAT3 targetPos = {
-            pos.x + m_monitor2TrackingOffset.x,
-            0.0f,
-            pos.z + m_monitor2TrackingOffset.z
-        };
-        UpdateWindowTracking(elapsedTime, m_monitor2Window, m_monitor2Camera.get(),
-            targetPos, m_monitor2WindowState);
-    }
-
-    UpdateLensLogic();
-
+    // 6. Throttled priority enforcement
     m_priorityEnforceTimer += elapsedTime;
     if (m_priorityEnforceTimer >= PRIORITY_ENFORCE_INTERVAL)
     {
@@ -351,14 +393,189 @@ void SceneGameBeyond::Update(float elapsedTime)
         m_priorityEnforceTimer = 0.0f;
     }
 
-    // [PINDAH] EnforceWindowPriorities hanya dipanggil setelah init
-    // atau saat ada perubahan priority (jangan tiap frame!)
-    // WindowManager::Instance().EnforceWindowPriorities();
-
     HandleDebugInput();
     CameraController::Instance().Update(elapsedTime);
 }
 
+// =========================================================
+// DRAW GUI
+// =========================================================
+void SceneGameBeyond::DrawGUI()
+{
+    CameraController::Instance().DrawDebugGUI();
+
+    ImGui::Begin("Scene Info");
+    ImGui::Text("Controls: WASD (Move), N (New Window)");
+
+    if (m_player) m_player->DrawDebugGUI();
+    ImGui::Separator();
+    if (m_boss) m_boss->DrawDebugGUI();
+
+    if (ImGui::CollapsingHeader("Window Tracking Config"))
+    {
+        ImGui::DragFloat("Follow Speed", &m_windowFollowSpeed, 0.1f, 0.1f, 50.0f);
+
+        ImGui::Separator();
+        ImGui::Text("Tracked Windows: %d", (int)m_trackedWindows.size());
+
+        // Edit individual window settings
+        for (auto& tracked : m_trackedWindows)
+        {
+            ImGui::PushID(tracked->name.c_str());
+
+            if (ImGui::TreeNode(tracked->name.c_str()))
+            {
+                ImGui::DragFloat3("Offset", &tracked->trackingOffset.x, 0.1f);
+
+                int size[2] = {
+                    tracked->window->GetWidth(),
+                    tracked->window->GetHeight()
+                };
+
+                if (ImGui::DragInt2("Size", size, 1, 100, 1000))
+                {
+                    SDL_SetWindowSize(tracked->window->GetSDLWindow(), size[0], size[1]);
+                    tracked->window->Resize(size[0], size[1]);
+                }
+
+                ImGui::TreePop();
+            }
+
+            ImGui::PopID();
+        }
+    }
+
+    if (ImGui::CollapsingHeader("3D Text Editor"))
+    {
+        ImGui::InputText("Label", m_textConfig.label, sizeof(m_textConfig.label));
+        ImGui::DragFloat3("Offset", &m_textConfig.offset.x, 0.1f);
+        ImGui::DragFloat3("Rotation", &m_textConfig.rotation.x, 1.0f, -360.0f, 360.0f);
+        ImGui::DragFloat("Scale", &m_textConfig.scale, 0.001f, 0.001f, 1.0f, "%.4f");
+        ImGui::ColorEdit4("Color", &m_textConfig.color.x);
+
+        if (ImGui::Button("Reset Text"))
+        {
+            m_textConfig = Text3DConfig();
+        }
+    }
+
+    // Shatter overlay
+    ImDrawList* drawList = ImGui::GetForegroundDrawList();
+    const auto& shatters = WindowShatterManager::Instance().GetShatters();
+
+    for (const auto& shatter : shatters)
+    {
+        if (!shatter->IsNativeWindow())
+        {
+            DirectX::XMFLOAT3 worldPos = shatter->GetVirtualWorldPos();
+            DirectX::XMFLOAT2 size = shatter->GetSize();
+
+            float screenX, screenY;
+            WorldToScreenPos(worldPos, screenX, screenY);
+
+            drawList->AddRectFilled(
+                ImVec2(screenX - size.x * 0.5f, screenY - size.y * 0.5f),
+                ImVec2(screenX + size.x * 0.5f, screenY + size.y * 0.5f),
+                IM_COL32(255, 255, 255, 255)
+            );
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Window Shatter Debug"))
+    {
+        ImGui::Text("Active Shatter: %d", WindowShatterManager::Instance().GetActiveCount());
+
+        if (ImGui::Button("Spawn Test Explosion"))
+        {
+            WindowShatterManager::Instance().TriggerExplosion(DirectX::XMFLOAT2(0.0f, 0.0f), 10);
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Clear All")) WindowShatterManager::Instance().Clear();
+    }
+
+    ImGui::End();
+}
+
+// =========================================================
+// HELPER FUNCTIONS (Same as before)
+// =========================================================
+void SceneGameBeyond::GetScreenDimensions(int& outWidth, int& outHeight) const
+{
+    if (m_cachedScreenWidth > 0 && m_cachedScreenHeight > 0)
+    {
+        outWidth = m_cachedScreenWidth;
+        outHeight = m_cachedScreenHeight;
+        return;
+    }
+
+    outWidth = GetSystemMetrics(SM_CXSCREEN);
+    outHeight = GetSystemMetrics(SM_CYSCREEN);
+    m_cachedScreenWidth = outWidth;
+    m_cachedScreenHeight = outHeight;
+}
+
+void SceneGameBeyond::WorldToScreenPos(const DirectX::XMFLOAT3& worldPos,
+    float& outScreenX, float& outScreenY) const
+{
+    int screenW, screenH;
+    GetScreenDimensions(screenW, screenH);
+
+    outScreenX = (screenW * 0.5f) + (worldPos.x * PIXEL_TO_UNIT_RATIO);
+    outScreenY = (screenH * 0.5f) - (worldPos.z * PIXEL_TO_UNIT_RATIO);
+}
+
+float SceneGameBeyond::GetUnifiedCameraHeight() const
+{
+    int screenW, screenH;
+    GetScreenDimensions(screenW, screenH);
+    float halfFovTan = tanf(XMConvertToRadians(FIELD_OF_VIEW) * 0.5f);
+    return (screenH * 0.5f) / (PIXEL_TO_UNIT_RATIO * halfFovTan);
+}
+
+void SceneGameBeyond::UpdateOffCenterProjection(Camera* targetCam,
+    GameWindow* targetWin, float camHeight)
+{
+    int screenW, screenH;
+    GetScreenDimensions(screenW, screenH);
+
+    targetCam->SetPosition(0.0f, camHeight, 0.0f);
+    targetCam->LookAt({ 0.0f, 0.0f, 0.0f });
+
+    int winX, winY;
+    SDL_GetWindowPosition(targetWin->GetSDLWindow(), &winX, &winY);
+
+    int winW, winH;
+    SDL_GetWindowSize(targetWin->GetSDLWindow(), &winW, &winH);
+
+    float nearZ = 0.1f;
+    float farZ = 1000.0f;
+    float halfFovTan = tanf(XMConvertToRadians(FIELD_OF_VIEW) * 0.5f);
+
+    float halfHeight = nearZ * halfFovTan;
+    float halfWidth = halfHeight * ((float)screenW / screenH);
+
+    double screenWd = static_cast<double>(screenW);
+    double screenHd = static_cast<double>(screenH);
+    double winXd = static_cast<double>(winX);
+    double winYd = static_cast<double>(winY);
+    double winWd = static_cast<double>(winW);
+    double winHd = static_cast<double>(winH);
+
+    float l = static_cast<float>((winXd / screenWd) * 2.0 - 1.0);
+    float r = static_cast<float>(((winXd + winWd) / screenWd) * 2.0 - 1.0);
+    float t = static_cast<float>(1.0 - (winYd / screenHd) * 2.0);
+    float b = static_cast<float>(1.0 - ((winYd + winHd) / screenHd) * 2.0);
+
+    targetCam->SetOffCenterProjection(
+        l * halfWidth,
+        r * halfWidth,
+        b * halfHeight,
+        t * halfHeight,
+        nearZ,
+        farZ
+    );
+}
 
 // =========================================================
 // RENDER & GUI
@@ -501,177 +718,12 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
     }
 }
 
-void SceneGameBeyond::DrawGUI()
-{
-    CameraController::Instance().DrawDebugGUI();
 
-    ImGui::Begin("Scene Info");
-    ImGui::Text("Controls: WASD (Move), N (New Window)");
-
-    if (m_player) m_player->DrawDebugGUI();
-    ImGui::Separator();
-    if (m_boss) m_boss->DrawDebugGUI();
-
-    if (ImGui::CollapsingHeader("Window Tracking Config"))
-    {
-        ImGui::DragFloat("Follow Speed", &m_windowFollowSpeed, 0.1f, 0.1f, 50.0f);
-
-        ImGui::DragFloat3("Boss Monitor Offset", &m_bossTrackingOffset.x, 0.1f);
-        
-        ImGui::DragFloat3("CPU Monitor Offset", &m_cpuTrackingOffset.x, 0.1f);
-
-        ImGui::DragFloat3("2nd Monitor Offset", &m_monitor2TrackingOffset.x, 0.1f);
-
-        // 1. MONITOR SIZE
-        if (ImGui::DragInt2("Monitor Size (WxH)", m_bossWindowSize, 1, 100, 1000))
-        {
-            if (m_bossWindow)
-            {
-                // [FIX] Perintah OS untuk ubah ukuran fisik window
-                SDL_SetWindowSize(m_bossWindow->GetSDLWindow(), m_bossWindowSize[0], m_bossWindowSize[1]);
-
-                // Update internal buffer engine (agar tidak stretch)
-                m_bossWindow->Resize(m_bossWindowSize[0], m_bossWindowSize[1]);
-            }
-        }
-
-        // 2. CPU SIZE
-        if (ImGui::DragInt2("CPU Size (WxH)", m_cpuWindowSize, 1, 100, 1000))
-        {
-            if (m_cpuWindow)
-            {
-                // [FIX] Perintah OS untuk ubah ukuran fisik window
-                SDL_SetWindowSize(m_cpuWindow->GetSDLWindow(), m_cpuWindowSize[0], m_cpuWindowSize[1]);
-
-                // Update internal buffer engine
-                m_cpuWindow->Resize(m_cpuWindowSize[0], m_cpuWindowSize[1]);
-            }
-        }
-
-        if (ImGui::DragInt2("Side Monitor Size (WxH)", m_monitor2WindowSize, 1, 100, 1000))
-        {
-            if (m_monitor2Window)
-            {
-                SDL_SetWindowSize(m_monitor2Window->GetSDLWindow(), m_monitor2WindowSize[0], m_monitor2WindowSize[1]);
-                m_monitor2Window->Resize(m_monitor2WindowSize[0], m_monitor2WindowSize[1]);
-            }
-        }
-
-    }
-
-    if (ImGui::CollapsingHeader("3D Text Editor"))
-    {
-        ImGui::InputText("Label", m_textConfig.label, sizeof(m_textConfig.label));
-        ImGui::DragFloat3("Offset", &m_textConfig.offset.x, 0.1f);
-        ImGui::DragFloat3("Rotation", &m_textConfig.rotation.x, 1.0f, -360.0f, 360.0f);
-        ImGui::DragFloat("Scale", &m_textConfig.scale, 0.001f, 0.001f, 1.0f, "%.4f");
-        ImGui::ColorEdit4("Color", &m_textConfig.color.x);
-
-        if (ImGui::Button("Reset Text"))
-        {
-            m_textConfig = Text3DConfig(); // Reset to default struct values
-        }
-    }
-
-    // --- PERBAIKAN: RENDER SHATTER OVERLAY MENGGUNAKAN IMGUI ---
-    // Gunakan ForegroundDrawList agar digambar paling atas (seperti HUD)
-    ImDrawList* drawList = ImGui::GetForegroundDrawList();
-    const auto& shatters = WindowShatterManager::Instance().GetShatters();
-
-    for (const auto& shatter : shatters)
-    {
-        if (!shatter->IsNativeWindow()) // Jika masih berupa kotak virtual
-        {
-            DirectX::XMFLOAT3 worldPos = shatter->GetVirtualWorldPos();
-            DirectX::XMFLOAT2 size = shatter->GetSize();
-
-            // Konversi posisi World ke Screen (Pixel)
-            float screenX, screenY;
-            WorldToScreenPos(worldPos, screenX, screenY);
-
-            // Gambar kotak putih solid
-            // (Posisi X,Y dikurangi setengah ukuran agar pivot di tengah)
-            drawList->AddRectFilled(
-                ImVec2(screenX - size.x * 0.5f, screenY - size.y * 0.5f), // Kiri-Atas
-                ImVec2(screenX + size.x * 0.5f, screenY + size.y * 0.5f), // Kanan-Bawah
-                IM_COL32(255, 255, 255, 255) // Warna Putih
-            );
-        }
-    }
-
-    if (ImGui::CollapsingHeader("Window Shatter Debug"))
-    {
-        ImGui::Text("Active Shatter: %d", WindowShatterManager::Instance().GetActiveCount());
-
-        if (ImGui::Button("Spawn Test Explosion"))
-        {
-            WindowShatterManager::Instance().TriggerExplosion(DirectX::XMFLOAT2(0.0f, 0.0f), 10);
-        }
-
-        ImGui::SameLine();
-        if (ImGui::Button("Clear All")) WindowShatterManager::Instance().Clear();
-
-        if (ImGui::Button("Reset Intro"))
-        {
-            m_shatterTriggered = false;
-            m_introTimer = 0.0f;
-        }
-    }
-    ImGui::End();
-}
-
-void SceneGameBeyond::UpdateLensLogic()
-{
-    if (!m_lensWindow || !m_lensCamera) return;
-    UpdateOffCenterProjection(m_lensCamera.get(), m_lensWindow, GetUnifiedCameraHeight());
-}
-
-void SceneGameBeyond::UpdateOffCenterProjection(Camera* targetCam, GameWindow* targetWin, float camHeight)
-{
-    int screenW, screenH;
-    GetScreenDimensions(screenW, screenH);
-
-    targetCam->SetPosition(0.0f, camHeight, 0.0f);
-    targetCam->LookAt({ 0.0f, 0.0f, 0.0f });
-
-    // CRITICAL: Get ACTUAL window position from SDL (sudah stable)
-    int winX, winY;
-    SDL_GetWindowPosition(targetWin->GetSDLWindow(), &winX, &winY);
-
-    // CRITICAL: Get ACTUAL window size (bisa berubah karena resize)
-    int winW, winH;
-    SDL_GetWindowSize(targetWin->GetSDLWindow(), &winW, &winH);
-
-    float nearZ = 0.1f;
-    float farZ = 1000.0f;
-    float halfFovTan = tanf(XMConvertToRadians(FIELD_OF_VIEW) * 0.5f);
-
-    float halfHeight = nearZ * halfFovTan;
-    float halfWidth = halfHeight * ((float)screenW / screenH);
-
-    // Convert pixel to projection space [-1, 1]
-    // Use DOUBLE precision for calculation to reduce error
-    double screenWd = static_cast<double>(screenW);
-    double screenHd = static_cast<double>(screenH);
-    double winXd = static_cast<double>(winX);
-    double winYd = static_cast<double>(winY);
-    double winWd = static_cast<double>(winW);
-    double winHd = static_cast<double>(winH);
-
-    float l = static_cast<float>((winXd / screenWd) * 2.0 - 1.0);
-    float r = static_cast<float>(((winXd + winWd) / screenWd) * 2.0 - 1.0);
-    float t = static_cast<float>(1.0 - (winYd / screenHd) * 2.0);
-    float b = static_cast<float>(1.0 - ((winYd + winHd) / screenHd) * 2.0);
-
-    targetCam->SetOffCenterProjection(
-        l * halfWidth,
-        r * halfWidth,
-        b * halfHeight,
-        t * halfHeight,
-        nearZ,
-        farZ
-    );
-}
+//void SceneGameBeyond::UpdateLensLogic()
+//{
+//    if (!m_lensWindow || !m_lensCamera) return;
+//    UpdateOffCenterProjection(m_lensCamera.get(), m_lensWindow, GetUnifiedCameraHeight());
+//}
 
 void SceneGameBeyond::OnResize(int width, int height)
 {

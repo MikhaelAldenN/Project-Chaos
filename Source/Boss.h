@@ -3,11 +3,16 @@
 #include <DirectXMath.h>
 #include <memory>
 #include <string>
+#include <vector>
+#include <unordered_map>
 #include "System/ModelRenderer.h"
 
-// [BARU] Struct untuk membungkus logika setiap bagian Boss (Monitor, CPU, dll)
+// =========================================================
+// BOSS PART - Single Component
+// =========================================================
 struct BossPart
 {
+    std::string name;  // Identifier untuk part ini
     std::shared_ptr<Model> model;
 
     DirectX::XMFLOAT3 position = { 0.0f, 0.0f, 0.0f };
@@ -29,6 +34,27 @@ struct BossPart
     void Render(ModelRenderer* renderer);
 };
 
+// =========================================================
+// BOSS PART CONFIG - Data untuk Init
+// =========================================================
+struct BossPartConfig
+{
+    std::string name;
+    std::string modelPath;
+
+    DirectX::XMFLOAT3 position = { 0.0f, 0.0f, 0.0f };
+    DirectX::XMFLOAT3 rotation = { 0.0f, 0.0f, 0.0f };
+    DirectX::XMFLOAT3 scale = { 1.0f, 1.0f, 1.0f };
+
+    bool useFloating = true;
+    float floatSpeed = 2.0f;
+    float floatIntensity = 0.2f;
+    DirectX::XMFLOAT3 floatAxis = { 0.0f, 1.0f, 0.0f };
+};
+
+// =========================================================
+// BOSS CLASS - Main Manager
+// =========================================================
 class Boss
 {
 public:
@@ -39,23 +65,40 @@ public:
     void Render(ModelRenderer* renderer);
     void DrawDebugGUI();
 
-    // --- GETTERS (Untuk Tracking Window) ---
-    // Monitor (Kepala)
-    DirectX::XMFLOAT3 GetMonitorVisualPos() const { return partMonitor.visualPosition; }
-    BossPart& GetMonitorPart() { return partMonitor; }
+    // --- PART MANAGEMENT ---
+    // Tambah part baru secara dynamic
+    bool AddPart(const BossPartConfig& config);
 
-    // CPU (Badan)
-    DirectX::XMFLOAT3 GetCPUVisualPos() const { return partCPU.visualPosition; }
-    BossPart& GetCPUPart() { return partCPU; }
+    // Get part by name
+    BossPart* GetPart(const std::string& name);
 
-    // [BARU] Monitor 2 (Side/Extra)
-    DirectX::XMFLOAT3 GetMonitor2VisualPos() const { return partMonitor2.visualPosition; }
-    BossPart& GetMonitor2Part() { return partMonitor2; }
+    // Get visual position by name
+    DirectX::XMFLOAT3 GetPartVisualPos(const std::string& name) const;
 
+    // Check if part exists
+    bool HasPart(const std::string& name) const;
+
+    // Get all part names
+    std::vector<std::string> GetPartNames() const;
+
+    // --- LEGACY GETTERS (untuk backward compatibility) ---
+    DirectX::XMFLOAT3 GetMonitorVisualPos() const { return GetPartVisualPos("monitor1"); }
+    DirectX::XMFLOAT3 GetCPUVisualPos() const { return GetPartVisualPos("cpu"); }
+    DirectX::XMFLOAT3 GetMonitor2VisualPos() const { return GetPartVisualPos("monitor2"); }
+    DirectX::XMFLOAT3 GetMonitor3VisualPos() const { return GetPartVisualPos("monitor3"); }
+
+    BossPart* GetMonitorPart() { return GetPart("monitor1"); }
+    BossPart* GetCPUPart() { return GetPart("cpu"); }
+    BossPart* GetMonitor2Part() { return GetPart("monitor2"); }
+    BossPart* GetMonitor3Part() { return GetPart("monitor3"); }
 
 private:
-    // Kita memecah Boss menjadi komponen-komponen
-    BossPart partMonitor;
-    BossPart partCPU;
-    BossPart partMonitor2;
+    void InitializeDefaultParts();
+
+private:
+    // Dynamic storage untuk semua parts
+    std::vector<std::unique_ptr<BossPart>> m_parts;
+
+    // Fast lookup by name
+    std::unordered_map<std::string, BossPart*> m_partLookup;
 };
