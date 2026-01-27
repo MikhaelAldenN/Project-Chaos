@@ -23,9 +23,16 @@ Framework::Framework()
     pInstance = this;
     Graphics::Instance().Initialize();
 
-    // 1. Buat Main Window (Background)
+    // 1. Buat Main Window (Ubah jadi Fullscreen Borderless)
     auto mainWin = WindowManager::Instance().CreateGameWindow("Main Game Window", 1920, 1080);
-    // Input System tetap pakai Main Window (untuk game logic)
+    mainWin->SetPriority(0);
+
+    // [TAMBAHAN] Set agar menutupi seluruh layar tanpa border
+    SDL_SetWindowBordered(mainWin->GetSDLWindow(), false);
+    SDL_SetWindowPosition(mainWin->GetSDLWindow(), 0, 0);
+    SDL_SetWindowSize(mainWin->GetSDLWindow(), GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
+    mainWin->SetVisible(true); // Pastikan terlihat di awal
+
     Input::Instance().Initialize(mainWin->GetHWND());
 
     // ------------------------------------------------------------

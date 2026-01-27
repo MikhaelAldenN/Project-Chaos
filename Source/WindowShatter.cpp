@@ -63,48 +63,43 @@ void WindowShatter::UpdateNativeState(float dt)
 {
     if (!m_window) return;
 
-    // 1. UPDATE FISIKA (GERAKAN)
+    // Update fisika
     m_physics.velocity.x *= m_physics.deceleration;
     m_physics.velocity.y *= m_physics.deceleration;
 
+    // CRITICAL: Get current ACTUAL position
     int curX, curY;
     SDL_GetWindowPosition(m_window->GetSDLWindow(), &curX, &curY);
 
-    int nextX = curX + static_cast<int>(m_physics.velocity.x * dt);
-    int nextY = curY + static_cast<int>(m_physics.velocity.y * dt);
+    // Calculate next position (use roundf for consistency)
+    int nextX = static_cast<int>(roundf(curX + m_physics.velocity.x * dt));
+    int nextY = static_cast<int>(roundf(curY + m_physics.velocity.y * dt));
 
-    // 2. LOGIKA SHRINK (MENGECIL)
+    // Only update if changed
+    if (nextX != curX || nextY != curY)
+    {
+        SDL_SetWindowPosition(m_window->GetSDLWindow(), nextX, nextY);
+    }
+
+    // Shrink logic
     float shrinkAmount = m_shrinkRate * dt;
     m_width -= shrinkAmount;
     m_height -= shrinkAmount;
 
-    // Batas minimum logika agar tidak minus/crash
     if (m_width < 10.0f) m_width = 10.0f;
     if (m_height < 10.0f) m_height = 10.0f;
 
-    // 3. APPLY KE WINDOW FISIK (INI YANG HILANG KEMARIN!)
-    // Kita paksa Windows OS mengubah ukuran window.
+    // Apply size
     SDL_SetWindowSize(m_window->GetSDLWindow(), static_cast<int>(m_width), static_cast<int>(m_height));
 
-    // 4. SINKRONISASI (ANTI-ZOOM)
-    // Setelah kita minta resize, kita TANYA BALIK ke OS: "Dikasih ukuran berapa sebenarnya?"
-    // Karena kalau kita minta 50px tapi OS maksa 136px, kita HARUS ikut 136px.
+    // Get ACTUAL size after SDL processes it
     int realW, realH;
     SDL_GetWindowSize(m_window->GetSDLWindow(), &realW, &realH);
 
-    // Update posisi window (supaya mengecil ke tengah/center)
-    // Kita geser sedikit posisinya berdasarkan selisih ukuran agar terlihat menyusut ke pusat
-    // (Opsional, tapi bagus untuk visual)
-    SDL_SetWindowPosition(m_window->GetSDLWindow(), nextX, nextY);
-
-    // KUNCI UTAMA: Resize engine mengikuti ukuran REAL fisik window.
-    // Jika fisik 136px, engine 136px. Jika fisik 100px, engine 100px.
-    // Hasil: GAMBAR TIDAK AKAN ZOOM/STRETCH.
+    // Sync engine dengan ukuran real
     m_window->Resize(realW, realH);
 
-    // 5. LOGIKA PENGHANCURAN
-    // Kita gunakan variabel m_width (keinginan kita), bukan realW (kenyataan OS).
-    // Jadi meskipun window fisik tertahan di 136px, saat m_width menyentuh 50px, window akan hilang.
+    // Destruction check
     if (m_width <= 100.0f)
     {
         m_markedForDestroy = true;

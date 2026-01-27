@@ -28,6 +28,9 @@ public:
     void SetInputEnabled(bool enable) { isInputEnabled = enable; }
     void SetCamera(Camera* cam) { activeCamera = cam; }
 
+    void SetPosition(float x, float y, float z);
+    void SetPosition(const DirectX::XMFLOAT3& pos);
+
     // --- Breakout / Mashing System ---
     void SetBreakoutMode(bool enable);
 

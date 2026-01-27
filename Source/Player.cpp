@@ -67,6 +67,28 @@ void Player::Update(float elapsedTime, Camera* camera)
     SyncData();
 }
 
+// [BARU] Implementasi SetPosition
+void Player::SetPosition(float x, float y, float z)
+{
+    // 1. Update Posisi Fisika/Logic (CharacterMovement)
+    if (movement)
+    {
+        movement->SetPosition({ x, y, z });
+    }
+
+    // 2. [PENTING] Update Anchor Position
+    // Agar logika shake/breakout tidak mereset player ke 0,0,0
+    originalPosition = { x, y, z };
+
+    // 3. Update Visual Model Segera
+    SyncData();
+}
+
+void Player::SetPosition(const DirectX::XMFLOAT3& pos)
+{
+    SetPosition(pos.x, pos.y, pos.z);
+}
+
 void Player::SetBreakoutMode(bool enable)
 {
     isBreakoutActive = enable;

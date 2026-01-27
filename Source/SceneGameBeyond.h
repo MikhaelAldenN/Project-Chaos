@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <vector>
+#include <string>
 #include <DirectXMath.h>
 #include "Scene.h"
 #include "GameWindow.h"
@@ -25,8 +26,14 @@ struct Text3DConfig
     DirectX::XMFLOAT4 color = { 237.0f / 255.0f, 192.0f / 255.0f, 17.0f / 255.0f, 1.0f };
 };
 
-// State to track current window positions
-struct WindowPos { float x = 0.0f; float y = 0.0f; };
+// [BARU] Anti-jitter: Track actual window positions
+struct WindowState
+{
+    int actualX = 0;      // Posisi actual dari SDL (integer)
+    int actualY = 0;
+    float targetX = 0.0f; // Target smooth position (float precision)
+    float targetY = 0.0f;
+};
 
 class SceneGameBeyond : public Scene
 {
@@ -47,8 +54,9 @@ private:
     void InitializeSubWindows();
     void HandleDebugInput();
 
-    // Window & Camera Utilities
-    void UpdateWindowTracking(float dt, GameWindow* win, Camera* cam, const DirectX::XMFLOAT3& targetPos, WindowPos& winPos);
+    // Window & Camera Utilities (SIGNATURE BERUBAH!)
+    void UpdateWindowTracking(float dt, GameWindow* win, Camera* cam,
+        const DirectX::XMFLOAT3& targetPos, WindowState& winState);
     void UpdateLensLogic();
     void UpdateOffCenterProjection(Camera* targetCam, GameWindow* targetWin, float camHeight);
 
@@ -62,7 +70,7 @@ private:
     static constexpr float PIXEL_TO_UNIT_RATIO = 40.0f;
     static constexpr float FIELD_OF_VIEW = 60.0f;
     static constexpr float DEFERRED_INIT_TIME = 0.2f;
-    static constexpr float INTRO_DELAY = 0.5f; // [BARU] Delay sebelum kaca pecah
+    static constexpr float INTRO_DELAY = 0.5f;
 
     // Assets & Core Cameras
     std::shared_ptr<Camera> m_mainCamera;
@@ -89,15 +97,18 @@ private:
 
     float m_windowFollowSpeed = 100.0f;
     DirectX::XMFLOAT3 m_bossTrackingOffset = { 0.0f, 0.0f, 1.6f };
-    WindowPos m_playerWinPos;
-    WindowPos m_bossWinPos;
+
+    // [GANTI DARI WindowPos KE WindowState]
+    WindowState m_playerWindowState;
+    WindowState m_bossWindowState;
 
     // Intro & Effects
-    bool m_shatterTriggered = false; // [BARU] Flag untuk intro
-    float m_introTimer = 0.0f;       // [BARU] Timer intro
+    bool m_shatterTriggered = false;
+    float m_introTimer = 0.0f;
 
     // UI/Text
     Text3DConfig m_textConfig;
-
     std::unique_ptr<Primitive> m_primitive2D;
+
+    bool m_gameStarted = false;
 };
