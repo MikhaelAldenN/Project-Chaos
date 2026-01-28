@@ -55,6 +55,10 @@ SceneGameBeyond::SceneGameBeyond()
     m_blockManager->ClearBlocks();
     m_blockManager->ActivateFormationMode();
 
+    m_blockManager->shieldSettings.Enabled = true;
+    m_blockManager->shieldSettings.MaxTetherDistance = 8.0f; // Jarak tameng agak jauh dikit
+    m_blockManager->shootSettings.ProjectileSpeed = 20.0f;   // Kecepatan peluru
+
     for (int i = 0; i < 20; ++i) m_blockManager->SpawnAllyBlock(m_player.get());
 
     m_boss = std::make_unique<Boss>();
@@ -202,6 +206,8 @@ void SceneGameBeyond::Update(float elapsedTime)
     // 4. Game Logic
     Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
 
+    DirectX::XMFLOAT3 mousePos = GetMouseOnGround(activeCam);
+
     if (m_player)
     {
         m_player->Update(elapsedTime, activeCam);
@@ -220,42 +226,54 @@ void SceneGameBeyond::Update(float elapsedTime)
         if (m_subCamera) m_subCamera->LookAt(m_player->GetPosition());
     }
 
-    if (m_boss) m_boss->Update(elapsedTime);
-
-    if (m_blockManager)
+    // --- INTEGRASI SHOOT & SHIELD ---
+    if (m_blockManager && m_player)
     {
+        // Deteksi Input (Menggunakan WinAPI GetKeyState agar responsif untuk hold)
+        // VK_LSHIFT = Tameng, VK_SPACE = Tembak
+        bool isShielding = (GetKeyState(VK_LSHIFT) & 0x8000);
+        bool isShooting = (GetKeyState(VK_SPACE) & 0x8000);
+
+        DirectX::XMFLOAT3 playerPos = m_player->GetPosition();
+
+        // Panggil fungsi logika di BlockManager
+        m_blockManager->UpdateShieldLogic(isShielding, mousePos, playerPos, elapsedTime);
+        m_blockManager->UpdateShootLogic(isShooting, mousePos, playerPos, elapsedTime);
+
+        // Update biasa
         m_blockManager->Update(elapsedTime, activeCam, m_player.get());
 
-        // --- ANTI-FALL UNTUK TEMAN-TEMAN (BLOCKS) ---
-        // 1. Ambil referensi ke vector blocks
+        // Anti-fall untuk blocks (Kode sebelumnya)
         auto& blocks = m_blockManager->GetBlocks();
-
-        // 2. Loop semua block
-        for (auto& block : blocks)
-        {
-            // Pastikan block ada (tidak null) dan aktif
-            if (block && block->IsActive())
-            {
-                // PERHATIKAN: Akses posisi lewat GetMovement()
+        for (auto& block : blocks) {
+            if (block && block->IsActive()) {
                 auto movement = block->GetMovement();
-
                 DirectX::XMFLOAT3 bPos = movement->GetPosition();
 
-                // 3. Logic Clamping Y
+                // JIKA JATUH ATAU BERADA DI BAWAH 0
                 if (bPos.y < 0.0f)
                 {
-                    // Reset Y ke 0, pertahankan X dan Z
+                    // 1. Reset Posisi ke 0
                     movement->SetPosition({ bPos.x, 0.0f, bPos.z });
 
-                    // Opsional: Matikan velocity Y biar ga makin kenceng
-                    movement->SetVelocity({ movement->GetVelocity().x, 0.0f, movement->GetVelocity().z });
+                    // 2. HENTIKAN KECEPATAN JATUH (PENTING BIAR GAK JITTER)
+                    DirectX::XMFLOAT3 vel = movement->GetVelocity();
+                    if (vel.y < 0) {
+                        // Nol-kan kecepatan Y, tapi biarkan X dan Z (biar tetap bisa geser)
+                        movement->SetVelocity({ vel.x, 0.0f, vel.z });
+                    }
                 }
             }
         }
 
+        // Debug Spawn manual (tombol R)
         if (Input::Instance().GetKeyboard().IsTriggered('R'))
             m_blockManager->SpawnAllyBlock(m_player.get());
     }
+    // --------------------------------
+
+    if (m_boss) m_boss->Update(elapsedTime);
+
 
     // 5. Update Window System
     if (m_windowSystem)
@@ -522,4 +540,36 @@ void SceneGameBeyond::HandleDebugInput()
         addWin->SetCamera(addCam.get());
         m_additionalCameras.push_back(addCam);
     }
+}
+
+// GANTI FUNGSI INI DI SceneGameBeyond.cpp
+DirectX::XMFLOAT3 SceneGameBeyond::GetMouseOnGround(Camera* camera)
+{
+    // 1. Ambil Posisi Mouse Global (Koordinat Layar Monitor)
+    POINT pt;
+    if (!GetCursorPos(&pt)) return { 0,0,0 }; // WinAPI function
+
+    // 2. Ambil Ukuran Layar Monitor Utama (Resolusi Asli)
+    int screenW = GetSystemMetrics(SM_CXSCREEN);
+    int screenH = GetSystemMetrics(SM_CYSCREEN);
+
+    // 3. Hitung Titik Tengah Layar (Center of World 0,0,0)
+    float centerX = screenW / 2.0f;
+    float centerY = screenH / 2.0f;
+
+    // 4. Hitung Jarak Mouse dari Tengah Layar (dalam Pixel)
+    float dx = (float)pt.x - centerX;
+    float dy = (float)pt.y - centerY;
+
+    // 5. Konversi Pixel ke World Unit
+    // Kita gunakan Ratio yang sama dengan WindowTrackingSystem (40.0f)
+    // Rumus: Jarak Pixel / Ratio = Jarak World
+
+    float worldX = dx / PIXEL_TO_UNIT_RATIO;
+
+    // Note: Screen Y positif ke bawah, tapi World Z positif ke atas (tergantung kamera).
+    // Biasanya untuk top-down view desktop: Y layar turun = Z world mundur.
+    float worldZ = -dy / PIXEL_TO_UNIT_RATIO;
+
+    return DirectX::XMFLOAT3(worldX, 0.0f, worldZ);
 }

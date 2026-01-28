@@ -64,4 +64,6 @@ private:
 
     // Visuals
     std::unique_ptr<Primitive> m_primitive2D;
+
+    DirectX::XMFLOAT3 GetMouseOnGround(Camera* camera);
 };
