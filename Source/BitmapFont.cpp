@@ -1,5 +1,6 @@
 #include "BitmapFont.h"
 #include "System/Graphics.h" // Untuk mengambil Device & Context
+#include "Camera.h"
 #include <fstream>
 #include <sstream>
 
@@ -94,6 +95,88 @@ void BitmapFont::Draw(const std::string& text, float startX, float startY, float
         );
 
         // Geser kursor X untuk huruf berikutnya
+        cursorX += data.xadvance * scale;
+    }
+}
+
+void BitmapFont::Draw3D(const std::string& text, const Camera* camera,
+    DirectX::XMFLOAT3 worldPos, float scale, DirectX::XMFLOAT3 rotation, DirectX::XMFLOAT4 color)
+{
+    if (!sprite) return;
+    auto dc = Graphics::Instance().GetDeviceContext();
+
+    // -------------------------------------------------------------
+    // [FIX BLENDING] AKTIFKAN TRANSPARANSI
+    // -------------------------------------------------------------
+    auto rs = Graphics::Instance().GetRenderState();
+
+    // 1. Aktifkan Alpha Blending (Agar background hitam hilang)
+    dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+
+    // 2. (Opsional tapi PENTING untuk 3D Text) Matikan Z-Write 
+    // Agar kotak transparan teks tidak "membolongi" objek di belakangnya
+    // Gunakan DepthRead (Test ON, Write OFF) kalau ada, atau biarkan default dulu.
+    dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestOnly), 0);
+
+    // -------------------------------------------------------------
+
+    using namespace DirectX;
+
+    // Matrix Rotasi untuk seluruh teks
+    XMMATRIX matRot = XMMatrixRotationRollPitchYaw(rotation.x, rotation.y, rotation.z);
+
+    // Kursor awal (lokal)
+    float cursorX = 0.0f;
+    float cursorY = 0.0f;
+    float lineHeight = 38.0f * scale;
+
+    // Untuk centering text (Opsional, kalau mau teks rata tengah di worldPos)
+    // DirectX::XMFLOAT2 size = MeasureText(text, scale);
+    // cursorX = -size.x / 2.0f; 
+
+    for (char c : text)
+    {
+        if (c == '\n')
+        {
+            cursorX = 0.0f; // Reset X
+            cursorY -= lineHeight; // Di 3D, Y ke bawah itu negatif
+            continue;
+        }
+
+        int id = (unsigned char)c;
+        if (chars.find(id) == chars.end()) continue;
+
+        CharData& data = chars[id];
+
+        // 1. Hitung Ukuran Huruf di Dunia
+        float w = data.width * scale;
+        float h = data.height * scale;
+
+        // 2. Hitung Offset Lokal (Jarak dari titik tumpu teks ke huruf ini)
+        // Di 2D: Y positif ke bawah. Di 3D: Y positif ke atas. Kita balik Y-nya.
+        float localX = cursorX + (data.xoffset * scale) + (w / 2.0f); // +w/2 karena Sprite Render pivotnya di tengah
+        float localY = cursorY - (data.yoffset * scale) - (h / 2.0f);
+
+        // 3. Transformasi Posisi Lokal -> Posisi World (Sesuai Rotasi Teks)
+        XMFLOAT3 localPos = { localX, localY, 0.0f };
+        XMVECTOR vLocal = XMLoadFloat3(&localPos);
+        vLocal = XMVector3TransformCoord(vLocal, matRot); // Putar offsetnya
+
+        // Tambahkan ke posisi asal teks
+        XMFLOAT3 finalPos;
+        XMStoreFloat3(&finalPos, vLocal + XMLoadFloat3(&worldPos));
+
+        // 4. Render Huruf
+        sprite->Render3D(dc, camera,
+            finalPos.x, finalPos.y, finalPos.z,
+            w, h,
+            (float)data.x, (float)data.y,
+            (float)data.width, (float)data.height,
+            rotation.x, rotation.y, rotation.z, // Huruf ikut rotasi teks
+            color.x, color.y, color.z, color.w
+        );
+
+        // 5. Geser Kursor
         cursorX += data.xadvance * scale;
     }
 }

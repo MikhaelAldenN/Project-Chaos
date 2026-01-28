@@ -27,6 +27,15 @@ public:
     int GetWidth() const { return width; }
     int GetHeight() const { return height; }
 
+    void SetPriority(int p) { priority = p; }
+    int GetPriority() const { return priority; }
+
+    void SetVisible(bool visible);
+    bool IsVisible() const { return isVisible; }
+
+    void SetDraggable(bool enable) { isDraggable = enable; }
+    bool IsDraggable() const { return isDraggable; }
+
 private:
     void CreateBuffers(int w, int h);
 
@@ -43,4 +52,10 @@ private:
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  renderTargetView;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilView>  depthStencilView;
     D3D11_VIEWPORT                                  viewport = {};
+
+    int priority = 100;
+
+    bool isVisible = true;
+
+    bool isDraggable = true;
 };

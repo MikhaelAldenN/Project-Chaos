@@ -235,6 +235,33 @@ void BlockManager::Update(float elapsedTime, Camera* camera, Player* player)
             continue;
         }
 
+void BlockManager::SpawnAllyBlock(Player* player)
+{
+    if (!player) return;
+
+    // 1. Buat Blok Biasa (Standard Wall Block)
+    auto newBlock = std::make_unique<Block>();
+
+    // 2. Set Posisi Awal (Muncul dari tubuh Player seolah-olah diproduksi)
+    DirectX::XMFLOAT3 pPos = player->GetMovement()->GetPosition();
+
+    // Random sedikit biar ga numpuk
+    float offsetX = ((rand() % 100) / 100.0f - 0.5f) * 1.0f;
+    float offsetZ = ((rand() % 100) / 100.0f - 0.5f) * 1.0f;
+
+    newBlock->GetMovement()->SetPosition({ pPos.x + offsetX, 0.0f, pPos.z + offsetZ });
+
+    // 3. MASUKKAN KE VECTOR UTAMA 'blocks'
+    // Ini kuncinya! Karena dia masuk sini, dia dianggap sama seperti dinding lain.
+    // Jika 'FormationMode' aktif, blok ini akan langsung terbang mengisi slot formasi.
+    blocks.push_back(std::move(newBlock));
+}
+
+void BlockManager::UpdateFormationPositions(float elapsedTime, Player* player)
+{
+    if (!player) return;
+    DirectX::XMFLOAT3 playerPos = player->GetMovement()->GetPosition();
+    DirectX::XMFLOAT3 pVel = player->GetMovement()->GetVelocity();
         block.TrySleep(elapsedTime);
 
         if (block.IsSleeping()) 

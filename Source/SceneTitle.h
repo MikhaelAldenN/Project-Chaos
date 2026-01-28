@@ -19,6 +19,7 @@
 #include "LogConsole.h"
 #include "UILabel.h"
 #include "UIPanel.h"
+#include "CursorBlock.h"
 
 // Structs for UI Layout
 struct PanelLayout {
@@ -55,6 +56,7 @@ private:
     std::unique_ptr<LogConsole> logConsole;
     std::unique_ptr<UILabel> fileHeaderLabel;
     std::unique_ptr<UIPanel> exitPopup;
+    std::unique_ptr<CursorBlock> cursorBlock;
 
     // --- Layout & Visual Configuration ---
     PanelLayout panelStatus;

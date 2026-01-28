@@ -315,3 +315,97 @@ void Sprite::Render(ID3D11DeviceContext* dc,
 
 	dc->Draw(static_cast<UINT>(vertices.size()), 0);
 }
+
+void Sprite::Render3D(ID3D11DeviceContext* dc,
+	const Camera* camera,
+	float wx, float wy, float wz,
+	float w, float h,
+	float sx, float sy,
+	float sw, float sh,
+	float pitch, float yaw, float roll,
+	float r, float g, float b, float a) const
+{
+	using namespace DirectX;
+
+	// 1. Setup Data Vertex (Hanya 1 Quad / 4 Titik)
+	// Urutan: Kiri-Atas, Kanan-Atas, Kiri-Bawah, Kanan-Bawah (Triangle Strip)
+	Vertex vertices[4];
+
+	// Hitung UV dalam 0.0 - 1.0
+	float u0 = sx / textureWidth;
+	float v0 = sy / textureHeight;
+	float u1 = (sx + sw) / textureWidth;
+	float v1 = (sy + sh) / textureHeight;
+
+	// Set UV & Warna
+	vertices[0].texcoord = { u0, v0 }; vertices[0].color = { r, g, b, a };
+	vertices[1].texcoord = { u1, v0 }; vertices[1].color = { r, g, b, a };
+	vertices[2].texcoord = { u0, v1 }; vertices[2].color = { r, g, b, a };
+	vertices[3].texcoord = { u1, v1 }; vertices[3].color = { r, g, b, a };
+
+	// 2. Hitung Matrix
+	// Pivot huruf ada di tengah
+	XMMATRIX matWorld = XMMatrixRotationRollPitchYaw(pitch, yaw, roll) * XMMatrixTranslation(wx, wy, wz);
+	XMMATRIX matVP = XMLoadFloat4x4(&camera->GetView()) * XMLoadFloat4x4(&camera->GetProjection());
+
+	// 3. Transformasi Vertex Manual (Billboard Logic)
+	float halfW = w / 2.0f;
+	float halfH = h / 2.0f;
+
+	// Posisi lokal relatif terhadap titik tengah (wx, wy, wz)
+	XMFLOAT3 localPos[4] = {
+		{ -halfW,  halfH, 0 }, // Kiri Atas
+		{  halfW,  halfH, 0 }, // Kanan Atas
+		{ -halfW, -halfH, 0 }, // Kiri Bawah
+		{  halfW, -halfH, 0 }  // Kanan Bawah
+	};
+
+	for (int i = 0; i < 4; ++i)
+	{
+		// Local -> World
+		XMVECTOR vPos = XMLoadFloat3(&localPos[i]);
+		vPos = XMVector3TransformCoord(vPos, matWorld);
+
+		// World -> Clip Space (Wajib untuk Shader)
+		// Disini kita lakukan trik: Kita kirim posisi World ke Buffer, 
+		// tapi Shader VS kamu sepertinya mengharapkan posisi Clip Space (Screen).
+		// Karena SpriteVS.cso kamu didesain untuk 2D Screen Space (-1 s/d 1), 
+		// kita harus melakukan transformasi VP di CPU sini.
+
+		XMVECTOR vClip = XMVector3Transform(vPos, matVP);
+
+		// Perspective Divide (Penting agar menjadi -1 s/d 1 NDC)
+		// PERHATIAN: Shader 2D kamu mungkin tidak handle W component. 
+		// Idealnya kamu punya Shader 3D terpisah. 
+		// TAPI, agar kompatibel dengan Shader 2D "SpriteVS" yang ada:
+		// Kita simpan hasil proyeksi yang sudah dibagi W.
+
+		float vW = XMVectorGetW(vClip);
+		if (vW < 0.1f) vW = 0.1f; // Cegah bagi nol
+
+		XMStoreFloat3(&vertices[i].position, vClip / vW);
+
+		// Simpan Z asli untuk Depth Buffer (Optional, tergantung shader)
+		// vertices[i].position.z = XMVectorGetZ(vClip) / vW; 
+	}
+
+	// 4. Update Buffer & Draw
+	D3D11_MAPPED_SUBRESOURCE ms;
+	if (SUCCEEDED(dc->Map(vertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms)))
+	{
+		memcpy(ms.pData, vertices, sizeof(Vertex) * 4);
+		dc->Unmap(vertexBuffer.Get(), 0);
+	}
+
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	dc->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
+	dc->IASetInputLayout(inputLayout.Get());
+	dc->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+	dc->VSSetShader(vertexShader.Get(), nullptr, 0);
+	dc->PSSetShader(pixelShader.Get(), nullptr, 0);
+	dc->PSSetShaderResources(0, 1, shaderResourceView.GetAddressOf());
+
+	dc->Draw(4, 0);
+}

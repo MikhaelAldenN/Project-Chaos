@@ -33,6 +33,15 @@ public:
     bool IsInvincible() const { return m_isInvincible; }
     bool IsShieldActive() const { return isShieldActive; }
     int GetActiveBlockCount() const;
+
+    void SpawnAllyBlock(Player* player);
+    void ClearBlocks()
+    {
+        blocks.clear();
+        m_formationBlocks.clear(); // <--- TAMBAHKAN INI
+    }
+
+    const std::vector<std::unique_ptr<Block>>& GetBlocks() const { return blocks; }
     const std::vector<Block>& GetBlocks() const { return blocks; }
     std::vector<Block>& GetBlocks() { return blocks; }
 

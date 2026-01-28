@@ -1,45 +1,38 @@
 #pragma once
-
 #include <windows.h>
 #include <memory>
-#include <vector>
-
 #include "System/HighResolutionTimer.h"
 #include "GameWindow.h"
 #include "Scene.h"
-#include "BitmapFont.h" 
-#include "ResourceManager.h"
 
-// Core application class managing the main loop, window, and scene transitions.
-// Implements the Singleton pattern.
 class Framework
 {
 public:
     Framework();
     ~Framework();
-
     static Framework* Instance();
 
-    // --- Main Loop ---
     void Update(float elapsedTime);
     void Render(float elapsedTime);
-
-    // Manually steps the loop. Used during blocking window events (e.g., resizing/dragging).
     void ForceUpdateRender();
-
-    // Queues a scene switch for the next update cycle.
     void ChangeScene(std::unique_ptr<Scene> newScene);
 
-    // --- Window & Message Handling ---
+    // Helper untuk mengambil Main Window (Window index 0)
+    GameWindow* GetMainWindow() const;
+
+    // [PERBAIKAN 1] Tambahkan deklarasi HandleMessage agar bisa diakses Main.cpp
     LRESULT CALLBACK HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-    GameWindow* GetMainWindow() const { return mainWindow.get(); }
 
 private:
+    // [PERBAIKAN 2] Tambahkan deklarasi CalculateFrameStats
     void CalculateFrameStats(float dt);
 
     static Framework* pInstance;
     HighResolutionTimer timer;
-    std::unique_ptr<GameWindow> mainWindow;
+
+    // Variabel mainWindow SUDAH DIHAPUS, jadi jangan tambahkan lagi.
+    // Kita akan gunakan GetMainWindow() di cpp.
+
     std::unique_ptr<Scene> scene;
     std::unique_ptr<Scene> nextScene;
 };

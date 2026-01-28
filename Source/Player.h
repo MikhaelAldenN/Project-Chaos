@@ -26,9 +26,13 @@ public:
     void HandleMovementInput();
     void UpdateHorizontalMovement(float elapsedTime);
 
+    void HandleMovementInput(float elpasedTime);
     //bool CheckJumpInput();
     void SetInputEnabled(bool enable) { isInputEnabled = enable; }
     void SetCamera(Camera* cam) { activeCamera = cam; }
+
+    void SetPosition(float x, float y, float z);
+    void SetPosition(const DirectX::XMFLOAT3& pos);
 
     // --- Breakout / Mashing System ---
     void SetBreakoutMode(bool enable);
@@ -61,6 +65,8 @@ public:
     };
     InvincibleConfig invincibleSettings;
 
+    void SetInvertControls(bool enable) { invertControls = enable; }
+
     // --- SETTINGS ---
     struct BreakoutSettings
     {
@@ -89,6 +95,8 @@ public:
     // Color Setting
     DirectX::XMFLOAT4 color = { 0.96f, 0.80f, 0.23f, 1.0f };
 
+    void DrawDebugGUI();
+
 private:
     void UpdateBreakoutLogic(float elapsedTime);
     void UpdateEscapeLogic(float elapsedTime);
@@ -113,4 +121,14 @@ private:
     float shakeEnergy = 0.0f; 
     int gameStage = 0;
     DirectX::XMFLOAT3 originalPosition = { 0.0f, 0.0f, 0.0f }; 
+
+	bool invertControls = false;
+
+    // --- MOVEMENT SETTINGS ---
+    float moveSpeed = 3.0f;          // Kecepatan maksimal
+    float acceleration = 8.0f;      // Seberapa cepat mencapai top speed (Smoothing Start)
+    float deceleration = 10.0f;      // Seberapa cepat berhenti (Smoothing Stop)
+
+    // Menyimpan input yang sudah di-smooth (Current Velocity dalam konteks Input)
+    DirectX::XMFLOAT2 currentSmoothInput = { 0.0f, 0.0f };
 };
