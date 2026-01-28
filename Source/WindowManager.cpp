@@ -76,7 +76,7 @@ void WindowManager::RenderAll(float dt, Scene* scene)
             // [LOGIKA BARU] Tentukan warna berdasarkan scene
             if (isBeyondScene) {
                 // Abu-abu gelap (0.3f) khusus untuk SceneGameBeyond
-                win->BeginRender(0.3f, 0.3f, 0.3f);
+                win->BeginRender(0.1f, 0.1f, 0.15f);
             }
             else {
                 // Hitam murni (0.0f) untuk scene lainnya

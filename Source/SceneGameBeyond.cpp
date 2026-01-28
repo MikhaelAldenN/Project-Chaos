@@ -33,13 +33,15 @@ SceneGameBeyond::SceneGameBeyond()
 
     // 2. Setup Assets
     m_player = std::make_unique<Player>();
-    m_player->SetPosition(0.0f, 0.0f, -8.0f);
     m_player->SetInvertControls(true);
 
     m_blockManager = std::make_unique<BlockManager>();
     m_blockManager->Initialize(m_player.get());
     m_blockManager->ClearBlocks();
     m_blockManager->ActivateFormationMode();
+
+    m_player->SetPosition(0.0f, 0.0f, -8.0f);
+
 
     for (int i = 0; i < 20; ++i) m_blockManager->SpawnAllyBlock(m_player.get());
 
@@ -138,6 +140,18 @@ void SceneGameBeyond::InitializeSubWindows()
             }
         );
     }
+
+    // 5. Monitor 3 (Side Right) - BARU! TINGGAL TAMBAH DI SINI!
+    //if (m_boss->HasPart("laser1"))
+    //{
+    //    AddTrackedWindow(
+    //        { "laser1", "Laser R", 466, 821, 3, { 6.7f, 0.0f, -1.5f } },
+    //        [this]() {
+    //            auto pos = m_boss->GetLaser1VisualPos();
+    //            return XMFLOAT3{ pos.x, 0.0f, pos.z };
+    //        }
+    //    );
+    //}
 
     // CARA TAMBAH WINDOW BARU:
     // Tinggal copy paste block AddTrackedWindow di atas!
@@ -626,35 +640,19 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
     if (!camera) return;
 
     auto dc = Graphics::Instance().GetDeviceContext();
-    auto primRenderer = Graphics::Instance().GetPrimitiveRenderer();
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
-
-    // =========================================================
-    // 1. Render Grid (SEMBUNYIKAN SAAT INTRO)
-    // =========================================================
-    if (m_gameStarted) // [UBAH DI SINI] Hanya gambar grid kalau game sudah mulai
-    {
-        primRenderer->DrawGrid(20, 1);
-        primRenderer->Render(dc, camera->GetView(), camera->GetProjection(), D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    }
-
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
 
-    // =========================================================
-    // 2. Render Models
-    // =========================================================
-
-    // PLAYER: Selalu digambar (Intro maupun Game)
+    // 1. Render Models
     if (m_player) m_player->Render(modelRenderer);
 
-    // BOSS MODEL: SEMBUNYIKAN SAAT INTRO (Hanya Text yang mau ditampilkan)
-    if (m_boss && m_gameStarted) // [UBAH DI SINI]
+    // 2. BOSS RENDER (Pass Camera untuk Text!)
+    if (m_boss && m_gameStarted)
     {
-        m_boss->Render(modelRenderer);
+        m_boss->Render(modelRenderer, camera); // <--- PERUBAHAN UTAMA
     }
 
-    // BLOCKS: SEMBUNYIKAN SAAT INTRO
-    if (m_blockManager && m_gameStarted) // [UBAH DI SINI]
+    if (m_blockManager && m_gameStarted)
     {
         for (const auto& block : m_blockManager->GetBlocks())
         {

@@ -153,4 +153,6 @@ private:
     // UI/Text
     Text3DConfig m_textConfig;
     std::unique_ptr<Primitive> m_primitive2D;
+
+    DirectionalLight m_light;
 };
