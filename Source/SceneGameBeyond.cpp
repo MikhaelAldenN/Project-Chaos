@@ -1,5 +1,4 @@
-﻿#include <imgui.h>
-#include <SDL3/SDL.h>
+﻿#include <SDL3/SDL.h>
 #include <cmath>
 #include <windows.h>
 #include "System/Graphics.h"
@@ -8,29 +7,32 @@
 #include "WindowManager.h"
 #include "Framework.h"
 
+#include <imgui.h>
+
 using namespace DirectX;
 
-// Definisi Konstanta Lokal (Karena sebelumnya hilang)
+// Definisi Konstanta Lokal
 #define FIELD_OF_VIEW 60.0f
 #define DEFERRED_INIT_TIME 0.2f
 #define CACHE_REFRESH_INTERVAL 1.0f
 #define PRIORITY_ENFORCE_INTERVAL 2.0f
-#define PIXEL_TO_UNIT_RATIO 40.0f // Sesuaikan dengan settingan di WindowTrackingSystem
+#define PIXEL_TO_UNIT_RATIO 40.0f
 
 // =========================================================
 // CONSTRUCTOR
 // =========================================================
 SceneGameBeyond::SceneGameBeyond()
 {
+    ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
+
     float screenW = 1280.0f;
     float screenH = 720.0f;
 
-    // 0. Setup Window System (PENTING: Init System Dulu!)
+    // 0. Setup Window System
     m_windowSystem = std::make_unique<WindowTrackingSystem>();
     m_windowSystem->SetPixelToUnitRatio(PIXEL_TO_UNIT_RATIO);
     m_windowSystem->SetFOV(FIELD_OF_VIEW);
 
-    // Helper untuk hitung tinggi kamera dari System
     float unifiedHeight = m_windowSystem->GetUnifiedCameraHeight();
 
     // 1. Setup Main Camera
@@ -73,11 +75,9 @@ SceneGameBeyond::SceneGameBeyond()
 // =========================================================
 SceneGameBeyond::~SceneGameBeyond()
 {
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     WindowShatterManager::Instance().Clear();
     CameraController::Instance().ClearCamera();
-
-    // Tidak perlu loop m_trackedWindows manual, 
-    // karena m_windowSystem destructor akan membersihkannya otomatis.
 }
 
 // =========================================================
@@ -85,14 +85,15 @@ SceneGameBeyond::~SceneGameBeyond()
 // =========================================================
 void SceneGameBeyond::InitializeSubWindows()
 {
-    // =====================================================
-    // MENGGUNAKAN m_windowSystem UNTUK MEMBUAT WINDOW
-    // =====================================================
+    if (!m_windowSystem || !m_player || !m_boss) return;
 
     // 1. Player Tracking Window
     m_windowSystem->AddTrackedWindow(
         { "player", "Player View", 300, 300, 1, { 0.0f, 0.0f, 0.0f } },
-        [this]() { return m_player->GetPosition(); }
+        [this]() -> DirectX::XMFLOAT3 {
+            if (m_player) return m_player->GetPosition();
+            return DirectX::XMFLOAT3(0, 0, 0);
+        }
     );
 
     // 2. Boss Monitor 1 (Main Head)
@@ -100,9 +101,12 @@ void SceneGameBeyond::InitializeSubWindows()
     {
         m_windowSystem->AddTrackedWindow(
             { "monitor1", "Boss Monitor", 340, 340, 0, { -0.3f, 0.0f, 2.1f } },
-            [this]() {
-                auto pos = m_boss->GetMonitorVisualPos();
-                return XMFLOAT3{ pos.x, 0.0f, pos.z };
+            [this]() -> DirectX::XMFLOAT3 {
+                if (m_boss) {
+                    auto pos = m_boss->GetMonitorVisualPos();
+                    return XMFLOAT3{ pos.x, 0.0f, pos.z };
+                }
+                return DirectX::XMFLOAT3(0, 0, 0);
             }
         );
     }
@@ -112,9 +116,12 @@ void SceneGameBeyond::InitializeSubWindows()
     {
         m_windowSystem->AddTrackedWindow(
             { "cpu", "System Unit", 186, 370, 0, { -8.2f, 0.0f, 4.0f } },
-            [this]() {
-                auto pos = m_boss->GetCPUVisualPos();
-                return XMFLOAT3{ pos.x, 0.0f, pos.z };
+            [this]() -> DirectX::XMFLOAT3 {
+                if (m_boss) {
+                    auto pos = m_boss->GetCPUVisualPos();
+                    return XMFLOAT3{ pos.x, 0.0f, pos.z };
+                }
+                return DirectX::XMFLOAT3(0, 0, 0);
             }
         );
     }
@@ -124,9 +131,12 @@ void SceneGameBeyond::InitializeSubWindows()
     {
         m_windowSystem->AddTrackedWindow(
             { "monitor2", "Side Monitor L", 240, 210, 4, { 0.5f, 0.0f, -0.3f } },
-            [this]() {
-                auto pos = m_boss->GetMonitor2VisualPos();
-                return XMFLOAT3{ pos.x, 0.0f, pos.z };
+            [this]() -> DirectX::XMFLOAT3 {
+                if (m_boss) {
+                    auto pos = m_boss->GetMonitor2VisualPos();
+                    return XMFLOAT3{ pos.x, 0.0f, pos.z };
+                }
+                return DirectX::XMFLOAT3(0, 0, 0);
             }
         );
     }
@@ -136,9 +146,12 @@ void SceneGameBeyond::InitializeSubWindows()
     {
         m_windowSystem->AddTrackedWindow(
             { "monitor3", "Side Monitor R", 200, 200, 3, { 0.8f, 0.0f, 1.2f } },
-            [this]() {
-                auto pos = m_boss->GetMonitor3VisualPos();
-                return XMFLOAT3{ pos.x, 0.0f, pos.z };
+            [this]() -> DirectX::XMFLOAT3 {
+                if (m_boss) {
+                    auto pos = m_boss->GetMonitor3VisualPos();
+                    return XMFLOAT3{ pos.x, 0.0f, pos.z };
+                }
+                return DirectX::XMFLOAT3(0, 0, 0);
             }
         );
     }
@@ -163,7 +176,7 @@ void SceneGameBeyond::Update(float elapsedTime)
                 if (m_player)
                 {
                     auto pPos = m_player->GetPosition();
-                    WindowShatterManager::Instance().TriggerExplosion({ pPos.x, pPos.z }, 12);
+                    WindowShatterManager::Instance().TriggerExplosion({ pPos.x, pPos.z }, 8);
                 }
                 WindowManager::Instance().DestroyWindow(mainWin);
             }
@@ -180,33 +193,11 @@ void SceneGameBeyond::Update(float elapsedTime)
         {
             InitializeSubWindows();
         }
-        return; // Exit early
+        return;
     }
 
     // 3. Update Managers
     WindowShatterManager::Instance().Update(elapsedTime);
-
-    // Update Shatter Projections (Masih perlu helper dari system)
-    float unifiedHeight = m_windowSystem->GetUnifiedCameraHeight();
-
-    // Untuk Shatter, kita perlu sedikit trick karena dia bukan "TrackedWindow" standar
-    // Kita pinjam helper logic dari system untuk menghitung proyeksi
-    for (const auto& shatter : WindowShatterManager::Instance().GetShatters())
-    {
-        if (shatter->IsNativeWindow())
-        {
-            // PENTING: UpdateOffCenterProjection sekarang private di System.
-            // Opsi 1: Jadikan public di System (RECOMMENDED).
-            // Opsi 2: Scene meminta system melakukan kalkulasi (agak rumit).
-
-            // Asumsi kamu sudah mengubah UpdateOffCenterProjection menjadi PUBLIC di WindowTrackingSystem.h
-            // Jika belum, buka WindowTrackingSystem.h dan pindahkan UpdateOffCenterProjection ke bagian public.
-            // m_windowSystem->UpdateOffCenterProjection(shatter->GetCamera(), shatter->GetWindow(), unifiedHeight);
-
-            // *JIKA ERROR DI SINI*: Beritahu saya, kita akan buat helper public di System.
-            // Untuk sementara saya komen agar compile jalan dulu, logika shatter mungkin agak aneh sementara.
-        }
-    }
 
     // 4. Game Logic
     Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
@@ -214,6 +205,18 @@ void SceneGameBeyond::Update(float elapsedTime)
     if (m_player)
     {
         m_player->Update(elapsedTime, activeCam);
+
+        DirectX::XMFLOAT3 pos = m_player->GetPosition();
+        if (pos.y < 0.0f)
+        {
+            pos.y = 0.0f;
+            m_player->SetPosition(pos.x, pos.y, pos.z);
+
+            // Opsional: Jika player punya variabel velocity/gravity, 
+            // sebaiknya di-reset ke 0 disini agar tidak menumpuk, 
+            // tapi SetPosition saja biasanya cukup untuk visual.
+        }
+
         if (m_subCamera) m_subCamera->LookAt(m_player->GetPosition());
     }
 
@@ -222,12 +225,43 @@ void SceneGameBeyond::Update(float elapsedTime)
     if (m_blockManager)
     {
         m_blockManager->Update(elapsedTime, activeCam, m_player.get());
+
+        // --- ANTI-FALL UNTUK TEMAN-TEMAN (BLOCKS) ---
+        // 1. Ambil referensi ke vector blocks
+        auto& blocks = m_blockManager->GetBlocks();
+
+        // 2. Loop semua block
+        for (auto& block : blocks)
+        {
+            // Pastikan block ada (tidak null) dan aktif
+            if (block && block->IsActive())
+            {
+                // PERHATIKAN: Akses posisi lewat GetMovement()
+                auto movement = block->GetMovement();
+
+                DirectX::XMFLOAT3 bPos = movement->GetPosition();
+
+                // 3. Logic Clamping Y
+                if (bPos.y < 0.0f)
+                {
+                    // Reset Y ke 0, pertahankan X dan Z
+                    movement->SetPosition({ bPos.x, 0.0f, bPos.z });
+
+                    // Opsional: Matikan velocity Y biar ga makin kenceng
+                    movement->SetVelocity({ movement->GetVelocity().x, 0.0f, movement->GetVelocity().z });
+                }
+            }
+        }
+
         if (Input::Instance().GetKeyboard().IsTriggered('R'))
             m_blockManager->SpawnAllyBlock(m_player.get());
     }
 
-    // 5. UPDATE WINDOW SYSTEM (Menggantikan UpdateAllTrackedWindows)
-    m_windowSystem->Update(elapsedTime);
+    // 5. Update Window System
+    if (m_windowSystem)
+    {
+        m_windowSystem->Update(elapsedTime);
+    }
 
     // 6. Throttled priority enforcement
     m_priorityEnforceTimer += elapsedTime;
@@ -241,110 +275,144 @@ void SceneGameBeyond::Update(float elapsedTime)
     CameraController::Instance().Update(elapsedTime);
 }
 
+static void DrawTransformControl(const char* label, DirectX::XMFLOAT3* pos)
+{
+    if (ImGui::TreeNode(label))
+    {
+        if (pos) ImGui::DragFloat3("Position", &pos->x, 0.1f);
+        ImGui::TreePop();
+    }
+}
+
 // =========================================================
-// DRAW GUI
+// DRAW GUI - SCENE BEYOND (VERSI FIX)
 // =========================================================
 void SceneGameBeyond::DrawGUI()
 {
-    CameraController::Instance().DrawDebugGUI();
+    // Setting Window (Posisi & Ukuran awal)
+    ImGui::SetNextWindowSize(ImVec2(400, 600), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
 
-    ImGui::Begin("Scene Info");
-    ImGui::Text("Controls: WASD (Move), N (New Window)");
-
-    if (m_player) m_player->DrawDebugGUI();
-    ImGui::Separator();
-    if (m_boss) m_boss->DrawDebugGUI();
-
-    if (ImGui::CollapsingHeader("Window Tracking Config"))
+    if (ImGui::Begin("BEYOND INSPECTOR", nullptr))
     {
-        // Menggunakan setter System, bukan variabel lokal
-        static float speed = 100.0f;
-        if (ImGui::DragFloat("Follow Speed", &speed, 0.1f, 0.1f, 50.0f)) {
-            m_windowSystem->SetFollowSpeed(speed);
-        }
-
-        ImGui::Separator();
-
-        // Akses windows via System getter
-        const auto& windows = m_windowSystem->GetWindows();
-        ImGui::Text("Tracked Windows: %d", (int)windows.size());
-
-        for (auto& tracked : windows) // tracked adalah unique_ptr<TrackedWindow>
+        if (ImGui::BeginTabBar("BeyondTabs"))
         {
-            ImGui::PushID(tracked->name.c_str());
-
-            if (ImGui::TreeNode(tracked->name.c_str()))
+            // --- TAB 1: GENERAL & SHATTER ---
+            if (ImGui::BeginTabItem("General"))
             {
-                ImGui::DragFloat3("Offset", &tracked->trackingOffset.x, 0.1f);
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), "GAME STATE");
+                ImGui::Checkbox("Game Started", &m_gameStarted);
+                ImGui::Checkbox("Shatter Triggered", &m_shatterTriggered);
 
-                int size[2] = {
-                    tracked->window->GetWidth(),
-                    tracked->window->GetHeight()
-                };
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "WINDOW SHATTER FX");
 
-                if (ImGui::DragInt2("Size", size, 1, 100, 1000))
+                // Tombol Manual Ledakan Kaca
+                if (ImGui::Button("TRIGGER EXPLOSION", ImVec2(-1, 40)))
                 {
-                    SDL_SetWindowSize(tracked->window->GetSDLWindow(), size[0], size[1]);
-                    tracked->window->Resize(size[0], size[1]);
+                    if (m_player) {
+                        auto pPos = m_player->GetPosition();
+                        WindowShatterManager::Instance().TriggerExplosion({ pPos.x, pPos.z }, 12);
+                        m_shatterTriggered = true;
+                    }
                 }
 
-                ImGui::TreePop();
+                ImGui::Spacing();
+                if (ImGui::Button("Clear All Shards")) {
+                    WindowShatterManager::Instance().Clear();
+                }
+
+                // Info jumlah pecahan
+                auto& shards = WindowShatterManager::Instance().GetShatters();
+                ImGui::Text("Active Shards: %d", (int)shards.size());
+
+                ImGui::EndTabItem();
             }
 
-            ImGui::PopID();
+            // --- TAB 2: OBJECTS ---
+            if (ImGui::BeginTabItem("Objects"))
+            {
+                ImGui::Spacing();
+                ImGui::Text("Scene Objects:");
+                ImGui::Separator();
+
+                // 1. PLAYER
+                if (m_player)
+                {
+                    // Kita ambil posisi saja karena GetRotation tidak ada
+                    XMFLOAT3 pos = m_player->GetPosition();
+
+                    ImGui::PushID("Ply");
+                    if (ImGui::TreeNode("Player"))
+                    {
+                        if (ImGui::DragFloat3("Position", &pos.x, 0.1f)) {
+                            m_player->SetPosition(pos.x, pos.y, pos.z);
+                        }
+                        ImGui::TreePop();
+                    }
+                    ImGui::PopID();
+                }
+
+                // 2. BOSS
+                if (m_boss)
+                {
+                    ImGui::Spacing();
+                    if (ImGui::TreeNode("Boss Controller"))
+                    {
+                        ImGui::TextDisabled("Boss Logic Active");
+                        ImGui::TreePop();
+                    }
+                }
+
+                ImGui::EndTabItem();
+            }
+
+            // --- TAB 3: WINDOW SYSTEM ---
+            if (ImGui::BeginTabItem("Window System"))
+            {
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "TRACKED WINDOWS");
+                ImGui::Separator();
+
+                if (m_windowSystem)
+                {
+                    ImGui::Text("Unified FOV: %.1f", FIELD_OF_VIEW);
+                    ImGui::TextDisabled("Multi-window system active.");
+                }
+                else
+                {
+                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "Window System is NULL");
+                }
+
+                ImGui::EndTabItem();
+            }
+
+            // --- TAB 4: CAMERA ---
+            if (ImGui::BeginTabItem("Camera"))
+            {
+                if (m_mainCamera)
+                {
+                    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "MAIN CAMERA");
+
+                    XMFLOAT3 pos = m_mainCamera->GetPosition();
+                    if (ImGui::DragFloat3("Position", &pos.x, 0.1f)) {
+                        m_mainCamera->SetPosition(pos);
+                    }
+
+                    // HAPUS BAGIAN LOOKAT KARENA ERROR
+                    // Kita cuma tampilkan tombol reset
+                    if (ImGui::Button("Reset Camera Pos")) {
+                        m_mainCamera->SetPosition(0, 5, 0);
+                    }
+                }
+
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
         }
     }
-
-    if (ImGui::CollapsingHeader("3D Text Editor"))
-    {
-        ImGui::InputText("Label", m_textConfig.label, sizeof(m_textConfig.label));
-        ImGui::DragFloat3("Offset", &m_textConfig.offset.x, 0.1f);
-        ImGui::DragFloat3("Rotation", &m_textConfig.rotation.x, 1.0f, -360.0f, 360.0f);
-        ImGui::DragFloat("Scale", &m_textConfig.scale, 0.001f, 0.001f, 1.0f, "%.4f");
-        ImGui::ColorEdit4("Color", &m_textConfig.color.x);
-
-        if (ImGui::Button("Reset Text"))
-        {
-            m_textConfig = Text3DConfig();
-        }
-    }
-
-    // Shatter overlay
-    ImDrawList* drawList = ImGui::GetForegroundDrawList();
-    const auto& shatters = WindowShatterManager::Instance().GetShatters();
-
-    for (const auto& shatter : shatters)
-    {
-        if (!shatter->IsNativeWindow())
-        {
-            DirectX::XMFLOAT3 worldPos = shatter->GetVirtualWorldPos();
-            DirectX::XMFLOAT2 size = shatter->GetSize();
-
-            float screenX, screenY;
-            // Gunakan Helper dari System
-            m_windowSystem->WorldToScreenPos(worldPos, screenX, screenY);
-
-            drawList->AddRectFilled(
-                ImVec2(screenX - size.x * 0.5f, screenY - size.y * 0.5f),
-                ImVec2(screenX + size.x * 0.5f, screenY + size.y * 0.5f),
-                IM_COL32(255, 255, 255, 255)
-            );
-        }
-    }
-
-    if (ImGui::CollapsingHeader("Window Shatter Debug"))
-    {
-        ImGui::Text("Active Shatter: %d", WindowShatterManager::Instance().GetActiveCount());
-
-        if (ImGui::Button("Spawn Test Explosion"))
-        {
-            WindowShatterManager::Instance().TriggerExplosion(DirectX::XMFLOAT2(0.0f, 0.0f), 10);
-        }
-
-        ImGui::SameLine();
-        if (ImGui::Button("Clear All")) WindowShatterManager::Instance().Clear();
-    }
-
     ImGui::End();
 }
 
@@ -411,35 +479,32 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
     const auto& shatters = WindowShatterManager::Instance().GetShatters();
     for (const auto& shatter : shatters)
     {
+        if (!shatter) continue;
+
         if (!shatter->IsNativeWindow())
         {
             DirectX::XMFLOAT3 worldPos = shatter->GetVirtualWorldPos();
             DirectX::XMFLOAT2 size = shatter->GetSize();
 
             float screenX, screenY;
-            // Gunakan Helper System
-            m_windowSystem->WorldToScreenPos(worldPos, screenX, screenY);
+            if (m_windowSystem)
+            {
+                m_windowSystem->WorldToScreenPos(worldPos, screenX, screenY);
 
-            m_primitive2D->Rect(
-                screenX, screenY,
-                size.x, size.y,
-                size.x * 0.5f, size.y * 0.5f,
-                0.0f,
-                1.0f, 1.0f, 1.0f, 1.0f
-            );
+                m_primitive2D->Rect(
+                    screenX, screenY,
+                    size.x, size.y,
+                    size.x * 0.5f, size.y * 0.5f,
+                    0.0f,
+                    1.0f, 1.0f, 1.0f, 1.0f
+                );
+            }
         }
     }
 
-    // Render Primitive yang baru ditumpuk
     m_primitive2D->Render(dc);
 
     dc->OMSetDepthStencilState(Graphics::Instance().GetRenderState()->GetDepthStencilState(DepthState::TestAndWrite), 0);
-
-    // Render Boss Text Override (Opsional)
-    if (m_boss)
-    {
-        // ... Logika custom text lama kamu di sini ...
-    }
 }
 
 void SceneGameBeyond::OnResize(int width, int height)

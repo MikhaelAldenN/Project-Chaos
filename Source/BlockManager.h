@@ -4,12 +4,12 @@
 #include <DirectXMath.h>
 #include <memory>
 #include <vector>
+#include <functional>
 #include "Ball.h"
 #include "Block.h"
 #include "Camera.h"
 #include "Player.h"
 #include "System/ModelRenderer.h"
-#include <functional>
 
 class BlockManager
 {
@@ -24,11 +24,15 @@ public:
     void Render(ModelRenderer* renderer);
     void CheckCollision(Ball* ball);
     bool CheckEnemyCollision(Ball* ball);
+
+    // Setters
     void ActivateFormationMode() { isFormationActive = true; }
     void ActivateInvincibility(float duration) { m_isInvincible = true; m_invincibleTimer = duration; }
     void AddBlockFromItem(const DirectX::XMFLOAT3& startPos);
     void SetOnBlockHitCallback(std::function<void()> callback) { m_onBlockHitCallback = callback; }
     void TriggerBlockBreakParams() { if (m_onBlockHitCallback) m_onBlockHitCallback(); }
+
+    // Getters
     bool IsFormationActive() const { return isFormationActive; }
     bool IsInvincible() const { return m_isInvincible; }
     bool IsShieldActive() const { return isShieldActive; }
@@ -38,12 +42,12 @@ public:
     void ClearBlocks()
     {
         blocks.clear();
-        m_formationBlocks.clear(); // <--- TAMBAHKAN INI
+        m_formationBlocks.clear();
     }
 
+    // Accessors for CollisionManager (Adjusted for unique_ptr)
     const std::vector<std::unique_ptr<Block>>& GetBlocks() const { return blocks; }
-    const std::vector<Block>& GetBlocks() const { return blocks; }
-    std::vector<Block>& GetBlocks() { return blocks; }
+    std::vector<std::unique_ptr<Block>>& GetBlocks() { return blocks; }
 
     // Color Setting
     DirectX::XMFLOAT4 globalBlockColor = { 0.96f, 0.80f, 0.23f, 1.0f };
@@ -52,81 +56,43 @@ public:
     // Formation Settings
     struct FormationConfig
     {
-        // Random Wiggle Settings 
-        float wiggleMinDistSq   = 2.5f;     // Blocks closer than this won't wiggle (1.5m^2)
-        float wiggleAmplitude   = 0.5f;     // How far they move (Distance)
-        float noiseFrequency    = 3.5f;     // How fast the "who moves" cycle changes
-        float noiseThreshold    = 0.8f;     // Higher = fewer blocks move at once
-        float intensityScale    = 1.5f;     // Strength multiplier
-        float oscSpeedX         = 10.0f;    // Shake speed X
-        float oscSpeedZ         = 8.0f;     // Shake speed Z
-
-        // Movement Smoothing Settings 
-        float speedFront        = 30.0f;    // Speed when clearing path (Front)
-        float speedTrail        = 20.0f;    // Speed when following (Back)
-        float speedBase         = 20.0f;    // Speed for side blocks
-        float catchUpThreshold  = 0.25f;    // If lagging behind > 0.5m, boost speed
-        float catchUpMult       = 0.6f;     // Speed multiplier when lagging
+        float wiggleMinDistSq = 2.5f;
+        float wiggleAmplitude = 0.5f;
+        float noiseFrequency = 3.5f;
+        float noiseThreshold = 0.8f;
+        float intensityScale = 1.5f;
+        float oscSpeedX = 10.0f;
+        float oscSpeedZ = 8.0f;
+        float speedFront = 30.0f;
+        float speedTrail = 20.0f;
+        float speedBase = 20.0f;
+        float catchUpThreshold = 0.25f;
+        float catchUpMult = 0.6f;
     };
     FormationConfig m_config;
 
     // Shield settings
     struct ShieldConfig {
         bool  Enabled = true;
-        float MaxTetherDistance = 5.0f;     // How far from player the shield can go
-        float MoveSpeed = 6.0f;             // Lerp speed for blocks
-        float Spacing = 1.4f;               // Gap between shield blocks
-        float ArrivalThresholdSq = 0.1f;    // Distance squared to consider "Arrived" (for collision)
-        float WakeUpDistanceSq = 0.05f;     // Min movement to wake up a block
+        float MaxTetherDistance = 5.0f;
+        float MoveSpeed = 6.0f;
+        float Spacing = 1.4f;
+        float ArrivalThresholdSq = 0.1f;
+        float WakeUpDistanceSq = 0.05f;
     };
     ShieldConfig shieldSettings;
 
     struct ShootConfig {
-        float Cooldown = 0.5f;              // Time between shots
-        float ProjectileSpeed = 10.0f;      // Speed of the block
-        float MaxRange = 100.0f;            // Max distance before auto-destroy 
+        float Cooldown = 0.5f;
+        float ProjectileSpeed = 10.0f;
+        float MaxRange = 100.0f;
     };
     ShootConfig shootSettings;
 
 private:
-    // Helper grid 
     void CalculateShieldOffsets();
     void InitPrioritySlots();
     void UpdateFormationPositions(float elapsedTime, Player* player);
-
-    std::vector<Block> blocks;
-    std::vector<Block*> m_formationBlocks;
-
-    // Grid Configuration
-    int m_rows = 8;                         // Row Blocks
-    int m_columns = 8;                      // Column Blocks
-    float m_xSpacing = 0.7f;                // Space between blocks X
-    float m_zSpacing = 0.7f;                // Space between blocks Z
-    float m_zOffsetWorld = 2.5f;            // Start Z position in World
-
-    // Collision Setting (Physics Size)
-    float m_blockHalfSize = 0.3f;           // Hitbox size (Half-extent)
-
-    // Player Spawn Adjustments
-    float m_playerSpawnOffsetX = -0.5f;     // X Value Player
-
-    // Formation State
-    bool isFormationActive = false;
-    bool CheckWallObstruction(const DirectX::XMFLOAT3& start, const DirectX::XMFLOAT3& end, DirectX::XMFLOAT3& outSlideVelocity);
-    float formationSpacing = 1.0f;
-    float m_formationTime = 0.0f;
-
-    // Shield State
-    bool isShieldActive = false;
-    bool wasShieldActive = false;
-    std::vector<DirectX::XMFLOAT3> m_shieldOffsets;
-    std::vector<Block*> m_shieldAssignments;
-
-    std::vector<DirectX::XMFLOAT3> m_sortedOffsets;
-
-    // Shoot State
-    float m_shootTimer = 0.0f;
-    bool m_wasShootPressed = false;
 
     // Helper for distance calculation
     float GetDistSq(const DirectX::XMFLOAT3& a, const DirectX::XMFLOAT3& b) const
@@ -137,10 +103,41 @@ private:
         return dx * dx + dy * dy + dz * dz;
     }
 
-	// Callback when a block is hit
+    // STORAGE: Changed to unique_ptr to match your intended logic
+    std::vector<std::unique_ptr<Block>> blocks;
+
+    // Non-owning pointers for formation logic
+    std::vector<Block*> m_formationBlocks;
+
+    // Grid Configuration
+    int m_rows = 8;
+    int m_columns = 8;
+    float m_xSpacing = 0.7f;
+    float m_zSpacing = 0.7f;
+    float m_zOffsetWorld = 2.5f;
+    float m_blockHalfSize = 0.3f;
+    float m_playerSpawnOffsetX = -0.5f;
+
+    // Formation State
+    bool isFormationActive = false;
+    float formationSpacing = 1.0f;
+    float m_formationTime = 0.0f;
+
+    // Shield State
+    bool isShieldActive = false;
+    bool wasShieldActive = false;
+    std::vector<DirectX::XMFLOAT3> m_shieldOffsets;
+    std::vector<Block*> m_shieldAssignments;
+    std::vector<DirectX::XMFLOAT3> m_sortedOffsets;
+
+    // Shoot State
+    float m_shootTimer = 0.0f;
+    bool m_wasShootPressed = false;
+
+    // Callback
     std::function<void()> m_onBlockHitCallback = nullptr;
 
-    // Invinvible State
+    // Invincible State
     bool m_isInvincible = false;
     float m_invincibleTimer = 0.0f;
 };

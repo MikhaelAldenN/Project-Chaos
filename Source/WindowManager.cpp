@@ -19,6 +19,7 @@ void WindowManager::EnforceWindowPriorities()
 
     for (auto& win : windows)
     {
+        // Skip debug window (walaupun nullptr tetap aman)
         if (win.get() != debugWindow && win->GetPriority() < 100)
         {
             sortedWindows.push_back(win.get());
@@ -39,7 +40,7 @@ void WindowManager::EnforceWindowPriorities()
         hInsertAfter = win->GetHWND();
     }
 
-    // Force Debug Window to be always on top
+    // Force Debug Window (Kodingan lama, dibiarkan aman karena debugWindow nullptr)
     if (debugWindow && debugWindow->IsVisible())
     {
         SetWindowPos(debugWindow->GetHWND(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
@@ -49,51 +50,38 @@ void WindowManager::EnforceWindowPriorities()
 void WindowManager::RenderAll(float dt, Scene* scene)
 {
     if (!scene) return;
+
+    // 1. UPDATE DATA IMGUI
+    // Panggil DrawGUI agar tombol/menu dimasukkan ke antrian render ImGui
     scene->DrawGUI();
 
-    bool vSyncTriggered = false;
-
-    // [PERBAIKAN] Cek apakah scene saat ini adalah SceneGameBeyond
-    // Jangan lupa #include "SceneGameBeyond.h" di bagian atas file jika belum ada
+    // Cek Scene
     bool isBeyondScene = (dynamic_cast<SceneGameBeyond*>(scene) != nullptr);
 
+    // 2. RENDER WINDOW (Sekarang cuma ada 1 Main Window)
     for (auto& win : windows)
     {
         if (!win->IsVisible()) continue;
 
-        bool isMaster = (win.get() == debugWindow);
-
-        if (isMaster)
-        {
-            // Debug Window tetap gelap (hitam/dark gray)
-            win->BeginRender(0.1f, 0.1f, 0.1f);
-            ImGuiRenderer::Render(Graphics::Instance().GetDeviceContext());
-            win->EndRender(1);
-            vSyncTriggered = true;
+        // [SET BACKGROUND COLOR]
+        if (isBeyondScene) {
+            win->BeginRender(0.1f, 0.1f, 0.15f); // Abu-abu kebiruan
         }
-        else
-        {
-            // [LOGIKA BARU] Tentukan warna berdasarkan scene
-            if (isBeyondScene) {
-                // Abu-abu gelap (0.3f) khusus untuk SceneGameBeyond
-                win->BeginRender(0.1f, 0.1f, 0.15f);
-            }
-            else {
-                // Hitam murni (0.0f) untuk scene lainnya
-                win->BeginRender(0.0f, 0.0f, 0.0f);
-            }
-
-            scene->OnResize(win->GetWidth(), win->GetHeight());
-            scene->Render(dt, win->GetCamera());
-            win->EndRender(0);
+        else {
+            win->BeginRender(0.0f, 0.0f, 0.0f); // Hitam pekat
         }
-    }
 
-    // Failsafe VSync logic...
-    if (!vSyncTriggered)
-    {
+        // A. RENDER GAME SCENE 3D
+        scene->OnResize(win->GetWidth(), win->GetHeight());
+        scene->Render(dt, win->GetCamera());
+
+        // B. [PENTING] RENDER IMGUI SEBAGAI OVERLAY
+        // Ini kuncinya! Kita gambar UI di atas Scene 3D yang sudah digambar sebelumnya.
         ImGuiRenderer::Render(Graphics::Instance().GetDeviceContext());
-        SDL_Delay(16);
+
+        // C. SWAP BUFFERS (VSync Nyala = 1)
+        // Kita nyalakan VSync di sini karena ini sekarang Window Utama
+        win->EndRender(1);
     }
 }
 
@@ -111,7 +99,7 @@ void WindowManager::HandleResize(HWND hWnd, int width, int height)
 
 GameWindow* WindowManager::CreateGameWindow(const char* title, int width, int height)
 {
-    std::lock_guard<std::mutex> lock(m_windowsMutex); // [BARU]
+    std::lock_guard<std::mutex> lock(m_windowsMutex);
 
     auto newWindow = std::make_unique<GameWindow>(title, width, height);
     GameWindow* ptr = newWindow.get();
@@ -121,7 +109,7 @@ GameWindow* WindowManager::CreateGameWindow(const char* title, int width, int he
 
 void WindowManager::DestroyWindow(GameWindow* targetWindow)
 {
-    std::lock_guard<std::mutex> lock(m_windowsMutex); // [BARU]
+    std::lock_guard<std::mutex> lock(m_windowsMutex);
 
     windows.erase(
         std::remove_if(windows.begin(), windows.end(),
@@ -133,6 +121,6 @@ void WindowManager::DestroyWindow(GameWindow* targetWindow)
 
 void WindowManager::ClearAll()
 {
-    std::lock_guard<std::mutex> lock(m_windowsMutex); // [BARU]
+    std::lock_guard<std::mutex> lock(m_windowsMutex);
     windows.clear();
 }

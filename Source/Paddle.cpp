@@ -98,11 +98,13 @@ void Paddle::UpdateAI(float elapsedTime, Ball* ball, BlockManager* blockManager)
         {
             float closestDist = (std::numeric_limits<float>::max)();
 
+            // [PERBAIKAN DI SINI] Menggunakan const auto& block (yang isinya unique_ptr)
             for (const auto& block : blockManager->GetBlocks())
             {
-                if (!block.IsActive()) continue;
+                // [FIX] Gunakan tanda panah (->) untuk mengakses unique_ptr
+                if (!block->IsActive()) continue;
 
-                XMFLOAT3 bPos = block.GetMovement()->GetPosition();
+                XMFLOAT3 bPos = block->GetMovement()->GetPosition();
                 float dx = bPos.x - myPos.x;
                 float dz = bPos.z - myPos.z;
                 float dist = (dx * dx) + (dz * dz);
@@ -198,12 +200,12 @@ void Paddle::CheckCollision(Ball* ball)
 
             // Calculate bounce angle based on where it hit the paddle
             float relativeIntersectX = (ballPos.x - padPos.x) / paddleHalfWidth;
-            float bounceAngle = relativeIntersectX * maxBounceAngle; 
+            float bounceAngle = relativeIntersectX * maxBounceAngle;
 
             float newVx = speed * sinf(bounceAngle);
             float newVz = speed * cosf(bounceAngle);
 
-            newVz = fabsf(newVz); 
+            newVz = fabsf(newVz);
 
             ball->SetVelocity({ newVx, 0.0f, newVz });
         }

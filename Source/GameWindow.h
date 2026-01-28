@@ -36,6 +36,8 @@ public:
     void SetDraggable(bool enable) { isDraggable = enable; }
     bool IsDraggable() const { return isDraggable; }
 
+    void* GetHandle() const { return m_hWnd; }
+
 private:
     void CreateBuffers(int w, int h);
 
@@ -58,4 +60,6 @@ private:
     bool isVisible = true;
 
     bool isDraggable = true;
+
+    HWND m_hWnd;
 };

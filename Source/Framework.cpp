@@ -1,6 +1,6 @@
 ﻿#include <memory>
 #include <sstream>
-#include <iostream> // [DEBUG]
+#include <iostream> 
 #include <imgui.h>
 #include <SDL3/SDL.h>
 
@@ -23,41 +23,33 @@ Framework::Framework()
     pInstance = this;
     Graphics::Instance().Initialize();
 
-    // 1. Buat Main Window (Ubah jadi Fullscreen Borderless)
+    // 1. Buat Main Window (Fullscreen Borderless)
     auto mainWin = WindowManager::Instance().CreateGameWindow("Main Game Window", 1920, 1080);
     mainWin->SetPriority(0);
 
-    // [TAMBAHAN] Set agar menutupi seluruh layar tanpa border
     SDL_SetWindowBordered(mainWin->GetSDLWindow(), false);
     SDL_SetWindowPosition(mainWin->GetSDLWindow(), 0, 0);
     SDL_SetWindowSize(mainWin->GetSDLWindow(), GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
-    mainWin->SetVisible(true); // Pastikan terlihat di awal
+    mainWin->SetVisible(true);
 
     Input::Instance().Initialize(mainWin->GetHWND());
 
     // ------------------------------------------------------------
-    // 2. [FIX] BUAT DEDICATED DEBUG WINDOW LEBIH AWAL
+    // [HAPUS] BAGIAN PEMBUATAN WINDOW DEBUG DIHAPUS
     // ------------------------------------------------------------
-
-    // UBAH UKURAN DI SINI (Contoh: Lebar 800, Tinggi 600)
-    int debugW = 400;
+    /* int debugW = 400;
     int debugH = 600;
     auto debugWin = WindowManager::Instance().CreateGameWindow("DEBUG CONSOLE", debugW, debugH);
-
     debugWin->SetPriority(0);
     WindowManager::Instance().SetDebugWindow(debugWin);
-
-    // [BARU] ATUR POSISI WINDOW DI SINI (X, Y)
-    // Contoh: Pojok Kiri Atas (X=50, Y=50)
-    // Kamu bisa ganti angka 50, 50 dengan koordinat layar yang kamu mau.
     SDL_SetWindowPosition(debugWin->GetSDLWindow(), 50, 50);
-
+    */
 
     // ------------------------------------------------------------
-    // 3. [FIX] INIT IMGUI MENGGUNAKAN DEBUG WINDOW!
+    // [UBAH] INIT IMGUI MENGGUNAKAN MAIN WINDOW!
     // ------------------------------------------------------------
-    // Ini penting agar skala koordinat mouse ImGui sesuai dengan ukuran window console (600x400)
-    ImGuiRenderer::Initialize(debugWin->GetHWND(), Graphics::Instance().GetDevice(), Graphics::Instance().GetDeviceContext());
+    // Sekarang ImGui akan menempel pada Main Window, bukan Debug Window.
+    ImGuiRenderer::Initialize(mainWin->GetHWND(), Graphics::Instance().GetDevice(), Graphics::Instance().GetDeviceContext());
 
     // Load Resources
     ResourceManager::Instance().LoadFont("VGA_FONT", "Data/Font/IBM_VGA_32px_0.png", "Data/Font/IBM_VGA_32px.fnt");
@@ -66,7 +58,6 @@ Framework::Framework()
     scene = std::make_unique<SceneGameBeyond>();
 }
 
-// ... (Sisa fungsi Destructor, Update, Render, dll SAMA SEPERTI SEBELUMNYA) ...
 Framework::~Framework()
 {
     scene.reset();
@@ -96,8 +87,7 @@ void Framework::Update(float elapsedTime)
         GameWindow* mainWin = GetMainWindow();
         if (mainWin && scene)
         {
-            // Logic set camera scene transition...
-            // (Simpan logika camera set yang lama di sini)
+            // Logic transition...
         }
     }
 
@@ -128,24 +118,20 @@ void Framework::CalculateFrameStats(float dt)
     frames++;
     timeAccumulator += dt;
 
-    // Update setiap 1 detik
     if (timeAccumulator >= 1.0f)
     {
         float fps = static_cast<float>(frames);
         std::ostringstream outs;
         outs.precision(6);
 
-        // Format Teks Title Bar
-        outs << "DEBUG CONSOLE | FPS: " << fps << " (" << (1000.0f / fps) << " ms)";
+        // [UBAH] Set text ke Main Window karena Debug Window sudah tidak ada
+        // (Meskipun fullscreen borderless biasanya tidak punya title bar, tapi tetap aman dipanggil)
+        outs << "BEYOND BREAKER | FPS: " << fps << " (" << (1000.0f / fps) << " ms)";
 
-        // [UBAH TARGET KE DEBUG WINDOW]
-        // Kita ambil pointer Debug Window dari Manager
-        GameWindow* debugWin = WindowManager::Instance().GetDebugWindow();
-
-        if (debugWin)
+        GameWindow* mainWin = GetMainWindow();
+        if (mainWin)
         {
-            // Ubah judul window Debug Console
-            SetWindowTextA(debugWin->GetHWND(), outs.str().c_str());
+            SetWindowTextA(mainWin->GetHWND(), outs.str().c_str());
         }
 
         frames = 0;
@@ -155,8 +141,6 @@ void Framework::CalculateFrameStats(float dt)
 
 LRESULT CALLBACK Framework::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    // Ini mungkin tidak dipanggil secara otomatis lagi oleh Windows karena kita pakai Hook di GameWindow.
-    // Tapi kita simpan sebagai helper jika diperlukan.
     GameWindow* mainWin = GetMainWindow();
     if (mainWin && hWnd == mainWin->GetHWND())
     {
