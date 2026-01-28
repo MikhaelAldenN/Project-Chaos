@@ -201,6 +201,7 @@
     <ClInclude Include="Source\UIPanel.h" />
     <ClInclude Include="Source\WindowManager.h" />
     <ClInclude Include="Source\WindowShatter.h" />
+    <ClInclude Include="Source\WindowTrackingSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="External\imgui-docking\imgui.cpp" />
@@ -274,6 +275,7 @@
     <ClCompile Include="Source\UIPanel.cpp" />
     <ClCompile Include="Source\WindowManager.cpp" />
     <ClCompile Include="Source\WindowShatter.cpp" />
+    <ClCompile Include="Source\WindowTrackingSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Basic.hlsli" />

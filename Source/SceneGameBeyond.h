@@ -17,49 +17,21 @@
 #include "WindowShatter.h"
 #include "Primitive.h"
 
-// =========================================================
-// WINDOW STATE - Track position untuk smooth movement
-// =========================================================
-struct WindowState
-{
-    int actualX = 0;
-    int actualY = 0;
-    float targetX = 0.0f;
-    float targetY = 0.0f;
-};
+// INCLUDE SYSTEM BARU DI SINI
+// System ini sudah membawa definisi TrackedWindow, WindowState, dll.
+#include "WindowTrackingSystem.h" 
 
 // =========================================================
-// TRACKED WINDOW CONFIG - Data untuk init window
+// HAPUS BAGIAN INI DARI FILE KAMU (DELETE SEKARANG!)
 // =========================================================
-struct TrackedWindowConfig
-{
-    std::string name;              // Identifier (e.g., "player", "monitor1", "cpu")
-    std::string title;             // Window title
-    int width = 300;
-    int height = 300;
-    int priority = 0;
-
-    DirectX::XMFLOAT3 trackingOffset = { 0.0f, 0.0f, 0.0f };
-};
+/* struct WindowState { ... }  <-- HAPUS
+struct TrackedWindowConfig { ... } <-- HAPUS
+struct TrackedWindow { ... } <-- HAPUS
+*/
+// Karena struct di atas sudah ada di dalam WindowTrackingSystem.h
 
 // =========================================================
-// TRACKED WINDOW - Single window instance
-// =========================================================
-struct TrackedWindow
-{
-    std::string name;
-    GameWindow* window = nullptr;
-    std::shared_ptr<Camera> camera;
-    WindowState state;
-    DirectX::XMFLOAT3 trackingOffset = { 0.0f, 0.0f, 0.0f };
-
-    // Function pointer untuk get target position
-    // Bisa point ke Player, Boss Part, atau custom logic
-    std::function<DirectX::XMFLOAT3()> getTargetPositionFunc;
-};
-
-// =========================================================
-// TEXT 3D CONFIG
+// TEXT 3D CONFIG (Ini boleh tetap di sini atau dipindah, bebas)
 // =========================================================
 struct Text3DConfig
 {
@@ -71,7 +43,7 @@ struct Text3DConfig
 };
 
 // =========================================================
-// SCENE GAME BEYOND - Refactored
+// SCENE GAME BEYOND
 // =========================================================
 class SceneGameBeyond : public Scene
 {
@@ -87,72 +59,34 @@ public:
     [[nodiscard]] Camera* GetMainCamera() const { return m_mainCamera.get(); }
 
 private:
-    // Core Functions
     void RenderScene(float elapsedTime, Camera* camera);
     void InitializeSubWindows();
     void HandleDebugInput();
 
-    // Window Management (SIMPLIFIED!)
-    bool AddTrackedWindow(const TrackedWindowConfig& config,
-        std::function<DirectX::XMFLOAT3()> getTargetPos);
-    void UpdateAllTrackedWindows(float dt);
-    void UpdateSingleWindow(float dt, TrackedWindow& tracked);
-
-    TrackedWindow* GetTrackedWindow(const std::string& name);
-
-    // Camera Utilities
-    void UpdateOffCenterProjection(Camera* targetCam, GameWindow* targetWin, float camHeight);
-
-    // Screen Math Helpers
-    void WorldToScreenPos(const DirectX::XMFLOAT3& worldPos, float& outScreenX, float& outScreenY) const;
-    void GetScreenDimensions(int& outWidth, int& outHeight) const;
-    [[nodiscard]] float GetUnifiedCameraHeight() const;
-
 private:
-    // Constants
-    static constexpr float PIXEL_TO_UNIT_RATIO = 40.0f;
-    static constexpr float FIELD_OF_VIEW = 60.0f;
-    static constexpr float DEFERRED_INIT_TIME = 0.2f;
-    static constexpr float INTRO_DELAY = 0.5f;
-
-    // Cache
-    mutable int m_cachedScreenWidth = 0;
-    mutable int m_cachedScreenHeight = 0;
-    mutable float m_cacheUpdateTimer = 0.0f;
-    static constexpr float CACHE_REFRESH_INTERVAL = 1.0f;
-
-    // Assets & Core Cameras
+    // Core Components
     std::shared_ptr<Camera> m_mainCamera;
     std::shared_ptr<Camera> m_subCamera;
     std::vector<std::shared_ptr<Camera>> m_additionalCameras;
 
+    // Game Objects
     std::unique_ptr<Player> m_player;
     std::unique_ptr<Boss> m_boss;
     std::unique_ptr<BlockManager> m_blockManager;
 
-    // =====================================================
-    // TRACKED WINDOWS - All windows managed here!
-    // =====================================================
-    std::vector<std::unique_ptr<TrackedWindow>> m_trackedWindows;
-    std::unordered_map<std::string, TrackedWindow*> m_windowLookup;
+    // SYSTEM
+    std::unique_ptr<WindowTrackingSystem> m_windowSystem;
 
-    // States & Settings
+    // States
     bool m_isWindowsInitialized = false;
-    float m_startupTimer = 0.0f;
-    float m_windowFollowSpeed = 100.0f;
-
-    // Priority Enforcement Throttle
-    float m_priorityEnforceTimer = 0.0f;
-    static constexpr float PRIORITY_ENFORCE_INTERVAL = 0.5f;
-
-    // Intro & Effects
-    bool m_shatterTriggered = false;
-    float m_introTimer = 0.0f;
     bool m_gameStarted = false;
+    bool m_shatterTriggered = false;
 
-    // UI/Text
+    // Timers
+    float m_startupTimer = 0.0f;
+    float m_priorityEnforceTimer = 0.0f;
+
+    // Visuals
     Text3DConfig m_textConfig;
     std::unique_ptr<Primitive> m_primitive2D;
-
-    DirectionalLight m_light;
 };

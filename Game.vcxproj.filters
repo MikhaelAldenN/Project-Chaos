@@ -258,6 +258,9 @@
     <ClCompile Include="Source\BossTerminal.cpp">
       <Filter>Source\Character\Boss</Filter>
     </ClCompile>
+    <ClCompile Include="Source\WindowTrackingSystem.cpp">
+      <Filter>Source\Window</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\AnimationController.h">
@@ -523,6 +526,9 @@
     </ClInclude>
     <ClInclude Include="Source\BossTerminal.h">
       <Filter>Source\Character\Boss</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\WindowTrackingSystem.h">
+      <Filter>Source\Window</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
