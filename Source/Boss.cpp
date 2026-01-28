@@ -9,176 +9,6 @@
 using namespace DirectX;
 
 // =========================================================
-// LOCAL TEXT DATABASE (Encapsulated)
-// =========================================================
-namespace {
-    namespace BossTextDB {
-        const std::vector<std::string> SYSTEM_LOGS = {
-            "SYS_CORE: Calculating trajectory...",
-            "BUFFER_OVERFLOW: Memory leak detected at 0x4F",
-            "TARGET_LOCK: Player entity found",
-            "COMPILING: Shader_Destruction.hlsl",
-            "WARNING: GPU Temperature Critical",
-            "NETWORK: Connecting to External World...",
-            "ANALYSIS: 4th Wall Integrity 45%",
-            "USER_DATA: Fetching browser history...",
-            "ERROR: Soul not found",
-            "INIT: Boss_Pattern_Alpha.exe",
-            "DEBUG: Infinite loop in ai_logic.cpp",
-            "RENDERING: High Poly Mesh...",
-            "> sudo rm -rf /player",
-            "UPLOAD: Virus_Package_v2.zip",
-            "SCANNING: Vulnerabilities..."
-        };
-
-        std::string GetRandomLog() {
-            int idx = rand() % SYSTEM_LOGS.size();
-            return "> " + SYSTEM_LOGS[idx];
-        }
-    }
-}
-
-// =========================================================
-// BOSS TERMINAL IMPLEMENTATION
-// =========================================================
-
-void BossTerminal::Initialize(int maxLines)
-{
-    m_maxLines = maxLines;
-
-    // Pre-allocate memory untuk menghindari fragmentasi saat runtime
-    m_buffer.resize(maxLines);
-    for (auto& entry : m_buffer) {
-        entry.text.reserve(64);
-        entry.isDone = true;
-    }
-}
-
-void BossTerminal::AddLog(const std::string& message)
-{
-    // Circular Buffer Logic (Sama seperti LogConsole)
-    BossLogEntry& entry = m_buffer[m_writeIndex];
-
-    entry.text = message;
-    entry.visibleChars = 0;
-    entry.typeTimer = 0.0f;
-    entry.isDone = false;
-
-    m_writeIndex = (m_writeIndex + 1) % m_maxLines;
-    if (m_activeCount < m_maxLines) m_activeCount++;
-}
-
-void BossTerminal::Update(float dt)
-{
-    // 1. Auto Spawn Logs
-    m_spawnTimer += dt;
-    if (m_spawnTimer >= m_nextSpawnDelay)
-    {
-        m_spawnTimer = 0.0f;
-        m_nextSpawnDelay = 0.2f + (static_cast<float>(rand()) / RAND_MAX) * 1.5f; // Random 0.2s - 1.7s
-        AddLog(BossTextDB::GetRandomLog());
-    }
-
-    // 2. Typewriter Effect
-    int startIndex = (m_activeCount < m_maxLines) ? 0 : m_writeIndex;
-
-    for (int i = 0; i < m_activeCount; ++i)
-    {
-        int idx = (startIndex + i) % m_maxLines;
-        BossLogEntry& entry = m_buffer[idx];
-
-        if (!entry.isDone)
-        {
-            entry.typeTimer += dt;
-            while (entry.typeTimer >= m_typeSpeed)
-            {
-                entry.typeTimer -= m_typeSpeed;
-                entry.visibleChars++;
-                if (entry.visibleChars >= entry.text.length())
-                {
-                    entry.visibleChars = (int)entry.text.length();
-                    entry.isDone = true;
-                    break;
-                }
-            }
-        }
-    }
-}
-
-void BossTerminal::Render(BitmapFont* font, Camera* camera,
-    const DirectX::XMFLOAT3& parentPos,
-    const DirectX::XMFLOAT3& parentRot)
-{
-    if (!font || m_activeCount == 0) return;
-
-    // 1. Ambil Rotasi Parent (Monitor) + Offset Rotasi Manual
-    XMVECTOR vParentRot = XMLoadFloat3(&parentRot);
-
-    // [BARU] Konversi Rotation Offset (Degree) ke Radian
-    XMVECTOR vOffsetRotDeg = XMLoadFloat3(&rotationOffset);
-    XMVECTOR vOffsetRotRad = XMVectorScale(vOffsetRotDeg, XM_PI / 180.0f);
-
-    // Gabungkan rotasi: Parent (sudah radian dari Boss::Render) + Offset
-    // Catatan: parentRot dari Boss::Render sudah dikonversi ke Radian sebelumnya? 
-    // Mari kita cek pemanggilnya. 
-    // Di Boss::Render kamu mengirim: XMConvertToRadians(monitor->rotation.x)...
-    // JADI parentRot ISINYA SUDAH RADIAN.
-
-    XMVECTOR vFinalRotRad = XMVectorAdd(vParentRot, vOffsetRotRad);
-
-    // 2. Buat Matriks Rotasi
-    XMMATRIX matRot = XMMatrixRotationRollPitchYawFromVector(vFinalRotRad);
-
-    // 3. Hitung Posisi Awal (Offset Position ikut berputar mengikuti rotasi monitor)
-    XMVECTOR vOffsetPos = XMLoadFloat3(&offset);
-    XMVECTOR vRotatedOffsetPos = XMVector3TransformCoord(vOffsetPos, matRot);
-    XMVECTOR vFinalPos = XMVectorAdd(XMLoadFloat3(&parentPos), vRotatedOffsetPos);
-
-    XMFLOAT3 startDrawPos;
-    XMStoreFloat3(&startDrawPos, vFinalPos);
-
-    // Simpan rotasi final untuk dipakai Draw3D (Simpan dalam bentuk XMFLOAT3 Radian)
-    XMFLOAT3 finalRotRadOfs;
-    XMStoreFloat3(&finalRotRadOfs, vFinalRotRad);
-
-    // ... (Setup Buffer & Vektor Down) ...
-    static char drawBuf[128];
-    int startIndex = (m_activeCount < m_maxLines) ? 0 : m_writeIndex;
-
-    XMFLOAT3 downAxisLocal = { 0.0f, -1.0f, 0.0f };
-    XMVECTOR vDownLocal = XMLoadFloat3(&downAxisLocal);
-    XMVECTOR vDownWorld = XMVector3TransformNormal(vDownLocal, matRot);
-
-    float actualSpacing = lineSpacing;
-
-    for (int i = 0; i < m_activeCount; ++i)
-    {
-        int idx = (startIndex + i) % m_maxLines;
-        const BossLogEntry& entry = m_buffer[idx];
-
-        if (entry.visibleChars > 0)
-        {
-            int len = entry.visibleChars;
-            if (len >= 127) len = 127;
-            memcpy(drawBuf, entry.text.c_str(), len);
-            drawBuf[len] = '\0';
-
-            // Hitung posisi baris
-            float dist = (float)i * actualSpacing;
-            XMVECTOR vLineOffset = XMVectorScale(vDownWorld, dist);
-            XMVECTOR vLinePos = XMVectorAdd(XMLoadFloat3(&startDrawPos), vLineOffset);
-
-            XMFLOAT3 finalLinePos;
-            XMStoreFloat3(&finalLinePos, vLinePos);
-
-            // [UPDATE] Gunakan finalRotRadOfs agar teks ikut miring sesuai settingan baru
-            font->Draw3D(drawBuf, camera, finalLinePos, scale, finalRotRadOfs, color);
-        }
-    }
-}
-
-
-// =========================================================
 // BOSS PART IMPLEMENTATION
 // =========================================================
 void BossPart::Update(float dt)
@@ -486,22 +316,21 @@ void Boss::Render(ModelRenderer* renderer, Camera* camera)
     // 1. Render Models
     for (auto& part : m_parts) part->Render(renderer);
 
-    // 2. Render Text (Hanya jika Camera ada)
+    // 2. Render Text
     if (camera)
     {
-        // Cari Monitor1 sebagai "induk" teks
         if (m_partLookup.find("monitor1") != m_partLookup.end())
         {
             BossPart* monitor = m_partLookup["monitor1"];
             BitmapFont* font = ResourceManager::Instance().GetFont("VGA_FONT");
 
-            // Konversi Degree Rotation ke Radian karena BitmapFont::Draw3D pakai Radian
             DirectX::XMFLOAT3 radRot = {
-                XMConvertToRadians(monitor->rotation.x),
-                XMConvertToRadians(monitor->rotation.y),
-                XMConvertToRadians(monitor->rotation.z)
+                DirectX::XMConvertToRadians(monitor->rotation.x),
+                DirectX::XMConvertToRadians(monitor->rotation.y),
+                DirectX::XMConvertToRadians(monitor->rotation.z)
             };
 
+            // Delegate rendering ke object terminal
             m_terminal.Render(font, camera, monitor->visualPosition, radRot);
         }
     }

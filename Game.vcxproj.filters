@@ -249,11 +249,14 @@
     <ClCompile Include="Source\CursorBlock.cpp">
       <Filter>Source\UI</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Boss.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
     <ClCompile Include="Source\WindowShatter.cpp">
       <Filter>Source\Window</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Boss.cpp">
+      <Filter>Source\Character\Boss</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\BossTerminal.cpp">
+      <Filter>Source\Character\Boss</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -512,11 +515,14 @@
     <ClInclude Include="Source\CursorBlock.h">
       <Filter>Source\UI</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Boss.h">
-      <Filter>Source\Character</Filter>
-    </ClInclude>
     <ClInclude Include="Source\WindowShatter.h">
       <Filter>Source\Window</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Boss.h">
+      <Filter>Source\Character\Boss</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\BossTerminal.h">
+      <Filter>Source\Character\Boss</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -599,6 +605,9 @@
     </Filter>
     <Filter Include="Source\JuiceEngine">
       <UniqueIdentifier>{579371db-9d8e-4fa5-b1c0-e8a7a31d2d54}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Character\Boss">
+      <UniqueIdentifier>{992ad691-0f98-4707-973e-3448667c4943}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
