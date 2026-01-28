@@ -109,6 +109,7 @@ void Player::TriggerEscape()
 {
     isEscaping = true;
     isInputEnabled = false; 
+    isBreakoutActive = false;
 }
 
 void Player::UpdateBreakoutLogic(float elapsedTime)
@@ -118,13 +119,18 @@ void Player::UpdateBreakoutLogic(float elapsedTime)
     // --------------------------------------------------------
     // INPUT HANDLING 
     // --------------------------------------------------------
+    if (gameStage >= 2)
+    {
+        isSpaceDown = false;
+    }
+
     if (isSpaceDown && !wasSpacePressed)
     {
         currentShakeIntensity += breakoutSettings.visualShakeGain;
         shakeEnergy += breakoutSettings.energyGain;
 
         // TRIGGER JUICE!
-        JuiceEngine::Instance().TriggerGlitchKick(0.2f, 5.0f);
+        JuiceEngine::Instance().TriggerGlitchKick(0.1f,1.7f);
 
     }
     wasSpacePressed = isSpaceDown;

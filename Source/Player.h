@@ -23,6 +23,9 @@ public:
     std::shared_ptr<Model> GetModel() const { return model; }
 
     // --- Input & Control ---
+    void HandleMovementInput();
+    void UpdateHorizontalMovement(float elapsedTime);
+
     void HandleMovementInput(float elpasedTime);
     //bool CheckJumpInput();
     void SetInputEnabled(bool enable) { isInputEnabled = enable; }

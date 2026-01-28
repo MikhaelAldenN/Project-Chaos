@@ -33,7 +33,10 @@ void CharacterMovement::Jump()
 void CharacterMovement::Update(float elapsedTime)
 {
     // Apply Gravity
-    velocity.y += gravity * elapsedTime;
+    if (useGravity)
+    {
+        velocity.y += gravity * elapsedTime;
+    }
 
     // Integrate Position (Euler)
     position.x += velocity.x * elapsedTime;
@@ -41,16 +44,16 @@ void CharacterMovement::Update(float elapsedTime)
     position.z += velocity.z * elapsedTime;
 
     // Basic Ground Collision (Y = 0 plane)
-    if (position.y < 0.0f)
-    {
-        position.y = 0.0f;
-        velocity.y = 0.0f;
-        isGrounded = true;
-    }
-    else
-    {
-        isGrounded = false;
-    }
+    //if (position.y < 0.0f)
+    //{
+    //    position.y = 0.0f;
+    //    velocity.y = 0.0f;
+    //    isGrounded = true;
+    //}
+    //else
+    //{
+    //    isGrounded = false;
+    //}
 }
 
 bool CharacterMovement::IsMoving() const

@@ -10,11 +10,13 @@
 #include <string> 
 #include <vector>
 #include "System/Model.h"
+#include "System/ShapeRenderer.h"
 
 enum class EnemyType;
 enum class AttackType;
 enum class MoveDir;
 
+class ShapeRenderer;
 class Enemy : public Character
 {
 public:
@@ -28,6 +30,7 @@ public:
     void UpdateTracking(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos);
     void SetPosition(const DirectX::XMFLOAT3& pos);
     void SetRotation(const DirectX::XMFLOAT3& rot);
+    void RenderDebugProjectiles(ShapeRenderer* renderer);
     void RenderProjectiles(ModelRenderer* renderer);
 
     DirectX::XMFLOAT3 GetPosition() const;
@@ -38,6 +41,9 @@ public:
     
     EnemyType GetType() const { return m_type; }
     std::shared_ptr<Model> GetModel() const { return m_model; }
+
+    AttackType GetAttackType() const { return m_attackType; }
+    std::deque<std::unique_ptr<Ball>>& GetProjectiles() { return m_projectiles; }
 
 private:
     void UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos);
@@ -57,7 +63,7 @@ private:
     float m_attackTimer         = 0.0f;
     float m_fireRate            = 1.5f;   // Time between shots (seconds)
     float m_projectileSpeed     = 10.0f;  // Speed of the ball
-    float m_activationDistance  = 50.0f;  // Enemy starts firing when player is this close
+    float m_activationDistance  = 35.0f;  // Enemy starts firing when player is this close
     float m_despawnDistance     = 55.0f;  // Projectiles die when this far from player
     float m_patrolMinX          = 0.0f;
     float m_patrolMaxX          = 0.0f;
@@ -77,7 +83,7 @@ private:
 
     // Spawn Offsets (Where the ball appears relative to enemy)
     static constexpr float SPAWN_OFFSET_FWD = 0.6f;
-    static constexpr float SPAWN_OFFSET_Y = 0.6f;
+    static constexpr float SPAWN_OFFSET_Y = 0.0f;
 
     // Visuals
     DirectX::XMFLOAT4 m_projectileColor = { 1.0f, 1.0f, 1.0f, 1.0f }; 

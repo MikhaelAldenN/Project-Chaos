@@ -23,10 +23,16 @@ public:
 
     float GetRotationY() const { return rotation.y; }
     void SetRotationY(float rad) { rotation.y = rad; }
+    void SetVelocity(const DirectX::XMFLOAT3& vel) { velocity = vel; }
+    void SetVelocityY(float y) { velocity.y = y; }
+    void SetVelocityX(float x) { velocity.x = x; }
+    void SetVelocityZ(float z) { velocity.z = z; }
+    void SetGravityEnabled(bool enable) { useGravity = enable; }
 
     const DirectX::XMFLOAT3& GetVelocity() const { return velocity; }
 
     // Status checks
+    bool IsGravityEnabled() const { return useGravity; }
     bool IsGrounded() const { return isGrounded; }
     bool IsMoving() const;
 
@@ -41,4 +47,5 @@ private:
     float jumpForce = 8.0f;
     float gravity = -20.0f;
     bool isGrounded = false;
+    bool useGravity = true;
 };

@@ -6,6 +6,7 @@
 #include <imgui.h>
 #include <vector>
 #include <string>
+#include <cstdio> 
 
 using namespace DirectX;
 
@@ -65,13 +66,12 @@ void GameBreakerGUI::Draw(SceneGameBreaker* scene)
                 ImGui::EndTabItem();
             }
 
-			// --- TAB 5: OBJECT TRANSFORM ---
+            // --- TAB 5: OBJECT TRANSFORM ---
             if (ImGui::BeginTabItem("Object Transform"))
             {
                 DrawObjectTransformTab(scene);
-				ImGui::EndTabItem();
+                ImGui::EndTabItem();
             }
-            
 
             ImGui::EndTabBar();
         }
@@ -379,6 +379,21 @@ void GameBreakerGUI::DrawPostProcessTab(SceneGameBreaker* scene)
         if (!scene->m_fxState.EnableCRT) ImGui::PopStyleVar();
         ImGui::Unindent();
     }
+
+    if (ImGui::CollapsingHeader("Chromatic Aberration"))
+    {
+        ImGui::Indent();
+        ImGui::Checkbox("ACTIVATE: Chromatic", &scene->m_fxState.EnableChromatic);
+
+        if (!scene->m_fxState.EnableChromatic) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
+
+        ImGui::SliderFloat("Intensity", &scene->uberParams.chromaticAberration, -0.02f, 0.02f, "%.5f");
+
+        if (ImGui::Button("Reset CA")) scene->uberParams.chromaticAberration = 0.0f;
+
+        if (!scene->m_fxState.EnableChromatic) ImGui::PopStyleVar();
+        ImGui::Unindent();
+    }
 }
 
 
@@ -389,7 +404,7 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
     // ===========================
     // SECTION: STAGE
     // ===========================
-	if (scene->m_stage)
+    if (scene->m_stage)
     {
         ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "STAGE");
         ImGui::Separator();
@@ -411,7 +426,7 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
     ImGui::Spacing();
 
     // Paddle
-	if (scene->paddle)
+    if (scene->paddle)
     {
         if (ImGui::CollapsingHeader("Paddle", ImGuiTreeNodeFlags_DefaultOpen))
         {
@@ -537,72 +552,216 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
     if (scene->m_stage)
     {
+        // 1. ORIGINAL STAGE TRANSFORM
         if (ImGui::CollapsingHeader("Stage Transform", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Indent();
-
-            // Position Sliders
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
             ImGui::DragFloat3("XYZ##StagePos", &scene->m_stage->position.x, 0.1f);
 
             ImGui::Spacing();
-
-            // Rotation Sliders
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
             ImGui::DragFloat3("Pitch/Yaw/Roll##StageRot", &scene->m_stage->rotation.x, 0.1f, -180.0f, 180.0f);
 
             ImGui::Spacing();
-
-            // Scale Sliders
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
             ImGui::DragFloat3("XYZ##StageScl", &scene->m_stage->scale.x, 0.01f, 0.1f, 100.0f);
 
             ImGui::Spacing();
             ImGui::Separator();
 
-            // Reset Button
             if (ImGui::Button("Reset Transform", ImVec2(-1, 30)))
             {
-                scene->m_stage->position    = StageConfig::DEFAULT_POS;
-                scene->m_stage->rotation    = StageConfig::DEFAULT_ROT;
-                scene->m_stage->scale       = StageConfig::DEFAULT_SCALE;
+                scene->m_stage->position = StageConfig::DEFAULT_POS;
+                scene->m_stage->rotation = StageConfig::DEFAULT_ROT;
+                scene->m_stage->scale = StageConfig::DEFAULT_SCALE;
+            }
+            ImGui::Unindent();
+        }
+
+        // 2. DEBUG WALL TRANSFORM (DYNAMIC)
+        ImGui::Spacing();
+        if (ImGui::CollapsingHeader("Debug Wall Transform", ImGuiTreeNodeFlags_None))
+        {
+            ImGui::Indent();
+            ImGui::TextDisabled("Edit debug boxes for collision setup.");
+
+            // Iterate through the walls
+            for (int i = 0; i < scene->m_stage->m_debugWalls.size(); ++i)
+            {
+                auto& wall = scene->m_stage->m_debugWalls[i];
+                char label[32];
+                snprintf(label, 32, "Wall #%d", i + 1);
+
+                ImGui::PushID(i);
+                if (ImGui::TreeNode(label))
+                {
+                    ImGui::DragFloat3("Pos", &wall.Position.x, 0.1f);
+                    ImGui::DragFloat3("Rot", &wall.Rotation.x, 0.1f, -180.0f, 180.0f);
+                    ImGui::DragFloat3("Scale", &wall.Scale.x, 0.05f, 0.0f, 100.0f);
+
+                    if (ImGui::Button("Reset This Wall"))
+                    {
+                        // Check if there is a config default for this index
+                        if (i < StageConfig::DEBUG_WALLS.size()) {
+                            wall = StageConfig::DEBUG_WALLS[i];
+                        }
+                        else {
+                            wall.Position = { 0,0,0 };
+                            wall.Rotation = { 0,0,0 };
+                            wall.Scale = StageConfig::WALL_DEFAULT_SCALE;
+                        }
+                    }
+
+                    // --- NEW: Copy Value Button ---
+                    ImGui::SameLine();
+                    if (ImGui::Button("Copy Value"))
+                    {
+                        char buffer[256];
+                        // Using %.6g to ensure exact value without trailing zeros or 'f'
+                        snprintf(buffer, sizeof(buffer),
+                            "// Wall %d\n{ {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g} },",
+                            i + 1,
+                            wall.Position.x, wall.Position.y, wall.Position.z,
+                            wall.Rotation.x, wall.Rotation.y, wall.Rotation.z,
+                            wall.Scale.x, wall.Scale.y, wall.Scale.z
+                        );
+                        ImGui::SetClipboardText(buffer);
+                    }
+                    // ------------------------------
+
+                    ImGui::TreePop();
+                }
+                ImGui::PopID();
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            // === NEW: ADD WALL BUTTON ===
+            if (ImGui::Button("+ Add Wall Debug", ImVec2(-1, 30)))
+            {
+                scene->m_stage->AddDebugWall();
             }
 
             ImGui::Unindent();
         }
 
+        ImGui::Spacing();
+        if (ImGui::CollapsingHeader("Debug Line Transform", ImGuiTreeNodeFlags_None))
+        {
+            scene->m_stage->ClearLineHighlight();
+
+            ImGui::Indent();
+            ImGui::TextDisabled("Lines are X-Axis aligned. Scale.X = Length.");
+            ImGui::TextDisabled("Yellow = Currently Editing");
+
+            auto DrawLineCategory = [&](const char* categoryName, std::vector<DebugLineData>& lines,
+                const char* codePrefix, DebugLineType type, int idSeed)
+                {
+                    ImGui::PushID(idSeed);
+
+                    if (ImGui::CollapsingHeader(categoryName))
+                    {
+                        ImGui::Indent();
+                        for (int i = 0; i < lines.size(); ++i)
+                        {
+                            auto& line = lines[i];
+                            char label[64];
+                            snprintf(label, 64, "%s #%d", codePrefix, i + 1);
+
+                            ImGui::PushID(i);
+
+                            bool isNodeOpen = ImGui::TreeNode(label);
+
+                            if (isNodeOpen)
+                            {
+                                scene->m_stage->SetLineHighlight(type, i);
+
+                                ImGui::DragFloat3("Pos", &line.Position.x, 0.1f);
+                                ImGui::DragFloat3("Rot", &line.Rotation.x, 0.1f);
+                                ImGui::DragFloat("Length", &line.Scale.x, 0.1f);
+
+                                if (ImGui::Button("Copy Value"))
+                                {
+                                    char buffer[256];
+                                    snprintf(buffer, sizeof(buffer),
+                                        "// Line %s %d\n{ {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g} },",
+                                        codePrefix, i + 1,
+                                        line.Position.x, line.Position.y, line.Position.z,
+                                        line.Rotation.x, line.Rotation.y, line.Rotation.z,
+                                        line.Scale.x, line.Scale.y, line.Scale.z);
+                                    ImGui::SetClipboardText(buffer);
+                                }
+
+                                ImGui::SameLine();
+                                if (ImGui::Button("Delete")) {
+                                    lines.erase(lines.begin() + i);
+                                    ImGui::TreePop();
+                                    ImGui::PopID();
+                                    break;
+                                }
+
+                                ImGui::TreePop();
+                            }
+                            ImGui::PopID();
+                        }
+
+                        if (ImGui::Button("+ Add Line")) 
+                        {
+                            scene->m_stage->AddDebugLine(type);
+                        }
+                        ImGui::Unindent();
+                    }
+                    ImGui::PopID();
+                };
+
+            // VOID LINES (Cyan)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 1.0f, 1.0f));
+            DrawLineCategory("Line Void", scene->m_stage->m_linesVoid, "Void", DebugLineType::Void, 2000);
+            ImGui::PopStyleColor();
+
+            // DISABLE LINES (Red)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+            DrawLineCategory("Line Disable", scene->m_stage->m_linesDisable, "Disable", DebugLineType::Disable, 3000);
+            ImGui::PopStyleColor();
+
+            // ENABLE LINES (Green)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 1.0f, 0.4f, 1.0f));
+            DrawLineCategory("Line Enable", scene->m_stage->m_linesEnable, "Enable", DebugLineType::Enable, 4000);
+            ImGui::PopStyleColor();
+
+            ImGui::Unindent();
+        }
+
+        // 3. ENEMY TRANSFORMS (Existing Code)
         if (scene->m_enemyManager)
         {
-            if (ImGui::CollapsingHeader("Enemies Transform", ImGuiTreeNodeFlags_DefaultOpen))
+            if (ImGui::CollapsingHeader("Enemies Transform", ImGuiTreeNodeFlags_None))
             {
                 ImGui::Indent();
 
                 auto& enemies = scene->m_enemyManager->GetEnemies();
                 auto DrawEnemyUI = [](Enemy* e, int index, const char* label)
-                {
-                        ImGui::PushID(index); 
+                    {
+                        ImGui::PushID(index);
 
                         if (ImGui::TreeNode(label))
                         {
-                            // Get current values
                             DirectX::XMFLOAT3 pos = e->GetPosition();
                             DirectX::XMFLOAT3 rot = e->GetRotation();
 
-                            // Position Sliders                        
                             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
                             if (ImGui::DragFloat3("XYZ##Pos", &pos.x, 0.1f)) e->SetPosition(pos);
 
-                            // Rotation Sliders
                             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
                             if (ImGui::DragFloat3("Pitch/Yaw/Roll##Rot", &rot.x, 1.0f, -180.0f, 180.0f)) e->SetRotation(rot);
 
-                            // Scale Sliders
                             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
                             ImGui::DragFloat3("XYZ##Scl", &e->scale.x, 0.01f, 0.1f, 10.0f);
 
                             ImGui::Spacing();
 
-                            // Reset Button 
                             if (ImGui::Button("Reset Transform"))
                             {
                                 e->SetPosition(e->GetOriginalPosition());
@@ -614,7 +773,7 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                         }
                         ImGui::PopID();
                         ImGui::Separator();
-                };
+                    };
 
                 int paddleCounter = 0;
                 int ballCounter = 0;
@@ -645,14 +804,13 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
                 ImGui::Spacing();
 
-                // Helper to spawn more from GUI
                 ImGui::Text("Spawn Controls:");
                 if (ImGui::Button("+ Spawn Paddle"))
                 {
                     EnemySpawnConfig newSpawn;
-                    newSpawn.Position = { 0.0f, 0.0f, 0.0f };    
-                    newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };    
-                    newSpawn.Color = { 1.0f, 0.2f, 0.2f, 1.0f }; 
+                    newSpawn.Position = { 0.0f, 0.0f, 0.0f };
+                    newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };
+                    newSpawn.Color = { 1.0f, 0.2f, 0.2f, 1.0f };
                     newSpawn.Type = EnemyType::Paddle;
                     scene->m_enemyManager->SpawnEnemy(newSpawn);
                 }
@@ -665,7 +823,7 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                     newSpawn.Position = { 0.0f, 0.0f, 0.0f };
                     newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };
                     newSpawn.Color = { 1.0f, 0.89f, 0.58f, 1.0f };
-                    newSpawn.Type = EnemyType::Ball;   
+                    newSpawn.Type = EnemyType::Ball;
                     scene->m_enemyManager->SpawnEnemy(newSpawn);
                 }
 
@@ -674,3 +832,4 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
         }
     }
 }
+

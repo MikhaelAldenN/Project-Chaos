@@ -55,3 +55,11 @@ void EnemyManager::Render(ModelRenderer* renderer)
         enemy->RenderProjectiles(renderer);
     }
 }
+
+void EnemyManager::RenderDebug(ShapeRenderer* renderer)
+{
+    for (auto& enemy : m_enemies)
+    {
+        enemy->RenderDebugProjectiles(renderer);
+    }
+}

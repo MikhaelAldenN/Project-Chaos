@@ -20,11 +20,16 @@ public:
     CharacterMovement* GetMovement() const { return movement; }
     DirectX::XMFLOAT3 GetVelocity() const { return velocity; }
     DirectX::XMFLOAT3 GetPreviousPosition() const { return prevPosition; }
+    DirectX::XMFLOAT3 PredictNextPosition(float elapsedTime) const;
 
     std::shared_ptr<Model> GetModel() const { return model; }
 
     float GetRadius() const { return radius; }
     bool IsActive() const { return isActive; }
+
+    void ApplyMovement(const DirectX::XMFLOAT3& newPos, const DirectX::XMFLOAT3& newVel);
+    void UpdatePreviousPosition(); // Call this AFTER collision resolution
+    void SetPreviousPosition(const DirectX::XMFLOAT3& pos) { prevPosition = pos; }
 
 private:
     DirectX::XMFLOAT3 velocity = { 0, 0, 0 };

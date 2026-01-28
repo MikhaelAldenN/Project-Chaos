@@ -23,6 +23,8 @@ public:
     DirectX::XMFLOAT3 GetPosition() const { return movement->GetPosition(); }
     DirectX::XMFLOAT3 scale = { 1.0f, 1.0f, 1.0f };
 
+    CharacterMovement* GetMovement() const { return movement; }
+
 protected:
     // Syncs physics data to the visual model's root node
     void SyncData();

@@ -13,6 +13,8 @@
 #include "UberShader.h"
 #include "System/Sprite.h"
 #include "System/Light.h"
+#include "System/Collision.h"
+#include "System/CollisionManager.h"
 #include "BitmapFont.h"     
 #include "ResourceManager.h"
 
@@ -60,9 +62,9 @@ private:
         static constexpr float BALL_SPAWN_Z_OFFSET = 0.38f;
 
         // Screen Shake (On Block Hit)
-        static constexpr float SHAKE_DURATION = 0.5f;
-        static constexpr float SHAKE_AMP_POS = 0.5f;
-        static constexpr float SHAKE_AMP_ROT = 0.5f;
+        static constexpr float SHAKE_DURATION = 1.3f;
+        static constexpr float SHAKE_AMP_POS = 0.3f;
+        static constexpr float SHAKE_AMP_ROT = 0.3f;
         static constexpr float SHAKE_FREQ = 35.0f;
         static constexpr float SHAKE_TRAUMA = 4.0f;
 
@@ -78,6 +80,8 @@ private:
     // =========================================================
     void RenderScene(float elapsedTime, Camera* camera);
     void UpdateGameTriggers(float elapsedTime);
+
+    DirectX::XMFLOAT3 GetMouseOnGround(Camera* camera);
 
     // =========================================================
     // SPRITE CONTROLS & LAYOUT
@@ -109,6 +113,7 @@ private:
         bool MasterEnabled = true;
         bool EnableVignette = true;
         bool EnableLens = true;
+        bool EnableChromatic = true;
         bool EnableCRT = true;
     };
 
@@ -116,9 +121,9 @@ private:
     Paddle* paddle = nullptr;
     Player* player = nullptr;
     std::unique_ptr<BlockManager> blockManager;
+    std::unique_ptr<CollisionManager> m_collisionManager;
     std::unique_ptr<EnemyManager> m_enemyManager;
     std::unique_ptr<Stage> m_stage;
-
     std::shared_ptr<Camera> mainCamera;
 
     // Camera Settings

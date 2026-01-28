@@ -51,8 +51,8 @@ void UberShader::Draw(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* texture
         cb.roundness = ROUNDNESS_POWER * (1.0f - data.roundness) + data.roundness;
 
         cb.blurStrength = std::clamp(data.blurStrength, 0.0f, 0.1f);
+        cb.chromaticAberration = finalData.chromaticAberration;
         cb.distortion = std::clamp(data.distortion, -0.2f, 0.2f);
-
         cb.glitchStrength = finalData.glitchStrength;
         cb.time = data.time;
 

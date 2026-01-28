@@ -47,6 +47,7 @@ public:
         float             blurStrength          = 0.01f;
         float             distortion            = 0.015f;
         float             glitchStrength        = 0.01f;
+        float             chromaticAberration   = 0.0f;
         float             time                  = 0.0f;
 
         // Scanlines
@@ -83,6 +84,7 @@ private:
         float rounded;
         float roundness;
         float blurStrength;
+        float chromaticAberration;
         float distortion;
         float glitchStrength;
         float scanlineStrength;
@@ -91,8 +93,8 @@ private:
         float scanlineSize;
         float fineOpacity;
         float fineDensity;
-        /*float padding;*/
         float fineRotation;
+        float padding[3];
     };
 
     Microsoft::WRL::ComPtr<ID3D11VertexShader>  vertexShader;
