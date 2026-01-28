@@ -94,9 +94,85 @@ void SceneGameBeyond::InitializeSubWindows()
     // 1. Player Tracking Window
     m_windowSystem->AddTrackedWindow(
         { "player", "Player View", 300, 300, 1, { 0.0f, 0.0f, 0.0f } },
+
+        // 1. LAMBDA POSISI (Center)
         [this]() -> DirectX::XMFLOAT3 {
-            if (m_player) return m_player->GetPosition();
-            return DirectX::XMFLOAT3(0, 0, 0);
+            if (!m_player) return DirectX::XMFLOAT3(0, 0, 0);
+
+            auto pPos = m_player->GetPosition();
+
+            // Safe Zone 150px
+            float safeMarginPixel = 150.0f;
+            float safeMarginWorld = safeMarginPixel / PIXEL_TO_UNIT_RATIO;
+
+            float minX = pPos.x - safeMarginWorld;
+            float maxX = pPos.x + safeMarginWorld;
+            float minZ = pPos.z - safeMarginWorld;
+            float maxZ = pPos.z + safeMarginWorld;
+
+            if (m_blockManager && m_blockManager->IsShieldActive())
+            {
+                const auto& blocks = m_blockManager->GetBlocks();
+                for (const auto& block : blocks)
+                {
+                    // TAMBAHAN: && !block->IsProjectile()
+                    // Jangan hitung blok yang sedang ditembakkan!
+                    if (block && block->IsActive() && !block->IsProjectile())
+                    {
+                        auto bPos = block->GetMovement()->GetPosition();
+                        if (bPos.x < minX) minX = bPos.x;
+                        if (bPos.x > maxX) maxX = bPos.x;
+                        if (bPos.z < minZ) minZ = bPos.z;
+                        if (bPos.z > maxZ) maxZ = bPos.z;
+                    }
+                }
+            }
+
+            float centerX = (minX + maxX) * 0.5f;
+            float centerZ = (minZ + maxZ) * 0.5f;
+
+            return DirectX::XMFLOAT3(centerX, 0.0f, centerZ);
+        },
+
+        // 2. LAMBDA UKURAN (Size)
+        [this]() -> DirectX::XMFLOAT2 {
+            if (!m_player) return DirectX::XMFLOAT2(300, 300);
+
+            auto pPos = m_player->GetPosition();
+            float safeMarginPixel = 150.0f;
+            float safeMarginWorld = safeMarginPixel / PIXEL_TO_UNIT_RATIO;
+
+            float minX = pPos.x - safeMarginWorld;
+            float maxX = pPos.x + safeMarginWorld;
+            float minZ = pPos.z - safeMarginWorld;
+            float maxZ = pPos.z + safeMarginWorld;
+
+            if (m_blockManager && m_blockManager->IsShieldActive())
+            {
+                const auto& blocks = m_blockManager->GetBlocks();
+                for (const auto& block : blocks)
+                {
+                    // TAMBAHAN: && !block->IsProjectile()
+                    // Hanya hitung blok yang menempel di shield/formasi
+                    if (block && block->IsActive() && !block->IsProjectile())
+                    {dAWSAAAWDDDDSAAAWD
+                        auto bPos = block->GetMovement()->GetPosition();
+                        if (bPos.x < minX) minX = bPos.x;
+                        if (bPos.x > maxX) maxX = bPos.x;
+                        if (bPos.z < minZ) minZ = bPos.z;
+                        if (bPos.z > maxZ) maxZ = bPos.z;
+                    }
+                }
+            }
+
+            float rangeX = maxX - minX;
+            float rangeZ = maxZ - minZ;
+            float extraPadding = 50.0f;
+
+            float w = (rangeX * PIXEL_TO_UNIT_RATIO) + extraPadding;
+            float h = (rangeZ * PIXEL_TO_UNIT_RATIO) + extraPadding;
+
+            return DirectX::XMFLOAT2(w, h);
         }
     );
 
