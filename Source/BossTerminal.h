@@ -1,56 +1,53 @@
 #pragma once
-
-#include <DirectXMath.h>
+#include <d3d11.h>
+#include <wrl/client.h>
 #include <string>
 #include <vector>
+#include <deque>
+#include <DirectXMath.h>
+#include "BitmapFont.h" // Pastikan include BitmapFont kamu
 
-// Forward declarations untuk mengurangi dependency di header
-class BitmapFont;
-class Camera;
-
-// =========================================================
-// BOSS LOG ENTRY
-// =========================================================
-struct BossLogEntry {
-    std::string text;
-    int visibleChars = 0;
-    float typeTimer = 0.0f;
-    bool isDone = false;
-};
-
-// =========================================================
-// BOSS TERMINAL CLASS
-// Sistem console log bergaya 3D
-// =========================================================
 class BossTerminal
 {
 public:
-    void Initialize(int maxLines);
+    BossTerminal();
+    ~BossTerminal();
+
+    // Inisialisasi Resolusi Layar Virtual (misal 512x512 cukup tajam untuk monitor kecil)
+    void Initialize(ID3D11Device* device, int width, int height);
+
+    // Update logika teks (typewriter, scrolling)
     void Update(float dt);
 
-    // Render butuh pointer ke Font dan Camera
-    void Render(BitmapFont* font, Camera* camera,
-        const DirectX::XMFLOAT3& parentPos,
-        const DirectX::XMFLOAT3& parentRot);
+    // Gambar teks ke dalam Texture (Off-screen rendering)
+    // Panggil ini SEBELUM scene utama dirender!
+    void RenderToTexture(ID3D11DeviceContext* context, BitmapFont* font);
 
-    void AddLog(const std::string& message);
+    // Ambil hasil texture untuk ditempel ke monitor
+    ID3D11ShaderResourceView* GetTexture() const { return m_srv.Get(); }
 
-    // --- Configuration (Public for ImGui access) ---
-    DirectX::XMFLOAT3 offset = { -2.3f, 3.8f, 0.0f }; // Offset dari Monitor Center
-    DirectX::XMFLOAT3 rotationOffset = { 0.0f, 0.0f, 0.0f }; // Rotasi manual tambahan
-    float scale = 0.011f;
-    float lineSpacing = 1.0f; // Jarak antar baris dalam unit 3D
-    DirectX::XMFLOAT4 color = { 0.93f, 0.75f, 0.06f, 1.0f }; // Amber CRT Color
+    // Fungsi Logika
+    void AddLog(const std::string& msg);
+    void Clear();
 
+    void DrawGUI();
+    void MarkAsDirty() { m_needsUpdate = true; }
 private:
-    std::vector<BossLogEntry> m_buffer;
-    int m_maxLines = 10;
-    int m_writeIndex = 0;
-    int m_activeCount = 0;
+    // RTT Resources
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> m_renderTargetTexture;
+    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_rtv;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_srv;
+    D3D11_VIEWPORT m_viewport;
 
-    // Timer spawn log otomatis
-    float m_spawnTimer = 0.0f;
-    float m_nextSpawnDelay = 0.5f;
+    // Terminal State
+    int m_width = 0;
+    int m_height = 0;
+    std::deque<std::string> m_logs;
+    float m_scrollTimer = 0.0f;
+    size_t m_maxLines = 15;
 
-    float m_typeSpeed = 0.005f; // Kecepatan ketikan
+    // Typewriter State (Opsional)
+    std::string m_currentLineBuffer;
+    // ... tambahkan variabel typewriter kamu sendiri
+    bool m_needsUpdate = true;
 };

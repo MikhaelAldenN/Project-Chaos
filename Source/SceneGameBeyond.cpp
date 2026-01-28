@@ -155,7 +155,7 @@ void SceneGameBeyond::InitializeSubWindows()
                     // TAMBAHAN: && !block->IsProjectile()
                     // Hanya hitung blok yang menempel di shield/formasi
                     if (block && block->IsActive() && !block->IsProjectile())
-                    {dAWSAAAWDDDDSAAAWD
+                    {
                         auto bPos = block->GetMovement()->GetPosition();
                         if (bPos.x < minX) minX = bPos.x;
                         if (bPos.x > maxX) maxX = bPos.x;
@@ -253,12 +253,29 @@ void SceneGameBeyond::Update(float elapsedTime)
             GameWindow* mainWin = Framework::Instance()->GetMainWindow();
             if (mainWin)
             {
+                // Trigger efek pecah kaca
                 if (m_player)
                 {
                     auto pPos = m_player->GetPosition();
                     WindowShatterManager::Instance().TriggerExplosion({ pPos.x, pPos.z }, 8);
                 }
-                WindowManager::Instance().DestroyWindow(mainWin);
+
+                // --- UBAH WINDOW MENJADI DEBUG CONSOLE ---
+                SDL_Window* sdlWin = mainWin->GetSDLWindow(); // Pastikan GameWindow punya getter ini
+
+                if (sdlWin)
+                {
+                    // 1. Title & Posisi
+                    SDL_SetWindowTitle(sdlWin, "DEBUG CONSOLE");
+                    SDL_SetWindowSize(sdlWin, 450, 600);
+                    SDL_SetWindowPosition(sdlWin, 20, 20);
+
+                    // 2. [FIX] NYALAKAN BORDER (TITLE BAR) AGAR BISA DIGESER
+                    SDL_SetWindowBordered(sdlWin, true);
+
+                    // 3. (Opsional) Biar bisa di-resize manual pakai mouse
+                    SDL_SetWindowResizable(sdlWin, true);
+                }
             }
             m_gameStarted = true;
             m_shatterTriggered = true;
@@ -455,6 +472,7 @@ void SceneGameBeyond::DrawGUI()
                     if (ImGui::TreeNode("Boss Controller"))
                     {
                         ImGui::TextDisabled("Boss Logic Active");
+                        m_boss->DrawDebugGUI();
                         ImGui::TreePop();
                     }
                 }

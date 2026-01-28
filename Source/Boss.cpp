@@ -5,6 +5,7 @@
 #include <imgui.h>
 #include <cmath>
 #include <vector>
+#include <SDL3/SDL.h>
 
 using namespace DirectX;
 
@@ -47,15 +48,20 @@ Boss::Boss()
 {
     InitializeDefaultParts();
 
-    // ===================================================
-    //  TERMINAL DISABLED FOR PERFORMANCE TESTING
-    // ===================================================
-    // m_terminal.Initialize(10);
-    // m_terminal.maxVisibleLines = 6;
-    // m_terminal.updateInterval = 0.1f;
-    // m_terminal.enableTypewriter = true;
-    // m_terminal.AddLog("SYSTEM BOOT SEQUENCE...");
-    // m_terminal.AddLog("LOADING KERNEL...");
+    // Init Terminal
+    m_terminal.Initialize(Graphics::Instance().GetDevice(), 512, 512);
+    m_terminal.AddLog("SYSTEM BOOT...");
+    m_terminal.AddLog("WAITING FOR USER...");
+
+    // LOAD MODEL PLANE UNTUK LAYAR
+    // Jika tidak ada "Plane.glb", gunakan model apa saja yang datar (box pipih juga bisa)
+    // Atau minta artist buatkan quad sederhana.
+    try {
+        m_screenQuad = std::make_shared<Model>(Graphics::Instance().GetDevice(), "Data/Model/Primitive/Plane.glb");
+    }
+    catch (...) {
+        OutputDebugStringA("WARNING: Plane.glb for Boss Terminal Screen not found!\n");
+    }
 }
 
 Boss::~Boss() {}
@@ -218,37 +224,79 @@ void Boss::Update(float dt)
         part->Update(dt);
     }
 
-    // ===================================================
-    //  TERMINAL UPDATE DISABLED
-    // ===================================================
-    // m_terminal.Update(dt);
+    m_terminal.Update(dt);
 }
 
 void Boss::Render(ModelRenderer* renderer, Camera* camera)
 {
-    for (auto& part : m_parts) part->Render(renderer);
+    // 1. UPDATE TEXTURE TERMINAL (RTT)
+    auto context = Graphics::Instance().GetDeviceContext();
+    auto font = ResourceManager::Instance().GetFont("VGA_FONT");
 
-    // ===================================================
-    //  TERMINAL RENDER DISABLED - THIS IS THE FPS KILLER
-    // ===================================================
-    /*
-    if (camera)
-    {
-        if (m_partLookup.find("monitor1") != m_partLookup.end())
-        {
-            BossPart* monitor = m_partLookup["monitor1"];
-            BitmapFont* font = ResourceManager::Instance().GetFont("VGA_FONT");
-
-            DirectX::XMFLOAT3 radRot = {
-                DirectX::XMConvertToRadians(monitor->rotation.x),
-                DirectX::XMConvertToRadians(monitor->rotation.y),
-                DirectX::XMConvertToRadians(monitor->rotation.z)
-            };
-
-            m_terminal.Render(font, camera, monitor->visualPosition, radRot);
-        }
+    if (font) {
+        m_terminal.RenderToTexture(context, font);
     }
-    */
+
+    // 2. RENDER BOSS PARTS BIASA
+    for (auto& part : m_parts) {
+        part->Render(renderer);
+    }
+
+    // 3. RENDER LAYAR MONITOR
+    if (m_screenQuad && HasPart("monitor1"))
+    {
+        BossPart* monitor = GetPart("monitor1");
+
+        // --- A. Hitung Transformasi ---
+        XMMATRIX S = XMMatrixScaling(monitor->scale.x, monitor->scale.y, monitor->scale.z);
+        XMMATRIX R = XMMatrixRotationRollPitchYaw(
+            XMConvertToRadians(monitor->rotation.x),
+            XMConvertToRadians(monitor->rotation.y),
+            XMConvertToRadians(monitor->rotation.z)
+        );
+        XMMATRIX T = XMMatrixTranslation(monitor->visualPosition.x, monitor->visualPosition.y, monitor->visualPosition.z);
+        XMMATRIX matMonitor = S * R * T;
+
+        XMMATRIX matScaleScreen = XMMatrixScaling(m_screenScale.x, m_screenScale.y, m_screenScale.z);
+        XMMATRIX matRotScreen = XMMatrixRotationRollPitchYaw(
+            XMConvertToRadians(m_screenRotation.x),
+            XMConvertToRadians(m_screenRotation.y),
+            XMConvertToRadians(m_screenRotation.z)
+        );
+        XMMATRIX matOffset = XMMatrixTranslation(m_screenOffset.x, m_screenOffset.y, m_screenOffset.z);
+
+        // Gabungkan
+        XMMATRIX matFinal = matScaleScreen * matRotScreen * matOffset * matMonitor;
+
+        XMFLOAT4X4 worldFinal;
+        XMStoreFloat4x4(&worldFinal, matFinal);
+
+        m_screenQuad->UpdateTransform(worldFinal);
+
+        // --- B. ASSIGN TEXTURE PERMANEN (FIX) ---
+        // Kita tidak perlu "Restore" texture lama. 
+        // Biarkan texture Terminal menempel selamanya di model ini.
+        // Ini menjamin saat ModelRenderer bekerja nanti, texturenya masih benar.
+
+        ID3D11ShaderResourceView* terminalTex = m_terminal.GetTexture();
+        if (terminalTex)
+        {
+            const auto& meshes = m_screenQuad->GetMeshes();
+            for (const auto& mesh : meshes)
+            {
+                if (mesh.material)
+                {
+                    // ComPtr assignment akan otomatis mengurus Reference Counting dengan aman
+                    mesh.material->baseMap = terminalTex;
+                }
+            }
+        }
+
+        // --- C. DRAW ---
+        // Gunakan Shader Basic (Unlit) agar terang dan tidak terpengaruh bayangan
+        // Gunakan Shader Basic (Unlit) agar terang dan tidak terpengaruh bayangan
+        renderer->Draw(ShaderId::Basic, m_screenQuad, { 1.0f, 1.0f, 1.0f, 1.0f });
+    }
 }
 
 void Boss::AddTerminalLog(const std::string& msg)
@@ -263,6 +311,8 @@ void Boss::DrawDebugGUI()
         ImGui::TextColored({ 1,1,0,1 }, "TERMINAL DISABLED FOR PERFORMANCE");
         ImGui::Text("Check Boss_NO_TERMINAL.cpp to re-enable");
         ImGui::Separator();
+
+        m_terminal.DrawGUI();
 
         ImGui::Text("Active Parts: %d", (int)m_parts.size());
         ImGui::Separator();
@@ -291,5 +341,26 @@ void Boss::DrawDebugGUI()
 
             ImGui::PopID();
         }
+
+        if (ImGui::TreeNode("Terminal Screen Transform"))
+        {
+            ImGui::Text("Adjust Screen Placement:");
+
+            // Gunakan DragFloat dengan step kecil (0.01f) untuk presisi
+            ImGui::DragFloat3("Offset (Local)", &m_screenOffset.x, 0.005f);
+            ImGui::DragFloat3("Rotation (Local)", &m_screenRotation.x, 1.0f);
+            ImGui::DragFloat3("Scale (Local)", &m_screenScale.x, 0.005f);
+
+            if (ImGui::Button("Reset to Default"))
+            {
+                m_screenOffset = { 0.0f, 0.25f, 0.55f };
+                m_screenScale = { 0.75f, 0.55f, 0.01f };
+                m_screenRotation = { 0.0f, 0.0f, 0.0f };
+            }
+
+            ImGui::TreePop();
+        }
+        ImGui::Separator();
+
     }
 }

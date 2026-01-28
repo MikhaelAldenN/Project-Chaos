@@ -95,4 +95,11 @@ private:
 
     // [BARU] Sistem Terminal 3D
     BossTerminal m_terminal;
+
+    std::shared_ptr<Model> m_screenQuad; // Model kotak tipis untuk layar
+    void CreateScreenQuad(); // Fungsi bikin kotak manual
+
+    DirectX::XMFLOAT3 m_screenOffset = { -0.015f, 0.185f, -0.35f };
+    DirectX::XMFLOAT3 m_screenScale = { 47.0f, 47.0f, 47.0f };
+    DirectX::XMFLOAT3 m_screenRotation = { 91.0f, 180.0f, 0.0f };
 };

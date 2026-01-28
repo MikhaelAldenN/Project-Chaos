@@ -5,6 +5,7 @@
 #include "System/Graphics.h"
 #include "SceneGameBeyond.h"
 #include <mutex>
+#include <Framework.h>
 
 void WindowManager::Update(float dt)
 {
@@ -52,35 +53,35 @@ void WindowManager::RenderAll(float dt, Scene* scene)
     if (!scene) return;
 
     // 1. UPDATE DATA IMGUI
-    // Panggil DrawGUI agar tombol/menu dimasukkan ke antrian render ImGui
     scene->DrawGUI();
 
-    // Cek Scene
     bool isBeyondScene = (dynamic_cast<SceneGameBeyond*>(scene) != nullptr);
 
-    // 2. RENDER WINDOW (Sekarang cuma ada 1 Main Window)
+    // --- [FIX 1] AMBIL CONTEXT DULU ---
+    auto context = Graphics::Instance().GetDeviceContext();
+
+    // 2. RENDER WINDOW
     for (auto& win : windows)
     {
         if (!win->IsVisible()) continue;
 
-        // [SET BACKGROUND COLOR]
         if (isBeyondScene) {
-            win->BeginRender(0.1f, 0.1f, 0.15f); // Abu-abu kebiruan
+            win->BeginRender(0.1f, 0.1f, 0.15f);
         }
         else {
-            win->BeginRender(0.0f, 0.0f, 0.0f); // Hitam pekat
+            win->BeginRender(0.0f, 0.0f, 0.0f);
         }
 
-        // A. RENDER GAME SCENE 3D
         scene->OnResize(win->GetWidth(), win->GetHeight());
         scene->Render(dt, win->GetCamera());
 
-        // B. [PENTING] RENDER IMGUI SEBAGAI OVERLAY
-        // Ini kuncinya! Kita gambar UI di atas Scene 3D yang sudah digambar sebelumnya.
-        ImGuiRenderer::Render(Graphics::Instance().GetDeviceContext());
+        // --- [FIX 2] GUNAKAN win.get() UNTUK BANDINGKAN POINTER ---
+        if (win.get() == Framework::Instance()->GetMainWindow())
+        {
+            // Sekarang variabel 'context' sudah ada
+            ImGuiRenderer::Render(context);
+        }
 
-        // C. SWAP BUFFERS (VSync Nyala = 1)
-        // Kita nyalakan VSync di sini karena ini sekarang Window Utama
         win->EndRender(1);
     }
 }
