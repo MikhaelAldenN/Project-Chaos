@@ -25,8 +25,12 @@ public:
     void CheckCollision(Ball* ball);
     bool CheckEnemyCollision(Ball* ball);
     void ActivateFormationMode() { isFormationActive = true; }
+    void ActivateInvincibility(float duration) { m_isInvincible = true; m_invincibleTimer = duration; }
+    void AddBlockFromItem(const DirectX::XMFLOAT3& startPos);
     void SetOnBlockHitCallback(std::function<void()> callback) { m_onBlockHitCallback = callback; }
+    void TriggerBlockBreakParams() { if (m_onBlockHitCallback) m_onBlockHitCallback(); }
     bool IsFormationActive() const { return isFormationActive; }
+    bool IsInvincible() const { return m_isInvincible; }
     bool IsShieldActive() const { return isShieldActive; }
     int GetActiveBlockCount() const;
     const std::vector<Block>& GetBlocks() const { return blocks; }
@@ -34,6 +38,7 @@ public:
 
     // Color Setting
     DirectX::XMFLOAT4 globalBlockColor = { 0.96f, 0.80f, 0.23f, 1.0f };
+    DirectX::XMFLOAT4 invincibleColor = { 0.275f, 0.275f, 0.275f, 1.0f };
 
     // Formation Settings
     struct FormationConfig
@@ -98,6 +103,7 @@ private:
 
     // Formation State
     bool isFormationActive = false;
+    bool CheckWallObstruction(const DirectX::XMFLOAT3& start, const DirectX::XMFLOAT3& end, DirectX::XMFLOAT3& outSlideVelocity);
     float formationSpacing = 1.0f;
     float m_formationTime = 0.0f;
 
@@ -124,4 +130,8 @@ private:
 
 	// Callback when a block is hit
     std::function<void()> m_onBlockHitCallback = nullptr;
+
+    // Invinvible State
+    bool m_isInvincible = false;
+    float m_invincibleTimer = 0.0f;
 };

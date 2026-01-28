@@ -505,6 +505,38 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
         }
         ImGui::Spacing();
     }
+
+    // ===========================
+    // SECTION: ITEMS
+    // ===========================
+    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "Items");
+    ImGui::Separator();
+    ImGui::Spacing();
+    
+    if (scene->m_itemManager)
+    {
+        if (ImGui::CollapsingHeader("Items"))
+        {
+            ImGui::Indent();
+            auto& items = scene->m_itemManager->GetItems();
+            int healCount = 0;
+
+            for (int i = 0; i < items.size(); ++i)
+            {
+                if (items[i]->GetType() == ItemType::Heal)
+                {
+                    healCount++;
+                    char label[64];
+                    snprintf(label, 64, "Item Heal #%d", healCount);
+
+                    ImGui::PushID(i);
+                    ImGui::ColorEdit4(label, &items[i]->color.x);
+                    ImGui::PopID();
+                }
+            }
+            ImGui::Unindent();
+        }
+    }
 }
 
 void GameBreakerGUI::DrawSpriteTab(SceneGameBreaker* scene)
@@ -707,7 +739,7 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                             ImGui::PopID();
                         }
 
-                        if (ImGui::Button("+ Add Line")) 
+                        if (ImGui::Button("+ Add Line"))
                         {
                             scene->m_stage->AddDebugLine(type);
                         }
@@ -733,102 +765,224 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
             ImGui::Unindent();
         }
-
-        // 3. ENEMY TRANSFORMS (Existing Code)
-        if (scene->m_enemyManager)
+    }
+    // 3. ENEMY TRANSFORMS (Existing Code)
+    if (scene->m_enemyManager)
+    {
+        if (ImGui::CollapsingHeader("Enemies Transform", ImGuiTreeNodeFlags_None))
         {
-            if (ImGui::CollapsingHeader("Enemies Transform", ImGuiTreeNodeFlags_None))
-            {
-                ImGui::Indent();
-
-                auto& enemies = scene->m_enemyManager->GetEnemies();
-                auto DrawEnemyUI = [](Enemy* e, int index, const char* label)
+            ImGui::Indent();
+    
+            auto& enemies = scene->m_enemyManager->GetEnemies();
+            auto DrawEnemyUI = [](Enemy* e, int index, const char* label)
+                {
+                    ImGui::PushID(index);
+    
+                    if (ImGui::TreeNode(label))
                     {
-                        ImGui::PushID(index);
-
-                        if (ImGui::TreeNode(label))
+                        DirectX::XMFLOAT3 pos = e->GetPosition();
+                        DirectX::XMFLOAT3 rot = e->GetRotation();
+    
+                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
+                        if (ImGui::DragFloat3("XYZ##Pos", &pos.x, 0.1f)) e->SetPosition(pos);
+    
+                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
+                        if (ImGui::DragFloat3("Pitch/Yaw/Roll##Rot", &rot.x, 1.0f, -180.0f, 180.0f)) e->SetRotation(rot);
+    
+                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
+                        ImGui::DragFloat3("XYZ##Scl", &e->scale.x, 0.01f, 0.1f, 10.0f);
+    
+                        ImGui::Spacing();
+    
+                        if (ImGui::Button("Reset Transform"))
                         {
-                            DirectX::XMFLOAT3 pos = e->GetPosition();
-                            DirectX::XMFLOAT3 rot = e->GetRotation();
-
-                            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
-                            if (ImGui::DragFloat3("XYZ##Pos", &pos.x, 0.1f)) e->SetPosition(pos);
-
-                            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
-                            if (ImGui::DragFloat3("Pitch/Yaw/Roll##Rot", &rot.x, 1.0f, -180.0f, 180.0f)) e->SetRotation(rot);
-
-                            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
-                            ImGui::DragFloat3("XYZ##Scl", &e->scale.x, 0.01f, 0.1f, 10.0f);
-
-                            ImGui::Spacing();
-
-                            if (ImGui::Button("Reset Transform"))
-                            {
-                                e->SetPosition(e->GetOriginalPosition());
-                                e->SetRotation(e->GetOriginalRotation());
-                                e->scale = { 1.0f, 1.0f, 1.0f };
-                            }
-
-                            ImGui::TreePop();
+                            e->SetPosition(e->GetOriginalPosition());
+                            e->SetRotation(e->GetOriginalRotation());
+                            e->scale = { 1.0f, 1.0f, 1.0f };
                         }
-                        ImGui::PopID();
-                        ImGui::Separator();
-                    };
-
-                int paddleCounter = 0;
-                int ballCounter = 0;
-
-                for (size_t i = 0; i < enemies.size(); ++i)
-                {
-                    Enemy* e = enemies[i].get();
-                    if (e->GetType() == EnemyType::Paddle)
-                    {
-                        paddleCounter++;
-                        char headerName[64];
-                        snprintf(headerName, 64, "Enemy Paddle #%d", paddleCounter);
-                        DrawEnemyUI(e, (int)i, headerName);
+    
+                        ImGui::TreePop();
                     }
-                }
-
-                for (size_t i = 0; i < enemies.size(); ++i)
+                    ImGui::PopID();
+                    ImGui::Separator();
+                };
+    
+            int paddleCounter = 0;
+            int ballCounter = 0;
+    
+            for (size_t i = 0; i < enemies.size(); ++i)
+            {
+                Enemy* e = enemies[i].get();
+                if (e->GetType() == EnemyType::Paddle)
                 {
-                    Enemy* e = enemies[i].get();
-                    if (e->GetType() == EnemyType::Ball)
-                    {
-                        ballCounter++;
-                        char headerName[64];
-                        snprintf(headerName, 64, "Enemy Ball #%d", ballCounter);
-                        DrawEnemyUI(e, (int)i, headerName);
-                    }
+                    paddleCounter++;
+                    char headerName[64];
+                    snprintf(headerName, 64, "Enemy Paddle #%d", paddleCounter);
+                    DrawEnemyUI(e, (int)i, headerName);
                 }
-
-                ImGui::Spacing();
-
-                ImGui::Text("Spawn Controls:");
-                if (ImGui::Button("+ Spawn Paddle"))
-                {
-                    EnemySpawnConfig newSpawn;
-                    newSpawn.Position = { 0.0f, 0.0f, 0.0f };
-                    newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };
-                    newSpawn.Color = { 1.0f, 0.2f, 0.2f, 1.0f };
-                    newSpawn.Type = EnemyType::Paddle;
-                    scene->m_enemyManager->SpawnEnemy(newSpawn);
-                }
-
-                ImGui::SameLine();
-
-                if (ImGui::Button("+ Spawn Ball"))
-                {
-                    EnemySpawnConfig newSpawn;
-                    newSpawn.Position = { 0.0f, 0.0f, 0.0f };
-                    newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };
-                    newSpawn.Color = { 1.0f, 0.89f, 0.58f, 1.0f };
-                    newSpawn.Type = EnemyType::Ball;
-                    scene->m_enemyManager->SpawnEnemy(newSpawn);
-                }
-
-                ImGui::Unindent();
             }
+    
+            for (size_t i = 0; i < enemies.size(); ++i)
+            {
+                Enemy* e = enemies[i].get();
+                if (e->GetType() == EnemyType::Ball)
+                {
+                    ballCounter++;
+                    char headerName[64];
+                    snprintf(headerName, 64, "Enemy Ball #%d", ballCounter);
+                    DrawEnemyUI(e, (int)i, headerName);
+                }
+            }
+    
+            ImGui::Spacing();
+    
+            ImGui::Text("Spawn Controls:");
+            if (ImGui::Button("+ Spawn Paddle"))
+            {
+                EnemySpawnConfig newSpawn;
+                newSpawn.Position = { 0.0f, 0.0f, 0.0f };
+                newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };
+                newSpawn.Color = { 1.0f, 0.2f, 0.2f, 1.0f };
+                newSpawn.Type = EnemyType::Paddle;
+                scene->m_enemyManager->SpawnEnemy(newSpawn);
+            }
+    
+            ImGui::SameLine();
+    
+            if (ImGui::Button("+ Spawn Ball"))
+            {
+                EnemySpawnConfig newSpawn;
+                newSpawn.Position = { 0.0f, 0.0f, 0.0f };
+                newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };
+                newSpawn.Color = { 1.0f, 0.89f, 0.58f, 1.0f };
+                newSpawn.Type = EnemyType::Ball;
+                scene->m_enemyManager->SpawnEnemy(newSpawn);
+            }
+    
+            ImGui::Unindent();
+        }
+    }
+    
+    if (scene->m_itemManager)
+    {
+        if (ImGui::CollapsingHeader("Item Transform", ImGuiTreeNodeFlags_None))
+        {
+            ImGui::Indent();
+            scene->m_itemManager->SetHighlight(-1); // Clear highlight
+
+            auto& items = scene->m_itemManager->GetItems();
+
+            // --- HELPER LAMBDA: Draws a single item node ---
+            // Returns TRUE if the item was deleted (so we can break the loop safely)
+            auto DrawSingleItemNode = [&](int index, Item* item, int displayIndex, const char* namePrefix) -> bool
+                {
+                    char label[64];
+                    snprintf(label, 64, "%s #%d", namePrefix, displayIndex);
+
+                    ImGui::PushID(index); // Use actual memory index for stable ID
+                    bool deleted = false;
+
+                    if (ImGui::TreeNode(label))
+                    {
+                        scene->m_itemManager->SetHighlight(index); // Highlight active item
+
+                        // --- Type Dropdown ---
+                        const char* typeNames[] = { "Heal", "Invincible" };
+                        int currentTypeIdx = (item->GetType() == ItemType::Heal) ? 0 : 1;
+
+                        if (ImGui::Combo("Change Type", &currentTypeIdx, typeNames, IM_ARRAYSIZE(typeNames)))
+                        {
+                            item->SetType((currentTypeIdx == 0) ? ItemType::Heal : ItemType::Invincible);
+                        }
+
+                        // --- Transform Editing ---
+                        XMFLOAT3 pos = item->GetBasePosition();
+                        XMFLOAT3 rot = item->GetRotation();
+                        XMFLOAT3 scl = item->scale;
+
+                        ImGui::DragFloat3("Pos", &pos.x, 0.1f);
+                        ImGui::DragFloat3("Rot", &rot.x, 0.1f);
+                        ImGui::DragFloat3("Scale", &scl.x, 0.1f);
+
+                        item->SetPosition(pos);
+                        item->SetRotation(rot);
+                        item->scale = scl;
+
+                        // --- Smart Copy Value ---
+                        if (ImGui::Button("Copy Value"))
+                        {
+                            char buffer[512];
+                            const char* typeEnum = (item->GetType() == ItemType::Heal) ? "ItemType::Heal" : "ItemType::Invincible";
+
+                            snprintf(buffer, sizeof(buffer),
+                                "// %s\n{ { %.1ff, %.1ff, %.1ff }, { %.1ff, %.1ff, %.1ff }, { %.1ff, %.1ff, %.1ff }, %s },",
+                                label, // Uses the formatted name (e.g., "Item Heal #1")
+                                pos.x, pos.y, pos.z,
+                                rot.x, rot.y, rot.z,
+                                scl.x, scl.y, scl.z,
+                                typeEnum
+                            );
+                            ImGui::SetClipboardText(buffer);
+                        }
+
+                        ImGui::SameLine();
+                        if (ImGui::Button("Delete"))
+                        {
+                            // Actual deletion happens outside to avoid iterator invalidation
+                            items.erase(items.begin() + index);
+                            deleted = true;
+                        }
+
+                        ImGui::TreePop();
+                    }
+                    ImGui::PopID();
+                    return deleted;
+                };
+
+            // --- PASS 1: HEAL ITEMS (Top) ---
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.4f, 1.0f), "--- HEAL ITEMS ---");
+            int healCount = 0;
+            for (int i = 0; i < items.size(); ++i)
+            {
+                if (items[i]->GetType() == ItemType::Heal)
+                {
+                    healCount++;
+                    // If deleted, stop immediately to prevent crash, will redraw next frame
+                    if (DrawSingleItemNode(i, items[i].get(), healCount, "Item Heal")) break;
+                }
+            }
+
+            ImGui::Spacing();
+
+            // --- PASS 2: INVINCIBLE ITEMS (Bottom) ---
+            ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "--- INVINCIBLE ITEMS ---");
+            int invCount = 0;
+            for (int i = 0; i < items.size(); ++i)
+            {
+                if (items[i]->GetType() == ItemType::Invincible)
+                {
+                    invCount++;
+                    if (DrawSingleItemNode(i, items[i].get(), invCount, "Item Invincible")) break;
+                }
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            // --- SPAWN CONTROLS ---
+            static int spawnItemType = 0;
+            const char* itemTypeNames[] = { "Heal", "Invincible" };
+
+            ImGui::Text("Spawn Controls:");
+            ImGui::Combo("New Item Type", &spawnItemType, itemTypeNames, IM_ARRAYSIZE(itemTypeNames));
+
+            if (ImGui::Button("+ Spawn Item"))
+            {
+                ItemType type = (spawnItemType == 0) ? ItemType::Heal : ItemType::Invincible;
+                scene->m_itemManager->AddItem(type);
+            }
+
+            ImGui::Unindent();
         }
     }
 }

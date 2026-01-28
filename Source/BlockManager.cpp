@@ -12,7 +12,7 @@ BlockManager::~BlockManager()
 void BlockManager::Initialize(Player* player)
 {
     blocks.clear();
-    blocks.reserve(m_rows * m_columns);
+    blocks.reserve((m_rows * m_columns) + 100);
 
     float startX = -((m_columns - 1) * m_xSpacing) / 2.0f;
     float startZ = -((m_rows - 1) * m_zSpacing) / 2.0f;
@@ -57,6 +57,47 @@ void BlockManager::Initialize(Player* player)
     }
     CalculateShieldOffsets();
     InitPrioritySlots();
+}
+
+void BlockManager::AddBlockFromItem(const DirectX::XMFLOAT3& startPos)
+{
+    // 1. Find an inactive block to recycle
+    Block* targetBlock = nullptr;
+    for (auto& block : blocks)
+    {
+        if (!block.IsActive())
+        {
+            targetBlock = &block;
+            break;
+        }
+    }
+
+    // 2. If no inactive block, expand vector (Safety)
+    if (!targetBlock)
+    {
+        blocks.emplace_back();
+        targetBlock = &blocks.back();
+    }
+
+    // 3. Activate and Setup Animation
+    targetBlock->SetActive(true);
+    DirectX::XMFLOAT3 spawnPos = startPos;
+    spawnPos.y = 0.0f;
+    targetBlock->GetMovement()->SetPosition(spawnPos);
+    targetBlock->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
+    targetBlock->GetMovement()->SetGravityEnabled(false);
+
+    // Reset flags
+    targetBlock->SetProjectile(false);
+    targetBlock->SetFalling(false);
+
+    // IMPORTANT: Set "Relocating" to true. 
+    // This tells UpdateFormationPositions to suck it into the grid
+    targetBlock->SetRelocating(true);
+    targetBlock->WakeUp();
+
+    // Visual flare (Optional: match item color briefly?)
+    // Note: Block render uses global color, so it will snap to formation color.
 }
 
 void BlockManager::CalculateShieldOffsets()
@@ -122,6 +163,16 @@ void BlockManager::InitPrioritySlots()
 
 void BlockManager::Update(float elapsedTime, Camera* camera, Player* player)
 {
+    if (m_isInvincible)
+    {
+        m_invincibleTimer -= elapsedTime;
+        if (m_invincibleTimer <= 0.0f)
+        {
+            m_isInvincible = false;
+            m_invincibleTimer = 0.0f;
+        }
+    }
+
     if (m_shootTimer > 0.0f)
     {
         m_shootTimer -= elapsedTime;
@@ -345,11 +396,14 @@ void BlockManager::UpdateShootLogic(bool isInputPressed, const DirectX::XMFLOAT3
 void BlockManager::UpdateFormationPositions(float elapsedTime, Player* player)
 {
     if (!player) return;
+
+    // --- 1. SETUP ---
     DirectX::XMFLOAT3 playerPos = player->GetMovement()->GetPosition();
     DirectX::XMFLOAT3 pVel = player->GetMovement()->GetVelocity();
     bool isMoving = player->GetMovement()->IsMoving();
     if (isMoving) m_formationTime += elapsedTime;
 
+    // --- 2. SLOT ASSIGNMENT (Your Standard Logic) ---
     if (m_formationBlocks.size() != m_sortedOffsets.size()) m_formationBlocks.assign(m_sortedOffsets.size(), nullptr);
     std::vector<Block*> currentFrameSlots = m_formationBlocks;
 
@@ -362,13 +416,14 @@ void BlockManager::UpdateFormationPositions(float elapsedTime, Player* player)
         DirectX::XMFLOAT3 target;
         target.x = playerPos.x + (m_sortedOffsets[i].x * formationSpacing);
         target.z = playerPos.z + (m_sortedOffsets[i].z * formationSpacing);
+
         Block* bestCandidate = nullptr;
         int bestCandidateSourceIndex = -1;
         float bestDistSq = FLT_MAX;
+
         for (auto& b : blocks) {
             if (!b.IsActive()) continue;
             if (b.IsProjectile()) continue;
-
             int currentSlotIndex = -1;
             for (int k = 0; k < currentFrameSlots.size(); ++k) {
                 if (currentFrameSlots[k] == &b) { currentSlotIndex = k; break; }
@@ -384,18 +439,24 @@ void BlockManager::UpdateFormationPositions(float elapsedTime, Player* player)
     }
     m_formationBlocks = currentFrameSlots;
 
+    // --- 3. MOVEMENT LOGIC ---
     for (int i = 0; i < m_formationBlocks.size(); ++i) {
         Block* b = m_formationBlocks[i];
         if (!b) continue;
         if (b->IsFalling()) continue;
 
+        DirectX::XMFLOAT3 currentPos = b->GetMovement()->GetPosition();
+
+        // A. TARGET CALCULATION (Consistent Target = No Jitter)
         DirectX::XMFLOAT3 target;
         target.x = playerPos.x + (m_sortedOffsets[i].x * formationSpacing);
         target.z = playerPos.z + (m_sortedOffsets[i].z * formationSpacing);
-        target.y = b->GetMovement()->GetPosition().y;
+        target.y = 0.0f; // Force floor
 
+        // B. WIGGLE LOGIC
         if (isMoving) {
-            float dx = target.x - playerPos.x; float dz = target.z - playerPos.z;
+            float dx = target.x - playerPos.x;
+            float dz = target.z - playerPos.z;
             float distToPlayerSq = dx * dx + dz * dz;
             if (distToPlayerSq > m_config.wiggleMinDistSq) {
                 float noise = sinf(m_formationTime * m_config.noiseFrequency + (float)i * 13.1f);
@@ -408,22 +469,53 @@ void BlockManager::UpdateFormationPositions(float elapsedTime, Player* player)
                 }
             }
         }
-        DirectX::XMFLOAT3 currentPos = b->GetMovement()->GetPosition();
-        float relativeDot = (m_sortedOffsets[i].x * pVel.x) + (m_sortedOffsets[i].z * pVel.z);
+
+        // C. SPEED CALCULATION
         float lerpSpeed = m_config.speedBase;
+        float relativeDot = (m_sortedOffsets[i].x * pVel.x) + (m_sortedOffsets[i].z * pVel.z);
         if (relativeDot > 0.1f) lerpSpeed = m_config.speedFront;
         else if (relativeDot < -0.1f) lerpSpeed = m_config.speedTrail;
+
         float distSq = GetDistSq(currentPos, target);
         bool isLongDistance = (distSq > 0.1f);
         b->SetFilling(isLongDistance);
-        if (distSq > m_config.catchUpThreshold) lerpSpeed = m_config.speedBase * m_config.catchUpMult;
-        float dx = target.x - currentPos.x; float dz = target.z - currentPos.z;
-        float vx = dx * lerpSpeed; float vz = dz * lerpSpeed;
+
+        // Catch-Up Boost
+        if (distSq > m_config.catchUpThreshold) {
+            lerpSpeed = m_config.speedBase * m_config.catchUpMult;
+        }
+
+        // [YOUR STABLE PATIENCE LOGIC]
+        // Force slow speed on collision to allow physics to work
+        if (b->IsHittingWall()) {
+            lerpSpeed = 5.0f;
+        }
+
+        float dx = target.x - currentPos.x;
+        float dz = target.z - currentPos.z;
+        float vx = dx * lerpSpeed;
+        float vz = dz * lerpSpeed;
+
+        if (b->IsHittingWall()) {
+            float px = playerPos.x - currentPos.x;
+            float pz = playerPos.z - currentPos.z;
+            float pLen = sqrtf(px * px + pz * pz);
+
+            if (pLen > 0.01f) {
+                vx += (px / pLen) * 0.8f;
+                vz += (pz / pLen) * 0.8f;
+            }
+        }
+
         if (b->IsHittingWall()) {
             DirectX::XMFLOAT3 normal = b->GetWallNormal();
             float dot = vx * normal.x + vz * normal.z;
-            if (dot < 0.0f) { vx = vx - (normal.x * dot); vz = vz - (normal.z * dot); }
+            if (dot < 0.0f) {
+                vx = vx - (normal.x * dot);
+                vz = vz - (normal.z * dot);
+            }
         }
+
         b->GetMovement()->SetVelocityX(vx);
         b->GetMovement()->SetVelocityZ(vz);
         b->SetRelocating(distSq > 0.01f);
@@ -432,11 +524,13 @@ void BlockManager::UpdateFormationPositions(float elapsedTime, Player* player)
 
 void BlockManager::Render(ModelRenderer* renderer)
 {
+    DirectX::XMFLOAT4 finalColor = m_isInvincible ? invincibleColor : globalBlockColor;
+
     for (auto& block : blocks)
     {
         if (block.IsActive())
         {
-            block.Render(renderer, globalBlockColor);
+            block.Render(renderer, finalColor);
         }
     }
 }
@@ -494,6 +588,7 @@ void BlockManager::CheckCollision(Ball* ball)
 bool BlockManager::CheckEnemyCollision(Ball* ball)
 {
     if (!ball || !ball->IsActive()) return false;
+
     DirectX::XMFLOAT3 ballPos = ball->GetMovement()->GetPosition();
     float ballRadius = ball->GetRadius();
     float blockHalfSize = m_blockHalfSize;
@@ -505,13 +600,26 @@ bool BlockManager::CheckEnemyCollision(Ball* ball)
         if (block.IsProjectile()) continue;
 
         DirectX::XMFLOAT3 blockPos = block.GetMovement()->GetPosition();
-        float deltaX = ballPos.x - blockPos.x; float deltaZ = ballPos.z - blockPos.z;
+        float deltaX = ballPos.x - blockPos.x;
+        float deltaZ = ballPos.z - blockPos.z;
         float distSq = deltaX * deltaX + deltaZ * deltaZ;
+
         if (distSq > maxInteractionDistSq) continue;
-        float absX = std::abs(deltaX); float absZ = std::abs(deltaZ);
+
+        float absX = std::abs(deltaX);
+        float absZ = std::abs(deltaZ);
         float overlapX = (blockHalfSize + ballRadius) - absX;
         float overlapZ = (blockHalfSize + ballRadius) - absZ;
-        if (overlapX > 0 && overlapZ > 0) { block.OnHit(); if (m_onBlockHitCallback) m_onBlockHitCallback(); return true; }
+
+        if (overlapX > 0 && overlapZ > 0)
+        {
+            if (!IsInvincible())
+            {
+                block.OnHit();
+                if (m_onBlockHitCallback) m_onBlockHitCallback();
+            }
+            return true;
+        }
     }
     return false;
 }

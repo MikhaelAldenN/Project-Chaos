@@ -52,8 +52,11 @@ SceneGameBreaker::SceneGameBreaker()
     m_enemyManager = std::make_unique<EnemyManager>();
     m_enemyManager->Initialize(Graphics::Instance().GetDevice());
 
+    m_itemManager = std::make_unique<ItemManager>();
+    m_itemManager->Initialize(Graphics::Instance().GetDevice());
+
     m_collisionManager = std::make_unique<CollisionManager>();
-    m_collisionManager->Initialize(player, m_stage.get(), blockManager.get(), m_enemyManager.get());
+    m_collisionManager->Initialize(player, m_stage.get(), blockManager.get(), m_enemyManager.get(), m_itemManager.get());
 
     // Callback untuk Shake saat blok hancur
     blockManager->SetOnBlockHitCallback([this]()
@@ -181,6 +184,8 @@ void SceneGameBreaker::Update(float elapsedTime)
         if (player) { targetPos = player->GetPosition(); }
         m_enemyManager->Update(elapsedTime, activeCam, targetPos);
     }
+
+    if (m_itemManager) m_itemManager->Update(elapsedTime, activeCam);
 
     if (m_collisionManager)
     {
@@ -406,6 +411,7 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
     if (targetCam == mainCamera.get()) {
         auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
         auto primRenderer = Graphics::Instance().GetPrimitiveRenderer(); // Get PrimitiveRenderer
+        if (m_itemManager) m_itemManager->RenderDebug(shapeRenderer);
 
         // Pass both renderers to Stage
         if (m_stage) m_stage->RenderDebug(shapeRenderer, primRenderer);
@@ -442,8 +448,17 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
     if (ball) ball->Render(modelRenderer);
     if (blockManager) blockManager->Render(modelRenderer);
     if (paddle && paddle->IsActive()) modelRenderer->Draw(ShaderId::Phong, paddle->GetModel(), paddle->color);
-    if (player) modelRenderer->Draw(ShaderId::Phong, player->GetModel(), player->color);
+    if (player) 
+    {
+        DirectX::XMFLOAT4 finalColor = player->color;
+        if (player->IsInvincible()) 
+        {
+            finalColor = player->invincibleSettings.VisualColor;
+        }
+        modelRenderer->Draw(ShaderId::Phong, player->GetModel(), finalColor);
+    }
     if (m_introFinished && m_enemyManager) { m_enemyManager->Render(modelRenderer); }
+    if (m_introFinished && m_itemManager) m_itemManager->Render(modelRenderer);
     if (m_isShakeEnabled && m_stage) { m_stage->UpdateTransform(); m_stage->Render(modelRenderer); }
     modelRenderer->Render(rc);
 }

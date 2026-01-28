@@ -34,6 +34,8 @@ public:
     void SetFilling(bool state) { isFilling = state; if (state) WakeUp(); } // Auto-wake if moving
     bool IsFilling() const { return isFilling; }
 
+    void SetActive(bool active) { isActive = active; }
+
     // --- Falling Logic ---
     void SetFalling(bool state) {
         isFalling = state;

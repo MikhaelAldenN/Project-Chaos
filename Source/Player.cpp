@@ -62,6 +62,16 @@ void Player::Update(float elapsedTime, Camera* camera)
         UpdateBreakoutLogic(elapsedTime);
     }
 
+    if (m_isInvincible)
+    {
+        m_invincibleTimer -= elapsedTime;
+        if (m_invincibleTimer <= 0.0f)
+        {
+            m_isInvincible = false;
+            m_invincibleTimer = 0.0f;
+        }
+    }
+
     if (animator) animator->Update(elapsedTime);
     SyncData();
 }

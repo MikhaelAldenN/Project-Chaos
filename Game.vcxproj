@@ -134,6 +134,8 @@
     <ClInclude Include="Source\CinematicDirector.h" />
     <ClInclude Include="Source\EnemyManager.h" />
     <ClInclude Include="Source\GUISceneGameBreaker.h" />
+    <ClInclude Include="Source\Item.h" />
+    <ClInclude Include="Source\ItemManager.h" />
     <ClInclude Include="Source\JuiceEngine.h" />
     <ClInclude Include="Source\LogConsole.h" />
     <ClInclude Include="Source\PostProcessManager.h" />
@@ -227,6 +229,8 @@
     <ClCompile Include="Source\FreeCameraController.cpp" />
     <ClCompile Include="Source\GameWindow.cpp" />
     <ClCompile Include="Source\GUISceneGameBreaker.cpp" />
+    <ClCompile Include="Source\Item.cpp" />
+    <ClCompile Include="Source\ItemManager.cpp" />
     <ClCompile Include="Source\JuiceEngine.cpp" />
     <ClCompile Include="Source\LogConsole.cpp" />
     <ClCompile Include="Source\Main.cpp" />

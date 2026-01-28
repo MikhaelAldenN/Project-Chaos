@@ -44,6 +44,23 @@ public:
     void TriggerEscape();
     bool IsEscaping() const { return isEscaping; }
 
+    // --- Invicible Logic ---
+    void ActivateInvincibility() 
+    {
+        m_isInvincible = true;
+        m_invincibleTimer = invincibleSettings.Duration;
+    }
+
+    bool IsInvincible() const { return m_isInvincible; }
+
+    // Settings struct for easy header tuning
+    struct InvincibleConfig 
+    {
+        float Duration = 7.0f;
+        DirectX::XMFLOAT4 VisualColor = { 0.275f, 0.275f, 0.275f, 1.0f }; // Stage Color
+    };
+    InvincibleConfig invincibleSettings;
+
     // --- SETTINGS ---
     struct BreakoutSettings
     {
@@ -88,9 +105,11 @@ private:
     // --- Breakout State ---
     bool isBreakoutActive = false;
     bool isEscaping = false;
+    bool m_isInvincible = false;
     bool wasSpacePressed = false;                               
     float currentShakeIntensity = 0.0f;
     float escapeTargetZ = -27.0f;
+    float m_invincibleTimer = 0.0f;
     float shakeEnergy = 0.0f; 
     int gameStage = 0;
     DirectX::XMFLOAT3 originalPosition = { 0.0f, 0.0f, 0.0f }; 

@@ -252,6 +252,12 @@
     <ClCompile Include="Source\System\CollisionManager.cpp">
       <Filter>System</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Item.cpp">
+      <Filter>Source\Item</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ItemManager.cpp">
+      <Filter>Source\Item</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\AnimationController.h">
@@ -512,6 +518,12 @@
     <ClInclude Include="Source\System\CollisionManager.h">
       <Filter>System</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Item.h">
+      <Filter>Source\Item</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ItemManager.h">
+      <Filter>Source\Item</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Basic.hlsli">
@@ -593,6 +605,9 @@
     </Filter>
     <Filter Include="Source\JuiceEngine">
       <UniqueIdentifier>{579371db-9d8e-4fa5-b1c0-e8a7a31d2d54}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Item">
+      <UniqueIdentifier>{53f85d7a-51db-4e9e-9f4e-9401e52b27ec}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

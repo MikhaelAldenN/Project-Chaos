@@ -22,6 +22,7 @@
 #include "Ball.h"
 #include "BlockManager.h"
 #include "EnemyManager.h"
+#include "ItemManager.h"
 #include "Paddle.h"
 #include "Player.h"
 #include "Stage.h"
@@ -123,6 +124,7 @@ private:
     std::unique_ptr<BlockManager> blockManager;
     std::unique_ptr<CollisionManager> m_collisionManager;
     std::unique_ptr<EnemyManager> m_enemyManager;
+    std::unique_ptr<ItemManager> m_itemManager;
     std::unique_ptr<Stage> m_stage;
     std::shared_ptr<Camera> mainCamera;
 
