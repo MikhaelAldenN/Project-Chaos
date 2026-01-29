@@ -62,6 +62,8 @@ Boss::Boss()
     catch (...) {
         OutputDebugStringA("WARNING: Plane.glb for Boss Terminal Screen not found!\n");
     }
+
+    m_stateMachine.Initialize(new BossIntroState(), this);
 }
 
 Boss::~Boss() {}
@@ -225,6 +227,8 @@ void Boss::Update(float dt)
     }
 
     m_terminal.Update(dt);
+
+    m_stateMachine.Update(this, dt);
 }
 
 void Boss::Render(ModelRenderer* renderer, Camera* camera)
@@ -304,6 +308,12 @@ void Boss::AddTerminalLog(const std::string& msg)
     // m_terminal.AddLog(msg);
 }
 
+// [Helper] Biar gampang ganti state
+void Boss::ChangeState(BossState* newState)
+{
+    m_stateMachine.ChangeState(this, newState);
+}
+
 void Boss::DrawDebugGUI()
 {
     if (ImGui::CollapsingHeader("Boss Manager", ImGuiTreeNodeFlags_DefaultOpen))
@@ -313,6 +323,33 @@ void Boss::DrawDebugGUI()
         ImGui::Separator();
 
         m_terminal.DrawGUI();
+
+        // --- [BARU] STATE CONTROLS ---
+        ImGui::Text("AI State Override");
+
+        // Tampilkan State yang sedang aktif
+        std::string currentState = "Unknown";
+        if (m_stateMachine.IsState("Idle")) currentState = "Idle";
+        else if (m_stateMachine.IsState("Spawn Enemy")) currentState = "Spawn Enemy";
+        else if (m_stateMachine.IsState("Intro")) currentState = "Intro";
+
+        ImGui::TextColored({ 0,1,0,1 }, "Current State: %s", currentState.c_str());
+
+        // Tombol Trigger
+        if (ImGui::Button("Force IDLE"))
+        {
+            ChangeState(new BossIdleState());
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Force SPAWN ENEMY"))
+        {
+            ChangeState(new BossSpawnEnemyState());
+        }
+
+        ImGui::Separator();
+
 
         ImGui::Text("Active Parts: %d", (int)m_parts.size());
         ImGui::Separator();

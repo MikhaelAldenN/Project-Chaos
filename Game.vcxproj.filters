@@ -273,6 +273,9 @@
     <ClCompile Include="Source\ItemManager.cpp">
       <Filter>Source\Item</Filter>
     </ClCompile>
+    <ClCompile Include="Source\StateBoss.cpp">
+      <Filter>Source\State</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\AnimationController.h">
@@ -553,6 +556,9 @@
     </ClInclude>
     <ClInclude Include="Source\ItemManager.h">
       <Filter>Source\Item</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\StateBoss.h">
+      <Filter>Source\State</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

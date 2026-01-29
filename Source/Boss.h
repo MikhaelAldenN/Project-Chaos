@@ -8,6 +8,8 @@
 #include "System/ModelRenderer.h"
 #include "Camera.h"
 #include "BossTerminal.h"
+#include "StateBoss.h"
+#include "EnemyManager.h"
 
 // Forward declaration
 class BitmapFont;
@@ -86,6 +88,16 @@ public:
     BossPart* GetMonitor3Part() { return GetPart("monitor3"); }
     BossPart* GetCable1() { return GetPart("cable1"); }
 
+    // [TAMBAHKAN INI] Setter/Getter EnemyManager (PENTING untuk SpawnEnemyState)
+    void SetEnemyManager(class EnemyManager* em) { m_enemyManager = em; }
+    class EnemyManager* GetEnemyManager() const { return m_enemyManager; }
+
+    // [TAMBAHKAN INI] Helper ganti state dari luar
+    void ChangeState(class BossState* newState);
+
+    // [TAMBAHKAN INI] Getter StateMachine (Ini yang bikin error C2039)
+    BossStateMachine* GetStateMachine() { return &m_stateMachine; }
+
 private:
     void InitializeDefaultParts();
 
@@ -102,4 +114,6 @@ private:
     DirectX::XMFLOAT3 m_screenOffset = { -0.015f, 0.185f, -0.35f };
     DirectX::XMFLOAT3 m_screenScale = { 47.0f, 47.0f, 47.0f };
     DirectX::XMFLOAT3 m_screenRotation = { 91.0f, 180.0f, 0.0f };
+    BossStateMachine m_stateMachine;
+    class EnemyManager* m_enemyManager = nullptr;
 };

@@ -143,6 +143,7 @@
     <ClInclude Include="Source\LogConsole.h" />
     <ClInclude Include="Source\PostProcessManager.h" />
     <ClInclude Include="Source\Stage.h" />
+    <ClInclude Include="Source\StateBoss.h" />
     <ClInclude Include="Source\System\Collision.h" />
     <ClInclude Include="Source\System\CollisionManager.h" />
     <ClInclude Include="Source\TextDatabase.h" />
@@ -254,6 +255,7 @@
     <ClCompile Include="Source\SceneIntroOS.cpp" />
     <ClCompile Include="Source\SceneTitle.cpp" />
     <ClCompile Include="Source\Stage.cpp" />
+    <ClCompile Include="Source\StateBoss.cpp" />
     <ClCompile Include="Source\System\BasicShader.cpp" />
     <ClCompile Include="Source\System\Collision.cpp" />
     <ClCompile Include="Source\System\CollisionManager.cpp" />

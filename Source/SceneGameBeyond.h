@@ -17,6 +17,7 @@
 #include "WindowShatter.h"
 #include "Primitive.h"
 #include "WindowTrackingSystem.h"
+#include "EnemyManager.h"
 
 // =========================================================
 // SCENE GAME BEYOND - NO ImGui VERSION
@@ -52,6 +53,8 @@ private:
 
     // Window System
     std::unique_ptr<WindowTrackingSystem> m_windowSystem;
+
+    std::unique_ptr<EnemyManager> m_enemyManager;
 
     // States
     bool m_isWindowsInitialized = false;

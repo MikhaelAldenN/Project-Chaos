@@ -63,6 +63,9 @@ SceneGameBeyond::SceneGameBeyond()
 
     m_boss = std::make_unique<Boss>();
 
+    m_enemyManager = std::make_unique<EnemyManager>();
+    m_enemyManager->Initialize(Graphics::Instance().GetDevice());
+
     // 3. Sub Camera
     m_subCamera = std::make_shared<Camera>();
     m_subCamera->SetPerspectiveFov(XMConvertToRadians(60), 4.0f / 3.0f, 0.1f, 1000.0f);
@@ -72,6 +75,11 @@ SceneGameBeyond::SceneGameBeyond()
     // 4. Setup Primitive Renderer
     auto device = Graphics::Instance().GetDevice();
     m_primitive2D = std::make_unique<Primitive>(device);
+
+    if (m_boss && m_enemyManager)
+    {
+        m_boss->SetEnemyManager(m_enemyManager.get()); // Pass pointer agar Boss bisa spawn musuh
+    }
 }
 
 // =========================================================
@@ -367,6 +375,12 @@ void SceneGameBeyond::Update(float elapsedTime)
 
     if (m_boss) m_boss->Update(elapsedTime);
 
+    if (m_enemyManager && m_player)
+    {
+        // Enemy butuh Camera active dan Posisi Player untuk tracking
+        Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
+        m_enemyManager->Update(elapsedTime, activeCam, m_player->GetPosition());
+    }
 
     // 5. Update Window System
     if (m_windowSystem)
@@ -572,6 +586,14 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
     if (m_boss && m_gameStarted)
     {
         m_boss->Render(modelRenderer, camera);
+    }
+
+    if (m_enemyManager && m_gameStarted)
+    {
+        m_enemyManager->Render(modelRenderer);
+
+        // Opsional: Render Debug Collision/Shape jika perlu
+        // m_enemyManager->RenderDebug(Graphics::Instance().GetShapeRenderer());
     }
 
     if (m_blockManager && m_gameStarted)
