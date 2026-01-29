@@ -199,42 +199,56 @@ void BossLockPlayerState::Enter(Boss* boss)
     // Set total durasi state = (Intro 4.4s) + (Lama Kunci misal 5s) = ~9.5s
     m_duration = 9.5f;
 }
-
 void BossLockPlayerState::Update(Boss* boss, float dt)
 {
     m_timer += dt;
 
-    // --- LOGIC PENYINKRONAN ---
-    // Animasi Monitor: Warning (3s) -> PreDelay (1s) -> Closing (0.4s)
-    // Total sekitar 4.4 detik baru gembok tertutup.
-
-    // Kita baru mulai menarik player SETELAH detik ke-4.0 biar pas sama visual
-    if (m_timer > 4.0f)
+    Player* player = boss->GetPlayer();
+    if (player)
     {
-        Player* player = boss->GetPlayer();
-        if (player)
+        // ====================================================
+        // PHASE 1: MAGNETIC PULL (Saat Gembok Sedang Menutup)
+        // ====================================================
+        // Animasi menutup dimulai detik ke-4.0 dan selesai di 4.4
+        if (m_timer >= 4.0f && m_timer < 4.4f)
         {
-            // 1. Pastikan Lock aktif (Setiap frame tidak masalah, atau pakai flag bool)
+            // Lock Movement Input agar player tidak bisa lari
             player->SetMovementLock(true);
 
-            // 2. Tarik Player ke Titik Kunci (Lerp)
+            // Logika Tarik (Lerp)
             DirectX::XMFLOAT3 currentPos = player->GetPosition();
 
-            // Rumus Lerp Manual: Pos = Pos + (Target - Pos) * Speed * dt
-            float dx = (m_lockPosition.x - currentPos.x) * m_pullSpeed * dt;
-            float dz = (m_lockPosition.z - currentPos.z) * m_pullSpeed * dt;
+            // Gunakan interpolation yang agak cepat (Speed 10.0f) agar sempat sampai
+            float lerpSpeed = 10.0f;
 
-            // Update posisi
+            float dx = (m_lockPosition.x - currentPos.x) * lerpSpeed * dt;
+            float dz = (m_lockPosition.z - currentPos.z) * lerpSpeed * dt;
+
+            // Terapkan tarikan
             player->SetPosition(currentPos.x + dx, 0.0f, currentPos.z + dz);
+        }
+
+        // ====================================================
+        // PHASE 2: HARD SNAP (Saat Gembok Sudah Putih/Locked)
+        // ====================================================
+        // Detik ke 4.4 adalah saat bunyi "Cklek!" dan gembok jadi putih
+        else if (m_timer >= 4.4f)
+        {
+            // Pastikan input terkunci
+            player->SetMovementLock(true);
+
+            // SNAP! Paksa posisi player tepat di titik lock.
+            // Kita set setiap frame untuk mencegah physics/collision menggeser player.
+            player->SetPosition(m_lockPosition.x, 0.0f, m_lockPosition.z);
         }
     }
 
-    // 3. Setelah durasi total habis
+    // ====================================================
+    // STATE FINISH
+    // ====================================================
     if (m_timer >= m_duration)
     {
         boss->AddTerminalLog("GRAVITY WELL: DISSIPATED");
-
-        // Pindah ke Idle
         boss->GetStateMachine()->ChangeState(boss, new BossIdleState());
     }
 }

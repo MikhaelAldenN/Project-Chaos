@@ -111,6 +111,12 @@ bool TerminalMonitor1::IsBusy() const
     return m_animState != TerminalAnimState::IDLE && m_animState != TerminalAnimState::DONE;
 }
 
+bool TerminalMonitor1::IsSystemLocked() const
+{
+    // Mengembalikan true HANYA jika fase benar-benar LOCKED (Gembok tertutup putih)
+    return m_animState == TerminalAnimState::SYSTEM_LOCK && m_lockPhase == LockPhase::LOCKED;
+}
+
 void TerminalMonitor1::ResetToIdle(bool force)
 {
     // Jika dipaksa (Force) ATAU sedang tidak di mode Lock, langsung reset

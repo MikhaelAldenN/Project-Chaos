@@ -13,6 +13,8 @@
 #include "StateBoss.h"
 #include "EnemyManager.h"
 
+#include "System/Sprite.h"
+
 class Player;
 class BitmapFont;
 
@@ -145,4 +147,12 @@ private:
     DirectX::XMFLOAT3 m_screen1Offset = { -0.02f, 0.195f, -0.340f };
     DirectX::XMFLOAT3 m_screen1Rotation = { 90.0f, 180.0f, 0.0f };
     DirectX::XMFLOAT3 m_screen1Scale = { 46.0f, 46.0f, 46.0f };
+
+    std::unique_ptr<Sprite> m_bgChainSprite;
+
+    DirectX::XMFLOAT3 m_bgChainPos = { 0.0f, 0.0f, 0.0f };
+    DirectX::XMFLOAT3 m_bgChainRotation = { 90.0f, 0.0f, 0.0f };
+    DirectX::XMFLOAT2 m_bgChainSize = { 48.0f, 26.0f };
+
+    bool m_debugForceBG = false;
 };

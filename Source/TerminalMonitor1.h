@@ -44,9 +44,11 @@ public:
     void ShowLockScreen();
     void ResetToIdle(bool force = false);
     bool IsBusy() const;
+    bool IsSystemLocked() const;
 
     ID3D11ShaderResourceView* GetTexture() const { return m_srv.Get(); }
     void DrawGUI();
+
 
 private:
     void UpdateCursorLogic(float dt);

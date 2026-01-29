@@ -69,6 +69,8 @@ Boss::Boss()
     // [FIXED] Removed AddLog calls here because TerminalMonitor1 no longer supports logs.
     // Instead, it defaults to IDLE state (blinking cursor).
 
+    m_bgChainSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Beyond/Sprite_BackChain.png");
+
     // 3. Load Screen Models (Planes)
     try {
         // Shared instance cannot be used because they need different materials/textures
@@ -116,6 +118,39 @@ void Boss::Render(ModelRenderer* renderer, Camera* camera)
     if (font) {
         m_terminal.RenderToTexture(context, font);  // Monitor 2 (Logs)
         m_terminal1.RenderToTexture(context, font); // Monitor 1 (Command)
+    }
+
+    // =========================================================
+        // RENDER BACKGROUND CHAIN (WORLD SPACE)
+        // =========================================================
+        // Dirender setiap frame (High FPS) di World Space
+    if ((m_terminal1.IsSystemLocked() || m_debugForceBG) && m_bgChainSprite && camera)
+    {
+        auto rs = Graphics::Instance().GetRenderState();
+
+        // 1. Matikan Depth Write (Agar jadi background)
+        context->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
+        // 2. Setup Blend
+        float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        context->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), blendFactor, 0xFFFFFFFF);
+
+        // 3. RENDER DI WORLD SPACE (DENGAN ROTASI)
+        // Gunakan m_bgChainRotation pada parameter 'roll' (Rotasi Z)
+        // Konversi ke Radians: XMConvertToRadians(m_bgChainRotation)
+        m_bgChainSprite->Render(context,
+            camera,
+            m_bgChainPos.x, m_bgChainPos.y, m_bgChainPos.z, // Posisi
+            m_bgChainSize.x, m_bgChainSize.y,               // Ukuran
+            DirectX::XMConvertToRadians(m_bgChainRotation.x), // Pitch (X)
+            DirectX::XMConvertToRadians(m_bgChainRotation.y), // Yaw (Y)
+            DirectX::XMConvertToRadians(m_bgChainRotation.z), // Roll (Z)
+            1.0f, 1.0f, 1.0f, 1.0f                          // Warna
+        );
+
+        // 4. Restore Depth State (Wajib!)
+        context->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestAndWrite), 0);
+        context->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), blendFactor, 0xFFFFFFFF);
     }
 
     // 2. Render 3D Body Parts
@@ -409,5 +444,25 @@ void Boss::DrawDebugGUI()
             }
             ImGui::TreePop();
         }
+
+        // [BARU] BACKGROUND SETTINGS
+        ImGui::Separator();
+        ImGui::Text("World Background (Locked Phase)");
+
+        ImGui::Checkbox("DEBUG: Force Render BG", &m_debugForceBG);
+
+        // Slider Posisi (Z sangat penting untuk menjauhkan background)
+        ImGui::DragFloat3("BG Position", &m_bgChainPos.x, 0.5f);
+        ImGui::DragFloat3("BG Rotation (X Y Z)", &m_bgChainRotation.x, 1.0f, -360.0f, 360.0f);
+        // Slider Ukuran (Pertahankan rasio 16:9 manual atau visual)
+        ImGui::DragFloat2("BG Size (World Units)", &m_bgChainSize.x, 0.5f);
+
+        if (ImGui::Button("Reset BG"))
+        {
+            m_bgChainPos = { 0.0f, 0.0f, 30.0f };
+            m_bgChainSize = { 64.0f, 36.0f };
+        }
+
+        ImGui::Separator();
     }
 }
