@@ -36,13 +36,7 @@ void Item::Update(float elapsedTime, Camera* camera)
 void Item::Render(ModelRenderer* renderer)
 {
     if (!isActive) return;
-
-    // Override scale locally for rendering without affecting collider if needed, 
-    // but here we sync scale to transform.
     XMFLOAT3 currentScale = this->scale;
-
-    // Pass custom scale to model matrix calculation inside framework or manually:
-    // Since Character::SyncData uses 'scale' member:
     Character::scale = currentScale;
 
     renderer->Draw(ShaderId::Phong, model, color);

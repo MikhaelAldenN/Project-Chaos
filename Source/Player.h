@@ -57,12 +57,11 @@ public:
 
     bool IsInvincible() const { return m_isInvincible; }
 
-    // Settings struct for easy header tuning
     struct InvincibleConfig 
     {
         float Duration = 10.0f;
         float BlinkSpeed = 10.0f;
-        DirectX::XMFLOAT4 VisualColor = { 0.275f, 0.275f, 0.275f, 1.0f }; // Stage Color
+        DirectX::XMFLOAT4 VisualColor = { 0.275f, 0.275f, 0.275f, 1.0f }; 
     };
     InvincibleConfig invincibleSettings;
 
