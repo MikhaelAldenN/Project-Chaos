@@ -167,6 +167,22 @@ void BlockManager::Update(float elapsedTime, Camera* camera, Player* player)
             m_isInvincible = false;
             m_invincibleTimer = 0.0f;
         }
+        else
+        {
+            // --- BLINK LOGIC (Same as Player) ---
+            // Calculate Ping-Pong effect (0.0 to 1.0)
+            float t = std::abs(std::sin(m_invincibleTimer * BlinkSpeed));
+
+            // Define Colors (Grey to White)
+            DirectX::XMFLOAT4 colorGrey = invincibleColor;   
+            DirectX::XMFLOAT4 colorWhite = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+            // Linear Interpolation
+            m_currentInvincibleColor.x = colorGrey.x + (colorWhite.x - colorGrey.x) * t;
+            m_currentInvincibleColor.y = colorGrey.y + (colorWhite.y - colorGrey.y) * t;
+            m_currentInvincibleColor.z = colorGrey.z + (colorWhite.z - colorGrey.z) * t;
+            m_currentInvincibleColor.w = 1.0f;
+        }
     }
 
     if (m_shootTimer > 0.0f)
@@ -527,6 +543,15 @@ void BlockManager::Render(ModelRenderer* renderer)
 {
     DirectX::XMFLOAT4 finalColor = m_isInvincible ? invincibleColor : globalBlockColor;
 
+    if (m_isInvincible)
+    {
+        finalColor = m_currentInvincibleColor; 
+    }
+    else
+    {
+        finalColor = globalBlockColor; 
+    }
+
     for (auto& blockPtr : blocks)
     {
         if (blockPtr->IsActive())
@@ -574,15 +599,31 @@ void BlockManager::CheckCollision(Ball* ball)
     }
 
     if (closestBlock) {
+        // 1. Handle Physics (Bounce) - This happens regardless of invincibility
         DirectX::XMFLOAT3 vel = ball->GetVelocity();
         DirectX::XMFLOAT3 pos = ball->GetMovement()->GetPosition();
         DirectX::XMFLOAT3 bPos = closestBlock->GetMovement()->GetPosition();
         float pushBuffer = 0.001f;
-        if (hitZ) { vel.z *= -1.0f; float dir = (pos.z > bPos.z) ? 1.0f : -1.0f; pos.z = bPos.z + (dir * (maxRange + pushBuffer)); }
-        else { vel.x *= -1.0f; float dir = (pos.x > bPos.x) ? 1.0f : -1.0f; pos.x = bPos.x + (dir * (maxRange + pushBuffer)); }
-        ball->SetVelocity(vel); ball->GetMovement()->SetPosition(pos);
-        closestBlock->OnHit();
-        if (m_onBlockHitCallback) m_onBlockHitCallback();
+
+        if (hitZ) {
+            vel.z *= -1.0f;
+            float dir = (pos.z > bPos.z) ? 1.0f : -1.0f;
+            pos.z = bPos.z + (dir * (maxRange + pushBuffer));
+        }
+        else {
+            vel.x *= -1.0f;
+            float dir = (pos.x > bPos.x) ? 1.0f : -1.0f;
+            pos.x = bPos.x + (dir * (maxRange + pushBuffer));
+        }
+        ball->SetVelocity(vel);
+        ball->GetMovement()->SetPosition(pos);
+
+        // 2. Handle Destruction - [MODIFIED] Check Invincibility
+        if (!IsInvincible())
+        {
+            closestBlock->OnHit();
+            if (m_onBlockHitCallback) m_onBlockHitCallback();
+        }
     }
 }
 

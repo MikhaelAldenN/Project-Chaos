@@ -102,16 +102,6 @@ void SceneGameBreaker::Update(float elapsedTime)
         paddle->Update(elapsedTime, activeCam);
     }
 
-
-    if (blockManager)
-    {
-        blockManager->Update(elapsedTime, activeCam, player);
-        if (ball && ball->IsActive())
-        {
-            blockManager->CheckCollision(ball);
-        }
-    }
-
     if (player)
     {
         player->Update(elapsedTime, activeCam);
@@ -450,12 +440,7 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
     if (paddle && paddle->IsActive()) modelRenderer->Draw(ShaderId::Phong, paddle->GetModel(), paddle->color);
     if (player) 
     {
-        DirectX::XMFLOAT4 finalColor = player->color;
-        if (player->IsInvincible()) 
-        {
-            finalColor = player->invincibleSettings.VisualColor;
-        }
-        modelRenderer->Draw(ShaderId::Phong, player->GetModel(), finalColor);
+        modelRenderer->Draw(ShaderId::Phong, player->GetModel(), player->color);
     }
     if (m_introFinished && m_enemyManager) { m_enemyManager->Render(modelRenderer); }
     if (m_introFinished && m_itemManager) m_itemManager->Render(modelRenderer);

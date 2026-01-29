@@ -49,10 +49,10 @@ public:
     bool IsEscaping() const { return isEscaping; }
 
     // --- Invicible Logic ---
-    void ActivateInvincibility() 
+    void ActivateInvincibility(float duration)
     {
         m_isInvincible = true;
-        m_invincibleTimer = invincibleSettings.Duration;
+        m_invincibleTimer = duration;
     }
 
     bool IsInvincible() const { return m_isInvincible; }
@@ -60,7 +60,8 @@ public:
     // Settings struct for easy header tuning
     struct InvincibleConfig 
     {
-        float Duration = 7.0f;
+        float Duration = 10.0f;
+        float BlinkSpeed = 10.0f;
         DirectX::XMFLOAT4 VisualColor = { 0.275f, 0.275f, 0.275f, 1.0f }; // Stage Color
     };
     InvincibleConfig invincibleSettings;

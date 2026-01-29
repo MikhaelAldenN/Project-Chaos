@@ -871,16 +871,14 @@ void CollisionManager::CheckPlayerVsItems()
 {
     if (!m_player || !m_itemManager) return;
 
-    // Gunakan GetMovement()->GetPosition() agar konsisten dengan logika player lain
     XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
-    float pRadius = 0.5f; // Radius player (sesuaikan jika perlu)
+    float pRadius = 0.5f;
 
     for (auto& item : m_itemManager->GetItems())
     {
         if (!item->IsActive()) continue;
 
         XMFLOAT3 iPos = item->GetPosition();
-        // Asumsi radius item dari scale
         float iRadius = item->scale.x * 0.5f;
 
         float distSq = (pPos.x - iPos.x) * (pPos.x - iPos.x) +
@@ -896,6 +894,17 @@ void CollisionManager::CheckPlayerVsItems()
             if (item->GetType() == ItemType::Heal)
             {
                 if (m_blockManager) m_blockManager->AddBlockFromItem(iPos);
+            }
+            // Handle Invincible Item
+            else if (item->GetType() == ItemType::Invincible)
+            {
+                float duration = 10.0f;
+
+                // Apply to Blocks (The Shield)
+                if (m_blockManager) m_blockManager->ActivateInvincibility(duration);
+
+                // Apply to Player (The Center Character)
+                if (m_player) m_player->ActivateInvincibility(duration);
             }
 
             // 2. Matikan Item

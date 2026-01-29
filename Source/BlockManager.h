@@ -52,6 +52,7 @@ public:
     // Color Setting
     DirectX::XMFLOAT4 globalBlockColor = { 0.96f, 0.80f, 0.23f, 1.0f };
     DirectX::XMFLOAT4 invincibleColor = { 0.275f, 0.275f, 0.275f, 1.0f };
+    float BlinkSpeed = 10.0f;
 
     // Formation Settings
     struct FormationConfig
@@ -140,4 +141,5 @@ private:
     // Invincible State
     bool m_isInvincible = false;
     float m_invincibleTimer = 0.0f;
+    DirectX::XMFLOAT4 m_currentInvincibleColor;
 };
