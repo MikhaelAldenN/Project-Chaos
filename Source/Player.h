@@ -31,6 +31,14 @@ public:
     void SetInputEnabled(bool enable) { isInputEnabled = enable; }
     void SetCamera(Camera* cam) { activeCamera = cam; }
 
+    // Falling State Logic
+    void SetFalling(bool state)
+    {
+        isFalling = state;
+        if (state) movement->SetGravityEnabled(true); 
+    }
+    bool IsFalling() const { return isFalling; }
+
     void SetPosition(float x, float y, float z);
     void SetPosition(const DirectX::XMFLOAT3& pos);
 
@@ -94,6 +102,7 @@ public:
     {
         static constexpr float DefaultSpeed = 3.0f;  // Speed for SceneGameBeyond
         static constexpr float BreakerSpeed = 1.4f;  // Speed for SceneGameBreaker
+        static constexpr float KillPlaneY   = -88.0f;
     };
     void SetMoveSpeed(float speed) { moveSpeed = speed; }
 
@@ -118,6 +127,7 @@ private:
     // --- Breakout State ---
     bool isBreakoutActive = false;
     bool isEscaping = false;
+    bool isFalling = false;
     bool m_isInvincible = false;
     bool wasSpacePressed = false;                               
     float currentShakeIntensity = 0.0f;

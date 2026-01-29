@@ -36,6 +36,7 @@ private:
     void CheckPlayerVsBlocks();
     void CheckPlayerVsEnemies();
     void CheckPlayerVsItems();
+    void CheckPlayerVsVoidLines();
     void CheckStageCollision();
     void CheckEnemyProjectilesFull(float elapsedTime);
 

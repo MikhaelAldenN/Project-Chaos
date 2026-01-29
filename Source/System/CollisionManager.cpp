@@ -75,10 +75,25 @@ void CollisionManager::Initialize(Player* p, Stage* s, BlockManager* bm, EnemyMa
 
 void CollisionManager::Update(float elapsedTime)
 {
-    if (!m_player) return;
+    if (!m_player->IsFalling())
+    {
+        m_player->GetMovement()->SetGravityEnabled(false);
+        m_player->GetMovement()->SetVelocityY(0.0f);
+    }
 
-    m_player->GetMovement()->SetGravityEnabled(false);
-    m_player->GetMovement()->SetVelocityY(0.0f);
+    else
+    {
+        float currentY = m_player->GetMovement()->GetPosition().y;
+        float limitY = Player::MovementSettings::KillPlaneY; 
+
+        if (currentY < limitY)
+        {
+            if (m_onPlayerHitCallback) m_onPlayerHitCallback();
+            m_player->SetFalling(false); 
+            m_player->GetMovement()->SetVelocity({ 0, 0, 0 });
+            m_player->GetMovement()->SetGravityEnabled(false);
+        }
+    }
 
     if (m_blockManager)
     {
@@ -102,6 +117,7 @@ void CollisionManager::Update(float elapsedTime)
     CheckBlockVsStage();
     CheckBlockVsVoidLines();
     CheckPlayerVsEnemies();
+    CheckPlayerVsVoidLines();
 
     if (m_blockManager)
     {
@@ -832,6 +848,29 @@ void CollisionManager::CheckPlayerVsEnemies()
             m_player->GetMovement()->SetPosition({ 0, -1000, 0 }); // Send to void
         }
         else { ++it; }
+    }
+}
+
+void CollisionManager::CheckPlayerVsVoidLines()
+{
+    if (!m_player || !m_stage) return;
+    if (m_player->IsFalling()) return;
+
+    const float FALL_THRESHOLD = 0.1f;
+    const float TRIGGER_RANGE = 2.0f;
+
+    for (const auto& line : m_stage->m_linesVoid)
+    {
+        XMVECTOR vLocalPos = TransformToLocalLine(m_player->GetMovement()->GetPosition(), line);
+        XMFLOAT3 localPos;
+        XMStoreFloat3(&localPos, vLocalPos);
+        float lineHalfLength = line.Scale.x * 0.5f;
+
+        if (localPos.x < -lineHalfLength - 0.5f || localPos.x > lineHalfLength + 0.5f) continue;
+        if (localPos.z < -FALL_THRESHOLD && localPos.z > -TRIGGER_RANGE)
+        {
+            m_player->SetFalling(true);
+        }
     }
 }
 

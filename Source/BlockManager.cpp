@@ -206,7 +206,7 @@ void BlockManager::Update(float elapsedTime, Camera* camera, Player* player)
         }
     }
 
-    float killPlaneY = -30.0f;
+    float killPlaneY = Player::MovementSettings::KillPlaneY;
 
     // 2. Update Physics & Visuals
     for (auto& blockPtr : blocks)
