@@ -97,7 +97,7 @@ void BossIdleState::Enter(Boss* boss)
 {
     // Reset timer berpikir
     m_timer = 0.0f;
-
+    boss->GetMonitor1()->ResetToIdle();
     // Contoh: Set warna normal (jika ada fungsi set color)
     // boss->SetColor({1,1,1,1}); 
 }
