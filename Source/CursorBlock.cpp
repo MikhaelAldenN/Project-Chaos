@@ -4,14 +4,19 @@
 
 CursorBlock::CursorBlock(ID3D11Device* device)
 {
-    // Setup Blend State: Invert Color Logic
+    // [PERBAIKAN] Ganti dari INVERT ke STANDARD ALPHA BLEND
+    // Ini menjamin warna kursor tetap AMBER TERANG di atas background apapun.
+
     D3D11_BLEND_DESC blendDesc = {};
     blendDesc.AlphaToCoverageEnable = FALSE;
     blendDesc.IndependentBlendEnable = FALSE;
 
     blendDesc.RenderTarget[0].BlendEnable = TRUE;
-    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_INV_DEST_COLOR;
-    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ZERO;
+
+    // SRC_ALPHA = Pakai alpha dari warna kursor
+    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+    // INV_SRC_ALPHA = Background terlihat sesuai sisa alpha kursor
+    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
     blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
 
     blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
