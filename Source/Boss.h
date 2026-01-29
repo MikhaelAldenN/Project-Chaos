@@ -103,6 +103,12 @@ public:
     void SetPlayer(Player* player) { m_player = player; }
     Player* GetPlayer() const { return m_player; }
 
+    TerminalMonitor1* GetMonitor1() { return &m_terminal1; }
+
+    void TriggerIdle();
+    void TriggerSpawnEnemy();
+    void TriggerLockPlayer();
+
 private:
     void InitializeDefaultParts();
 

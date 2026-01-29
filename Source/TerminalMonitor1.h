@@ -10,6 +10,14 @@
 #include "CursorBlock.h" // Include CursorBlock
 #include "Primitive.h"   // Include Primitive
 
+enum class TerminalAnimState
+{
+    IDLE,           // Cursor diam di tengah
+    MOVING_TO_POS,  // Cursor jalan dari tengah ke kiri atas
+    TYPING,         // Ngetik huruf satu-satu
+    DONE            // Selesai ngetik (tanda bagi Boss State untuk lanjut)
+};
+
 class TerminalMonitor1
 {
 public:
@@ -19,6 +27,9 @@ public:
     void Initialize(ID3D11Device* device, int width, int height);
     void Update(float dt);
     void RenderToTexture(ID3D11DeviceContext* context, BitmapFont* font);
+    void PlayCommandAnimation(const std::string& command); // Mulai animasi
+    bool IsBusy() const; // Cek apakah animasi masih jalan?
+    
     ID3D11ShaderResourceView* GetTexture() const { return m_srv.Get(); }
 
     void AddLog(const std::string& msg);
@@ -65,4 +76,19 @@ private:
 
     std::unique_ptr<Primitive> m_primitive;
     std::unique_ptr<CursorBlock> m_cursor;
+
+    // --- [BARU] SYSTEM ANIMASI ---
+    TerminalAnimState m_animState = TerminalAnimState::IDLE;
+
+    std::string m_targetCommand = "";   // Teks penuh: "INITIATE LOCK"
+    std::string m_currentDisplay = "";  // Teks saat ini: "INITI..."
+
+    DirectX::XMFLOAT2 m_cursorPos = { 0,0 }; // Posisi dinamis cursor
+    DirectX::XMFLOAT2 m_startTypingPos = { 50.0f, 100.0f }; // Posisi mulai ngetik (kiri atas)
+
+    float m_animTimer = 0.0f;
+    float m_typeSpeed = 0.05f; // Kecepatan ngetik per huruf
+
+    // Visual Settings
+    float m_commandFontScale = 2.0f; // Tulisan perintah harus besar
 };

@@ -44,7 +44,7 @@ void TerminalMonitor1::Initialize(ID3D11Device* device, int width, int height)
     // Asumsi font base size sekitar 10x20 pixel.
     m_cursor->Initialize(45.0f, 80.0f);
     m_cursor->SetBlink(true, 0.8f, 0.5f);
-    m_cursor->SetGridSnap(false, 0, 0); // Di terminal 3D mending smooth atau snap manual
+    m_cursorPos = { (float)width / 2.0f - 22.5f, (float)height / 2.0f - 40.0f };
 }
 
 void TerminalMonitor1::InitializeLogs()
@@ -76,46 +76,93 @@ void TerminalMonitor1::InitializeLogs()
     };
 }
 
-void TerminalMonitor1::Update(float dt)
+void TerminalMonitor1::PlayCommandAnimation(const std::string& command)
 {
-    //// --- 1. LOGIKA AUTO SCROLL (Gabungan dari fungsi pertama) ---
-    //if (m_autoScrollActive)
-    //{
-    //    m_timer += dt;
-    //    if (m_timer > m_lineDelay)
-    //    {
-    //        m_timer = 0.0f;
-    //        if (!m_bootSequence.empty())
-    //        {
-    //            // Ambil log acak
-    //            int index = rand() % m_bootSequence.size();
-    //            std::string log = m_bootSequence[index];
+    m_targetCommand = command;
+    m_currentDisplay = "";
+    m_animState = TerminalAnimState::MOVING_TO_POS; // Mulai gerak ke kiri
+    m_animTimer = 0.0f;
 
-    //            // Variasi format output
-    //            if (rand() % 4 == 0)
-    //            {
-    //                log += " [" + std::to_string(rand() % 100) + "%]";
-    //            }
-    //            AddLog(log);
-    //        }
-    //    }
-    //}
-
-    //// --- 2. LOGIKA UPDATE CURSOR (Gabungan dari fungsi kedua) ---
-    //// PENTING: Pastikan Anda juga sudah mengubah definisi UpdateCursorPosition
-    //// di .h dan .cpp untuk menerima parameter (float dt) seperti saran sebelumnya.
-    //UpdateCursorPosition(dt);
-
-    // Kita hardcode posisi tengah (256, 256) dikurang setengah ukuran kursor (30, 50)
-    float centerX = (m_width / 2.0f) - 30.0f;
-    float centerY = (m_height / 2.0f) - 50.0f;
-
-    if (m_cursor)
-    {
-        m_cursor->Update(dt, centerX, centerY);
-    }
+    // Paksa cursor nyala (biar kelihatan pas gerak)
+    m_cursor->SetBlink(true, 99.0f, 0.0f);
 }
 
+bool TerminalMonitor1::IsBusy() const
+{
+    return m_animState != TerminalAnimState::IDLE && m_animState != TerminalAnimState::DONE;
+}
+
+void TerminalMonitor1::Update(float dt)
+{
+    float centerX = (m_width / 2.0f) - 22.5f; // Setengah lebar cursor
+    float centerY = (m_height / 2.0f) - 40.0f; // Setengah tinggi cursor
+
+    switch (m_animState)
+    {
+    case TerminalAnimState::IDLE:
+        // Logic Lama: Diam di tengah
+        // Lerp pelan balik ke tengah kalau habis dari animasi
+        m_cursorPos.x += (centerX - m_cursorPos.x) * 5.0f * dt;
+        m_cursorPos.y += (centerY - m_cursorPos.y) * 5.0f * dt;
+        break;
+
+    case TerminalAnimState::MOVING_TO_POS:
+    {
+        // Lerp Cepat ke posisi ngetik (Kiri Atas)
+        float speed = 10.0f;
+        float distX = m_startTypingPos.x - m_cursorPos.x;
+        float distY = m_startTypingPos.y - m_cursorPos.y;
+
+        m_cursorPos.x += distX * speed * dt;
+        m_cursorPos.y += distY * speed * dt;
+
+        // Jika sudah dekat, mulai ngetik
+        if (abs(distX) < 1.0f && abs(distY) < 1.0f)
+        {
+            m_cursorPos = m_startTypingPos;
+            m_animState = TerminalAnimState::TYPING;
+            m_animTimer = 0.0f;
+            // Kembalikan blink normal saat ngetik
+            m_cursor->SetBlink(true, 0.1f, 0.05f); // Ngetik cepat, blink cepat
+        }
+    }
+    break;
+
+    case TerminalAnimState::TYPING:
+        m_animTimer += dt;
+        if (m_animTimer >= m_typeSpeed)
+        {
+            m_animTimer = 0.0f;
+            if (m_currentDisplay.length() < m_targetCommand.length())
+            {
+                // Tambah 1 huruf
+                m_currentDisplay += m_targetCommand[m_currentDisplay.length()];
+
+                // Geser cursor ke kanan (Estimasi lebar font 20px * scale 2.0 = 40px)
+                m_cursorPos.x += 35.0f;
+            }
+            else
+            {
+                // Selesai ngetik, diam sebentar (hold)
+                m_animState = TerminalAnimState::DONE;
+                m_animTimer = 0.0f;
+                m_cursor->SetBlink(true, 0.5f, 0.5f); // Blink normal lagi
+            }
+        }
+        break;
+
+    case TerminalAnimState::DONE:
+        // Boss State akan membaca ini, lalu memanggil fungsi lain untuk reset
+        // Atau kita biarkan saja DONE sampai Boss meresetnya
+        break;
+    }
+
+    // Update Visual Cursor
+    if (m_cursor)
+    {
+        m_cursor->Update(dt, m_cursorPos.x, m_cursorPos.y);
+    }
+}
 //// 2. Update logic posisi kursor
 //void TerminalMonitor1::UpdateCursorPosition(float dt) 
 //{
@@ -183,18 +230,25 @@ void TerminalMonitor1::RenderToTexture(ID3D11DeviceContext* context, BitmapFont*
     //        m_textColor.z,  // B
     //        m_textColor.w   // A
     //    );
-
+    
     //    startY += m_lineSpacing * m_fontScale;
     //}
 
-    // [BARU] Render Cursor SETELAH teks, tapi SEBELUM restore RTV
+// 1. RENDER TEKS COMMAND (Hanya jika sedang ngetik/done)
+    if (m_animState == TerminalAnimState::TYPING || m_animState == TerminalAnimState::DONE)
+    {
+        // Warna Putih/Merah Besar
+        font->Draw(
+            m_currentDisplay.c_str(),
+            m_startTypingPos.x, m_startTypingPos.y,
+            m_commandFontScale,
+            1.0f, 0.2f, 0.2f, 1.0f // Merah Alarm
+        );
+    }
+
+    // 2. RENDER CURSOR (Selalu di atas teks)
     if (m_cursor && m_primitive)
     {
-        // CursorBlock menggunakan BlendState INVERT.
-        // Karena background texture terminal transparan/hitam:
-        // - Hitam (0,0,0) di-invert jadi Putih.
-        // - Teks Hijau di-invert jadi Magenta/Ungu.
-        // Ini efek retro yang keren!
         m_cursor->Render(context, m_primitive.get());
     }
 

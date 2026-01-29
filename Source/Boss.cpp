@@ -392,6 +392,32 @@ void Boss::ChangeState(BossState* newState)
     m_stateMachine.ChangeState(this, newState);
 }
 
+// --- IMPLEMENTASI AI COMMANDS ---
+
+void Boss::TriggerIdle()
+{
+    // Idle biasanya langsung, tidak perlu ngetik di terminal
+    ChangeState(new BossIdleState());
+}
+
+void Boss::TriggerSpawnEnemy()
+{
+    // Bungkus logika "Ngetik dulu baru Spawn" di sini
+    ChangeState(new BossCommandState(
+        new BossSpawnEnemyState(),
+        "DEPLOY MINIONS"
+    ));
+}
+
+void Boss::TriggerLockPlayer()
+{
+    // Bungkus logika "Ngetik dulu baru Lock" di sini
+    ChangeState(new BossCommandState(
+        new BossLockPlayerState(),
+        "INITIATE LOCK"
+    ));
+}
+
 void Boss::DrawDebugGUI()
 {
     if (ImGui::CollapsingHeader("Boss Manager", ImGuiTreeNodeFlags_DefaultOpen))
@@ -433,22 +459,22 @@ void Boss::DrawDebugGUI()
         // Tombol Trigger
         if (ImGui::Button("Force IDLE"))
         {
-            ChangeState(new BossIdleState());
+            TriggerIdle(); // Bersih!
         }
 
         ImGui::SameLine();
 
         if (ImGui::Button("Force SPAWN ENEMY"))
         {
-            ChangeState(new BossSpawnEnemyState());
+            TriggerSpawnEnemy(); // Bersih!
         }
 
         ImGui::SameLine();
+
         if (ImGui::Button("Force LOCK PLAYER"))
         {
-            ChangeState(new BossLockPlayerState());
+            TriggerLockPlayer(); // Bersih!
         }
-
         ImGui::Separator();
 
 

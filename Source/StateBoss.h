@@ -108,3 +108,32 @@ private:
     DirectX::XMFLOAT3 m_lockPosition = { 0.0f, 0.0f, -8.0f };
     float m_pullSpeed = 5.0f;
 };
+
+class BossCommandState : public BossState
+{
+public:
+    // Constructor menerima: State Tujuan (nextState) dan Pesan (message)
+    BossCommandState(BossState* nextState, const std::string& message)
+        : m_nextState(nextState), m_message(message) {}
+
+    // Destructor: PENTING! Jika state ini dihancurkan sebelum pindah,
+    // kita harus hapus m_nextState agar tidak memory leak.
+    ~BossCommandState()
+    {
+        if (m_nextState) {
+            delete m_nextState;
+            m_nextState = nullptr;
+        }
+    }
+
+    void Enter(Boss* boss) override;
+    void Update(Boss* boss, float dt) override;
+    void Exit(Boss* boss) override;
+    std::string GetName() const override { return "Command: " + m_message; }
+
+private:
+    BossState* m_nextState = nullptr;
+    std::string m_message;
+    float m_waitTimer = 0.0f;
+    bool m_animStarted = false;
+};

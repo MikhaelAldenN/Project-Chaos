@@ -234,3 +234,50 @@ void BossLockPlayerState::Exit(Boss* boss)
         boss->AddTerminalLog("MOBILITY SYSTEMS: RESTORED");
     }
 }
+
+// ==========================================
+// STATE: BOSS COMMAND (TYPING ANIMATION)
+// ==========================================
+
+void BossCommandState::Enter(Boss* boss)
+{
+    // 1. Panggil Monitor 1 untuk mulai animasi
+    // (Asumsi Boss punya getter: boss->GetMonitor1())
+    boss->GetMonitor1()->PlayCommandAnimation(m_message);
+
+    m_waitTimer = 0.0f;
+    boss->AddTerminalLog("EXEC: " + m_message); // Log di terminal kecil juga
+}
+
+void BossCommandState::Update(Boss* boss, float dt)
+{
+    // 2. Cek apakah Monitor 1 masih sibuk ngetik?
+    if (boss->GetMonitor1()->IsBusy())
+    {
+        // Masih ngetik, jangan lakukan apa-apa
+        return;
+    }
+
+    // 3. Animasi selesai (State DONE)
+    // Beri jeda sedikit (misal 0.5 detik) biar player sempat baca
+    m_waitTimer += dt;
+    if (m_waitTimer > 0.5f)
+    {
+        // 4. TRANSISI KE STATE ASLI
+        // Kita gunakan trik: Ambil pointer m_nextState, set member ke null (biar destructor ga hapus),
+        // lalu oper ke BossStateMachine.
+
+        BossState* next = m_nextState;
+        m_nextState = nullptr; // Lepas kepemilikan
+
+        // Pindah state!
+        boss->GetStateMachine()->ChangeState(boss, next);
+    }
+}
+
+void BossCommandState::Exit(Boss* boss)
+{
+    // Saat keluar, Monitor 1 akan otomatis kembali ke Idle di Update loop-nya sendiri
+    // atau kita bisa paksa reset status animasinya jika perlu.
+    // Tapi logic di TerminalMonitor1::Update bagian IDLE sudah handle lerp balik.
+}
