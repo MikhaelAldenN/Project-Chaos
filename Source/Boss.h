@@ -115,9 +115,15 @@ private:
     std::shared_ptr<Model> m_screenQuad; // Model kotak tipis untuk layar
     void CreateScreenQuad(); // Fungsi bikin kotak manual
 
-    DirectX::XMFLOAT3 m_screenOffset = { -0.015f, 0.185f, -0.35f };
-    DirectX::XMFLOAT3 m_screenScale = { 47.0f, 47.0f, 47.0f };
-    DirectX::XMFLOAT3 m_screenRotation = { 91.0f, 180.0f, 0.0f };
+    DirectX::XMFLOAT3 m_screenOffset = { 0.0f, 0.002f, 0.0174f };
+
+    // Scale kecil karena Monitor 2 scalenya sudah besar (100)
+    // Coba mulai dari 0.8 (80% ukuran muka monitor)
+    DirectX::XMFLOAT3 m_screenScale = { 3.2f, 3.2f, 3.2f };
+
+    // Reset rotasi, nanti kita atur lagi lewat ImGui
+    DirectX::XMFLOAT3 m_screenRotation = { 81.7f, 0.0f, 0.0f };
+
     BossStateMachine m_stateMachine;
     class EnemyManager* m_enemyManager = nullptr;
 

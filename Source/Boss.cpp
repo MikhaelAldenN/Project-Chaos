@@ -247,9 +247,9 @@ void Boss::Render(ModelRenderer* renderer, Camera* camera)
     }
 
     // 3. RENDER LAYAR MONITOR
-    if (m_screenQuad && HasPart("monitor1"))
+    if (m_screenQuad && HasPart("monitor2"))
     {
-        BossPart* monitor = GetPart("monitor1");
+        BossPart* monitor = GetPart("monitor2");
 
         // --- A. Hitung Transformasi ---
         XMMATRIX S = XMMatrixScaling(monitor->scale.x, monitor->scale.y, monitor->scale.z);
