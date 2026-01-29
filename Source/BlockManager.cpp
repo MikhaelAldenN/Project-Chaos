@@ -169,12 +169,9 @@ void BlockManager::Update(float elapsedTime, Camera* camera, Player* player)
         }
         else
         {
-            // --- BLINK LOGIC (Same as Player) ---
-            // Calculate Ping-Pong effect (0.0 to 1.0)
-            float t = std::abs(std::sin(m_invincibleTimer * BlinkSpeed));
+            float t = std::abs(std::sin(m_invincibleTimer * Player::InvincibleSettings::BlinkSpeed));
 
-            // Define Colors (Grey to White)
-            DirectX::XMFLOAT4 colorGrey = invincibleColor;   
+            DirectX::XMFLOAT4 colorGrey = Player::InvincibleSettings::GetColor();
             DirectX::XMFLOAT4 colorWhite = { 1.0f, 1.0f, 1.0f, 1.0f };
 
             // Linear Interpolation

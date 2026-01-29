@@ -728,6 +728,13 @@ void CollisionManager::CheckBlockVsItems()
                 if (item->GetType() == ItemType::Heal) {
                     if (m_blockManager) m_blockManager->AddBlockFromItem(iPos);
                 }
+                else if (item->GetType() == ItemType::Invincible) {
+                    float duration = Player::InvincibleSettings::Duration;
+                    if (m_blockManager) m_blockManager->ActivateInvincibility(duration);
+                    if (m_player) m_player->ActivateInvincibility(duration);
+                }
+                item->SetActive(false); 
+
                 break;
             }
         }
@@ -811,6 +818,12 @@ void CollisionManager::CheckPlayerVsEnemies()
 
         if (isHit)
         {
+            if (m_player->IsInvincible()) 
+            {
+                if (m_itemManager && enemy->GetType() == EnemyType::Paddle) { m_itemManager->SpawnHealAt(enemyPos); }
+                it = enemies.erase(it);
+                continue; 
+            }
             if (m_onPlayerHitCallback) m_onPlayerHitCallback();
             if (m_itemManager && enemy->GetType() == EnemyType::Paddle) { m_itemManager->SpawnHealAt(enemyPos); }
             it = enemies.erase(it);
@@ -898,7 +911,7 @@ void CollisionManager::CheckPlayerVsItems()
             // Handle Invincible Item
             else if (item->GetType() == ItemType::Invincible)
             {
-                float duration = 10.0f;
+                float duration = Player::InvincibleSettings::Duration;
 
                 // Apply to Blocks (The Shield)
                 if (m_blockManager) m_blockManager->ActivateInvincibility(duration);

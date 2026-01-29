@@ -75,9 +75,9 @@ void Player::Update(float elapsedTime, Camera* camera)
         else
         {
             
-            float t = std::abs(std::sin(m_invincibleTimer * invincibleSettings.BlinkSpeed));
+            float t = std::abs(std::sin(m_invincibleTimer * Player::InvincibleSettings::BlinkSpeed));
 
-            DirectX::XMFLOAT4 colorGrey = invincibleSettings.VisualColor;
+            DirectX::XMFLOAT4 colorGrey = Player::InvincibleSettings::GetColor();
             DirectX::XMFLOAT4 colorWhite = { 1.0f, 1.0f, 1.0f, 1.0f };
 
             color.x = colorGrey.x + (colorWhite.x - colorGrey.x) * t;

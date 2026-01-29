@@ -57,13 +57,13 @@ public:
 
     bool IsInvincible() const { return m_isInvincible; }
 
-    struct InvincibleConfig 
+    struct InvincibleSettings
     {
-        float Duration = 10.0f;
-        float BlinkSpeed = 10.0f;
-        DirectX::XMFLOAT4 VisualColor = { 0.275f, 0.275f, 0.275f, 1.0f }; 
+        static constexpr float Duration = 10.0f;      
+        static constexpr float BlinkSpeed = 10.0f;    
+
+        static DirectX::XMFLOAT4 GetColor() { return { 0.275f, 0.275f, 0.275f, 1.0f }; }
     };
-    InvincibleConfig invincibleSettings;
 
     void SetInvertControls(bool enable) { invertControls = enable; }
 
