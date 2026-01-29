@@ -348,6 +348,12 @@ void Boss::DrawDebugGUI()
             ChangeState(new BossSpawnEnemyState());
         }
 
+        ImGui::SameLine();
+        if (ImGui::Button("Force LOCK PLAYER"))
+        {
+            ChangeState(new BossLockPlayerState());
+        }
+
         ImGui::Separator();
 
 

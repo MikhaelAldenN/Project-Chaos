@@ -11,6 +11,7 @@
 #include "StateBoss.h"
 #include "EnemyManager.h"
 
+class Player;
 // Forward declaration
 class BitmapFont;
 
@@ -98,6 +99,9 @@ public:
     // [TAMBAHKAN INI] Getter StateMachine (Ini yang bikin error C2039)
     BossStateMachine* GetStateMachine() { return &m_stateMachine; }
 
+    void SetPlayer(Player* player) { m_player = player; }
+    Player* GetPlayer() const { return m_player; }
+
 private:
     void InitializeDefaultParts();
 
@@ -116,4 +120,6 @@ private:
     DirectX::XMFLOAT3 m_screenRotation = { 91.0f, 180.0f, 0.0f };
     BossStateMachine m_stateMachine;
     class EnemyManager* m_enemyManager = nullptr;
+
+    Player* m_player = nullptr;
 };

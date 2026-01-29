@@ -1,6 +1,7 @@
 #include "StateBoss.h"
 #include "Boss.h" // Kita butuh akses penuh ke Boss di sini
 #include "EnemyManager.h"
+#include <Player.h>
 
 // ==========================================
 // BOSS STATE MACHINE IMPLEMENTATION
@@ -178,4 +179,58 @@ void BossSpawnEnemyState::Update(Boss* boss, float dt)
 void BossSpawnEnemyState::Exit(Boss* boss)
 {
     boss->AddTerminalLog("PROTOCOL: COMPLETE.");
+}
+
+// ==========================================
+// STATE: LOCK PLAYER
+// ==========================================
+
+void BossLockPlayerState::Enter(Boss* boss)
+{
+    boss->AddTerminalLog("WARNING: GRAVITY WELL DETECTED!");
+    boss->AddTerminalLog("MOBILITY SYSTEMS: OFFLINE");
+
+    // 1. Kunci Player
+    if (boss->GetPlayer())
+    {
+        boss->GetPlayer()->SetMovementLock(true);
+    }
+
+    m_timer = 0.0f;
+}
+
+void BossLockPlayerState::Update(Boss* boss, float dt)
+{
+    m_timer += dt;
+
+    Player* player = boss->GetPlayer();
+    if (player)
+    {
+        // 2. Tarik Player ke Titik Kunci (Lerp)
+        DirectX::XMFLOAT3 currentPos = player->GetPosition();
+
+        // Rumus Lerp Manual: Pos = Pos + (Target - Pos) * Speed * dt
+        float dx = (m_lockPosition.x - currentPos.x) * m_pullSpeed * dt;
+        float dz = (m_lockPosition.z - currentPos.z) * m_pullSpeed * dt;
+
+        // Update posisi (Y tetap 0 biar ga terbang aneh)
+        player->SetPosition(currentPos.x + dx, 0.0f, currentPos.z + dz);
+    }
+
+    // 3. Setelah durasi habis, lepaskan atau ganti state (misal attack)
+    if (m_timer >= m_duration)
+    {
+        boss->AddTerminalLog("GRAVITY WELL: DISSIPATED");
+        boss->GetStateMachine()->ChangeState(boss, new BossIdleState());
+    }
+}
+
+void BossLockPlayerState::Exit(Boss* boss)
+{
+    // 4. PENTING: Lepaskan Kunci saat keluar state!
+    if (boss->GetPlayer())
+    {
+        boss->GetPlayer()->SetMovementLock(false);
+        boss->AddTerminalLog("MOBILITY SYSTEMS: RESTORED");
+    }
 }

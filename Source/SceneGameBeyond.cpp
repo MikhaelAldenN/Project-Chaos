@@ -6,6 +6,7 @@
 #include "SceneGameBeyond.h"
 #include "WindowManager.h"
 #include "Framework.h"
+#include "Enemy.h"
 
 #include <imgui.h>
 
@@ -25,8 +26,8 @@ SceneGameBeyond::SceneGameBeyond()
 {
     ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
 
-    float screenW = 1280.0f;
-    float screenH = 720.0f;
+    float screenW = 1920.0f;
+    float screenH = 1080.0f;
 
     // 0. Setup Window System
     m_windowSystem = std::make_unique<WindowTrackingSystem>();
@@ -63,8 +64,12 @@ SceneGameBeyond::SceneGameBeyond()
 
     m_boss = std::make_unique<Boss>();
 
+    if (m_boss && m_player)
+    {
+        m_boss->SetPlayer(m_player.get());
+    }
+
     m_enemyManager = std::make_unique<EnemyManager>();
-    m_enemyManager->Initialize(Graphics::Instance().GetDevice());
 
     // 3. Sub Camera
     m_subCamera = std::make_shared<Camera>();
@@ -248,6 +253,62 @@ void SceneGameBeyond::InitializeSubWindows()
     m_isWindowsInitialized = true;
 }
 
+void SceneGameBeyond::UpdateEnemyWindows()
+{
+    if (!m_enemyManager || !m_windowSystem) return;
+
+    const auto& enemies = m_enemyManager->GetEnemies();
+
+    for (size_t i = 0; i < enemies.size(); ++i)
+    {
+        std::string winID = "enemy_view_" + std::to_string(i);
+
+        // Cek jika window belum ada
+        if (m_windowSystem->GetTrackedWindow(winID) == nullptr)
+        {
+            Enemy* targetEnemy = enemies[i].get();
+
+            m_windowSystem->AddTrackedWindow(
+                // 1. Config (Base size 250x250)
+                { winID, "Enemy Signal " + std::to_string(i), 150, 150, 2, { 0.0f, 0.0f, 0.0f } },
+
+                // 2. Lambda Posisi (Track Offset)
+                [targetEnemy, this]() -> DirectX::XMFLOAT3 {
+                    // Safety check jika enemy mati/hilang
+                    if (!targetEnemy) return { 0,0,0 };
+
+                    DirectX::XMFLOAT3 pos = targetEnemy->GetPosition();
+                    pos.x += m_enemyTrackOffset.x;
+                    pos.y += m_enemyTrackOffset.y;
+                    pos.z += m_enemyTrackOffset.z;
+                    return pos;
+                },
+
+                // 3. [BARU] Lambda Ukuran (Size Offset)
+                [this]() -> DirectX::XMFLOAT2 {
+                    // Base Size (250) + Offset Slider
+                    float w = 150 + m_enemySizeOffset.x;
+                    float h = 150 + m_enemySizeOffset.y;
+
+                    // Cegah ukuran negatif/terlalu kecil
+                    if (w < 50.0f) w = 50.0f;
+                    if (h < 50.0f) h = 50.0f;
+
+                    return DirectX::XMFLOAT2(w, h);
+                }
+            );
+
+            // Print info ke output window
+            char msg[128];
+            sprintf_s(msg, "DYNAMIC WINDOW SPAWNED: %s\n", winID.c_str());
+            OutputDebugStringA(msg);
+
+            // Force refresh agar window langsung nongol di layer yang benar
+            WindowManager::Instance().EnforceWindowPriorities();
+        }
+    }
+}
+
 // =========================================================
 // UPDATE LOOP
 // =========================================================
@@ -314,15 +375,22 @@ void SceneGameBeyond::Update(float elapsedTime)
         m_player->Update(elapsedTime, activeCam);
 
         DirectX::XMFLOAT3 pos = m_player->GetPosition();
-        if (pos.y < 0.0f)
-        {
-            pos.y = 0.0f;
-            m_player->SetPosition(pos.x, pos.y, pos.z);
 
-            // Opsional: Jika player punya variabel velocity/gravity, 
-            // sebaiknya di-reset ke 0 disini agar tidak menumpuk, 
-            // tapi SetPosition saja biasanya cukup untuk visual.
-        }
+        // --- SCREEN BOUNDARY COLLISION (DYNAMIC) ---
+        // Gunakan variabel member m_screenLimitX dan m_screenLimitZ
+
+        // Clamp X (Kiri Kanan)
+        if (pos.x > m_screenLimitX)  pos.x = m_screenLimitX;
+        if (pos.x < -m_screenLimitX) pos.x = -m_screenLimitX;
+
+        // Clamp Z (Atas Bawah)
+        if (pos.z > m_screenLimitZ)  pos.z = m_screenLimitZ;
+        if (pos.z < -m_screenLimitZ) pos.z = -m_screenLimitZ;
+
+        // Anti-Fall
+        if (pos.y < 0.0f) pos.y = 0.0f;
+
+        m_player->SetPosition(pos.x, pos.y, pos.z);
 
         if (m_subCamera) m_subCamera->LookAt(m_player->GetPosition());
     }
@@ -380,6 +448,8 @@ void SceneGameBeyond::Update(float elapsedTime)
         // Enemy butuh Camera active dan Posisi Player untuk tracking
         Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
         m_enemyManager->Update(elapsedTime, activeCam, m_player->GetPosition());
+    
+        UpdateEnemyWindows();
     }
 
     // 5. Update Window System
@@ -409,12 +479,12 @@ static void DrawTransformControl(const char* label, DirectX::XMFLOAT3* pos)
     }
 }
 
-// =========================================================
-// DRAW GUI - SCENE BEYOND (VERSI FIX)
+// ======================================================== =
+// DRAW GUI - MAIN ENTRY
 // =========================================================
 void SceneGameBeyond::DrawGUI()
 {
-    // Setting Window (Posisi & Ukuran awal)
+    // Setup Window Style
     ImGui::SetNextWindowSize(ImVec2(400, 600), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
 
@@ -422,124 +492,197 @@ void SceneGameBeyond::DrawGUI()
     {
         if (ImGui::BeginTabBar("BeyondTabs"))
         {
-            // --- TAB 1: GENERAL & SHATTER ---
-            if (ImGui::BeginTabItem("General"))
-            {
-                ImGui::Spacing();
-                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), "GAME STATE");
-                ImGui::Checkbox("Game Started", &m_gameStarted);
-                ImGui::Checkbox("Shatter Triggered", &m_shatterTriggered);
-
-                ImGui::Separator();
-                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "WINDOW SHATTER FX");
-
-                // Tombol Manual Ledakan Kaca
-                if (ImGui::Button("TRIGGER EXPLOSION", ImVec2(-1, 40)))
-                {
-                    if (m_player) {
-                        auto pPos = m_player->GetPosition();
-                        WindowShatterManager::Instance().TriggerExplosion({ pPos.x, pPos.z }, 12);
-                        m_shatterTriggered = true;
-                    }
-                }
-
-                ImGui::Spacing();
-                if (ImGui::Button("Clear All Shards")) {
-                    WindowShatterManager::Instance().Clear();
-                }
-
-                // Info jumlah pecahan
-                auto& shards = WindowShatterManager::Instance().GetShatters();
-                ImGui::Text("Active Shards: %d", (int)shards.size());
-
-                ImGui::EndTabItem();
-            }
-
-            // --- TAB 2: OBJECTS ---
-            if (ImGui::BeginTabItem("Objects"))
-            {
-                ImGui::Spacing();
-                ImGui::Text("Scene Objects:");
-                ImGui::Separator();
-
-                // 1. PLAYER
-                if (m_player)
-                {
-                    // Kita ambil posisi saja karena GetRotation tidak ada
-                    XMFLOAT3 pos = m_player->GetPosition();
-
-                    ImGui::PushID("Ply");
-                    if (ImGui::TreeNode("Player"))
-                    {
-                        if (ImGui::DragFloat3("Position", &pos.x, 0.1f)) {
-                            m_player->SetPosition(pos.x, pos.y, pos.z);
-                        }
-                        ImGui::TreePop();
-                    }
-                    ImGui::PopID();
-                }
-
-                // 2. BOSS
-                if (m_boss)
-                {
-                    ImGui::Spacing();
-                    if (ImGui::TreeNode("Boss Controller"))
-                    {
-                        ImGui::TextDisabled("Boss Logic Active");
-                        m_boss->DrawDebugGUI();
-                        ImGui::TreePop();
-                    }
-                }
-
-                ImGui::EndTabItem();
-            }
-
-            // --- TAB 3: WINDOW SYSTEM ---
-            if (ImGui::BeginTabItem("Window System"))
-            {
-                ImGui::Spacing();
-                ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "TRACKED WINDOWS");
-                ImGui::Separator();
-
-                if (m_windowSystem)
-                {
-                    ImGui::Text("Unified FOV: %.1f", FIELD_OF_VIEW);
-                    ImGui::TextDisabled("Multi-window system active.");
-                }
-                else
-                {
-                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "Window System is NULL");
-                }
-
-                ImGui::EndTabItem();
-            }
-
-            // --- TAB 4: CAMERA ---
-            if (ImGui::BeginTabItem("Camera"))
-            {
-                if (m_mainCamera)
-                {
-                    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "MAIN CAMERA");
-
-                    XMFLOAT3 pos = m_mainCamera->GetPosition();
-                    if (ImGui::DragFloat3("Position", &pos.x, 0.1f)) {
-                        m_mainCamera->SetPosition(pos);
-                    }
-
-                    // HAPUS BAGIAN LOOKAT KARENA ERROR
-                    // Kita cuma tampilkan tombol reset
-                    if (ImGui::Button("Reset Camera Pos")) {
-                        m_mainCamera->SetPosition(0, 5, 0);
-                    }
-                }
-
-                ImGui::EndTabItem();
-            }
+            if (ImGui::BeginTabItem("General")) { DrawTabGeneral();      ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Objects")) { DrawTabObjects();      ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Window System")) { DrawTabWindowSystem(); ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Camera")) { DrawTabCamera();       ImGui::EndTabItem(); }
 
             ImGui::EndTabBar();
         }
     }
     ImGui::End();
+}
+
+// =========================================================
+// GUI HELPER FUNCTIONS
+// =========================================================
+
+void SceneGameBeyond::DrawTabGeneral()
+{
+    ImGui::Spacing();
+
+    // --- SECTION 1: GAME STATE ---
+    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), "GAME STATE");
+    ImGui::Checkbox("Game Started", &m_gameStarted);
+    ImGui::Checkbox("Shatter Triggered", &m_shatterTriggered);
+    ImGui::Separator();
+
+    // --- SECTION 2: BOUNDARY ---
+    ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "PLAYER BOUNDARY (1920x1080)");
+    ImGui::TextDisabled("Ratio: 1 Unit = 40 Pixels");
+
+    ImGui::Indent();
+    ImGui::DragFloat("Limit X (Width)", &m_screenLimitX, 0.1f, 10.0f, 50.0f);
+    ImGui::DragFloat("Limit Z (Height)", &m_screenLimitZ, 0.1f, 5.0f, 30.0f);
+    ImGui::Unindent();
+    ImGui::Separator();
+
+    // --- SECTION 3: SHATTER FX ---
+    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "WINDOW SHATTER FX");
+
+    // Info Stats
+    auto& shards = WindowShatterManager::Instance().GetShatters();
+    ImGui::Text("Active Shards: %d", (int)shards.size());
+
+    // Controls
+    if (ImGui::Button("TRIGGER EXPLOSION", ImVec2(-1, 40)))
+    {
+        if (m_player) {
+            auto pPos = m_player->GetPosition();
+            WindowShatterManager::Instance().TriggerExplosion({ pPos.x, pPos.z }, 12);
+            m_shatterTriggered = true;
+        }
+    }
+
+    if (ImGui::Button("Clear All Shards", ImVec2(-1, 0))) {
+        WindowShatterManager::Instance().Clear();
+    }
+}
+
+void SceneGameBeyond::DrawTabObjects()
+{
+    ImGui::Spacing();
+    ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "SCENE HIERARCHY");
+    ImGui::Separator();
+
+    // --- 1. PLAYER ---
+    if (m_player)
+    {
+        if (ImGui::TreeNode("Player"))
+        {
+            XMFLOAT3 pos = m_player->GetPosition();
+            if (ImGui::DragFloat3("Position", &pos.x, 0.1f)) {
+                m_player->SetPosition(pos.x, pos.y, pos.z);
+            }
+            ImGui::TreePop();
+        }
+    }
+
+    // --- 2. BOSS ---
+    if (m_boss)
+    {
+        if (ImGui::TreeNode("Boss Controller"))
+        {
+            m_boss->DrawDebugGUI(); // Delegasi ke fungsi internal Boss
+            ImGui::TreePop();
+        }
+    }
+
+    ImGui::Separator();
+
+    // --- 3. ENEMY MANAGER ---
+    if (m_enemyManager)
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "ENEMY MANAGER");
+
+        size_t count = m_enemyManager->GetEnemies().size();
+        ImGui::Text("Active Enemies: %d", (int)count);
+
+        // A. GLOBAL SETTINGS (Collapsing Header biar rapi)
+        if (ImGui::CollapsingHeader("Global Window Settings", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+            ImGui::Text("Camera Offset:");
+            ImGui::DragFloat3("##TrackOffset", &m_enemyTrackOffset.x, 0.05f);
+
+            ImGui::Text("Size Offset (Base 250):");
+            ImGui::DragFloat2("##SizeOffset", &m_enemySizeOffset.x, 1.0f);
+
+            if (ImGui::Button("Reset All Offsets")) {
+                m_enemyTrackOffset = { 0.0f, 0.0f, 0.0f };
+                m_enemySizeOffset = { 0.0f, 0.0f };
+            }
+            ImGui::Unindent();
+        }
+
+        // B. INDIVIDUAL LIST
+        if (count > 0)
+        {
+            if (ImGui::TreeNode("Individual Enemy Control"))
+            {
+                auto& enemies = m_enemyManager->GetEnemies();
+                for (int i = 0; i < count; ++i)
+                {
+                    auto& enemy = enemies[i];
+                    if (!enemy) continue;
+
+                    ImGui::PushID(i); // Wajib agar ID unik
+
+                    std::string label = "Enemy " + std::to_string(i);
+                    if (ImGui::TreeNode(label.c_str()))
+                    {
+                        DirectX::XMFLOAT3 pos = enemy->GetPosition();
+                        if (ImGui::DragFloat3("Pos", &pos.x, 0.1f)) enemy->SetPosition(pos);
+
+                        DirectX::XMFLOAT3 rot = enemy->GetRotation();
+                        if (ImGui::DragFloat3("Rot", &rot.x, 1.0f)) enemy->SetRotation(rot);
+
+                        ImGui::TextDisabled("Type ID: %d", (int)enemy->GetType());
+                        ImGui::TreePop();
+                    }
+
+                    ImGui::PopID();
+                }
+                ImGui::TreePop();
+            }
+        }
+        else
+        {
+            ImGui::TextDisabled("No enemies. Spawn one via Boss!");
+        }
+    }
+}
+
+void SceneGameBeyond::DrawTabWindowSystem()
+{
+    ImGui::Spacing();
+    ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "TRACKED WINDOWS SYSTEM");
+    ImGui::Separator();
+
+    if (m_windowSystem)
+    {
+        ImGui::Text("Unified FOV: %.1f", FIELD_OF_VIEW);
+
+        // Bisa ditambah info lain, misal jumlah total window di manager
+        // ImGui::Text("Total Windows: %d", ...);
+
+        ImGui::Spacing();
+        ImGui::TextWrapped("System is active. New windows will spawn automatically based on logic.");
+    }
+    else
+    {
+        ImGui::TextColored(ImVec4(1, 0, 0, 1), "CRITICAL: Window System is NULL");
+    }
+}
+
+void SceneGameBeyond::DrawTabCamera()
+{
+    ImGui::Spacing();
+    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "MAIN CAMERA DEBUG");
+    ImGui::Separator();
+
+    if (m_mainCamera)
+    {
+        XMFLOAT3 pos = m_mainCamera->GetPosition();
+        if (ImGui::DragFloat3("Position", &pos.x, 0.1f)) {
+            m_mainCamera->SetPosition(pos);
+        }
+
+        ImGui::Spacing();
+        if (ImGui::Button("Reset Camera Pos")) {
+            m_mainCamera->SetPosition(0, 5, 0); // Atur default sesuai kebutuhan
+        }
+    }
 }
 
 // =========================================================

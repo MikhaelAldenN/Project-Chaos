@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <DirectXMath.h>
 
 // Forward Declaration (Biar tidak circular dependency)
 class Boss;
@@ -88,4 +89,22 @@ public:
 private:
     float m_timer = 0.0f;
     float m_duration = 2.0f; // Waktu delay setelah spawn sebelum kembali ke Idle
+};
+
+// State: Player Lock
+class BossLockPlayerState : public BossState
+{
+public:
+    void Enter(Boss* boss) override;
+    void Update(Boss* boss, float dt) override;
+    void Exit(Boss* boss) override;
+    std::string GetName() const override { return "Lock Player"; }
+
+private:
+    float m_timer = 0.0f;
+    float m_duration = 5.0f; // Berapa lama player dikunci
+
+    // Titik tengah arena tempat player ditarik
+    DirectX::XMFLOAT3 m_lockPosition = { 0.0f, 0.0f, -8.0f };
+    float m_pullSpeed = 5.0f;
 };
