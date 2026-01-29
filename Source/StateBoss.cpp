@@ -190,39 +190,51 @@ void BossLockPlayerState::Enter(Boss* boss)
     boss->AddTerminalLog("WARNING: GRAVITY WELL DETECTED!");
     boss->AddTerminalLog("MOBILITY SYSTEMS: OFFLINE");
 
+    // Trigger animasi monitor (Total intro sekitar 4.4 detik)
     boss->GetMonitor1()->ShowLockScreen();
 
-    // 1. Kunci Player
-    if (boss->GetPlayer())
-    {
-        boss->GetPlayer()->SetMovementLock(true);
-    }
-
+    // Reset timer ke 0 (MULAI DARI NOL)
     m_timer = 0.0f;
+
+    // Set total durasi state = (Intro 4.4s) + (Lama Kunci misal 5s) = ~9.5s
+    m_duration = 9.5f;
 }
 
 void BossLockPlayerState::Update(Boss* boss, float dt)
 {
     m_timer += dt;
 
-    Player* player = boss->GetPlayer();
-    if (player)
+    // --- LOGIC PENYINKRONAN ---
+    // Animasi Monitor: Warning (3s) -> PreDelay (1s) -> Closing (0.4s)
+    // Total sekitar 4.4 detik baru gembok tertutup.
+
+    // Kita baru mulai menarik player SETELAH detik ke-4.0 biar pas sama visual
+    if (m_timer > 4.0f)
     {
-        // 2. Tarik Player ke Titik Kunci (Lerp)
-        DirectX::XMFLOAT3 currentPos = player->GetPosition();
+        Player* player = boss->GetPlayer();
+        if (player)
+        {
+            // 1. Pastikan Lock aktif (Setiap frame tidak masalah, atau pakai flag bool)
+            player->SetMovementLock(true);
 
-        // Rumus Lerp Manual: Pos = Pos + (Target - Pos) * Speed * dt
-        float dx = (m_lockPosition.x - currentPos.x) * m_pullSpeed * dt;
-        float dz = (m_lockPosition.z - currentPos.z) * m_pullSpeed * dt;
+            // 2. Tarik Player ke Titik Kunci (Lerp)
+            DirectX::XMFLOAT3 currentPos = player->GetPosition();
 
-        // Update posisi (Y tetap 0 biar ga terbang aneh)
-        player->SetPosition(currentPos.x + dx, 0.0f, currentPos.z + dz);
+            // Rumus Lerp Manual: Pos = Pos + (Target - Pos) * Speed * dt
+            float dx = (m_lockPosition.x - currentPos.x) * m_pullSpeed * dt;
+            float dz = (m_lockPosition.z - currentPos.z) * m_pullSpeed * dt;
+
+            // Update posisi
+            player->SetPosition(currentPos.x + dx, 0.0f, currentPos.z + dz);
+        }
     }
 
-    // 3. Setelah durasi habis, lepaskan atau ganti state (misal attack)
+    // 3. Setelah durasi total habis
     if (m_timer >= m_duration)
     {
         boss->AddTerminalLog("GRAVITY WELL: DISSIPATED");
+
+        // Pindah ke Idle
         boss->GetStateMachine()->ChangeState(boss, new BossIdleState());
     }
 }
@@ -236,6 +248,7 @@ void BossLockPlayerState::Exit(Boss* boss)
         boss->AddTerminalLog("MOBILITY SYSTEMS: RESTORED");
     }
 
+    // Perintahkan monitor untuk animasi membuka gembok
     boss->GetMonitor1()->ResetToIdle();
 }
 

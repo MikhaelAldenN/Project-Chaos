@@ -76,14 +76,24 @@ void TerminalMonitor1::Initialize(ID3D11Device* device, int width, int height)
 void TerminalMonitor1::ShowLockScreen()
 {
     m_animState = TerminalAnimState::SYSTEM_LOCK;
-    m_currentDisplay = "";
-    m_displayLines.clear();
+
+    // Biarkan teks Warning tetap ada
+    // m_currentDisplay = ""; 
+    // m_displayLines.clear(); 
 
     m_lockAnimTimer = 0.0f;
     m_manualDebugControl = false;
 
+    // Mulai dari Phase Warning
+    m_lockPhase = LockPhase::WARNING;
+    m_lockPhaseTimer = 0.0f;
+
+    // Reset posisi gembok ke TERBUKA
     m_currentHeadY = m_headStartOffsetY;
     m_currentBodyY = m_bodyStartOffsetY;
+
+    // [BARU] Set Warna Awal -> KUNING AMBER (Samakan dengan warna kursor kamu)
+    m_lockColor = { 0.96f, 0.80f, 0.23f, 1.0f };
 }
 
 void TerminalMonitor1::PlayCommandAnimation(const std::string& command)
@@ -101,21 +111,30 @@ bool TerminalMonitor1::IsBusy() const
     return m_animState != TerminalAnimState::IDLE && m_animState != TerminalAnimState::DONE;
 }
 
-void TerminalMonitor1::ResetToIdle()
+void TerminalMonitor1::ResetToIdle(bool force)
 {
-    m_animState = TerminalAnimState::IDLE;
-
-    // Bersihkan teks dan cache
-    m_targetCommand = "";
-    m_currentDisplay = "";
-    m_displayLines.clear();
-
-    m_animTimer = 0.0f;
-
-    // Kembalikan kedipan kursor ke normal (santai)
-    if (m_cursor)
+    // Jika dipaksa (Force) ATAU sedang tidak di mode Lock, langsung reset
+    if (force || m_animState != TerminalAnimState::SYSTEM_LOCK)
     {
-        m_cursor->SetBlink(true, 0.8f, 0.5f);
+        m_animState = TerminalAnimState::IDLE;
+        m_lockPhase = LockPhase::INACTIVE;
+
+        m_targetCommand = "";
+        m_currentDisplay = "";
+        m_displayLines.clear();
+        m_animTimer = 0.0f;
+
+        if (m_cursor) m_cursor->SetBlink(true, 0.8f, 0.5f);
+    }
+    else
+    {
+        // Jika diminta reset TAPI sedang nge-Lock, 
+        // Pindah ke Phase OPENING (Animasi Buka)
+        if (m_lockPhase == LockPhase::LOCKED || m_lockPhase == LockPhase::CLOSING)
+        {
+            m_lockPhase = LockPhase::OPENING;
+            m_lockPhaseTimer = 0.0f;
+        }
     }
 }
 
@@ -185,34 +204,81 @@ void TerminalMonitor1::Update(float dt)
         break;
     case TerminalAnimState::DONE: break;
     case TerminalAnimState::SYSTEM_LOCK:
-        // [PERBAIKAN LOGIKA PLAY ANIMATION]
 
-        float t = 0.0f;
+        m_lockPhaseTimer += dt;
 
-        // Jika Manual Control AKTIF -> Pakai Slider
-        if (m_manualDebugControl)
+        if (m_lockPhase == LockPhase::WARNING)
         {
-            t = m_debugAnimProgress;
+            // PHASE 1: Teks Warning diam selama 3 detik
+            if (m_lockPhaseTimer >= m_durationWarning)
+            {
+                m_lockPhase = LockPhase::PRE_DELAY;
+                m_lockPhaseTimer = 0.0f;
+
+                // [PERBAIKAN] HAPUS TEKS DI SINI
+                // Begitu warning selesai (3 detik), teks hilang, sprite gembok muncul.
+                m_currentDisplay = "";
+                m_displayLines.clear();
+            }
         }
-        else
+        else if (m_lockPhase == LockPhase::PRE_DELAY)
         {
-            // Jika TIDAK -> Jalan otomatis pakai Timer
-            m_lockAnimTimer += dt;
-            t = m_lockAnimTimer / m_lockAnimDuration;
-            if (t > 1.0f) t = 1.0f;
+            // PHASE 2: Sprite Muncul (Posisi Terbuka), diam 1 detik
+            // Posisi tetap di Start Offset (Max Gap)
+            m_currentHeadY = m_headStartOffsetY;
+            m_currentBodyY = m_bodyStartOffsetY;
 
-            // Sinkronkan slider debug agar visualnya ikut bergerak
-            m_debugAnimProgress = t;
+            if (m_lockPhaseTimer >= m_durationPreDelay)
+            {
+                m_lockPhase = LockPhase::CLOSING;
+                m_lockPhaseTimer = 0.0f;
+            }
         }
+        else if (m_lockPhase == LockPhase::CLOSING)
+        {
+            // PHASE 3: Animasi Menutup
+            float t = m_lockPhaseTimer / m_durationAnim;
+            if (t >= 1.0f) {
+                t = 1.0f;
 
-        // Easing Function (SmoothStep)
-        float smoothT = t * t * (3.0f - 2.0f * t);
+                // [BARU] SAAT GEMBOK TERTUTUP -> GANTI WARNA JADI PUTIH
+                m_lockPhase = LockPhase::LOCKED;
+                m_lockColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // Pure White
+            }
 
-        // Lerp Posisi
-        m_currentHeadY = m_headStartOffsetY + (m_headEndOffsetY - m_headStartOffsetY) * smoothT;
-        m_currentBodyY = m_bodyStartOffsetY + (m_bodyEndOffsetY - m_bodyStartOffsetY) * smoothT;
+            // Easing Bounce
+            float smoothT = t * t * (3.0f - 2.0f * t);
+            m_currentHeadY = m_headStartOffsetY + (m_headEndOffsetY - m_headStartOffsetY) * smoothT;
+            m_currentBodyY = m_bodyStartOffsetY + (m_bodyEndOffsetY - m_bodyStartOffsetY) * smoothT;
+        }
+        else if (m_lockPhase == LockPhase::LOCKED)
+        {
+            // PHASE 4: Diam Tertutup (Warna Putih)
+            m_currentHeadY = m_headEndOffsetY;
+            m_currentBodyY = m_bodyEndOffsetY;
+
+            // Pastikan tetap putih (jaga-jaga)
+            m_lockColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+        }
+        else if (m_lockPhase == LockPhase::OPENING)
+        {
+            // PHASE 5: Animasi Membuka
+            // Opsional: Balikin ke Amber saat buka, atau biarin Putih lalu fade out.
+            // Biar keren, kita biarin Putih saja sampai hilang.
+
+            float t = m_lockPhaseTimer / m_durationAnim;
+            if (t >= 1.0f) {
+                t = 1.0f;
+                ResetToIdle(true);
+            }
+
+            float smoothT = t * t * (3.0f - 2.0f * t);
+            m_currentHeadY = m_headEndOffsetY + (m_headStartOffsetY - m_headEndOffsetY) * smoothT;
+            m_currentBodyY = m_bodyEndOffsetY + (m_bodyStartOffsetY - m_bodyEndOffsetY) * smoothT;
+        }
         break;
     }
+
     UpdateCursorLogic(dt);
 }
 
@@ -249,7 +315,11 @@ void TerminalMonitor1::RenderToTexture(ID3D11DeviceContext* context, BitmapFont*
     // [LOGIC RENDER SPRITE]
     // Muncul jika State LOCK aktif ATAU Debug Mode nyala
     // ============================================
-    bool showSprite = (m_animState == TerminalAnimState::SYSTEM_LOCK) || m_debugShowLock;
+    bool isLockActive = (m_animState == TerminalAnimState::SYSTEM_LOCK);
+    bool isWarningPhase = (m_lockPhase == LockPhase::WARNING);
+
+    bool showSprite = (isLockActive && !isWarningPhase) || m_debugShowLock;
+    bool showText = (!isLockActive) || isWarningPhase; // Teks muncul di fase warning
 
     if (showSprite)
     {
@@ -309,25 +379,23 @@ void TerminalMonitor1::RenderToTexture(ID3D11DeviceContext* context, BitmapFont*
     // Tampilkan jika Sprite TIDAK aktif, ATAU jika kita mau debug numpuk (opsional)
     // Di sini saya buat Text hilang jika Lock Screen aktif (supaya clean)
     // ============================================
-    if (!showSprite)
+    if (showText)
     {
-        if (m_animState == TerminalAnimState::TYPING || m_animState == TerminalAnimState::DONE)
+        // Render Text Cache
+        // Pastikan m_displayLines tidak di-clear di ShowLockScreen agar teks tetap ada
+        for (size_t i = 0; i < m_displayLines.size(); ++i)
         {
-            for (size_t i = 0; i < m_displayLines.size(); ++i)
-            {
-                font->Draw(
-                    m_displayLines[i].c_str(),
-                    m_typingStartPos.x,
-                    m_typingStartPos.y + (i * m_lineSpacing),
-                    m_fontScale,
-                    1.0f, 0.2f, 0.2f, 1.0f
-                );
-            }
+            font->Draw(
+                m_displayLines[i].c_str(),
+                m_typingStartPos.x,
+                m_typingStartPos.y + (i * m_lineSpacing),
+                m_fontScale,
+                1.0f, 0.2f, 0.2f, 1.0f);
         }
 
+        // Render Cursor
         if (m_cursor && m_primitive)
         {
-            // Update warna realtime (agar slider ImGui bekerja)
             m_cursor->SetColor(m_cursorColor.x, m_cursorColor.y, m_cursorColor.z, m_cursorColor.w);
             m_cursor->Render(context, m_primitive.get());
         }

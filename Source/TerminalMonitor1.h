@@ -20,6 +20,16 @@ enum class TerminalAnimState
     SYSTEM_LOCK
 };
 
+enum class LockPhase
+{
+    INACTIVE,
+    WARNING,    // Teks Warning (3 detik)
+    PRE_DELAY,  // Sprite Muncul Diam (1 detik)
+    CLOSING,    // Animasi Menutup
+    LOCKED,     // Diam Tertutup
+    OPENING     // Animasi Membuka
+};
+
 class TerminalMonitor1
 {
 public:
@@ -32,7 +42,7 @@ public:
 
     void PlayCommandAnimation(const std::string& command);
     void ShowLockScreen();
-    void ResetToIdle();
+    void ResetToIdle(bool force = false);
     bool IsBusy() const;
 
     ID3D11ShaderResourceView* GetTexture() const { return m_srv.Get(); }
@@ -112,4 +122,13 @@ private:
 
     float               m_animTimer = 0.0f;
     float               m_typeSpeed = 0.05f;
+
+    // --- [UPDATE] LOGIC VARIABEL ---
+    LockPhase m_lockPhase = LockPhase::INACTIVE;
+    float     m_lockPhaseTimer = 0.0f;
+
+    // Settings Durasi
+    float m_durationWarning = 3.0f;
+    float m_durationPreDelay = 1.0f;
+    float m_durationAnim = 0.4f; // Cepat
 };
