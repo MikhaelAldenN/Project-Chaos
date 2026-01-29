@@ -120,6 +120,23 @@ void Boss::Render(ModelRenderer* renderer, Camera* camera)
 
     // 2. Render 3D Body Parts
     for (auto& part : m_parts) {
+
+        // [CULLING CHECK]
+        if (camera)
+        {
+            // [BARU] Tambahkan offset ke posisi visual
+            // Karena visualPosition sudah termasuk floating animation,
+            // offset ini akan ikut bergerak naik turun (Correct).
+            float checkX = part->visualPosition.x + part->cullOffset.x;
+            float checkY = part->visualPosition.y + part->cullOffset.y;
+            float checkZ = part->visualPosition.z + part->cullOffset.z;
+
+            if (!camera->CheckSphere(checkX, checkY, checkZ, part->cullRadius))
+            {
+                continue; // SKIP
+            }
+        }
+
         part->Render(renderer);
     }
 
@@ -219,7 +236,7 @@ void Boss::InitializeDefaultParts()
 {
     std::vector<BossPartConfig> configs = {
         { "monitor1", "Data/Model/Character/TEST_mdl_CRTMonitor.glb", { 0.0f, 0.6f, 6.5f }, { 65.0f, 0.0f, 0.0f }, { 10.0f, 10.0f, 10.0f }, true, 2.0f, 0.2f, { 0.0f, 1.0f, 0.0f } },
-        { "cpu",      "Data/Model/Character/TEST_mdl_CPU.glb",        { 2.0f, -1.6f, 1.9f }, { -86.0f, 0.0f, 176.0f }, { 150.0f, 150.0f, 150.0f }, true, 1.5f, 0.2f, { 1.0f, 1.0f, 0.0f } },
+        { "cpu",      "Data/Model/Character/TEST_mdl_CPU.glb",        { 2.0f, -1.6f, 1.9f }, { -86.0f, 0.0f, 176.0f }, { 150.0f, 150.0f, 150.0f }, true, 1.5f, 0.2f, { 1.0f, 1.0f, 0.0f }, 4.5f, {0.0f, 10.0f, 0.0f} },
         { "monitor2", "Data/Model/Character/Test_mdl_CRTMonitor2.glb", { 5.5f, 0.0f, 4.2f }, { -44.0f, 147.0f, 31.0f }, { 100.0f, 100.0f, 100.0f }, true, 1.0f, 0.05f, { 1.0f, 0.0f, -1.0f } },
         { "monitor3", "Data/Model/Character/TEST_mdl_CRTMonitor3.glb", { 5.0f, 2.3f, 7.5f }, { 110.0f, 123.0f, 128.0f }, { 100.0f, 100.0f, 100.0f }, true, 1.0f, 0.25f, { 0.5f, 0.5f, 0.5f } },
         { "cable1",   "Data/Model/Character/TEST_mdl_Cable1.glb",      { -8.6f, 0.0f, 13.9f }, { 90.0f, 0.0f, 0.0f }, { 10.0f, 10.0f, 10.0f }, true, 1.0f, 1.0f, { 1.0f, -1.0f, 0.0f } },
@@ -259,6 +276,8 @@ bool Boss::AddPart(const BossPartConfig& config)
     newPart->floatSpeed = config.floatSpeed;
     newPart->floatIntensity = config.floatIntensity;
     newPart->floatAxis = config.floatAxis;
+    newPart->cullRadius = config.cullRadius;
+    newPart->cullOffset = config.cullOffset;
 
     m_partLookup[config.name] = newPart.get();
     m_parts.push_back(std::move(newPart));

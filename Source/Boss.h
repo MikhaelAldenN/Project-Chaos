@@ -33,6 +33,9 @@ struct BossPartConfig
     float floatSpeed = 2.0f;
     float floatIntensity = 0.2f;
     DirectX::XMFLOAT3 floatAxis = { 0.0f, 1.0f, 0.0f };
+
+    float cullRadius = 2.0f;
+    DirectX::XMFLOAT3 cullOffset = { 0.0f, 0.0f, 0.0f };
 };
 
 struct BossPart
@@ -55,6 +58,9 @@ struct BossPart
 
     void Update(float dt);
     void Render(ModelRenderer* renderer);
+    float cullRadius = 2.0f;
+    DirectX::XMFLOAT3 cullOffset = { 0.0f, 0.0f, 0.0f };
+
 };
 
 // =========================================================

@@ -45,6 +45,9 @@ bool WindowTrackingSystem::AddTrackedWindow(
     if (!window) return false;
 
     window->SetPriority(config.priority);
+    
+    WindowManager::Instance().MarkPriorityDirty();
+
     // Hardcoded logic: Player window usually shouldn't be draggable by mouse
     if (config.name == "player") window->SetDraggable(false);
 

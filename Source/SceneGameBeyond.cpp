@@ -724,27 +724,47 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
 
-    if (m_player) m_player->Render(modelRenderer);
+    // --- 1. RENDER PLAYER (CULLING) ---
+    if (m_player)
+    {
+        XMFLOAT3 pPos = m_player->GetPosition();
+        // Radius player kira-kira 1.0f
+        if (camera->CheckSphere(pPos.x, pPos.y, pPos.z, 1.5f))
+        {
+            m_player->Render(modelRenderer);
+        }
+    }
 
+    // --- 2. RENDER BOSS (CULLING INTERNAL) ---
     if (m_boss && m_gameStarted)
     {
+        // Boss sudah punya logic culling di dalamnya (Langkah 2)
         m_boss->Render(modelRenderer, camera);
     }
 
+    // --- 3. RENDER ENEMY (CULLING) ---
     if (m_enemyManager && m_gameStarted)
     {
-        m_enemyManager->Render(modelRenderer);
-
-        // Opsional: Render Debug Collision/Shape jika perlu
-        // m_enemyManager->RenderDebug(Graphics::Instance().GetShapeRenderer());
+        // Panggil fungsi render manager, tapi kirim camera untuk culling
+        m_enemyManager->Render(modelRenderer, camera);
     }
 
+    // --- 4. RENDER BLOCKS (CULLING) ---
     if (m_blockManager && m_gameStarted)
     {
         for (const auto& block : m_blockManager->GetBlocks())
         {
             if (block->IsActive())
-                block->Render(modelRenderer, m_blockManager->globalBlockColor);
+            {
+                // Ambil posisi dari movement component
+                XMFLOAT3 bPos = block->GetMovement()->GetPosition();
+
+                // Block kecil, radius 0.5f cukup
+                if (camera->CheckSphere(bPos.x, bPos.y, bPos.z, 0.8f))
+                {
+                    block->Render(modelRenderer, m_blockManager->globalBlockColor);
+                }
+            }
         }
     }
 

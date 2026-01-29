@@ -30,6 +30,7 @@ public:
     GameWindow* CreateGameWindow(const char* title, int width, int height);
     void DestroyWindow(GameWindow* targetWindow);
     void EnforceWindowPriorities();
+    void MarkPriorityDirty() { m_dirtyPriority = true; }
 
     void SetDebugWindow(GameWindow* win) { debugWindow = win; }
     GameWindow* GetDebugWindow() const { return debugWindow; }
@@ -59,5 +60,6 @@ private:
 
     GameWindow* debugWindow = nullptr;
 
+    bool m_dirtyPriority = false;
     mutable std::mutex m_windowsMutex;
 };
