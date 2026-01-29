@@ -219,6 +219,11 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
 
                             closestHitTime = 0.0f;
                             XMVECTOR vNormalLocal = XMLoadFloat3(&localNormal);
+                            XMMATRIX matRot = XMMatrixRotationRollPitchYaw(
+                                XMConvertToRadians(wall.Rotation.x),
+                                XMConvertToRadians(wall.Rotation.y),
+                                XMConvertToRadians(wall.Rotation.z)
+                            );
                             XMVECTOR vNormalWorld = TransformNormalToWorld(vNormalLocal, wall);
                             XMStoreFloat3(&wallHitNormal, XMVector3Normalize(vNormalWorld));
                             wallHitPoint = currentPos;
@@ -276,8 +281,14 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
 
                         closestHitTime = tMin;
                         XMVECTOR vNormalLocal = XMLoadFloat3(&hitNormalLocal);
-                        XMVECTOR vNormalWorld = TransformNormalToWorld(vNormalLocal, wall);
-                        XMStoreFloat3(&wallHitNormal, XMVector3Normalize(vNormalWorld));
+                        XMMATRIX matRot = XMMatrixRotationRollPitchYaw(
+                            XMConvertToRadians(wall.Rotation.x),
+                            XMConvertToRadians(wall.Rotation.y),
+                            XMConvertToRadians(wall.Rotation.z)
+                        );
+                        XMVECTOR vNormalWorld = XMVector3TransformNormal(vNormalLocal, matRot);
+                        vNormalWorld = XMVector3Normalize(vNormalWorld);
+                        XMStoreFloat3(&wallHitNormal, vNormalWorld);
 
                         XMVECTOR vStart = XMLoadFloat3(&currentPos);
                         XMVECTOR vEnd = XMLoadFloat3(&targetPos);
@@ -466,27 +477,23 @@ void CollisionManager::CheckBlockVsStage()
                 XMFLOAT3 fixPos = blockPos;
                 if (Collision::ResolveOBB(blockPos, blockRadius, solidWall, fixPos))
                 {
-                    if (m_blockManager->IsInvincible())
-                    {
-                        float dx = fixPos.x - blockPos.x;
-                        float dy = fixPos.y - blockPos.y;
-                        float dz = fixPos.z - blockPos.z;
-                        blockPos = fixPos;
-                        collidedAny = true;
-                        block.SetWallCollision({ 0, 1, 0 });
+                    float dx = fixPos.x - blockPos.x;
+                    float dy = fixPos.y - blockPos.y;
+                    float dz = fixPos.z - blockPos.z;
 
-                        XMVECTOR vPush = XMVectorSet(dx, dy, dz, 0.0f);
-                        XMVECTOR vVel = XMLoadFloat3(&vel);
-                        XMVECTOR vNormal = XMVector3Normalize(vPush);
-                        float dot = XMVectorGetX(XMVector3Dot(vVel, vNormal));
-                        if (dot < 0.0f) {
-                            vVel = XMVectorSubtract(vVel, XMVectorScale(vNormal, dot));
-                            XMStoreFloat3(&vel, vVel);
-                        }
-                    }
-                    else {
-                        block.OnHit();
-                        break;
+                    blockPos = fixPos;
+                    collidedAny = true;
+                    block.SetWallCollision({ 0, 1, 0 });
+
+                    XMVECTOR vPush = XMVectorSet(dx, dy, dz, 0.0f);
+                    XMVECTOR vVel = XMLoadFloat3(&vel);
+                    XMVECTOR vNormal = XMVector3Normalize(vPush);
+                    float dot = XMVectorGetX(XMVector3Dot(vVel, vNormal));
+
+                    if (dot < 0.0f)
+                    {
+                        vVel = XMVectorSubtract(vVel, XMVectorScale(vNormal, dot));
+                        XMStoreFloat3(&vel, vVel);
                     }
                 }
             }
@@ -676,15 +683,10 @@ void CollisionManager::CheckBlockVsEnemies()
 
             if (isHit)
             {
-                if (m_blockManager && m_blockManager->IsInvincible()) {
-                    enemyDestroyed = true;
-                }
-                else {
-                    block.OnHit();
-                    if (m_blockManager) m_blockManager->TriggerBlockBreakParams();
-                    enemyDestroyed = true;
-                }
-                if (m_itemManager && enemy->GetType() == EnemyType::Paddle) {
+                block.OnHit();
+                if (m_blockManager) m_blockManager->TriggerBlockBreakParams();
+                if (m_itemManager && enemy->GetType() == EnemyType::Paddle)
+                {
                     m_itemManager->SpawnHealAt(enemyPos);
                 }
                 enemyDestroyed = true;
@@ -726,13 +728,6 @@ void CollisionManager::CheckBlockVsItems()
                 if (item->GetType() == ItemType::Heal) {
                     if (m_blockManager) m_blockManager->AddBlockFromItem(iPos);
                 }
-                else if (item->GetType() == ItemType::Invincible) {
-                    if (m_player) m_player->ActivateInvincibility();
-                    if (m_blockManager && m_player) {
-                        m_blockManager->ActivateInvincibility(m_player->invincibleSettings.Duration);
-                    }
-                }
-                item->SetActive(false);
                 break;
             }
         }
@@ -816,22 +811,14 @@ void CollisionManager::CheckPlayerVsEnemies()
 
         if (isHit)
         {
-            if (m_player && m_player->IsInvincible()) {
-                // Player survives
-            }
-            else {
-                if (m_onPlayerHitCallback) m_onPlayerHitCallback();
-                m_player->SetInputEnabled(false);
-                m_player->GetMovement()->SetPosition({ 0, -1000, 0 });
-            }
-            if (m_itemManager && enemy->GetType() == EnemyType::Paddle) {
-                m_itemManager->SpawnHealAt(enemyPos);
-            }
+            if (m_onPlayerHitCallback) m_onPlayerHitCallback();
+            if (m_itemManager && enemy->GetType() == EnemyType::Paddle) { m_itemManager->SpawnHealAt(enemyPos); }
             it = enemies.erase(it);
+            
+            m_player->SetInputEnabled(false);
+            m_player->GetMovement()->SetPosition({ 0, -1000, 0 }); // Send to void
         }
-        else {
-            ++it;
-        }
+        else { ++it; }
     }
 }
 
@@ -909,13 +896,6 @@ void CollisionManager::CheckPlayerVsItems()
             if (item->GetType() == ItemType::Heal)
             {
                 if (m_blockManager) m_blockManager->AddBlockFromItem(iPos);
-            }
-            else if (item->GetType() == ItemType::Invincible)
-            {
-                if (m_player) m_player->ActivateInvincibility();
-                if (m_blockManager && m_player) {
-                    m_blockManager->ActivateInvincibility(m_player->invincibleSettings.Duration);
-                }
             }
 
             // 2. Matikan Item
