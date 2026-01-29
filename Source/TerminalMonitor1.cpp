@@ -33,8 +33,8 @@ void TerminalMonitor1::Initialize(ID3D11Device* device, int width, int height)
     m_viewport.MinDepth = 0.0f;
     m_viewport.MaxDepth = 1.0f;
 
-    // Isi database kata-kata
-    InitializeLogs();
+    //// Isi database kata-kata
+    //InitializeLogs();
 
     // [BARU] Setup Primitive & Cursor
     m_primitive = std::make_unique<Primitive>(device);
@@ -42,8 +42,8 @@ void TerminalMonitor1::Initialize(ID3D11Device* device, int width, int height)
     m_cursor = std::make_unique<CursorBlock>(device);
     // Ukuran kursor disesuaikan dengan ukuran Font Scale terminal (0.75f)
     // Asumsi font base size sekitar 10x20 pixel.
-    m_cursor->Initialize(12.0f, 24.0f);
-    m_cursor->SetBlink(true, 0.6f, 0.4f);
+    m_cursor->Initialize(45.0f, 80.0f);
+    m_cursor->SetBlink(true, 0.8f, 0.5f);
     m_cursor->SetGridSnap(false, 0, 0); // Di terminal 3D mending smooth atau snap manual
 }
 
@@ -78,62 +78,72 @@ void TerminalMonitor1::InitializeLogs()
 
 void TerminalMonitor1::Update(float dt)
 {
-    // --- 1. LOGIKA AUTO SCROLL (Gabungan dari fungsi pertama) ---
-    if (m_autoScrollActive)
+    //// --- 1. LOGIKA AUTO SCROLL (Gabungan dari fungsi pertama) ---
+    //if (m_autoScrollActive)
+    //{
+    //    m_timer += dt;
+    //    if (m_timer > m_lineDelay)
+    //    {
+    //        m_timer = 0.0f;
+    //        if (!m_bootSequence.empty())
+    //        {
+    //            // Ambil log acak
+    //            int index = rand() % m_bootSequence.size();
+    //            std::string log = m_bootSequence[index];
+
+    //            // Variasi format output
+    //            if (rand() % 4 == 0)
+    //            {
+    //                log += " [" + std::to_string(rand() % 100) + "%]";
+    //            }
+    //            AddLog(log);
+    //        }
+    //    }
+    //}
+
+    //// --- 2. LOGIKA UPDATE CURSOR (Gabungan dari fungsi kedua) ---
+    //// PENTING: Pastikan Anda juga sudah mengubah definisi UpdateCursorPosition
+    //// di .h dan .cpp untuk menerima parameter (float dt) seperti saran sebelumnya.
+    //UpdateCursorPosition(dt);
+
+    // Kita hardcode posisi tengah (256, 256) dikurang setengah ukuran kursor (30, 50)
+    float centerX = (m_width / 2.0f) - 30.0f;
+    float centerY = (m_height / 2.0f) - 50.0f;
+
+    if (m_cursor)
     {
-        m_timer += dt;
-        if (m_timer > m_lineDelay)
-        {
-            m_timer = 0.0f;
-            if (!m_bootSequence.empty())
-            {
-                // Ambil log acak
-                int index = rand() % m_bootSequence.size();
-                std::string log = m_bootSequence[index];
-
-                // Variasi format output
-                if (rand() % 4 == 0)
-                {
-                    log += " [" + std::to_string(rand() % 100) + "%]";
-                }
-                AddLog(log);
-            }
-        }
+        m_cursor->Update(dt, centerX, centerY);
     }
-
-    // --- 2. LOGIKA UPDATE CURSOR (Gabungan dari fungsi kedua) ---
-    // PENTING: Pastikan Anda juga sudah mengubah definisi UpdateCursorPosition
-    // di .h dan .cpp untuk menerima parameter (float dt) seperti saran sebelumnya.
-    UpdateCursorPosition(dt);
 }
 
-// 2. Update logic posisi kursor
-void TerminalMonitor1::UpdateCursorPosition(float dt) 
-{
-    if (m_logs.empty()) return;
-
-    // Hitung posisi baris terakhir
-    // Rumus: PaddingY + (IndexTerakhir * LineSpacing * FontScale)
-    float lastLineIndex = (float)(m_logs.size() - 1);
-
-    float cursorY = m_textPadding.y + (lastLineIndex * m_lineSpacing * m_fontScale);
-
-    // Hitung panjang teks baris terakhir (Perkiraan kasar width per char)
-    // Untuk hasil akurat, BitmapFont butuh fungsi 'GetTextWidth', 
-    // tapi untuk monospaced/retro, estimasi karakter * lebar cukup.
-    std::string lastLog = m_logs.back();
-    float charWidth = 14.0f * m_fontScale; // Estimasi lebar per huruf
-    float cursorX = m_textPadding.x + (lastLog.length() * charWidth) + 5.0f; // +5px padding
-
-    // Update kursor dengan koordinat virtual ini
-    // dt kita ambil 0.016f (60fps) atau simpan dt di class member jika mau presisi
-    m_cursor->Update(dt, cursorX, cursorY);
-}
+//// 2. Update logic posisi kursor
+//void TerminalMonitor1::UpdateCursorPosition(float dt) 
+//{
+//    if (m_logs.empty()) return;
+//
+//    // Hitung posisi baris terakhir
+//    // Rumus: PaddingY + (IndexTerakhir * LineSpacing * FontScale)
+//    float lastLineIndex = (float)(m_logs.size() - 1);
+//
+//    float cursorY = m_textPadding.y + (lastLineIndex * m_lineSpacing * m_fontScale);
+//
+//    // Hitung panjang teks baris terakhir (Perkiraan kasar width per char)
+//    // Untuk hasil akurat, BitmapFont butuh fungsi 'GetTextWidth', 
+//    // tapi untuk monospaced/retro, estimasi karakter * lebar cukup.
+//    std::string lastLog = m_logs.back();
+//    float charWidth = 14.0f * m_fontScale; // Estimasi lebar per huruf
+//    float cursorX = m_textPadding.x + (lastLog.length() * charWidth) + 5.0f; // +5px padding
+//
+//    // Update kursor dengan koordinat virtual ini
+//    // dt kita ambil 0.016f (60fps) atau simpan dt di class member jika mau presisi
+//    m_cursor->Update(dt, cursorX, cursorY);
+//}
 
 void TerminalMonitor1::RenderToTexture(ID3D11DeviceContext* context, BitmapFont* font)
 {
     // Optimasi: Skip jika tidak ada perubahan
-    if (!m_needsUpdate || !font) return;
+    if (!font) return;
+
 
     // Backup State
     ID3D11RenderTargetView* prevRTV = nullptr;
@@ -158,24 +168,24 @@ void TerminalMonitor1::RenderToTexture(ID3D11DeviceContext* context, BitmapFont*
     float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     context->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), blendFactor, 0xFFFFFFFF);
 
-    // --- GAMBAR TEKS DENGAN CUSTOM SETTINGS ---
-    float startX = m_textPadding.x;
-    float startY = m_textPadding.y;
+    //// --- GAMBAR TEKS DENGAN CUSTOM SETTINGS ---
+    //float startX = m_textPadding.x;
+    //float startY = m_textPadding.y;
 
-    for (const auto& line : m_logs)
-    {
-        font->Draw(
-            line.c_str(),
-            startX, startY,
-            m_fontScale,
-            m_textColor.x,  // R
-            m_textColor.y,  // G
-            m_textColor.z,  // B
-            m_textColor.w   // A
-        );
+    //for (const auto& line : m_logs)
+    //{
+    //    font->Draw(
+    //        line.c_str(),
+    //        startX, startY,
+    //        m_fontScale,
+    //        m_textColor.x,  // R
+    //        m_textColor.y,  // G
+    //        m_textColor.z,  // B
+    //        m_textColor.w   // A
+    //    );
 
-        startY += m_lineSpacing * m_fontScale;
-    }
+    //    startY += m_lineSpacing * m_fontScale;
+    //}
 
     // [BARU] Render Cursor SETELAH teks, tapi SEBELUM restore RTV
     if (m_cursor && m_primitive)
@@ -215,40 +225,14 @@ void TerminalMonitor1::Clear()
 
 void TerminalMonitor1::DrawGUI()
 {
-    if (ImGui::CollapsingHeader("Monitor 1 Terminal", ImGuiTreeNodeFlags_DefaultOpen))
+    // Update GUI sedikit biar ga bingung
+    if (ImGui::CollapsingHeader("Monitor 1 (Big Cursor)", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        // Preview
         if (m_srv)
         {
-            ImGui::Text("Live Feed (Monitor 1):");
-            ImGui::Image((void*)m_srv.Get(), ImVec2(256, 256), ImVec2(0, 0), ImVec2(1, 1), ImVec4(1, 1, 1, 1), ImVec4(0, 1, 0, 1));
+            ImGui::Text("Live Feed:");
+            ImGui::Image((void*)m_srv.Get(), ImVec2(256, 256), ImVec2(0, 0), ImVec2(1, 1));
         }
-        ImGui::Separator();
-
-        // --- AUTO SCROLL CONTROL ---
-        ImGui::Text("System Settings");
-        ImGui::Checkbox("Auto Scroll##mon1", &m_autoScrollActive);
-        ImGui::SliderFloat("Speed##mon1", &m_lineDelay, 0.01f, 0.5f);
-
-        // --- VISUAL CUSTOMIZATION ---
-        ImGui::Separator();
-        ImGui::Text("Visual Appearance");
-
-        if (ImGui::ColorEdit4("Text Color##mon1", &m_textColor.x)) MarkAsDirty();
-        if (ImGui::DragFloat2("Padding##mon1", &m_textPadding.x, 1.0f)) MarkAsDirty();
-        if (ImGui::DragFloat("Line Spacing##mon1", &m_lineSpacing, 0.5f, 10.0f, 100.0f)) MarkAsDirty();
-        if (ImGui::DragFloat("Font Scale##mon1", &m_fontScale, 0.01f, 0.1f, 5.0f)) MarkAsDirty();
-
-        ImGui::Separator();
-
-        // Manual Input
-        static char buffer[128] = "";
-        if (ImGui::InputText("Log Input##mon1", buffer, IM_ARRAYSIZE(buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
-            AddLog(buffer);
-            sprintf_s(buffer, "");
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("SEND##mon1")) { AddLog(buffer); sprintf_s(buffer, ""); }
-        if (ImGui::Button("Clear##mon1")) Clear();
+        ImGui::TextDisabled("Log System Deactivated.");
     }
 }

@@ -49,7 +49,7 @@ private:
 
     // --- [BARU] VISUAL SETTINGS ---
     // Warna Amber Klasik (R=1.0, G=0.7, B=0.0)
-    DirectX::XMFLOAT4 m_textColor = { 1.0f, 0.75f, 0.0f, 0.8f };
+    DirectX::XMFLOAT4 m_textColor = { 1.0f, 0.75f, 0.0f, 0.7f };
 
     // Posisi awal teks (Padding kiri & atas)
     DirectX::XMFLOAT2 m_textPadding = { 27.0f, 23.0f };
