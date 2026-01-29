@@ -1,4 +1,4 @@
-// BossTerminal.h
+// TerminalMonitor1.h
 #pragma once
 #include <d3d11.h>
 #include <wrl/client.h>
@@ -8,11 +8,11 @@
 #include <DirectXMath.h>
 #include "BitmapFont.h"
 
-class BossTerminal
+class TerminalMonitor1
 {
 public:
-    BossTerminal();
-    ~BossTerminal();
+    TerminalMonitor1();
+    ~TerminalMonitor1();
 
     void Initialize(ID3D11Device* device, int width, int height);
     void Update(float dt);
@@ -38,25 +38,25 @@ private:
     int m_width = 0;
     int m_height = 0;
     std::deque<std::string> m_logs;
-    size_t m_maxLines = 12;
+    size_t m_maxLines = 14; // Bisa berbeda dari monitor 2
     bool m_needsUpdate = true;
 
     // --- AUTO SCROLL SYSTEM ---
     std::vector<std::string> m_bootSequence;
     float m_timer = 0.0f;
-    float m_lineDelay = 0.5f;
+    float m_lineDelay = 0.4f; // Kecepatan berbeda dari monitor 2
     bool m_autoScrollActive = true;
 
-    // --- [BARU] VISUAL SETTINGS ---
-    // Warna Amber Klasik (R=1.0, G=0.7, B=0.0)
-    DirectX::XMFLOAT4 m_textColor = { 1.0f, 0.75f, 0.0f, 0.8f };
+    // --- VISUAL SETTINGS ---
+    // Warna hijau klasik terminal (berbeda dari monitor 2)
+    DirectX::XMFLOAT4 m_textColor = { 1.0f, 0.75f, 0.0f, 1.0f };
 
     // Posisi awal teks (Padding kiri & atas)
-    DirectX::XMFLOAT2 m_textPadding = { 27.0f, 23.0f };
+    DirectX::XMFLOAT2 m_textPadding = { 20.0f, 20.0f };
 
     // Jarak antar baris
-    float m_lineSpacing = 44.0f;
+    float m_lineSpacing = 40.0f;
 
     // Ukuran Font Global
-    float m_fontScale = 0.8f;
+    float m_fontScale = 0.80f;
 };

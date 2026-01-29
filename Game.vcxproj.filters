@@ -276,6 +276,9 @@
     <ClCompile Include="Source\StateBoss.cpp">
       <Filter>Source\State</Filter>
     </ClCompile>
+    <ClCompile Include="Source\TerminalMonitor1.cpp">
+      <Filter>Source\Character\Boss</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\AnimationController.h">
@@ -559,6 +562,9 @@
     </ClInclude>
     <ClInclude Include="Source\StateBoss.h">
       <Filter>Source\State</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\TerminalMonitor1.h">
+      <Filter>Source\Character\Boss</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

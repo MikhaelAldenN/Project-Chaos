@@ -53,14 +53,26 @@ Boss::Boss()
     m_terminal.AddLog("SYSTEM BOOT...");
     m_terminal.AddLog("WAITING FOR USER...");
 
-    // LOAD MODEL PLANE UNTUK LAYAR
-    // Jika tidak ada "Plane.glb", gunakan model apa saja yang datar (box pipih juga bisa)
-    // Atau minta artist buatkan quad sederhana.
+    // Init Terminal untuk Monitor 1
+    m_terminal1.Initialize(Graphics::Instance().GetDevice(), 512, 512);
+    m_terminal1.AddLog("MONITOR 1 ONLINE");
+    m_terminal1.AddLog("SYSTEM CHECK...");
+
+    // === PERBAIKAN DI SINI ===
+        // LOAD MODEL PLANE UNTUK LAYAR
     try {
+        // 1. Load untuk Monitor Utama (Monitor 2)
         m_screenQuad = std::make_shared<Model>(Graphics::Instance().GetDevice(), "Data/Model/Primitive/Plane.glb");
+
+        // 2. Load untuk Monitor 1 (Harus load instance baru agar texture bisa dibedakan)
+        // Kita tidak bisa sekadar m_screenQuad1 = m_screenQuad karena texture terminalnya berbeda
+        m_screenQuad1 = std::make_shared<Model>(Graphics::Instance().GetDevice(), "Data/Model/Primitive/Plane.glb");
     }
     catch (...) {
         OutputDebugStringA("WARNING: Plane.glb for Boss Terminal Screen not found!\n");
+        // Handle error jika model tidak ketemu
+        m_screenQuad = nullptr;
+        m_screenQuad1 = nullptr;
     }
 
     m_stateMachine.Initialize(new BossIntroState(), this);
@@ -227,6 +239,7 @@ void Boss::Update(float dt)
     }
 
     m_terminal.Update(dt);
+    m_terminal1.Update(dt);
 
     m_stateMachine.Update(this, dt);
 }
@@ -239,6 +252,11 @@ void Boss::Render(ModelRenderer* renderer, Camera* camera)
 
     if (font) {
         m_terminal.RenderToTexture(context, font);
+    }
+
+    // Render Terminal 1 texture
+    if (font) {
+        m_terminal1.RenderToTexture(context, font);
     }
 
     // 2. RENDER BOSS PARTS BIASA
@@ -301,6 +319,66 @@ void Boss::Render(ModelRenderer* renderer, Camera* camera)
         // Gunakan Shader Basic (Unlit) agar terang dan tidak terpengaruh bayangan
         renderer->Draw(ShaderId::Basic, m_screenQuad, { 1.0f, 1.0f, 1.0f, 1.0f });
     }
+
+    // 4. RENDER LAYAR MONITOR 1
+    if (m_screenQuad1 && HasPart("monitor1"))
+    {
+        BossPart* monitor1 = GetPart("monitor1");
+
+        // --- A. Hitung Transformasi Monitor 1 ---
+        XMMATRIX S1 = XMMatrixScaling(monitor1->scale.x, monitor1->scale.y, monitor1->scale.z);
+        XMMATRIX R1 = XMMatrixRotationRollPitchYaw(
+            XMConvertToRadians(monitor1->rotation.x),
+            XMConvertToRadians(monitor1->rotation.y),
+            XMConvertToRadians(monitor1->rotation.z)
+        );
+        XMMATRIX T1 = XMMatrixTranslation(monitor1->visualPosition.x, monitor1->visualPosition.y, monitor1->visualPosition.z);
+        XMMATRIX matMonitor1 = S1 * R1 * T1;
+
+        XMMATRIX matScaleScreen1 = XMMatrixScaling(m_screen1Scale.x, m_screen1Scale.y, m_screen1Scale.z);
+        XMMATRIX matRotScreen1 = XMMatrixRotationRollPitchYaw(
+            XMConvertToRadians(m_screen1Rotation.x),
+            XMConvertToRadians(m_screen1Rotation.y),
+            XMConvertToRadians(m_screen1Rotation.z)
+        );
+        XMMATRIX matOffset1 = XMMatrixTranslation(m_screen1Offset.x, m_screen1Offset.y, m_screen1Offset.z);
+
+        XMMATRIX matFinal1 = matScaleScreen1 * matRotScreen1 * matOffset1 * matMonitor1;
+
+        XMFLOAT4X4 worldFinal1;
+        XMStoreFloat4x4(&worldFinal1, matFinal1);
+        m_screenQuad1->UpdateTransform(worldFinal1);
+
+        // --- B. ASSIGN TEXTURE MONITOR 1 ---
+        ID3D11ShaderResourceView* terminal1Tex = m_terminal1.GetTexture();
+        if (terminal1Tex)
+        {
+            const auto& meshes = m_screenQuad1->GetMeshes();
+            for (const auto& mesh : meshes)
+            {
+                if (mesh.material)
+                {
+                    mesh.material->baseMap = terminal1Tex;
+                }
+            }
+        }
+
+        // --- C. DRAW MONITOR 1 ---
+        renderer->Draw(ShaderId::Basic, m_screenQuad1, { 1.0f, 1.0f, 1.0f, 1.0f });
+    }
+    else
+    {
+        // Debug: Print why monitor1 screen not rendering
+        static bool loggedOnce = false;
+        if (!loggedOnce)
+        {
+            if (!m_screenQuad1)
+                OutputDebugStringA("DEBUG: Monitor1 screen not rendering - m_screenQuad1 is NULL\n");
+            if (!HasPart("monitor1"))
+                OutputDebugStringA("DEBUG: Monitor1 screen not rendering - monitor1 part not found\n");
+            loggedOnce = true;
+        }
+    }
 }
 
 void Boss::AddTerminalLog(const std::string& msg)
@@ -318,11 +396,28 @@ void Boss::DrawDebugGUI()
 {
     if (ImGui::CollapsingHeader("Boss Manager", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::TextColored({ 1,1,0,1 }, "TERMINAL DISABLED FOR PERFORMANCE");
-        ImGui::Text("Check Boss_NO_TERMINAL.cpp to re-enable");
+        // Status Indicators
+        ImGui::TextColored({ 1,1,0,1 }, "=== TERMINAL STATUS ===");
+
+        // Monitor 2 Status
+        bool mon2Ready = m_screenQuad && HasPart("monitor2");
+        ImGui::TextColored(mon2Ready ? ImVec4{ 0,1,0,1 } : ImVec4{ 1,0,0,1 },
+            "Monitor 2: %s", mon2Ready ? "ACTIVE" : "INACTIVE");
+
+        // Monitor 1 Status
+        bool mon1Ready = m_screenQuad1 && HasPart("monitor1");
+        ImGui::TextColored(mon1Ready ? ImVec4{ 0,1,0,1 } : ImVec4{ 1,0,0,1 },
+            "Monitor 1: %s", mon1Ready ? "ACTIVE" : "INACTIVE");
+
+        if (!m_screenQuad1) ImGui::TextColored({ 1,0.5,0,1 }, "  > Screen Quad 1 not loaded");
+        if (!HasPart("monitor1")) ImGui::TextColored({ 1,0.5,0,1 }, "  > Monitor1 part not found");
+
         ImGui::Separator();
 
         m_terminal.DrawGUI();
+
+        ImGui::Separator();
+        m_terminal1.DrawGUI();
 
         // --- [BARU] STATE CONTROLS ---
         ImGui::Text("AI State Override");
@@ -402,6 +497,23 @@ void Boss::DrawDebugGUI()
             }
 
             ImGui::TreePop();
+
+            if (ImGui::TreeNode("Monitor 1 Screen Transform"))
+            {
+                ImGui::Text("Adjust Monitor 1 Screen Placement:");
+                ImGui::DragFloat3("Offset##mon1", &m_screen1Offset.x, 0.005f);
+                ImGui::DragFloat3("Rotation##mon1", &m_screen1Rotation.x, 1.0f);
+                ImGui::DragFloat3("Scale##mon1", &m_screen1Scale.x, 0.005f);
+
+                if (ImGui::Button("Reset Monitor 1##mon1"))
+                {
+                    m_screen1Offset = { 0.0f, 0.02f, 0.055f };
+                    m_screen1Scale = { 0.75f, 0.55f, 0.01f };
+                    m_screen1Rotation = { 0.0f, 0.0f, 0.0f };
+                }
+
+                ImGui::TreePop();
+            }
         }
         ImGui::Separator();
 

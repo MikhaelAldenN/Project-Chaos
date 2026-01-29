@@ -8,6 +8,7 @@
 #include "System/ModelRenderer.h"
 #include "Camera.h"
 #include "BossTerminal.h"
+#include "TerminalMonitor1.h"
 #include "StateBoss.h"
 #include "EnemyManager.h"
 
@@ -111,18 +112,23 @@ private:
 
     // [BARU] Sistem Terminal 3D
     BossTerminal m_terminal;
+    TerminalMonitor1 m_terminal1; // Terminal untuk monitor 1
+
+
+    std::shared_ptr<Model> m_screenQuad1; // Model layar untuk monitor 1
 
     std::shared_ptr<Model> m_screenQuad; // Model kotak tipis untuk layar
     void CreateScreenQuad(); // Fungsi bikin kotak manual
 
     DirectX::XMFLOAT3 m_screenOffset = { 0.0f, 0.002f, 0.0174f };
-
-    // Scale kecil karena Monitor 2 scalenya sudah besar (100)
-    // Coba mulai dari 0.8 (80% ukuran muka monitor)
-    DirectX::XMFLOAT3 m_screenScale = { 3.2f, 3.2f, 3.2f };
-
-    // Reset rotasi, nanti kita atur lagi lewat ImGui
     DirectX::XMFLOAT3 m_screenRotation = { 81.7f, 0.0f, 0.0f };
+    DirectX::XMFLOAT3 m_screenScale = { 3.2f, 3.2f, 3.2f };
+    // Transform untuk monitor 1 screen
+    // Monitor 1 scale = 10, jadi butuh screen scale lebih kecil dari monitor 2 (yang scale 100)
+    DirectX::XMFLOAT3 m_screen1Offset = { -0.02f, 0.195f, -0.340f };
+    DirectX::XMFLOAT3 m_screen1Rotation =  { 90.0f, 180.0f, 0.0f };
+    DirectX::XMFLOAT3 m_screen1Scale = { 46.0f, 46.0f, 46.0f };
+
 
     BossStateMachine m_stateMachine;
     class EnemyManager* m_enemyManager = nullptr;

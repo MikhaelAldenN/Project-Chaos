@@ -146,6 +146,7 @@
     <ClInclude Include="Source\StateBoss.h" />
     <ClInclude Include="Source\System\Collision.h" />
     <ClInclude Include="Source\System\CollisionManager.h" />
+    <ClInclude Include="Source\TerminalMonitor1.h" />
     <ClInclude Include="Source\TextDatabase.h" />
     <ClInclude Include="Source\TUIBuilder.h" />
     <ClInclude Include="Source\UberShader.h" />
@@ -277,6 +278,7 @@
     <ClCompile Include="Source\System\ShapeRenderer.cpp" />
     <ClCompile Include="Source\System\Sprite.cpp" />
     <ClCompile Include="Source\System\TransformUtils.cpp" />
+    <ClCompile Include="Source\TerminalMonitor1.cpp" />
     <ClCompile Include="Source\TextDatabase.cpp" />
     <ClCompile Include="Source\TUIBuilder.cpp" />
     <ClCompile Include="Source\Typewriter.cpp" />
