@@ -25,8 +25,8 @@ public:
     // --- Input & Control ---
     void HandleMovementInput();
     void UpdateHorizontalMovement(float elapsedTime);
-
     void HandleMovementInput(float elpasedTime);
+
     //bool CheckJumpInput();
     void SetInputEnabled(bool enable) { isInputEnabled = enable; }
     void SetCamera(Camera* cam) { activeCamera = cam; }
@@ -57,16 +57,6 @@ public:
 
     bool IsInvincible() const { return m_isInvincible; }
 
-    struct InvincibleSettings
-    {
-        static constexpr float Duration = 10.0f;      
-        static constexpr float BlinkSpeed = 10.0f;    
-
-        static DirectX::XMFLOAT4 GetColor() { return { 0.275f, 0.275f, 0.275f, 1.0f }; }
-    };
-
-    void SetInvertControls(bool enable) { invertControls = enable; }
-
     // --- SETTINGS ---
     struct BreakoutSettings
     {
@@ -89,8 +79,23 @@ public:
         DirectX::XMFLOAT4 colorPale = { 1.0f, 0.89f, 0.58f, 1.0f };     // Phase 1 Target
         DirectX::XMFLOAT4 colorWhite = { 1.0f, 1.0f, 1.0f, 1.0f };      // Phase 2 Target
     };
-
     BreakoutSettings breakoutSettings;
+
+    struct InvincibleSettings
+    {
+        static constexpr float Duration = 10.0f;
+        static constexpr float BlinkSpeed = 10.0f;
+
+        static DirectX::XMFLOAT4 GetColor() { return { 0.275f, 0.275f, 0.275f, 1.0f }; }
+    };
+    void SetInvertControls(bool enable) { invertControls = enable; }
+
+    struct MovementSettings
+    {
+        static constexpr float DefaultSpeed = 3.0f;  // Speed for SceneGameBeyond
+        static constexpr float BreakerSpeed = 1.4f;  // Speed for SceneGameBreaker
+    };
+    void SetMoveSpeed(float speed) { moveSpeed = speed; }
 
     // Color Setting
     DirectX::XMFLOAT4 color = { 0.96f, 0.80f, 0.23f, 1.0f };
@@ -125,7 +130,7 @@ private:
 	bool invertControls = false;
 
     // --- MOVEMENT SETTINGS ---
-    float moveSpeed = 3.0f;          // Kecepatan maksimal
+    float moveSpeed = MovementSettings::DefaultSpeed;
     float acceleration = 8.0f;      // Seberapa cepat mencapai top speed (Smoothing Start)
     float deceleration = 10.0f;      // Seberapa cepat berhenti (Smoothing Stop)
 
