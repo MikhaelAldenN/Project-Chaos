@@ -19,6 +19,7 @@ public:
 
     // [UPDATED] Menggunakan Reference (Mouse&) agar cocok dengan Input.h
     void Update(float dt, Mouse& mouse);
+    void Update(float dt, float rawX, float rawY);
 
     // Render
     void Render(ID3D11DeviceContext* context, Primitive* primitiveBatcher);

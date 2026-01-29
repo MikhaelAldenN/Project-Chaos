@@ -7,6 +7,8 @@
 #include <deque>
 #include <DirectXMath.h>
 #include "BitmapFont.h"
+#include "CursorBlock.h" // Include CursorBlock
+#include "Primitive.h"   // Include Primitive
 
 class TerminalMonitor1
 {
@@ -26,6 +28,7 @@ public:
 
 private:
     void InitializeLogs(); // Helper data dummy
+    void UpdateCursorPosition(float dt);
 
 private:
     // RTT Resources
@@ -59,4 +62,7 @@ private:
 
     // Ukuran Font Global
     float m_fontScale = 0.80f;
+
+    std::unique_ptr<Primitive> m_primitive;
+    std::unique_ptr<CursorBlock> m_cursor;
 };

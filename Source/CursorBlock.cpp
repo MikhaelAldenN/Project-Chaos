@@ -49,14 +49,10 @@ void CursorBlock::SetBlink(bool enable, float visibleTime, float invisibleTime)
     blinkTimer = 0.0f;
 }
 
-// [UPDATED] Menerima Mouse&
-void CursorBlock::Update(float dt, Mouse& mouse)
+// [BARU] Logika utama dipindah ke sini
+void CursorBlock::Update(float dt, float rawX, float rawY)
 {
-    // Akses data menggunakan titik (.) karena ini Reference
-    float rawX = static_cast<float>(mouse.GetPositionX());
-    float rawY = static_cast<float>(mouse.GetPositionY());
-
-    // Logic Snapping
+    // 1. Logic Snapping
     if (useGridSnap)
     {
         posX = floorf(rawX / gridW) * gridW;
@@ -68,23 +64,32 @@ void CursorBlock::Update(float dt, Mouse& mouse)
         posY = rawY;
     }
 
-    // Logic Blinking
+    // 2. Logic Blinking
     if (useBlink)
     {
         blinkTimer += dt;
-
         float currentLimit = isVisible ? blinkVisibleTime : blinkInvisibleTime;
 
         if (blinkTimer >= currentLimit)
         {
-            blinkTimer -= currentLimit; // Reset timer (sisa waktu diteruskan agar akurat)
-            isVisible = !isVisible;     // Balik status (Muncul <-> Hilang)
+            blinkTimer -= currentLimit;
+            isVisible = !isVisible;
         }
     }
     else
     {
         isVisible = true;
     }
+}
+
+// [MODIFIED] Fungsi lama sekarang cuma jadi wrapper
+void CursorBlock::Update(float dt, Mouse& mouse)
+{
+    float mx = static_cast<float>(mouse.GetPositionX());
+    float my = static_cast<float>(mouse.GetPositionY());
+
+    // Panggil fungsi generic di atas
+    Update(dt, mx, my);
 }
 
 void CursorBlock::Render(ID3D11DeviceContext* context, Primitive* primitiveBatcher)
