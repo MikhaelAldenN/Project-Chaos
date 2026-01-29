@@ -9,13 +9,15 @@
 #include "BitmapFont.h"
 #include "CursorBlock.h"
 #include "Primitive.h"
+#include "System/Sprite.h"
 
 enum class TerminalAnimState
 {
     IDLE,           // Cursor breathing at center
     MOVING_TO_POS,  // Cursor moving to typing start position
     TYPING,         // Typing animation in progress
-    DONE            // Typing finished, waiting for reset
+    DONE,            // Typing finished, waiting for reset
+    SYSTEM_LOCK
 };
 
 class TerminalMonitor1
@@ -31,6 +33,7 @@ public:
 
     // --- Command & Animation Control ---
     void PlayCommandAnimation(const std::string& command);
+    void ShowLockScreen();
     void ResetToIdle();
     bool IsBusy() const;
 
@@ -53,6 +56,7 @@ private:
     // --- Components ---
     std::unique_ptr<Primitive>   m_primitive;
     std::unique_ptr<CursorBlock> m_cursor;
+    std::unique_ptr<Sprite>      m_lockSprite;
 
     // --- Dimensions & Layout ---
     int   m_width = 0;
@@ -75,4 +79,14 @@ private:
 
     float               m_animTimer = 0.0f;
     float               m_typeSpeed = 0.05f;     // Seconds per character
+
+    float               m_cursorBaseW = 45.0f;
+    float               m_cursorBaseH = 80.0f;
+
+    DirectX::XMFLOAT2 m_lockPos = { 0.0f, 0.0f };
+    DirectX::XMFLOAT2 m_lockSize = { 512.0f, 512.0f }; // Asumsi texture size 512
+    DirectX::XMFLOAT4 m_lockColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+    // [BARU] Settings Warna Cursor (Untuk ImGui)
+    DirectX::XMFLOAT4 m_cursorColor = { 0.96f, 0.80f, 0.23f, 1.0f };
 };

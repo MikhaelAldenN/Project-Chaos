@@ -190,6 +190,8 @@ void BossLockPlayerState::Enter(Boss* boss)
     boss->AddTerminalLog("WARNING: GRAVITY WELL DETECTED!");
     boss->AddTerminalLog("MOBILITY SYSTEMS: OFFLINE");
 
+    boss->GetMonitor1()->ShowLockScreen();
+
     // 1. Kunci Player
     if (boss->GetPlayer())
     {
@@ -233,6 +235,8 @@ void BossLockPlayerState::Exit(Boss* boss)
         boss->GetPlayer()->SetMovementLock(false);
         boss->AddTerminalLog("MOBILITY SYSTEMS: RESTORED");
     }
+
+    boss->GetMonitor1()->ResetToIdle();
 }
 
 // ==========================================

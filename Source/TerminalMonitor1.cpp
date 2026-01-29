@@ -36,13 +36,26 @@ void TerminalMonitor1::Initialize(ID3D11Device* device, int width, int height)
     m_primitive = std::make_unique<Primitive>(device);
     m_cursor = std::make_unique<CursorBlock>(device);
 
+    m_lockSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Beyond/Sprite_LockBody.png");
+
     // Setup Cursor: Large Block
-    m_cursor->Initialize(45.0f, 80.0f);
+    m_cursor->Initialize(m_cursorBaseW, m_cursorBaseH);
     m_cursor->SetBlink(true, 0.8f, 0.5f);
     m_cursor->SetGridSnap(false, 0, 0);
 
     // Initial Position: Center
     m_cursorPos = { (float)width / 2.0f - 22.5f, (float)height / 2.0f - 40.0f };
+    m_lockSize = { (float)width, (float)height };
+
+    // Set Warna Cursor Awal
+    m_cursor->SetColor(m_cursorColor.x, m_cursorColor.y, m_cursorColor.z, m_cursorColor.w);
+}
+
+void TerminalMonitor1::ShowLockScreen()
+{
+    m_animState = TerminalAnimState::SYSTEM_LOCK;
+    m_currentDisplay = "";
+    m_displayLines.clear();
 }
 
 void TerminalMonitor1::Update(float dt)
@@ -121,6 +134,20 @@ void TerminalMonitor1::Update(float dt)
     case TerminalAnimState::DONE:
         // Waiting for external reset
         break;
+
+    case TerminalAnimState::SYSTEM_LOCK:
+        // Tidak ada logika kursor khusus, gambar statis.
+        // Bisa tambahkan efek glitch atau pulse di sini nanti jika mau.
+        break;
+    }
+
+    float targetScale = (m_animState == TerminalAnimState::TYPING) ? 0.8f : 1.0f;
+    if (m_cursor)
+    {
+        m_cursor->SetSize(
+            m_cursorBaseW * targetScale,
+            m_cursorBaseH * targetScale
+        );
     }
 
     UpdateCursorLogic(dt);
@@ -153,18 +180,40 @@ void TerminalMonitor1::RenderToTexture(ID3D11DeviceContext* context, BitmapFont*
     context->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
 
     // 3. Render Text (Only when typing or done)
-    if (m_animState == TerminalAnimState::TYPING || m_animState == TerminalAnimState::DONE)
+    if (m_animState == TerminalAnimState::SYSTEM_LOCK)
     {
-        // [OPTIMASI] Loop vector yang sudah disiapkan
-        for (size_t i = 0; i < m_displayLines.size(); ++i)
+        // --- 1. RENDER SPRITE LOCK SCREEN ---
+        if (m_lockSprite)
         {
-            font->Draw(
-                m_displayLines[i].c_str(),
-                m_typingStartPos.x,
-                m_typingStartPos.y + (i * m_lineSpacing), // Y index langsung dari loop
-                m_fontScale,
-                1.0f, 0.2f, 0.2f, 1.0f
-            );
+            // Gunakan Variabel Member (m_lockPos, m_lockSize, m_lockColor)
+            m_lockSprite->Render(context,
+                m_lockPos.x, m_lockPos.y, 0.0f,
+                m_lockSize.x, m_lockSize.y,
+                0.0f,
+                m_lockColor.x, m_lockColor.y, m_lockColor.z, m_lockColor.w);
+        }
+    }
+    else
+    {
+        // --- 2. RENDER NORMAL (Teks & Kursor) ---
+        if (m_animState == TerminalAnimState::TYPING || m_animState == TerminalAnimState::DONE)
+        {
+            for (size_t i = 0; i < m_displayLines.size(); ++i)
+            {
+                font->Draw(
+                    m_displayLines[i].c_str(),
+                    m_typingStartPos.x,
+                    m_typingStartPos.y + (i * m_lineSpacing),
+                    m_fontScale,
+                    1.0f, 0.2f, 0.2f, 1.0f
+                );
+            }
+        }
+
+        if (m_cursor && m_primitive)
+        {
+            m_cursor->SetColor(m_cursorColor.x, m_cursorColor.y, m_cursorColor.z, m_cursorColor.w);
+            m_cursor->Render(context, m_primitive.get());
         }
     }
 
@@ -248,6 +297,21 @@ void TerminalMonitor1::DrawGUI()
         ImGui::DragFloat("Line Spacing", &m_lineSpacing, 1.0f);
         ImGui::DragFloat("Cursor Offset X", &m_cursorOffsetX, 1.0f);
         ImGui::DragInt("Max Chars/Line", &m_maxCharsPerLine, 1, 1, 20);
+
+        ImGui::Separator();
+        ImGui::Text("LOCK SCREEN SPRITE");
+
+        // [BARU] Kontrol Posisi, Ukuran, dan Warna Sprite
+        ImGui::DragFloat2("Sprite Pos", &m_lockPos.x, 1.0f);
+        ImGui::DragFloat2("Sprite Size", &m_lockSize.x, 1.0f);
+        ImGui::ColorEdit4("Sprite Color", &m_lockColor.x);
+
+        if (ImGui::Button("Reset Sprite to Fullscreen"))
+        {
+            m_lockPos = { 0.0f, 0.0f };
+            m_lockSize = { (float)m_width, (float)m_height };
+            m_lockColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+        }
 
         ImGui::Separator();
         ImGui::Text("State: %d", (int)m_animState);

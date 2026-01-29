@@ -49,6 +49,17 @@ void CursorBlock::SetBlink(bool enable, float visibleTime, float invisibleTime)
     blinkTimer = 0.0f;
 }
 
+void CursorBlock::SetSize(float w, float h)
+{
+    this->width = w;
+    this->height = h;
+}
+
+void CursorBlock::SetColor(float r, float g, float b, float a)
+{
+    m_color[0] = r; m_color[1] = g; m_color[2] = b; m_color[3] = a;
+}
+
 // [BARU] Logika utama dipindah ke sini
 void CursorBlock::Update(float dt, float rawX, float rawY)
 {
@@ -106,7 +117,7 @@ void CursorBlock::Render(ID3D11DeviceContext* context, Primitive* primitiveBatch
 
     // 3. Gambar Kotak (Flush via Primitive)
     // Warna Amber: 0.96, 0.80, 0.23
-    primitiveBatcher->Rect(posX, posY, width, height, 0.0f, 0.0f, 0.0f, 0.96f, 0.80f, 0.23f, 1.0f);
+    primitiveBatcher->Rect(posX, posY, width, height, 0.0f, 0.0f, 0.0f, m_color[0], m_color[1], m_color[2], m_color[3]);
     primitiveBatcher->Render(context);
 
     // 4. Kembalikan State Lama
