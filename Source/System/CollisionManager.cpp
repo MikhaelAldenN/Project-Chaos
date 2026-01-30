@@ -563,23 +563,26 @@ void CollisionManager::UpdateBlockStackFlags()
 void CollisionManager::CheckBlockVsBlocks()
 {
     if (!m_blockManager) return;
-    if (m_blockManager->IsShieldActive()) return;
 
     float boxRadius = 0.4f;
-    float minTouchDist = boxRadius * 2.45f;
-    float pushTarget = minTouchDist + 0.001f;
     auto& blocks = m_blockManager->GetBlocks();
     size_t count = blocks.size();
-    int physicsIterations = 4;
 
     m_blockGrid.Clear();
 
     for (size_t i = 0; i < count; ++i)
     {
+        // Add all active blocks to the grid
         if (!blocks[i]->IsActive() || blocks[i]->IsFilling()) continue;
         XMFLOAT3 pos = blocks[i]->GetMovement()->GetPosition();
         m_blockGrid.Insert(pos, boxRadius, i);
     }
+
+    if (m_blockManager->IsShieldActive()) return;
+
+    float minTouchDist = boxRadius * 2.45f;
+    float pushTarget = minTouchDist + 0.001f;
+    int physicsIterations = 4;
 
     for (int k = 0; k < physicsIterations; ++k)
     {
@@ -590,6 +593,7 @@ void CollisionManager::CheckBlockVsBlocks()
             auto* movA = blocks[i]->GetMovement();
             XMFLOAT3 posA = movA->GetPosition();
             float queryRadius = minTouchDist + 0.5f;
+
             auto nearbyBlockIndices = m_blockGrid.QueryRadius(posA, queryRadius);
 
             for (size_t j : nearbyBlockIndices)
@@ -652,7 +656,6 @@ void CollisionManager::CheckBlockVsBlocks()
 void CollisionManager::CheckBlockVsEnemies()
 {
     if (!m_blockManager || !m_enemyManager) return;
-    if (m_blockManager->IsShieldActive()) return;
 
     auto& enemies = m_enemyManager->GetEnemies();
     auto& blocks = m_blockManager->GetBlocks();
@@ -673,10 +676,11 @@ void CollisionManager::CheckBlockVsEnemies()
         for (size_t i : nearbyIndices)
         {
             if (i >= blocks.size()) continue;
-            // Use pointer access
             Block& block = *blocks[i];
 
             if (!block.IsActive() || block.IsFalling()) continue;
+            if (!m_blockManager->IsShieldActive() && block.IsRelocating()) continue;
+
             XMFLOAT3 blockPos = block.GetMovement()->GetPosition();
 
             float dx = blockPos.x - enemyPos.x;
