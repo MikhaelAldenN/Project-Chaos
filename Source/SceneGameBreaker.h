@@ -31,6 +31,8 @@
 #include "GUISceneGameBreaker.h" // Logic GUI ada di sini
 #include "PostProcessManager.h"
 
+#include "UIImpactDisplay.h"
+
 class SceneGameBreaker : public Scene
 {
     // Memberi akses ke class GUI untuk edit variabel private
@@ -173,4 +175,6 @@ private:
 
     // [PENTING] Director yang mengatur kamera sekarang
     std::unique_ptr<CinematicDirector> m_director;
+
+    std::unique_ptr<UIImpactDisplay> m_impactDisplay;
 };

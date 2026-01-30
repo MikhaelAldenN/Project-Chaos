@@ -81,6 +81,13 @@ SceneGameBreaker::SceneGameBreaker()
 
     m_postProcess = std::make_unique<PostProcessManager>();
     m_postProcess->Initialize((int)screenW, (int)screenH);
+
+    // Initialize Impact Display
+    m_impactDisplay = std::make_unique<UIImpactDisplay>();
+    m_impactDisplay->Initialize(Graphics::Instance().GetDevice());
+
+    // Sesuaikan ukuran layar awal
+    m_impactDisplay->OnResize(screenW, screenH);
 }
 
 SceneGameBreaker::~SceneGameBreaker()
@@ -324,6 +331,16 @@ void SceneGameBreaker::Update(float elapsedTime)
             uberParams.glitchStrength = 0.0f;
         }
     }
+
+    if (m_impactDisplay) {
+        m_impactDisplay->Update(elapsedTime);
+    }
+
+    // CONTOH PEMICU:
+    // Jika player tekan tombol M, munculkan efek "MASH SPACE"
+    if (Input::Instance().GetKeyboard().IsTriggered('M')) {
+        m_impactDisplay->Show(ImpactType::Super, 1.0f);
+    }
 }
 
 void SceneGameBreaker::UpdateGameTriggers(float elapsedTime)
@@ -417,6 +434,14 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
         primRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection(), D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
     }
 
+    if (m_impactDisplay) {
+        auto rs = Graphics::Instance().GetRenderState();
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
+        m_impactDisplay->Render(dc);
+    }
+
     if (m_fxState.MasterEnabled)
     {
         UberShader::UberData& activeData = m_postProcess->GetData();
@@ -429,6 +454,7 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
 
         m_postProcess->EndCapture(elapsedTime);
     }
+
 }
 
 void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
