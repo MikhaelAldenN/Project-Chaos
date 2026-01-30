@@ -7,21 +7,25 @@ UIImpactDisplay::~UIImpactDisplay() {}
 
 void UIImpactDisplay::Initialize(ID3D11Device* device)
 {
-    // Init Primitive untuk Flash
+    // Init Primitive untuk Flash & Background
     m_primitive = std::make_unique<Primitive>(device);
 
     auto LoadSprite = [&](ImpactType type, const char* path) {
         auto sprite = std::make_unique<Sprite>(device, path);
-        // Sesuaikan ukuran sprite manual atau getter
+        // Sesuaikan ukuran sprite (Contoh 1920x1080 atau sesuai gambar aslimu)
+        // Kalau gambarmu kecil, sesuaikan w dan h ini agar tidak gepeng
         float w = 1920.0f;
         float h = 1080.0f;
         m_sprites[type] = std::move(sprite);
         m_spriteDims[type] = { w, h };
         };
 
+    // Load Sprite Text
     LoadSprite(ImpactType::Super, "Data/Sprite/Scene Breaker/Sprite_Text_ESCAPE.png");
-    // Load sprite lainnya...
-
+    LoadSprite(ImpactType::Nigero, "Data/Sprite/Scene Breaker/Sprite_Text_NIGERO.png");
+    LoadSprite(ImpactType::SpaceKeyJP, "Data/Sprite/Scene Breaker/Sprite_Text_SPACEKEY_jp.png");
+    LoadSprite(ImpactType::RendaSeyo, "Data/Sprite/Scene Breaker/Sprite_Text_RENDASEYO.png");
+    // Pastikan status awal bersih
     ResetAnim();
 }
 
@@ -34,47 +38,72 @@ void UIImpactDisplay::Show(ImpactType type, float duration)
     m_anim.totalDuration = duration;
     m_anim.currentType = type;
 
-    // Setup awal
-    m_anim.currentScale = 5.0f;
+    // Setup Animation
+    m_anim.currentScale = 5.0f; // Mulai dari sangat besar
     m_anim.currentAlpha = 1.0f;
-    m_anim.currentRotation = 0.0f; // Stabil, tidak miring
-    m_anim.flashAlpha = 0.8f;      // Mulai dengan flash terang (putih 80%)
+    m_anim.currentRotation = 0.0f;
+    m_anim.flashAlpha = 0.5f;   // Kilatan cahaya di awal
+}
+
+void UIImpactDisplay::ShowSequence(const std::vector<ImpactEvent>& sequence)
+{
+    // Kosongkan antrian lama
+    m_eventQueue.clear();
+    // Isi antrian baru
+    for (const auto& evt : sequence) {
+        m_eventQueue.push_back(evt);
+    }
+
+    // Jika sedang diam, langsung mainkan yang pertama
+    if (!m_anim.isActive && !m_eventQueue.empty()) {
+        ImpactEvent next = m_eventQueue.front();
+        m_eventQueue.pop_front();
+        Show(next.type, next.duration);
+    }
 }
 
 void UIImpactDisplay::Update(float elapsedTime)
 {
-    if (!m_anim.isActive) return;
+    // [LOGIKA ANTRIAN]
+    // Jika animasi sekarang mati/selesai, cek apakah ada antrian berikutnya?
+    if (!m_anim.isActive)
+    {
+        if (!m_eventQueue.empty())
+        {
+            // Ambil antrian paling depan
+            ImpactEvent next = m_eventQueue.front();
+            m_eventQueue.pop_front();
+
+            // Mainkan!
+            Show(next.type, next.duration);
+        }
+        return;
+    }
 
     m_anim.timer += elapsedTime;
 
-    // --- 1. Update Flash Logic ---
-    // Flash menghilang sangat cepat (0.1 detik)
+    // Logic Flash (Kilatan Putih)
     if (m_anim.flashAlpha > 0.0f)
     {
-        m_anim.flashAlpha -= elapsedTime * 8.0f; // Kecepatan fade out flash
+        m_anim.flashAlpha -= elapsedTime * 8.0f;
         if (m_anim.flashAlpha < 0.0f) m_anim.flashAlpha = 0.0f;
     }
 
-    // --- 2. Update Text Animation ---
-    float impactTime = 0.15f;
+    float impactTime = 0.15f; // Waktu "Slam"
 
     if (m_anim.timer < impactTime)
     {
-        // FASE 1: SLAM (Membesar ke Normal)
+        // FASE 1: SLAM (Membesar ke Normal dengan cepat)
         float t = m_anim.timer / impactTime;
-        float k = 15.0f; // Lebih cepat/snappy
+        float k = 15.0f;
         float scaleFactor = exp(-k * t);
-
-        // Scale turun drastis dari 5.0 ke 1.0
         m_anim.currentScale = 1.0f + (4.0f * scaleFactor);
     }
     else if (m_anim.timer < m_anim.totalDuration)
     {
-        // FASE 2: SLOW ZOOM OUT (Pelan banget)
-        // Setelah impact, scale 1.0 pelan-pelan jadi 0.9 (menjauh)
+        // FASE 2: SLOW ZOOM OUT (Pelan banget menjauh)
         float timeAfterImpact = m_anim.timer - impactTime;
-        float zoomSpeed = 0.05f; // Semakin kecil semakin pelan
-
+        float zoomSpeed = 0.05f;
         m_anim.currentScale = 1.0f - (timeAfterImpact * zoomSpeed);
 
         // Fade out di akhir durasi
@@ -86,61 +115,35 @@ void UIImpactDisplay::Update(float elapsedTime)
     }
     else
     {
+        // Animasi Selesai -> Reset
         ResetAnim();
     }
 }
+
+// === FUNGSI YANG HILANG (PENYEBAB ERROR) ADA DI BAWAH INI ===
 
 void UIImpactDisplay::Render(ID3D11DeviceContext* dc)
 {
     if (!m_anim.isActive) return;
 
-    // =========================================================
-    // LAYER 1: BACKGROUND (Hitam Transparan)
-    // =========================================================
-    // Tujuannya menggelapkan layar game di belakang agar teks terbaca jelas.
-
-    // Kita buat background ikut fade out di akhir animasi (saat text fade out)
-    float bgAlpha = 0.3f; // Opacity background (75% gelap)
-
-    // Jika animasi mau selesai (fade out phase), kurangi alpha background juga
+    // 1. LAYER BACKGROUND (Hitam Transparan)
+    float bgAlpha = 0.3f;
     if (m_anim.currentAlpha < 1.0f) {
         bgAlpha *= m_anim.currentAlpha;
     }
 
-    // Gambar Kotak Fullscreen (0,0,0 = Hitam)
-    m_primitive->Rect(
-        0.0f, 0.0f,           // Posisi (Kiri Atas)
-        m_screenW, m_screenH, // Ukuran (Fullscreen)
-        0.0f, 0.0f,           // Center Pivot (Default 0,0)
-        0.0f,                 // Angle
-        0.0f, 0.0f, 0.0f,     // Warna RGB (HITAM)
-        bgAlpha               // Alpha
-    );
-
-    // Push ke GPU
+    // Gambar Kotak Hitam Fullscreen
+    m_primitive->Rect(0.0f, 0.0f, m_screenW, m_screenH, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, bgAlpha);
     m_primitive->Render(dc);
 
-    // =========================================================
-    // LAYER 2: FLASH (Putih Transparan)
-    // =========================================================
-    // Efek kilatan cahaya di awal impact
+    // 2. LAYER FLASH (Putih Transparan)
     if (m_anim.flashAlpha > 0.0f)
     {
-        m_primitive->Rect(
-            0.0f, 0.0f,
-            m_screenW, m_screenH,
-            0.0f, 0.0f,
-            0.0f,
-            1.0f, 1.0f, 1.0f, // Warna RGB (PUTIH)
-            m_anim.flashAlpha // Alpha Flash
-        );
+        m_primitive->Rect(0.0f, 0.0f, m_screenW, m_screenH, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, m_anim.flashAlpha);
         m_primitive->Render(dc);
     }
 
-    // =========================================================
-    // LAYER 3: TEXT (Sprite)
-    // =========================================================
-    // Teks muncul paling depan (di atas hitam dan flash)
+    // 3. LAYER TEXT (Sprite)
     auto it = m_sprites.find(m_anim.currentType);
     if (it != m_sprites.end())
     {
@@ -172,15 +175,35 @@ void UIImpactDisplay::OnResize(float screenW, float screenH)
     m_screenH = screenH;
 }
 
-bool UIImpactDisplay::IsActive() const
-{
-    return m_anim.isActive;
-}
-
 void UIImpactDisplay::ResetAnim()
 {
     m_anim.isActive = false;
     m_anim.flashAlpha = 0.0f;
     m_anim.currentScale = 1.0f;
     m_anim.currentAlpha = 1.0f;
+}
+
+bool UIImpactDisplay::IsActive() const
+{
+    return m_anim.isActive;
+}
+
+float UIImpactDisplay::GetDistortionKick() const
+{
+    if (!m_anim.isActive) return 0.0f;
+
+    // Kita ingin efek distorsinya SANGAT CEPAT (lebih cepat dari animasi teksnya)
+    // Supaya layar seperti "terpukul" sekejap.
+    float kickDuration = 0.2f; // 0.2 detik durasi total distorsi
+
+    if (m_anim.timer < kickDuration)
+    {
+        // Rumus Exponential Decay:
+        // Saat timer 0.0 -> hasil 1.0
+        // Saat timer 0.1 -> hasil drastis turun
+        // Angka 20.0f adalah kecepatan decay-nya. Semakin besar semakin cepat hilang.
+        return exp(-20.0f * m_anim.timer);
+    }
+
+    return 0.0f;
 }
