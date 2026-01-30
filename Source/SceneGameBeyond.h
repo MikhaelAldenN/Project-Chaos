@@ -83,4 +83,7 @@ private:
     void DrawTabObjects();
     void DrawTabWindowSystem();
     void DrawTabCamera();
+
+    DirectX::XMFLOAT3 m_antennaTrackOffset = { -1.5f, 0.0f, 1.1f };
+    DirectX::XMFLOAT2 m_antennaSizeOffset = { 101.0f, -181.0f };
 };

@@ -249,6 +249,41 @@ void SceneGameBeyond::InitializeSubWindows()
         );
     }
 
+    if (m_boss->HasPart("antenna"))
+    {
+        m_windowSystem->AddTrackedWindow(
+            // Config Dasar (Size dasar 220x500)
+            { "antenna", "Signal Uplink", 220, 500, 5, { 0.0f, 0.0f, 0.0f } },
+
+            // 1. LAMBDA POSISI (Model Pos + Offset ImGui)
+            [this]() -> DirectX::XMFLOAT3 {
+                if (!m_boss) return { 0,0,0 };
+
+                // Ambil posisi asli model (yang sedang animasi slide)
+                auto pos = m_boss->GetAntennaVisualPos();
+
+                // Tambahkan Offset dari ImGui
+                pos.x += m_antennaTrackOffset.x;
+                pos.y += m_antennaTrackOffset.y;
+                pos.z += m_antennaTrackOffset.z;
+
+                return { pos.x, pos.y, pos.z };
+            },
+
+            // 2. LAMBDA SIZE (Base Size + Offset ImGui)
+            [this]() -> DirectX::XMFLOAT2 {
+                float baseW = 220.0f;
+                float baseH = 500.0f;
+
+                // Tambahkan offset, tapi jangan sampai negatif
+                float w = max(50.0f, baseW + m_antennaSizeOffset.x);
+                float h = max(50.0f, baseH + m_antennaSizeOffset.y);
+
+                return DirectX::XMFLOAT2(w, h);
+            }
+        );
+    }
+
     WindowManager::Instance().EnforceWindowPriorities();
     m_isWindowsInitialized = true;
 }
@@ -639,6 +674,26 @@ void SceneGameBeyond::DrawTabObjects()
         else
         {
             ImGui::TextDisabled("No enemies. Spawn one via Boss!");
+        }
+
+        // --- ANTENNA WINDOW SETTINGS ---
+        if (ImGui::TreeNode("Antenna Window Settings"))
+        {
+            ImGui::TextColored(ImVec4(0.5f, 1.0f, 1.0f, 1.0f), "Tracking Offset (World Units)");
+            ImGui::DragFloat3("Pos Offset", &m_antennaTrackOffset.x, 0.1f);
+
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(0.5f, 1.0f, 1.0f, 1.0f), "Size Adjustment (Pixels)");
+            ImGui::DragFloat2("Size (+/-)", &m_antennaSizeOffset.x, 1.0f);
+
+            // Tombol Reset biar gampang kalau kekecilan/kejauhan
+            if (ImGui::Button("Reset Antenna Config"))
+            {
+                m_antennaTrackOffset = { 0.0f, 4.0f, 0.0f };
+                m_antennaSizeOffset = { 0.0f, 0.0f };
+            }
+
+            ImGui::TreePop();
         }
     }
 }

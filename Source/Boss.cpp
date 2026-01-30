@@ -324,7 +324,7 @@ void Boss::Render(ModelRenderer* renderer, Camera* camera)
             if (!p.active) continue;
 
             // 1. Hitung Posisi
-            float displayScale = 10.0f; // Sesuaikan skala
+            float displayScale = 150.0f; // Sesuaikan skala
             XMMATRIX S = XMMatrixScaling(displayScale, displayScale, displayScale);
             XMMATRIX R = XMMatrixRotationRollPitchYaw(
                 XMConvertToRadians(p.rotation.x),

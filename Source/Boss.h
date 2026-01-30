@@ -110,6 +110,7 @@ public:
     DirectX::XMFLOAT3 GetCPUVisualPos() const { return GetPartVisualPos("cpu"); }
     DirectX::XMFLOAT3 GetMonitor2VisualPos() const { return GetPartVisualPos("monitor2"); }
     DirectX::XMFLOAT3 GetMonitor3VisualPos() const { return GetPartVisualPos("monitor3"); }
+    DirectX::XMFLOAT3 GetAntennaVisualPos() const { return GetPartVisualPos("antenna"); }
 
     // --- AI & State Management ---
     void ChangeState(class BossState* newState);
