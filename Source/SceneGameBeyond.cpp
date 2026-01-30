@@ -284,6 +284,32 @@ void SceneGameBeyond::InitializeSubWindows()
         );
     }
 
+    // [BARU] 1. Setup Item Manager (Agar item drop berfungsi)
+    m_itemManager = std::make_unique<ItemManager>();
+    m_itemManager->Initialize(Graphics::Instance().GetDevice());
+
+    // [BARU] 2. Setup Collision Manager
+    m_collisionManager = std::make_unique<CollisionManager>();
+
+    // PERHATIKAN: Parameter ke-2 adalah nullptr karena tidak ada Stage
+    m_collisionManager->Initialize(
+        m_player.get(),
+        nullptr,               // <--- NO STAGE!
+        m_blockManager.get(),
+        m_enemyManager.get(),
+        m_itemManager.get()
+    );
+
+    // [OPSIONAL] Callback efek visual saat Player kena Hit
+    m_collisionManager->SetOnPlayerHitCallback([this]() {
+        if (m_player) {
+            // Trigger efek kaca pecah kecil saat player kena damage
+            auto pPos = m_player->GetPosition();
+            WindowShatterManager::Instance().TriggerExplosion({ pPos.x, pPos.z }, 4);
+        }
+        });
+
+
     WindowManager::Instance().EnforceWindowPriorities();
     m_isWindowsInitialized = true;
 }
@@ -293,53 +319,93 @@ void SceneGameBeyond::UpdateEnemyWindows()
     if (!m_enemyManager || !m_windowSystem) return;
 
     const auto& enemies = m_enemyManager->GetEnemies();
+    size_t enemyCount = enemies.size();
 
-    for (size_t i = 0; i < enemies.size(); ++i)
+    // 1. SPAWN WINDOW BARU (Untuk musuh yang ada)
+    for (size_t i = 0; i < enemyCount; ++i)
     {
         std::string winID = "enemy_view_" + std::to_string(i);
 
-        // Cek jika window belum ada
         if (m_windowSystem->GetTrackedWindow(winID) == nullptr)
         {
-            Enemy* targetEnemy = enemies[i].get();
-
+            // ... (Kode AddTrackedWindow yang kamu miliki sebelumnya) ...
             m_windowSystem->AddTrackedWindow(
-                // 1. Config (Base size 250x250)
                 { winID, "Enemy Signal " + std::to_string(i), 150, 150, 2, { 0.0f, 0.0f, 0.0f } },
+                [this, i]() -> DirectX::XMFLOAT3 {
+                    if (!m_enemyManager) return { 0,0,0 };
+                    const auto& curEnemies = m_enemyManager->GetEnemies();
+                    if (i >= curEnemies.size() || !curEnemies[i]) return { 0,0,0 };
 
-                // 2. Lambda Posisi (Track Offset)
-                [targetEnemy, this]() -> DirectX::XMFLOAT3 {
-                    // Safety check jika enemy mati/hilang
-                    if (!targetEnemy) return { 0,0,0 };
-
-                    DirectX::XMFLOAT3 pos = targetEnemy->GetPosition();
+                    auto pos = curEnemies[i]->GetPosition();
                     pos.x += m_enemyTrackOffset.x;
                     pos.y += m_enemyTrackOffset.y;
                     pos.z += m_enemyTrackOffset.z;
                     return pos;
                 },
-
-                // 3. [BARU] Lambda Ukuran (Size Offset)
                 [this]() -> DirectX::XMFLOAT2 {
-                    // Base Size (250) + Offset Slider
                     float w = 150 + m_enemySizeOffset.x;
                     float h = 150 + m_enemySizeOffset.y;
-
-                    // Cegah ukuran negatif/terlalu kecil
-                    if (w < 50.0f) w = 50.0f;
-                    if (h < 50.0f) h = 50.0f;
-
-                    return DirectX::XMFLOAT2(w, h);
+                    return DirectX::XMFLOAT2(max(50.0f, w), max(50.0f, h));
                 }
             );
+        }
+    }
 
-            // Print info ke output window
-            char msg[128];
-            sprintf_s(msg, "DYNAMIC WINDOW SPAWNED: %s\n", winID.c_str());
-            OutputDebugStringA(msg);
+    // 2. CLEANUP WINDOW (Untuk musuh yang sudah mati)
+    // Kita cek window dengan ID "enemy_view_X". Jika X >= enemyCount, berarti musuhnya sudah tidak ada.
+    // Kita looping agak lebih dari enemyCount untuk memastikan window sisa (bekas musuh mati) terhapus.
 
-            // Force refresh agar window langsung nongol di layer yang benar
-            WindowManager::Instance().EnforceWindowPriorities();
+    // Misal: Tadinya ada 5 musuh (0-4). Musuh mati 1, sisa 4 (0-3).
+    // Window "enemy_view_4" harus dihapus.
+
+    int maxCheck = enemyCount + 5; // Cek sedikit di atas jumlah sekarang untuk cleanup sisa
+    for (int i = enemyCount; i < maxCheck; ++i)
+    {
+        std::string winID = "enemy_view_" + std::to_string(i);
+        if (m_windowSystem->GetTrackedWindow(winID) != nullptr)
+        {
+            m_windowSystem->RemoveTrackedWindow(winID);
+        }
+    }
+}
+
+void SceneGameBeyond::UpdateItemWindows()
+{
+    if (!m_itemManager || !m_windowSystem) return;
+
+    const auto& items = m_itemManager->GetItems();
+
+    for (size_t i = 0; i < items.size(); ++i)
+    {
+        // Buat ID unik berdasarkan index
+        std::string winID = "item_view_" + std::to_string(i);
+        auto& item = items[i];
+
+        // Cek apakah window untuk item ini sudah ada?
+        bool isWindowExists = (m_windowSystem->GetTrackedWindow(winID) != nullptr);
+
+        // KONDISI 1: Item Aktif & Window Belum Ada -> SPAWN WINDOW
+        if (item->IsActive() && !isWindowExists)
+        {
+            m_windowSystem->AddTrackedWindow(
+                { winID, "ITEM", 120, 120, 1, { 0.0f, 0.5f, 0.0f } }, // Priority 1 (di atas background)
+
+                // Posisi: Ikuti Item
+                [this, i]() -> DirectX::XMFLOAT3 {
+                    if (m_itemManager && i < m_itemManager->GetItems().size())
+                        return m_itemManager->GetItems()[i]->GetPosition();
+                    return { 0, 0, 0 };
+                },
+
+                // Ukuran: Tetap
+                []() -> DirectX::XMFLOAT2 { return { 120, 120 }; }
+            );
+        }
+        // KONDISI 2: Item Sudah Diambil (Mati) & Window Masih Ada -> DESTROY WINDOW
+        else if (!item->IsActive() && isWindowExists)
+        {
+            // Ini akan memanggil fungsi yang baru kita buat tadi
+            m_windowSystem->RemoveTrackedWindow(winID);
         }
     }
 }
@@ -487,6 +553,11 @@ void SceneGameBeyond::Update(float elapsedTime)
         UpdateEnemyWindows();
     }
 
+    if (m_itemManager)
+    {
+        UpdateItemWindows(); // Handle Item Windows
+    }
+
     // 5. Update Window System
     if (m_windowSystem)
     {
@@ -503,6 +574,24 @@ void SceneGameBeyond::Update(float elapsedTime)
 
     HandleDebugInput();
     CameraController::Instance().Update(elapsedTime);
+
+    if (m_itemManager)
+    {
+        m_itemManager->Update(elapsedTime, activeCam);
+    }
+
+    // [BARU] Update Collision
+    if (m_collisionManager && m_player)
+    {
+        // FORCE Stage 3: CollisionManager hanya jalan jika stage == 3
+        // (Sesuai logika di CollisionManager.cpp: if (m_player->GetGameStage() != 3) return;)
+        if (m_player->GetGameStage() != 3)
+        {
+            m_player->SetGameStage(3);
+        }
+
+        m_collisionManager->Update(elapsedTime);
+    }
 }
 
 static void DrawTransformControl(const char* label, DirectX::XMFLOAT3* pos)
@@ -821,6 +910,13 @@ void SceneGameBeyond::RenderScene(float elapsedTime, Camera* camera)
                 }
             }
         }
+    }
+
+    if (m_itemManager)
+    {
+        // ItemManager butuh ModelRenderer, ambil dari Graphics Instance
+        auto modelRenderer = Graphics::Instance().GetModelRenderer();
+        m_itemManager->Render(modelRenderer);
     }
 
     modelRenderer->Render(rc);

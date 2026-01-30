@@ -267,3 +267,29 @@ void WindowTrackingSystem::UpdateOffCenterProjection(Camera* targetCam, GameWind
         nearZ, farZ
     );
 }
+
+void WindowTrackingSystem::RemoveTrackedWindow(const std::string& name)
+{
+    // 1. Cek apakah window ada di lookup table
+    auto it = m_windowLookup.find(name);
+    if (it == m_windowLookup.end()) return; // Tidak ketemu, keluar.
+
+    TrackedWindow* trackedInfo = it->second;
+
+    // 2. Hancurkan Window Fisik via WindowManager
+    if (trackedInfo && trackedInfo->window)
+    {
+        WindowManager::Instance().DestroyWindow(trackedInfo->window);
+    }
+
+    // 3. Hapus dari Map Lookup DULUAN (Penting!)
+    m_windowLookup.erase(it);
+
+    // 4. Hapus dari Vector (yang memegang ownership/unique_ptr)
+    m_trackedWindows.erase(
+        std::remove_if(m_trackedWindows.begin(), m_trackedWindows.end(),
+            [&name](const std::unique_ptr<TrackedWindow>& ptr) {
+                return ptr->name == name;
+            }),
+        m_trackedWindows.end());
+}

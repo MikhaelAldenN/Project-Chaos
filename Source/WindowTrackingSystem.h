@@ -64,6 +64,7 @@ public:
         std::function<DirectX::XMFLOAT3()> getTargetPos,
         std::function<DirectX::XMFLOAT2()> getTargetSize = nullptr // Default null
     );
+    void RemoveTrackedWindow(const std::string& name);
     TrackedWindow* GetTrackedWindow(const std::string& name);
     void ClearAll();
 

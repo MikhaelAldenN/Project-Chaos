@@ -18,6 +18,8 @@
 #include "Primitive.h"
 #include "WindowTrackingSystem.h"
 #include "EnemyManager.h" 
+#include "System/CollisionManager.h" // [BARU]
+#include "ItemManager.h"      // [BARU]
 
 // =========================================================
 // SCENE GAME BEYOND - NO ImGui VERSION
@@ -78,6 +80,7 @@ private:
     DirectX::XMFLOAT3 m_enemyTrackOffset = { 0.0f, 0.0f, 0.0f };
     DirectX::XMFLOAT2 m_enemySizeOffset = { 0.0f, 0.0f };
     void UpdateEnemyWindows();
+    void UpdateItemWindows();
 
     void DrawTabGeneral();
     void DrawTabObjects();
@@ -86,4 +89,7 @@ private:
 
     DirectX::XMFLOAT3 m_antennaTrackOffset = { -1.5f, 0.0f, 1.1f };
     DirectX::XMFLOAT2 m_antennaSizeOffset = { 101.0f, -181.0f };
+
+    std::unique_ptr<ItemManager> m_itemManager;
+    std::unique_ptr<CollisionManager> m_collisionManager;
 };
