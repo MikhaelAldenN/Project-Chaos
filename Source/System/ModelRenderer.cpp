@@ -26,6 +26,9 @@ ModelRenderer::ModelRenderer(ID3D11Device* device)
         device,
         sizeof(CbObject),
         objectConstantBuffer.GetAddressOf());
+    
+    drawInfos.reserve(2000);
+    transparencyDrawInfos.reserve(2000);
 
     // シェーダー生成
     shaders[static_cast<int>(ShaderId::Basic)] = std::make_unique<BasicShader>(device);
@@ -33,13 +36,27 @@ ModelRenderer::ModelRenderer(ID3D11Device* device)
     shaders[static_cast<int>(ShaderId::Phong)] = std::make_unique<PhongShader>(device);
 }
 
-// Store the color in DrawInfo
+// Store the color in DrawInfo (Standard)
 void ModelRenderer::Draw(ShaderId shaderId, std::shared_ptr<Model> model, const DirectX::XMFLOAT4& color)
 {
     DrawInfo& drawInfo = drawInfos.emplace_back();
     drawInfo.shaderId = shaderId;
     drawInfo.model = model;
-    drawInfo.color = color; 
+    drawInfo.color = color;
+    drawInfo.useManualMatrix = false; // Default: Pakai transform model
+}
+
+// [BARU] Overload dengan Manual Matrix
+void ModelRenderer::Draw(ShaderId shader, std::shared_ptr<Model> model, DirectX::XMFLOAT4 color, const DirectX::XMFLOAT4X4& worldMatrix)
+{
+    DrawInfo& drawInfo = drawInfos.emplace_back();
+    drawInfo.shaderId = shader;
+    drawInfo.model = model;
+    drawInfo.color = color;
+
+    // Simpan Matrix Manual
+    drawInfo.useManualMatrix = true;
+    drawInfo.worldMatrix = worldMatrix;
 }
 
 // 描画実行
@@ -97,8 +114,10 @@ void ModelRenderer::Render(const RenderContext& rc)
     dc->OMSetDepthStencilState(rc.renderState->GetDepthStencilState(DepthState::TestAndWrite), 0);
     dc->RSSetState(rc.renderState->GetRasterizerState(RasterizerState::SolidCullBack));
 
-    // メッシュ描画関数
-    auto drawMesh = [&](const Model::Mesh& mesh, Shader* shader)
+    // --------------------------------------------------------------------------------
+    // [MODIFIKASI] Lambda drawMesh sekarang menerima Override Matrix
+    // --------------------------------------------------------------------------------
+    auto drawMesh = [&](const Model::Mesh& mesh, Shader* shader, bool useManual, const DirectX::XMFLOAT4X4& manualMatrix)
         {
             // 頂点バッファ設定
             UINT stride = sizeof(Model::Vertex);
@@ -109,12 +128,23 @@ void ModelRenderer::Render(const RenderContext& rc)
 
             // スケルトン用定数バッファ更新
             CbSkeleton cbSkeleton{};
+
+            // Logic Matrix Override
             if (mesh.bones.size() > 0)
             {
                 for (size_t i = 0; i < mesh.bones.size(); ++i)
                 {
                     const Model::Bone& bone = mesh.bones.at(i);
-                    DirectX::XMMATRIX WorldTransform = DirectX::XMLoadFloat4x4(&bone.node->worldTransform);
+
+                    // [MODIFIKASI] Pilih Matrix (Manual atau Node Internal)
+                    DirectX::XMMATRIX WorldTransform;
+                    if (useManual) {
+                        WorldTransform = DirectX::XMLoadFloat4x4(&manualMatrix);
+                    }
+                    else {
+                        WorldTransform = DirectX::XMLoadFloat4x4(&bone.node->worldTransform);
+                    }
+
                     DirectX::XMMATRIX OffsetTransform = DirectX::XMLoadFloat4x4(&bone.offsetTransform);
                     DirectX::XMMATRIX BoneTransform = OffsetTransform * WorldTransform;
                     DirectX::XMStoreFloat4x4(&cbSkeleton.boneTransforms[i], BoneTransform);
@@ -122,7 +152,14 @@ void ModelRenderer::Render(const RenderContext& rc)
             }
             else
             {
-                cbSkeleton.boneTransforms[0] = mesh.node->worldTransform;
+                // Static Mesh (Tanpa Bone)
+                // [MODIFIKASI] Gunakan Manual Matrix jika aktif
+                if (useManual) {
+                    cbSkeleton.boneTransforms[0] = manualMatrix;
+                }
+                else {
+                    cbSkeleton.boneTransforms[0] = mesh.node->worldTransform;
+                }
             }
             dc->UpdateSubresource(skeletonConstantBuffer.Get(), 0, 0, &cbSkeleton, 0, 0);
 
@@ -132,6 +169,7 @@ void ModelRenderer::Render(const RenderContext& rc)
             // 描画
             dc->DrawIndexed(static_cast<UINT>(mesh.indices.size()), 0, 0);
         };
+    // --------------------------------------------------------------------------------
 
     DirectX::XMVECTOR CameraPosition = DirectX::XMLoadFloat3(&rc.camera->GetPosition());
     DirectX::XMVECTOR CameraFront = DirectX::XMLoadFloat3(&rc.camera->GetFront());
@@ -157,14 +195,20 @@ void ModelRenderer::Render(const RenderContext& rc)
             {
                 TransparencyDrawInfo& transparencyDrawInfo = transparencyDrawInfos.emplace_back();
                 transparencyDrawInfo.mesh = &mesh;
-                transparencyDrawInfo.shaderId = drawInfo.shaderId; 
-                transparencyDrawInfo.color = drawInfo.color;       
+                transparencyDrawInfo.shaderId = drawInfo.shaderId;
+                transparencyDrawInfo.color = drawInfo.color;
 
-                // カメラとの距離を算出
+                // [BARU] Salin Data Matrix Override ke Transparency Info
+                transparencyDrawInfo.useManualMatrix = drawInfo.useManualMatrix;
+                transparencyDrawInfo.worldMatrix = drawInfo.worldMatrix;
+
+                // カメラとの距離を算出 (Gunakan Matrix Manual jika ada untuk hitung jarak)
+                DirectX::XMFLOAT4X4 transformMatrix = drawInfo.useManualMatrix ? drawInfo.worldMatrix : mesh.node->worldTransform;
+
                 DirectX::XMVECTOR Position = DirectX::XMVectorSet(
-                    mesh.node->worldTransform._41,
-                    mesh.node->worldTransform._42,
-                    mesh.node->worldTransform._43,
+                    transformMatrix._41,
+                    transformMatrix._42,
+                    transformMatrix._43,
                     0.0f);
                 DirectX::XMVECTOR Vec = DirectX::XMVectorSubtract(Position, CameraPosition);
                 transparencyDrawInfo.distance = DirectX::XMVectorGetX(DirectX::XMVector3Dot(CameraFront, Vec));
@@ -172,8 +216,8 @@ void ModelRenderer::Render(const RenderContext& rc)
                 continue;
             }
 
-            // 描画
-            drawMesh(mesh, shader);
+            // 描画 (Pass data matrix ke lambda)
+            drawMesh(mesh, shader, drawInfo.useManualMatrix, drawInfo.worldMatrix);
         }
 
         shader->End(rc);
@@ -196,12 +240,12 @@ void ModelRenderer::Render(const RenderContext& rc)
         Shader* shader = shaders[static_cast<int>(transparencyDrawInfo.shaderId)].get();
         shader->Begin(rc);
 
-        // [NEW] Update Buffer for transparent objects too
         CbObject cbObject;
         cbObject.color = transparencyDrawInfo.color;
         dc->UpdateSubresource(objectConstantBuffer.Get(), 0, 0, &cbObject, 0, 0);
 
-        drawMesh(*transparencyDrawInfo.mesh, shader);
+        // 描画 (Pass data matrix ke lambda)
+        drawMesh(*transparencyDrawInfo.mesh, shader, transparencyDrawInfo.useManualMatrix, transparencyDrawInfo.worldMatrix);
 
         shader->End(rc);
     }

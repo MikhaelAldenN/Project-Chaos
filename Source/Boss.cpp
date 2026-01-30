@@ -83,6 +83,14 @@ Boss::Boss()
         m_screenQuad1 = nullptr;
     }
 
+    try {
+        m_fileModel = std::make_shared<Model>(device, "Data/Model/Character/Test_mdl_File.glb");
+    }
+    catch (...) {}
+
+    // Reserve vector data (bukan model)
+    m_fileProjectiles.reserve(100);
+
     // 4. Start AI
     m_stateMachine.Initialize(new BossIntroState(), this);
 }
@@ -96,9 +104,13 @@ Boss::~Boss() {}
 void Boss::Update(float dt)
 {
     // Update all body parts
+    float safeDt = dt;
+    if (safeDt > 0.05f) safeDt = 0.05f;
+
+    // Gunakan safeDt untuk update parts & AI
     for (auto& part : m_parts)
     {
-        part->Update(dt);
+        part->Update(safeDt); // <-- Ganti dt jadi safeDt
     }
 
     // Update Terminal Logic (Animations/Scrolling)
@@ -106,7 +118,7 @@ void Boss::Update(float dt)
     m_terminal1.Update(dt);
 
     // Update AI State
-    m_stateMachine.Update(this, dt);
+    m_stateMachine.Update(this, safeDt);
 
     // =========================================================
     // [BARU] UPDATE BACKGROUND OPACITY ANIMATION
@@ -301,6 +313,35 @@ void Boss::Render(ModelRenderer* renderer, Camera* camera)
         }
         renderer->Draw(ShaderId::Basic, m_screenQuad1, { 1.0f, 1.0f, 1.0f, 1.0f });
     }
+
+    // [BARU] RENDER FILE PROJECTILES
+    if (m_fileModel)
+    {
+        const auto& projectiles = m_fileProjectiles;
+
+        for (const auto& p : projectiles)
+        {
+            if (!p.active) continue;
+
+            // 1. Hitung Posisi
+            float displayScale = 10.0f; // Sesuaikan skala
+            XMMATRIX S = XMMatrixScaling(displayScale, displayScale, displayScale);
+            XMMATRIX R = XMMatrixRotationRollPitchYaw(
+                XMConvertToRadians(p.rotation.x),
+                XMConvertToRadians(p.rotation.y),
+                XMConvertToRadians(p.rotation.z));
+            XMMATRIX T = XMMatrixTranslation(p.position.x, p.position.y, p.position.z);
+
+            XMFLOAT4X4 world;
+            XMStoreFloat4x4(&world, S * R * T);
+
+            // 2. DRAW DENGAN MATRIX (Parameter ke-4)
+            // Ini akan mengirim posisi spesifik ini ke antrian render.
+            // Tidak perlu lagi memanggil m_fileModel->(Update)Transform(world) di sini!
+
+            renderer->Draw(ShaderId::Basic, m_fileModel, { 0.0f, 1.0f, 1.0f, 1.0f }, world);
+        }
+    }
 }
 
 // =========================================================
@@ -350,6 +391,8 @@ void Boss::InitializeDefaultParts()
         { "cable3",   "Data/Model/Character/TEST_mdl_Cable3.glb",      { 2.0f, 0.7f, 3.0f }, { 156.0f, -16.0f, -133.0f }, { 0.03f, 0.03f, 0.03f }, true, 2.0f, 0.2f, { 0.0f, 1.0f, 0.0f } },
         { "platform1","Data/Model/Character/TEST_mdl_Platform.glb",    { -9.6f, 11.2f, 8.7f }, { -62.0f, 138.0f, 48.0f }, { 2.0f, 2.0f, 2.0f }, true, 1.0f, 0.2f, { 0.0f, 1.0f, 0.0f } },
         { "platform2","Data/Model/Character/TEST_mdl_Platform.glb",    { 8.3f, 11.2f, 9.2f }, { 43.0f, 60.0f, 59.0f }, { 2.0f, 2.0f, 2.0f }, true, 1.0f, 0.2f, { 0.0f, 1.0f, 0.0f } },
+        { "antenna", "Data/Model/Character/TEST_mdl_Antenna.glb",
+          m_antennaHiddenPos, m_antennaRotation, m_antennaScale, false } 
     };
 
     for (const auto& config : configs)
@@ -416,124 +459,203 @@ std::vector<std::string> Boss::GetPartNames() const
     return names;
 }
 
+void Boss::SpawnFileProjectile(const DirectX::XMFLOAT3& startPos, const DirectX::XMFLOAT3& targetPos)
+{
+    int activeCount = 0;
+    for (const auto& p : m_fileProjectiles) if (p.active) activeCount++;
+
+    if (m_fileProjectiles.size() >= 100)
+    {
+        // Opsional: Cari slot yang tidak aktif untuk direcycle (Object Pooling sederhana)
+        for (auto& p : m_fileProjectiles)
+        {
+            if (!p.active)
+            {
+                p.active = true;
+                p.position = startPos;
+                p.targetPos = targetPos;
+                p.rotation = { (float)(rand() % 360), (float)(rand() % 360), (float)(rand() % 360) };
+                p.speed = 25.0f;
+                return; // Selesai reuse, keluar fungsi
+            }
+        }
+        return; // Kalau penuh dan semua aktif, batalkan spawn (limit tercapai)
+    }
+
+    FileProjectile p;
+    p.active = true;
+    p.position = startPos;
+    p.targetPos = targetPos;
+    p.rotation = { (float)(rand() % 360), (float)(rand() % 360), (float)(rand() % 360) };
+    p.speed = 25.0f; // Kecepatan file terbang
+
+    m_fileProjectiles.push_back(p);
+}
+
+void Boss::ClearProjectiles()
+{
+    m_fileProjectiles.clear();
+}
+
 // =========================================================
 // DEBUG GUI
 // =========================================================
 
 void Boss::DrawDebugGUI()
 {
+    // Container Utama
     if (ImGui::CollapsingHeader("Boss Manager", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::TextColored({ 1,1,0,1 }, "=== TERMINAL STATUS ===");
-
-        bool mon2Ready = m_screenQuad && HasPart("monitor2");
-        bool mon1Ready = m_screenQuad1 && HasPart("monitor1");
-
-        ImGui::TextColored(mon2Ready ? ImVec4{ 0,1,0,1 } : ImVec4{ 1,0,0,1 }, "Monitor 2: %s", mon2Ready ? "ACTIVE" : "INACTIVE");
-        ImGui::TextColored(mon1Ready ? ImVec4{ 0,1,0,1 } : ImVec4{ 1,0,0,1 }, "Monitor 1: %s", mon1Ready ? "ACTIVE" : "INACTIVE");
-
-        if (!m_screenQuad1) ImGui::TextColored({ 1,0.5,0,1 }, "  > Screen Quad 1 not loaded");
-        if (!HasPart("monitor1")) ImGui::TextColored({ 1,0.5,0,1 }, "  > Monitor1 part not found");
-
-        ImGui::Separator();
-        m_terminal.DrawGUI();
-        ImGui::Separator();
-        m_terminal1.DrawGUI();
-
-        // AI Controls
-        ImGui::Separator();
-        ImGui::Text("AI State Override");
-
-        std::string currentState = "Unknown";
-        if (m_stateMachine.IsState("Idle")) currentState = "Idle";
-        else if (m_stateMachine.IsState("Spawn Enemy")) currentState = "Spawn Enemy";
-        else if (m_stateMachine.IsState("Intro")) currentState = "Intro";
-        else if (m_stateMachine.IsState("Lock Player")) currentState = "Lock Player";
-
-        ImGui::TextColored({ 0,1,0,1 }, "Current State: %s", currentState.c_str());
-
-        // Buttons trigger high-level logic now (Cleaner!)
-        if (ImGui::Button("Force IDLE"))          TriggerIdle();
-        ImGui::SameLine();
-        if (ImGui::Button("Force SPAWN ENEMY"))   TriggerSpawnEnemy();
-        ImGui::SameLine();
-        if (ImGui::Button("Force LOCK PLAYER"))   TriggerLockPlayer();
-
-        ImGui::Separator();
-
-        // Parts Transform Debug
-        if (ImGui::TreeNode("Parts Transform"))
+        // Mulai Sistem Tab
+        if (ImGui::BeginTabBar("BossManagerTabs"))
         {
-            for (auto& part : m_parts)
+            // =========================================================
+            // TAB 1: GENERAL CONTROLS (Main Boss Stuff)
+            // =========================================================
+            if (ImGui::BeginTabItem("General"))
             {
-                ImGui::PushID(part->name.c_str());
-                if (ImGui::TreeNode(part->name.c_str()))
+                ImGui::Spacing();
+                ImGui::TextColored({ 1,1,0,1 }, "=== SYSTEM STATUS ===");
+
+                bool mon2Ready = m_screenQuad && HasPart("monitor2");
+                bool mon1Ready = m_screenQuad1 && HasPart("monitor1");
+
+                ImGui::TextColored(mon2Ready ? ImVec4{ 0,1,0,1 } : ImVec4{ 1,0,0,1 }, "Monitor 2: %s", mon2Ready ? "ACTIVE" : "INACTIVE");
+                ImGui::TextColored(mon1Ready ? ImVec4{ 0,1,0,1 } : ImVec4{ 1,0,0,1 }, "Monitor 1: %s", mon1Ready ? "ACTIVE" : "INACTIVE");
+
+                // Terminal Sub-GUIs (Mereka punya header sendiri, akan dirender di dalam tab ini)
+                ImGui::Separator();
+                m_terminal.DrawGUI();
+                ImGui::Separator();
+                m_terminal1.DrawGUI();
+
+                // AI Controls
+                ImGui::Separator();
+                ImGui::Text("AI State Override");
+
+                std::string currentState = "Unknown";
+                if (m_stateMachine.IsState("Idle")) currentState = "Idle [Thinking]";
+                else if (m_stateMachine.IsState("Spawn Enemy")) currentState = "Spawn Enemy [Active]";
+                else if (m_stateMachine.IsState("Intro")) currentState = "Intro [Cinematic]";
+                else if (m_stateMachine.IsState("Lock Player")) currentState = "Lock Player [Attack]";
+                else if (m_stateMachine.IsState("Download Attack")) currentState = "Download [Attack]";
+
+                ImGui::TextColored({ 0,1,0,1 }, "Current State: %s", currentState.c_str());
+
+                // Command Buttons
+                if (ImGui::Button("Force IDLE"))          TriggerIdle();
+                ImGui::SameLine();
+                if (ImGui::Button("Force SPAWN ENEMY"))   TriggerSpawnEnemy();
+
+                if (ImGui::Button("Force LOCK PLAYER"))   TriggerLockPlayer();
+                ImGui::SameLine();
+                if (ImGui::Button("Force DOWNLOAD"))
                 {
-                    ImGui::DragFloat3("Position", &part->position.x, 0.1f);
-                    ImGui::DragFloat3("Rotation", &part->rotation.x, 1.0f);
-                    ImGui::DragFloat3("Scale", &part->scale.x, 0.1f);
-                    ImGui::Checkbox("Floating", &part->useFloating);
-                    if (part->useFloating) {
-                        ImGui::DragFloat("Speed", &part->floatSpeed, 0.01f);
-                        ImGui::DragFloat("Intensity", &part->floatIntensity, 0.01f);
-                        ImGui::DragFloat3("Axis", &part->floatAxis.x, 0.1f, -1.0f, 1.0f);
+                    ChangeState(new BossCommandState(new BossDownloadAttackState(), "DOWNLOADING FILES..."));
+                }
+
+                ImGui::Separator();
+
+                // Debug Tree untuk Parts
+                if (ImGui::TreeNode("Parts Transform Debug"))
+                {
+                    for (auto& part : m_parts)
+                    {
+                        if (ImGui::TreeNode(part->name.c_str()))
+                        {
+                            ImGui::DragFloat3("Pos", &part->position.x, 0.1f);
+                            ImGui::DragFloat3("Rot", &part->rotation.x, 1.0f);
+                            ImGui::DragFloat3("Scl", &part->scale.x, 0.1f);
+                            ImGui::Checkbox("Float", &part->useFloating);
+                            ImGui::TreePop();
+                        }
                     }
                     ImGui::TreePop();
                 }
-                ImGui::PopID();
-            }
-            ImGui::TreePop();
-        }
 
-        // Screen Transform Debug
-        if (ImGui::TreeNode("Screen Overlays Transform"))
-        {
-            if (ImGui::TreeNode("Monitor 2 (Log)"))
-            {
-                ImGui::DragFloat3("Offset", &m_screenOffset.x, 0.005f);
-                ImGui::DragFloat3("Rotation", &m_screenRotation.x, 1.0f);
-                ImGui::DragFloat3("Scale", &m_screenScale.x, 0.005f);
-                if (ImGui::Button("Reset M2")) {
-                    m_screenOffset = { 0.0f, 0.25f, 0.55f };
-                    m_screenScale = { 0.75f, 0.55f, 0.01f };
-                    m_screenRotation = { 0.0f, 0.0f, 0.0f };
+                // Background Settings
+                ImGui::Separator();
+                if (ImGui::TreeNode("Background Chain Settings"))
+                {
+                    ImGui::Checkbox("DEBUG: Force Render BG", &m_debugForceBG);
+                    ImGui::DragFloat3("BG Position", &m_bgChainPos.x, 0.5f);
+                    ImGui::DragFloat3("BG Rotation", &m_bgChainRotation.x, 1.0f);
+                    ImGui::DragFloat2("BG Size", &m_bgChainSize.x, 0.5f);
+                    if (ImGui::Button("Reset BG")) {
+                        m_bgChainPos = { 0.0f, 0.0f, 30.0f };
+                        m_bgChainSize = { 64.0f, 36.0f };
+                    }
+                    ImGui::TreePop();
                 }
-                ImGui::TreePop();
+
+                ImGui::EndTabItem();
             }
 
-            if (ImGui::TreeNode("Monitor 1 (Command)"))
+            // =========================================================
+            // TAB 2: ANTENNA TOOL (Alat khusus editing posisi attack)
+            // =========================================================
+            if (ImGui::BeginTabItem("Antenna Tool"))
             {
-                ImGui::DragFloat3("Offset", &m_screen1Offset.x, 0.005f);
-                ImGui::DragFloat3("Rotation", &m_screen1Rotation.x, 1.0f);
-                ImGui::DragFloat3("Scale", &m_screen1Scale.x, 0.005f);
-                if (ImGui::Button("Reset M1")) {
-                    m_screen1Offset = { -0.02f, 0.195f, -0.340f };
-                    m_screen1Scale = { 46.0f, 46.0f, 46.0f };
-                    m_screen1Rotation = { 90.0f, 180.0f, 0.0f };
+                ImGui::Spacing();
+                ImGui::TextColored({ 0, 1, 1, 1 }, "ATTACK CONFIGURATION: DOWNLOAD");
+
+                BossPart* p = HasPart("antenna") ? GetPart("antenna") : nullptr;
+
+                if (!p) {
+                    ImGui::TextColored({ 1, 0, 0, 1 }, "ERROR: Part 'antenna' not found!");
                 }
-                ImGui::TreePop();
+                else {
+                    // Opsi matikan floating biar gampang diedit
+                    if (ImGui::Checkbox("Disable Floating for Edit", &m_showAntennaWindow)) {
+                        p->useFloating = !m_showAntennaWindow; // Toggle logic
+                    }
+                    if (m_showAntennaWindow) p->useFloating = false; // Paksa mati kalau mode edit
+
+                    ImGui::Separator();
+                    ImGui::Text("1. Keyframe Positions (Start/End)");
+
+                    // --- HIDDEN POS (START) ---
+                    ImGui::PushID("Hidden");
+                    if (ImGui::DragFloat3("Hidden Pos", &m_antennaHiddenPos.x, 0.1f)) {
+                        p->position = m_antennaHiddenPos; // Live Preview
+                    }
+                    if (ImGui::Button("SNAP to Hidden")) {
+                        p->position = m_antennaHiddenPos;
+                    }
+                    ImGui::PopID();
+
+                    // --- SHOW POS (END) ---
+                    ImGui::PushID("Show");
+                    if (ImGui::DragFloat3("Show Pos", &m_antennaShowPos.x, 0.1f)) {
+                        p->position = m_antennaShowPos; // Live Preview
+                    }
+                    if (ImGui::Button("SNAP to Show")) {
+                        p->position = m_antennaShowPos;
+                    }
+                    ImGui::PopID();
+
+                    ImGui::Separator();
+                    ImGui::Text("2. Static Transform");
+
+                    if (ImGui::DragFloat3("Rotation", &m_antennaRotation.x, 1.0f)) p->rotation = m_antennaRotation;
+                    if (ImGui::DragFloat3("Scale", &m_antennaScale.x, 0.1f)) p->scale = m_antennaScale;
+
+                    ImGui::Separator();
+                    ImGui::Text("3. Projectile Settings");
+                    ImGui::DragFloat3("Spawn Source", &m_fileSpawnSource.x, 0.1f);
+
+                    if (ImGui::Button("Check Spawn Pos")) {
+                        p->position = m_fileSpawnSource; // Pindahkan antena ke spawn point buat ngecek visual
+                    }
+
+                    ImGui::Separator();
+                    ImGui::TextDisabled("Current Antenna: (%.1f, %.1f, %.1f)", p->position.x, p->position.y, p->position.z);
+                }
+
+                ImGui::EndTabItem();
             }
-            ImGui::TreePop();
+
+            ImGui::EndTabBar();
         }
-
-        // [BARU] BACKGROUND SETTINGS
-        ImGui::Separator();
-        ImGui::Text("World Background (Locked Phase)");
-
-        ImGui::Checkbox("DEBUG: Force Render BG", &m_debugForceBG);
-
-        // Slider Posisi (Z sangat penting untuk menjauhkan background)
-        ImGui::DragFloat3("BG Position", &m_bgChainPos.x, 0.5f);
-        ImGui::DragFloat3("BG Rotation (X Y Z)", &m_bgChainRotation.x, 1.0f, -360.0f, 360.0f);
-        // Slider Ukuran (Pertahankan rasio 16:9 manual atau visual)
-        ImGui::DragFloat2("BG Size (World Units)", &m_bgChainSize.x, 0.5f);
-
-        if (ImGui::Button("Reset BG"))
-        {
-            m_bgChainPos = { 0.0f, 0.0f, 30.0f };
-            m_bgChainSize = { 64.0f, 36.0f };
-        }
-
-        ImGui::Separator();
     }
 }

@@ -312,3 +312,167 @@ void BossCommandState::Exit(Boss* boss)
     // atau kita bisa paksa reset status animasinya jika perlu.
     // Tapi logic di TerminalMonitor1::Update bagian IDLE sudah handle lerp balik.
 }
+
+// ==========================================
+// STATE: DOWNLOAD ATTACK
+// ==========================================
+
+void BossDownloadAttackState::Enter(Boss* boss)
+{
+    // 1. Visual & Audio Cues
+    boss->GetMonitor1()->PlayCommandAnimation("DOWNLOADING FILES...");
+    boss->AddTerminalLog("PROTOCOL: DATA_SIPHON");
+    boss->AddTerminalLog("SOURCE: EXTERNAL_SERVER");
+
+    // 2. Setup Awal
+    m_timer = 0.0f;
+    m_spawnTimer = 0.0f;
+
+    // 3. Pastikan part "antenna" ada dan reset posisinya
+    if (boss->HasPart("antenna"))
+    {
+        BossPart* antenna = boss->GetPart("antenna");
+        antenna->position = m_antennaHiddenPos;
+        antenna->useFloating = false; // Matikan floating otomatis agar kita bisa kontrol manual
+    }
+}
+
+void BossDownloadAttackState::Update(Boss* boss, float dt)
+{
+    m_timer += dt;
+    BossPart* antenna = boss->GetPart("antenna");
+
+    float safeDt = dt;
+    if (safeDt > 0.05f) safeDt = 0.05f;
+
+    // =========================================================
+    // PHASE 1: SLIDE IN (Masuk Layar)
+    // =========================================================
+    if (m_timer < m_durationSlideIn)
+    {
+        if (antenna)
+        {
+            // Hitung progress 0.0 - 1.0
+            float t = m_timer / m_durationSlideIn;
+
+            // Easing: SmoothStep (t^2 * (3 - 2t)) biar gerakannya luwes
+            float smoothT = t * t * (3.0f - 2.0f * t);
+
+            // Lerp Position
+            float x = m_antennaHiddenPos.x + (m_antennaActivePos.x - m_antennaHiddenPos.x) * smoothT;
+            float y = m_antennaHiddenPos.y + (m_antennaActivePos.y - m_antennaHiddenPos.y) * smoothT;
+            float z = m_antennaHiddenPos.z + (m_antennaActivePos.z - m_antennaHiddenPos.z) * smoothT;
+
+            antenna->position = { x, y, z };
+        }
+    }
+    // =========================================================
+    // PHASE 2: ATTACK (Spawn Files)
+    // =========================================================
+    else if (m_timer < (m_durationSlideIn + m_durationAttack))
+    {
+        // Pastikan antena diam di posisi aktif
+        if (antenna) antenna->position = m_antennaActivePos;
+
+        // Logic Spawn
+        m_spawnTimer += dt;
+        if (m_spawnTimer > 0.08f) // Spawn sangat cepat (setiap 0.08 detik)
+        {
+            m_spawnTimer = 0.0f;
+
+            // Target: Ujung atas antena
+            DirectX::XMFLOAT3 target = m_antennaActivePos;
+            target.y += 4.0f; // Offset ke ujung tiang
+            target.x -= 0.5f;
+
+            // Variasi posisi spawn sedikit biar tidak satu garis lurus
+            DirectX::XMFLOAT3 spawnPos = m_fileSpawnSource;
+            spawnPos.x += ((rand() % 100) / 50.0f) - 1.0f; // Random offset -1 s/d 1
+            spawnPos.y += ((rand() % 100) / 50.0f) - 1.0f;
+
+            boss->SpawnFileProjectile(spawnPos, target);
+        }
+    }
+    // =========================================================
+    // PHASE 3: SLIDE OUT (Keluar Layar)
+    // =========================================================
+    else if (m_timer < (m_durationSlideIn + m_durationAttack + m_durationSlideOut))
+    {
+        if (antenna)
+        {
+            // Hitung waktu lokal untuk fase keluar
+            float exitTime = m_timer - (m_durationSlideIn + m_durationAttack);
+            float t = exitTime / m_durationSlideOut;
+            float smoothT = t * t * (3.0f - 2.0f * t);
+
+            // Lerp Kebalik: Active -> Hidden
+            float x = m_antennaActivePos.x + (m_antennaHiddenPos.x - m_antennaActivePos.x) * smoothT;
+            float y = m_antennaActivePos.y + (m_antennaHiddenPos.y - m_antennaActivePos.y) * smoothT;
+            float z = m_antennaActivePos.z + (m_antennaHiddenPos.z - m_antennaActivePos.z) * smoothT;
+
+            antenna->position = { x, y, z };
+        }
+    }
+    // =========================================================
+    // FINISH
+    // =========================================================
+    else
+    {
+        boss->ChangeState(new BossIdleState());
+    }
+
+    // =========================================================
+    // UPDATE LOGIC PROJECTILE
+    // (Update Fisika Peluru di sini)
+    // =========================================================
+    auto& projectiles = boss->GetProjectiles();
+    for (auto& p : projectiles)
+    {
+        if (!p.active) continue;
+
+        // Gerak menuju Target (Homing linear)
+        float dx = p.targetPos.x - p.position.x;
+        float dy = p.targetPos.y - p.position.y;
+        float dz = p.targetPos.z - p.position.z;
+
+        float dist = sqrt(dx * dx + dy * dy + dz * dz);
+
+        // Kecepatan frame-independent
+        float step = p.speed * safeDt;
+
+        if (dist < step) // Sampai di tujuan
+        {
+            p.active = false; // Matikan (Nanti bisa tambah partikel impact di sini)
+        }
+        else
+        {
+            // Normalize & Move
+            p.position.x += (dx / dist) * step;
+            p.position.y += (dy / dist) * step;
+            p.position.z += (dz / dist) * step;
+
+            // Rotasi Projectile (Spinning Floppy Disk)
+            p.rotation.x += 360.0f * dt;
+            p.rotation.y += 180.0f * dt;
+        }
+    }
+}
+
+void BossDownloadAttackState::Exit(Boss* boss)
+{
+    boss->AddTerminalLog("DOWNLOAD: COMPLETE (100%)");
+
+    // Bersihkan semua sisa file agar tidak melayang-layang
+    boss->ClearProjectiles();
+
+    // Kembalikan Antena ke state aman
+    if (boss->HasPart("antenna"))
+    {
+        BossPart* antenna = boss->GetPart("antenna");
+        antenna->position = m_antennaHiddenPos;
+        // Opsional: Nyalakan lagi floating jika ingin dipakai di state lain
+        // antenna->useFloating = true; 
+    }
+
+    boss->GetMonitor1()->ResetToIdle();
+}

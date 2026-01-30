@@ -72,6 +72,17 @@ enum class BgAnimState {
     EXITING   // Fade Out (0.7 -> 0)
 };
 
+struct FileProjectile
+{
+    bool active = false;
+    DirectX::XMFLOAT3 position;
+    DirectX::XMFLOAT3 rotation;
+    DirectX::XMFLOAT3 targetPos; // Posisi tujuan (Antena)
+    float speed = 20.0f;
+
+    FileProjectile() {}
+};
+
 // =========================================================
 // BOSS CLASS (MAIN CONTROLLER)
 // =========================================================
@@ -120,6 +131,27 @@ public:
     void AddTerminalLog(const std::string& msg); // For Monitor 2 (Log System)
     TerminalMonitor1* GetMonitor1() { return &m_terminal1; } // For Monitor 1 (Command System)
 
+    // [BARU] Helper Attack Data
+    std::vector<FileProjectile>& GetProjectiles() { return m_fileProjectiles; }
+    void SpawnFileProjectile(const DirectX::XMFLOAT3& startPos, const DirectX::XMFLOAT3& targetPos);
+    void ClearProjectiles();
+
+    // [BARU] Public Config Variables (Agar bisa diedit State & ImGui)
+    // Posisi Antena (Start & End)
+    DirectX::XMFLOAT3 m_antennaHiddenPos = { 30.5f, 0.0f, -8.7f }; // Luar Layar
+    DirectX::XMFLOAT3 m_antennaShowPos = { 19.5f, 0.0f, -8.7f };   // Dalam Layar
+
+    // Transform Antena (Scale & Rotation Global)
+    DirectX::XMFLOAT3 m_antennaScale = { 8.0f,  8.0f,  8.0f };
+    DirectX::XMFLOAT3 m_antennaRotation = { 240.0f, 132.0f, 52.0f };
+
+    // Posisi Spawn File
+    DirectX::XMFLOAT3 m_fileSpawnSource = { -19.0f, 0.0f, 11.2f };
+
+    void ReserveProjectiles(int count) { m_fileProjectiles.reserve(count); }
+
+    // Debug Window Toggle
+bool m_showAntennaWindow = false; 
 private:
     void InitializeDefaultParts();
     void CreateScreenQuad(); // Helper to create screen geometry
@@ -173,4 +205,10 @@ private:
     float m_bgBaseOpacity = 0.5f; // Target Opacity Stabil
 
     bool m_debugForceBG = false;
+
+    // [BARU] Resources untuk Attack Download
+    std::shared_ptr<Model> m_fileModel;
+
+    // Object Pool untuk Projectile
+    std::vector<FileProjectile> m_fileProjectiles;
 };
