@@ -339,7 +339,7 @@ void Boss::Render(ModelRenderer* renderer, Camera* camera)
             // Ini akan mengirim posisi spesifik ini ke antrian render.
             // Tidak perlu lagi memanggil m_fileModel->(Update)Transform(world) di sini!
 
-            renderer->Draw(ShaderId::Basic, m_fileModel, { 0.0f, 1.0f, 1.0f, 1.0f }, world);
+            renderer->Draw(ShaderId::Lambert, m_fileModel, { 0.0f, 1.0f, 1.0f, 1.0f }, world);
         }
     }
 }

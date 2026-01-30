@@ -161,5 +161,5 @@ private:
     DirectX::XMFLOAT3 m_antennaActivePos = { 19.5f, 0.0f, -8.7f };  // Pojok Kanan Bawah (Dalam Layar)
 
     // Konfigurasi Posisi Spawn File
-    DirectX::XMFLOAT3 m_fileSpawnSource = { -19.0f, 0.0f, 11.2f }; // Pojok Kiri Atas (Luar Layar)
+    DirectX::XMFLOAT3 m_fileSpawnSource = { -19.0f, 6.0f, 11.2f }; // Pojok Kiri Atas (Luar Layar)
 };
