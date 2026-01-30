@@ -107,7 +107,85 @@ void Boss::Update(float dt)
 
     // Update AI State
     m_stateMachine.Update(this, dt);
+
+    // =========================================================
+    // [BARU] UPDATE BACKGROUND OPACITY ANIMATION
+    // =========================================================
+
+    // 1. Cek apakah SEHARUSNYA muncul? (Locked Phase atau Debug)
+    bool shouldBeVisible = m_terminal1.IsSystemLocked() || m_debugForceBG;
+
+    // 2. State Transition Logic
+    if (shouldBeVisible)
+    {
+        // Jika sebelumnya mati/keluar, kita RESET ke fase Masuk
+        if (m_bgState == BgAnimState::HIDDEN || m_bgState == BgAnimState::EXITING)
+        {
+            m_bgState = BgAnimState::ENTERING;
+            m_bgAnimTimer = 0.0f;
+        }
+    }
+    else
+    {
+        // Jika sebelumnya nyala, kita ganti ke fase Keluar
+        if (m_bgState == BgAnimState::ENTERING || m_bgState == BgAnimState::ACTIVE)
+        {
+            m_bgState = BgAnimState::EXITING;
+            // Tidak perlu reset timer, kita pakai logic pengurangan alpha langsung
+        }
+    }
+
+    // 3. Animation Process Logic
+    switch (m_bgState)
+    {
+    case BgAnimState::HIDDEN:
+        m_bgAlpha = 0.0f;
+        break;
+
+    case BgAnimState::ENTERING:
+        m_bgAnimTimer += dt;
+
+        // Fase A: Naik Cepat (0.0 -> 1.0) - "The Flash"
+        if (m_bgAnimTimer <= m_bgFlashDuration)
+        {
+            float t = m_bgAnimTimer / m_bgFlashDuration;
+            // Lerp 0 -> 1
+            m_bgAlpha = t;
+        }
+        // Fase B: Turun Stabil (1.0 -> 0.7) - "Settle Down"
+        else if (m_bgAnimTimer <= (m_bgFlashDuration + m_bgSettleDuration))
+        {
+            float timeInPhase = m_bgAnimTimer - m_bgFlashDuration;
+            float t = timeInPhase / m_bgSettleDuration;
+
+            // Lerp 1.0 -> 0.7
+            m_bgAlpha = 1.0f + (m_bgBaseOpacity - 1.0f) * t;
+        }
+        else
+        {
+            // Selesai animasi masuk
+            m_bgAlpha = m_bgBaseOpacity;
+            m_bgState = BgAnimState::ACTIVE;
+        }
+        break;
+
+    case BgAnimState::ACTIVE:
+        // Kunci di opacity default
+        m_bgAlpha = m_bgBaseOpacity;
+        break;
+
+    case BgAnimState::EXITING:
+        // Kurangi alpha pelan-pelan sampai 0
+        m_bgAlpha -= m_bgFadeOutSpeed * dt;
+        if (m_bgAlpha <= 0.0f)
+        {
+            m_bgAlpha = 0.0f;
+            m_bgState = BgAnimState::HIDDEN;
+        }
+        break;
+    }
 }
+
 
 void Boss::Render(ModelRenderer* renderer, Camera* camera)
 {
@@ -120,35 +198,28 @@ void Boss::Render(ModelRenderer* renderer, Camera* camera)
         m_terminal1.RenderToTexture(context, font); // Monitor 1 (Command)
     }
 
-    // =========================================================
-        // RENDER BACKGROUND CHAIN (WORLD SPACE)
-        // =========================================================
-        // Dirender setiap frame (High FPS) di World Space
-    if ((m_terminal1.IsSystemLocked() || m_debugForceBG) && m_bgChainSprite && camera)
+    // Chain
+    if (m_bgAlpha > 0.0f && m_bgChainSprite && camera)
     {
+        auto context = Graphics::Instance().GetDeviceContext();
         auto rs = Graphics::Instance().GetRenderState();
 
-        // 1. Matikan Depth Write (Agar jadi background)
         context->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
 
-        // 2. Setup Blend
         float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
         context->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), blendFactor, 0xFFFFFFFF);
 
-        // 3. RENDER DI WORLD SPACE (DENGAN ROTASI)
-        // Gunakan m_bgChainRotation pada parameter 'roll' (Rotasi Z)
-        // Konversi ke Radians: XMConvertToRadians(m_bgChainRotation)
+        // [UPDATE] Gunakan m_bgAlpha di parameter terakhir (a)
         m_bgChainSprite->Render(context,
             camera,
-            m_bgChainPos.x, m_bgChainPos.y, m_bgChainPos.z, // Posisi
-            m_bgChainSize.x, m_bgChainSize.y,               // Ukuran
-            DirectX::XMConvertToRadians(m_bgChainRotation.x), // Pitch (X)
-            DirectX::XMConvertToRadians(m_bgChainRotation.y), // Yaw (Y)
-            DirectX::XMConvertToRadians(m_bgChainRotation.z), // Roll (Z)
-            1.0f, 1.0f, 1.0f, 1.0f                          // Warna
+            m_bgChainPos.x, m_bgChainPos.y, m_bgChainPos.z,
+            m_bgChainSize.x, m_bgChainSize.y,
+            DirectX::XMConvertToRadians(m_bgChainRotation.x),
+            DirectX::XMConvertToRadians(m_bgChainRotation.y),
+            DirectX::XMConvertToRadians(m_bgChainRotation.z),
+            1.0f, 1.0f, 1.0f, m_bgAlpha // <--- PAKAI VARIABEL INI
         );
 
-        // 4. Restore Depth State (Wajib!)
         context->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestAndWrite), 0);
         context->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), blendFactor, 0xFFFFFFFF);
     }

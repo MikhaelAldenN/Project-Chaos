@@ -65,6 +65,13 @@ struct BossPart
 
 };
 
+enum class BgAnimState {
+    HIDDEN,
+    ENTERING, // Fase Flash (0 -> 1.0 -> 0.7)
+    ACTIVE,   // Stabil di 0.7
+    EXITING   // Fade Out (0.7 -> 0)
+};
+
 // =========================================================
 // BOSS CLASS (MAIN CONTROLLER)
 // =========================================================
@@ -153,6 +160,17 @@ private:
     DirectX::XMFLOAT3 m_bgChainPos = { 0.0f, 0.0f, 0.0f };
     DirectX::XMFLOAT3 m_bgChainRotation = { 90.0f, 0.0f, 0.0f };
     DirectX::XMFLOAT2 m_bgChainSize = { 48.0f, 26.0f };
+
+    // [BARU] Opacity & Animation Control
+    BgAnimState m_bgState = BgAnimState::HIDDEN;
+    float       m_bgAlpha = 0.0f; // Alpha saat ini (dikirim ke Render)
+    float       m_bgAnimTimer = 0.0f; // Timer animasi
+
+    // Settings (Bisa di-tweak)
+    float m_bgFlashDuration = 0.1f; // Waktu naik ke 1.0 (Cepat)
+    float m_bgSettleDuration = 0.3f; // Waktu turun ke 0.7
+    float m_bgFadeOutSpeed = 2.0f; // Kecepatan hilang
+    float m_bgBaseOpacity = 0.5f; // Target Opacity Stabil
 
     bool m_debugForceBG = false;
 };
