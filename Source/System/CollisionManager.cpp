@@ -84,12 +84,12 @@ void CollisionManager::Update(float elapsedTime)
     else
     {
         float currentY = m_player->GetMovement()->GetPosition().y;
-        float limitY = Player::MovementSettings::KillPlaneY; 
+        float limitY = Player::MovementSettings::KillPlaneY;
 
         if (currentY < limitY)
         {
             if (m_onPlayerDeathCallback) { m_onPlayerDeathCallback(); }
-            m_player->SetFalling(false); 
+            m_player->SetFalling(false);
             m_player->GetMovement()->SetVelocity({ 0, 0, 0 });
             m_player->GetMovement()->SetGravityEnabled(false);
         }
@@ -563,7 +563,6 @@ void CollisionManager::UpdateBlockStackFlags()
 void CollisionManager::CheckBlockVsBlocks()
 {
     if (!m_blockManager) return;
-    if (m_blockManager->IsShieldActive()) return;
 
     float boxRadius = 0.4f;
     float minTouchDist = boxRadius * 2.45f;
@@ -580,6 +579,8 @@ void CollisionManager::CheckBlockVsBlocks()
         XMFLOAT3 pos = blocks[i]->GetMovement()->GetPosition();
         m_blockGrid.Insert(pos, boxRadius, i);
     }
+
+    if (m_blockManager->IsShieldActive()) return;
 
     for (int k = 0; k < physicsIterations; ++k)
     {
@@ -652,7 +653,6 @@ void CollisionManager::CheckBlockVsBlocks()
 void CollisionManager::CheckBlockVsEnemies()
 {
     if (!m_blockManager || !m_enemyManager) return;
-    if (m_blockManager->IsShieldActive()) return;
 
     auto& enemies = m_enemyManager->GetEnemies();
     auto& blocks = m_blockManager->GetBlocks();
@@ -751,7 +751,7 @@ void CollisionManager::CheckBlockVsItems()
                     if (m_blockManager) m_blockManager->ActivateInvincibility(duration);
                     if (m_player) m_player->ActivateInvincibility(duration);
                 }
-                item->SetActive(false); 
+                item->SetActive(false);
 
                 break;
             }
@@ -836,16 +836,16 @@ void CollisionManager::CheckPlayerVsEnemies()
 
         if (isHit)
         {
-            if (m_player->IsInvincible()) 
+            if (m_player->IsInvincible())
             {
                 if (m_itemManager && enemy->GetType() == EnemyType::Paddle) { m_itemManager->SpawnHealAt(enemyPos); }
                 it = enemies.erase(it);
-                continue; 
+                continue;
             }
             if (m_onPlayerHitCallback) m_onPlayerHitCallback();
             if (m_itemManager && enemy->GetType() == EnemyType::Paddle) { m_itemManager->SpawnHealAt(enemyPos); }
             it = enemies.erase(it);
-            
+
             m_player->SetInputEnabled(false);
             m_player->GetMovement()->SetPosition({ 0, -1000, 0 }); // Send to void
         }
@@ -895,7 +895,7 @@ void CollisionManager::CheckPlayerVsTriggerLines()
         if (localPos.x >= -lineHalfLength && localPos.x <= lineHalfLength &&
             localPos.z > -TRIGGER_RANGE_Z && localPos.z < TRIGGER_RANGE_Z)
         {
-            m_player->SetAbilityShield(false); 
+            m_player->SetAbilityShield(false);
         }
     }
 
@@ -911,16 +911,16 @@ void CollisionManager::CheckPlayerVsTriggerLines()
         if (localPos.x >= -lineHalfLength && localPos.x <= lineHalfLength &&
             localPos.z > -TRIGGER_RANGE_Z && localPos.z < TRIGGER_RANGE_Z)
         {
-            if (i == 0) 
+            if (i == 0)
             {
                 m_player->SetAbilityShield(true);
             }
-            else if (i == 1) 
+            else if (i == 1)
             {
                 m_player->SetAbilityShield(true);
                 m_player->SetAbilityShoot(true);
             }
-            else if (i == 2) 
+            else if (i == 2)
             {
                 m_player->SetAbilityShield(true);
             }
