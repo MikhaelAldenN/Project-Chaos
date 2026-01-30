@@ -152,8 +152,8 @@ void SceneGameBreaker::Update(float elapsedTime)
 
     if (blockManager && player)
     {
-        bool canUseShield = (player->GetGameStage() >= 3);
-        bool canShoot = (player->GetGameStage() >= 3);
+        bool canUseShield = player->CanUseShield();
+        bool canShoot = player->CanShoot();
 
         bool isShielding = (GetKeyState(VK_LSHIFT) & 0x8000) && canUseShield;
         bool isShooting = (GetKeyState(VK_SPACE) & 0x8000) && canShoot;

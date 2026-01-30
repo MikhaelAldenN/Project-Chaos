@@ -39,6 +39,7 @@ private:
     void CheckPlayerVsCheckpointLines();
     void CheckPlayerVsEnemies();
     void CheckPlayerVsItems();
+    void CheckPlayerVsTriggerLines();
     void CheckPlayerVsVoidLines();
     void CheckStageCollision();
     void CheckEnemyProjectilesFull(float elapsedTime);

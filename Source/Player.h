@@ -49,7 +49,15 @@ public:
     float GetShakeEnergy() const { return shakeEnergy; }
 
     // Checkpoint Stages: 0 = Normal, 1 = Yellow (Formation), 2 = Max (Destruction)
-    void SetGameStage(int stage) { gameStage = stage; }
+    void SetGameStage(int stage) 
+    { 
+        gameStage = stage; 
+        if (stage >= 3) 
+        {
+            m_canUseShield = true;
+            m_canShoot = true;
+        }
+    }
     int GetGameStage() const { return gameStage; }
 
     // --- ESCAPE LOGIC ---
@@ -62,8 +70,14 @@ public:
         m_isInvincible = true;
         m_invincibleTimer = duration;
     }
-
     bool IsInvincible() const { return m_isInvincible; }
+
+    // --- Ability Logic ---
+    void SetAbilityShield(bool enable) { m_canUseShield = enable; }
+    void SetAbilityShoot(bool enable) { m_canShoot = enable; }
+
+    bool CanUseShield() const { return m_canUseShield; }
+    bool CanShoot() const { return m_canShoot; }
 
     // --- SETTINGS ---
     struct BreakoutSettings
@@ -129,6 +143,8 @@ private:
     bool isBreakoutActive = false;
     bool isEscaping = false;
     bool isFalling = false;
+    bool m_canUseShield = false;
+    bool m_canShoot = false;
     bool m_isInvincible = false;
     bool wasSpacePressed = false;                               
     float currentShakeIntensity = 0.0f;

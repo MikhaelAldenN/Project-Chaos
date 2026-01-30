@@ -117,8 +117,9 @@ void CollisionManager::Update(float elapsedTime)
     CheckBlockVsStage();
     CheckBlockVsVoidLines();
     CheckPlayerVsEnemies();
-    CheckPlayerVsVoidLines();
     CheckPlayerVsCheckpointLines();
+    CheckPlayerVsTriggerLines();
+    CheckPlayerVsVoidLines();
 
     if (m_blockManager)
     {
@@ -872,6 +873,56 @@ void CollisionManager::CheckPlayerVsCheckpointLines()
             if (m_onCheckpointReachCallback)
             {
                 m_onCheckpointReachCallback(line.Position);
+            }
+        }
+    }
+}
+
+void CollisionManager::CheckPlayerVsTriggerLines()
+{
+    if (!m_player || !m_stage) return;
+    if (m_player->IsFalling()) return;
+
+    const float TRIGGER_RANGE_Z = 1.0f;
+
+    for (const auto& line : m_stage->m_linesDisable)
+    {
+        XMVECTOR vLocalPos = TransformToLocalLine(m_player->GetMovement()->GetPosition(), line);
+        XMFLOAT3 localPos;
+        XMStoreFloat3(&localPos, vLocalPos);
+        float lineHalfLength = line.Scale.x * 0.5f;
+
+        if (localPos.x >= -lineHalfLength && localPos.x <= lineHalfLength &&
+            localPos.z > -TRIGGER_RANGE_Z && localPos.z < TRIGGER_RANGE_Z)
+        {
+            m_player->SetAbilityShield(false); 
+        }
+    }
+
+    for (int i = 0; i < m_stage->m_linesEnable.size(); ++i)
+    {
+        const auto& line = m_stage->m_linesEnable[i];
+
+        XMVECTOR vLocalPos = TransformToLocalLine(m_player->GetMovement()->GetPosition(), line);
+        XMFLOAT3 localPos;
+        XMStoreFloat3(&localPos, vLocalPos);
+        float lineHalfLength = line.Scale.x * 0.5f;
+
+        if (localPos.x >= -lineHalfLength && localPos.x <= lineHalfLength &&
+            localPos.z > -TRIGGER_RANGE_Z && localPos.z < TRIGGER_RANGE_Z)
+        {
+            if (i == 0) 
+            {
+                m_player->SetAbilityShield(true);
+            }
+            else if (i == 1) 
+            {
+                m_player->SetAbilityShield(true);
+                m_player->SetAbilityShoot(true);
+            }
+            else if (i == 2) 
+            {
+                m_player->SetAbilityShield(true);
             }
         }
     }
