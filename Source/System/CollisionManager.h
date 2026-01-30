@@ -24,6 +24,8 @@ public:
 
     void Initialize(Player* p, Stage* s, BlockManager* bm, EnemyManager* em, ItemManager* im);
     void Update(float elapsedTime);
+    void SetOnCheckpointReachCallback(std::function<void(DirectX::XMFLOAT3)> callback) { m_onCheckpointReachCallback = callback; }
+    void SetOnPlayerDeathCallback(std::function<void()> callback) { m_onPlayerDeathCallback = callback; }
     void SetOnPlayerHitCallback(std::function<void()> callback) { m_onPlayerHitCallback = callback; }
 
 private:
@@ -34,6 +36,7 @@ private:
     void CheckBlockVsStage();
     void CheckBlockVsVoidLines();
     void CheckPlayerVsBlocks();
+    void CheckPlayerVsCheckpointLines();
     void CheckPlayerVsEnemies();
     void CheckPlayerVsItems();
     void CheckPlayerVsVoidLines();
@@ -47,5 +50,7 @@ private:
     ItemManager* m_itemManager = nullptr;
     SpatialHashGrid m_blockGrid;
 
+    std::function<void()> m_onPlayerDeathCallback;
     std::function<void()> m_onPlayerHitCallback = nullptr;
+    std::function<void(DirectX::XMFLOAT3)> m_onCheckpointReachCallback;
 };

@@ -763,6 +763,11 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
             DrawLineCategory("Line Enable", scene->m_stage->m_linesEnable, "Enable", DebugLineType::Enable, 4000);
             ImGui::PopStyleColor();
 
+            // CHECKPOINT LINES (Blue)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 0.6f, 1.0f, 1.0f));
+            DrawLineCategory("Line Checkpoint", scene->m_stage->m_linesCheckpoint, "CheckPoint", DebugLineType::Checkpoint, 5000);
+            ImGui::PopStyleColor();
+
             ImGui::Unindent();
         }
     }

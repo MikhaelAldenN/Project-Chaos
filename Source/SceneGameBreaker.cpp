@@ -59,6 +59,8 @@ SceneGameBreaker::SceneGameBreaker()
     m_collisionManager = std::make_unique<CollisionManager>();
     m_collisionManager->Initialize(player, m_stage.get(), blockManager.get(), m_enemyManager.get(), m_itemManager.get());
 
+    m_collisionManager->SetOnPlayerDeathCallback([this](){ LoadCheckpoint(); });
+    m_collisionManager->SetOnCheckpointReachCallback([this](DirectX::XMFLOAT3 pos){ SaveCheckpoint(pos); });
     // Callback untuk Shake saat blok hancur
     blockManager->SetOnBlockHitCallback([this]()
         {
@@ -447,6 +449,59 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
     if (m_introFinished && m_itemManager) m_itemManager->Render(modelRenderer);
     if (m_isShakeEnabled && m_stage) { m_stage->UpdateTransform(); m_stage->Render(modelRenderer); }
     modelRenderer->Render(rc);
+}
+
+void SceneGameBreaker::SaveCheckpoint(const DirectX::XMFLOAT3& checkpointPos)
+{
+    float dx = m_checkpoint.position.x - checkpointPos.x;
+    float dz = m_checkpoint.position.z - checkpointPos.z;
+    if (m_checkpoint.isValid && (dx * dx + dz * dz < 0.1f)) return;
+    if (player && blockManager)
+    {
+        m_checkpoint.position = { checkpointPos.x, 0.0f, checkpointPos.z };
+        m_checkpoint.savedBlockCount = blockManager->GetActiveBlockCount();
+        m_checkpoint.savedGameStage = player->GetGameStage();
+        m_checkpoint.isValid = true;
+
+        printf("CHECKPOINT REACHED! Pos: %.1f, %.1f | Blocks: %d\n",
+            checkpointPos.x, checkpointPos.z, m_checkpoint.savedBlockCount);
+    }
+}
+
+void SceneGameBreaker::LoadCheckpoint()
+{
+    if (!m_checkpoint.isValid)
+    {
+        if (player) player->SetPosition(0, 0, 0);
+        return;
+    }
+
+    if (player)
+    {
+        player->SetPosition(m_checkpoint.position);
+        player->GetMovement()->SetVelocity({ 0, 0, 0 });
+        player->SetFalling(false);
+        player->SetInputEnabled(true);
+        player->SetGameStage(m_checkpoint.savedGameStage);
+        player->GetMovement()->SetRotationY(DirectX::XM_PI);
+    }
+
+    if (m_enemyManager)
+    {
+        m_enemyManager->GetEnemies().clear();
+        m_enemyManager->Initialize(Graphics::Instance().GetDevice());
+    }
+
+    if (m_itemManager)
+    {
+        m_itemManager->GetItems().clear();
+        m_itemManager->Initialize(Graphics::Instance().GetDevice());
+    }
+
+    if (blockManager)
+    {
+        blockManager->RestoreShield(m_checkpoint.savedBlockCount, player);
+    }
 }
 
 void SceneGameBreaker::DrawGUI()

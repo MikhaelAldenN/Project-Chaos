@@ -88,7 +88,7 @@ void CollisionManager::Update(float elapsedTime)
 
         if (currentY < limitY)
         {
-            if (m_onPlayerHitCallback) m_onPlayerHitCallback();
+            if (m_onPlayerDeathCallback) { m_onPlayerDeathCallback(); }
             m_player->SetFalling(false); 
             m_player->GetMovement()->SetVelocity({ 0, 0, 0 });
             m_player->GetMovement()->SetGravityEnabled(false);
@@ -118,6 +118,7 @@ void CollisionManager::Update(float elapsedTime)
     CheckBlockVsVoidLines();
     CheckPlayerVsEnemies();
     CheckPlayerVsVoidLines();
+    CheckPlayerVsCheckpointLines();
 
     if (m_blockManager)
     {
@@ -848,6 +849,31 @@ void CollisionManager::CheckPlayerVsEnemies()
             m_player->GetMovement()->SetPosition({ 0, -1000, 0 }); // Send to void
         }
         else { ++it; }
+    }
+}
+
+void CollisionManager::CheckPlayerVsCheckpointLines()
+{
+    if (!m_player || !m_stage) return;
+    if (m_player->IsFalling()) return;
+
+    const float TRIGGER_RANGE_Z = 2.0f;
+
+    for (const auto& line : m_stage->m_linesCheckpoint)
+    {
+        XMVECTOR vLocalPos = TransformToLocalLine(m_player->GetMovement()->GetPosition(), line);
+        XMFLOAT3 localPos;
+        XMStoreFloat3(&localPos, vLocalPos);
+        float lineHalfLength = line.Scale.x * 0.5f;
+
+        if (localPos.x < -lineHalfLength || localPos.x > lineHalfLength) continue;
+        if (localPos.z > -TRIGGER_RANGE_Z && localPos.z < TRIGGER_RANGE_Z)
+        {
+            if (m_onCheckpointReachCallback)
+            {
+                m_onCheckpointReachCallback(line.Position);
+            }
+        }
     }
 }
 

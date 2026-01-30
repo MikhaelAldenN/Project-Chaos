@@ -306,7 +306,10 @@ namespace StageConfig
     // =========================================================
     static const std::vector<DebugLineData> DEBUG_LINES_DISABLE =
     {
-        // Add default values here if needed
+        // Line Disable 1
+        { {7.5,0,-260.7}, {0,0,0}, {5.5,0,0} },
+        // Line Disable 2
+        { {-13.9,0,-660.1}, {0,0,0}, {6,0,0} },
     };
 
     // =========================================================
@@ -314,11 +317,29 @@ namespace StageConfig
     // =========================================================
     static const std::vector<DebugLineData> DEBUG_LINES_ENABLE =
     {
-        // Add default values here if needed
+        // Line Enable 1
+        { {-2.6,0,-130.3}, {0,0,0}, {10,0,0} },
+        // Line Enable 2
+        { {7.4,0,-288.4}, {0,0,0}, {14.8,0,0} },
+        // Line Enable 3
+        { {-13.1,0,-691.4}, {0,0,0}, {35.5,0,0} },
+    };
+
+    // =========================================================
+    // CHECKPOINT
+    // =========================================================
+    static const std::vector<DebugLineData> DEBUG_LINES_CHECKPOINT =
+    {
+        // Line CheckPoint 1
+        { {0,0,-27}, {0,0,0}, {9.8,0,0} },
+        // Line CheckPoint 2
+        { {-2.6,0,-130.3}, {0,0,0}, {10,0,0} },
+        // Line CheckPoint 3
+        { {7.4,0,-288.4}, {0,0,0}, {14.8,0,0} },
     };
 }
 
-enum class DebugLineType { Void, Disable, Enable };
+enum class DebugLineType { Void, Disable, Enable, Checkpoint };
 
 class Stage
 {
@@ -350,6 +371,7 @@ public:
     std::vector<DebugLineData> m_linesVoid;
     std::vector<DebugLineData> m_linesDisable;
     std::vector<DebugLineData> m_linesEnable;
+    std::vector<DebugLineData> m_linesCheckpoint;
 
 private:
     struct HighlightData {

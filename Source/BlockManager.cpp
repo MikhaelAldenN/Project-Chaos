@@ -265,6 +265,16 @@ void BlockManager::Update(float elapsedTime, Camera* camera, Player* player)
     }
 } // <--- INI YANG HILANG SEBELUMNYA!
 
+void BlockManager::RestoreShield(int count, Player* player)
+{
+    ClearBlocks();
+    for (int i = 0; i < count; ++i)
+    {
+        SpawnAllyBlock(player);
+    }
+    ActivateFormationMode();
+}
+
 void BlockManager::SpawnAllyBlock(Player* player)
 {
     if (!player) return;
@@ -357,6 +367,7 @@ void BlockManager::UpdateShieldLogic(bool isInputHeld, const DirectX::XMFLOAT3& 
         if (distToTargetSq > shieldSettings.WakeUpDistanceSq) b->WakeUp();
     }
 }
+
 
 void BlockManager::UpdateShootLogic(bool isInputPressed, const DirectX::XMFLOAT3& mouseWorldPos, const DirectX::XMFLOAT3& playerPos, float elapsedTime)
 {

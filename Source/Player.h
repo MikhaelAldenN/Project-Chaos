@@ -100,9 +100,10 @@ public:
 
     struct MovementSettings
     {
-        static constexpr float DefaultSpeed = 3.0f;  // Speed for SceneGameBeyond
-        static constexpr float BreakerSpeed = 1.4f;  // Speed for SceneGameBreaker
+        static constexpr float DefaultSpeed = 3.0f;     // Speed for SceneGameBeyond
+        static constexpr float BreakerSpeed = 1.4f;     // Speed for SceneGameBreaker
         static constexpr float KillPlaneY   = -88.0f;
+        static constexpr float Checkpoint1_Z = -27.0f;
     };
     void SetMoveSpeed(float speed) { moveSpeed = speed; }
 

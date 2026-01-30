@@ -29,6 +29,7 @@ public:
     void ActivateFormationMode() { isFormationActive = true; }
     void ActivateInvincibility(float duration) { m_isInvincible = true; m_invincibleTimer = duration; }
     void AddBlockFromItem(const DirectX::XMFLOAT3& startPos);
+    void RestoreShield(int count, Player* player);
     void SetOnBlockHitCallback(std::function<void()> callback) { m_onBlockHitCallback = callback; }
     void TriggerBlockBreakParams() { if (m_onBlockHitCallback) m_onBlockHitCallback(); }
 

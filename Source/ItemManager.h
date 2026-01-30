@@ -20,7 +20,9 @@ namespace ItemLevelData
     static const std::vector<ItemSpawnData> Spawns =
     {
         // Item Heal #1
-        { { -4.0f, 0.4f, -35.0f }, { 0,0,0 }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
+        { { -4.0f, 0.4f, -38.0f }, { 0,0,0 }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
+        // Item Invincible #1
+        { { 4.0f, 0.4f, -38.0f }, { 0,0,0 }, { 2.0f, 2.0f, 2.0f }, ItemType::Invincible },
     };
 }
 

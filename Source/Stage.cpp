@@ -93,6 +93,7 @@ Stage::Stage(ID3D11Device* device)
     m_linesVoid = StageConfig::DEBUG_LINES_VOID;
     m_linesDisable = StageConfig::DEBUG_LINES_DISABLE;
     m_linesEnable = StageConfig::DEBUG_LINES_ENABLE;
+    m_linesCheckpoint = StageConfig::DEBUG_LINES_CHECKPOINT;
 
     RebuildSpatialGrid();
     UpdateTransform();
@@ -204,6 +205,7 @@ void Stage::RenderDebug(ShapeRenderer* shapeRenderer, PrimitiveRenderer* primRen
         DrawLineList(m_linesVoid, { 0.0f, 1.0f, 1.0f, 1.0f }, DebugLineType::Void);         // Cyan
         DrawLineList(m_linesDisable, { 1.0f, 0.0f, 0.0f, 1.0f }, DebugLineType::Disable);   // Red
         DrawLineList(m_linesEnable, { 0.0f, 1.0f, 0.0f, 1.0f }, DebugLineType::Enable);     // Green
+        DrawLineList(m_linesCheckpoint, { 0.2f, 0.4f, 1.0f, 1.0f }, DebugLineType::Checkpoint); // Bright Blue
     }
 }
 
@@ -238,15 +240,10 @@ void Stage::AddDebugLine(DebugLineType type)
 
     switch (type)
     {
-    case DebugLineType::Void:
-        targetList = &m_linesVoid;
-        break;
-    case DebugLineType::Disable:
-        targetList = &m_linesDisable;
-        break;
-    case DebugLineType::Enable:
-        targetList = &m_linesEnable;
-        break;
+    case DebugLineType::Void:       targetList = &m_linesVoid; break;
+    case DebugLineType::Disable:    targetList = &m_linesDisable; break;
+    case DebugLineType::Enable:     targetList = &m_linesEnable; break;
+    case DebugLineType::Checkpoint: targetList = &m_linesCheckpoint; break;
     }
 
     if (targetList)

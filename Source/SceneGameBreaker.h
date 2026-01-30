@@ -128,6 +128,21 @@ private:
     std::unique_ptr<Stage> m_stage;
     std::shared_ptr<Camera> mainCamera;
 
+    // =========================================================
+    // RUNTIME STATE
+    // =========================================================
+    struct CheckpointData
+    {
+        bool isValid = false;
+        DirectX::XMFLOAT3 position;
+        int savedBlockCount = 0;
+        int savedGameStage = 0;
+    };
+    CheckpointData m_checkpoint;
+
+    void SaveCheckpoint(const DirectX::XMFLOAT3& checkpointPos);
+    void LoadCheckpoint();
+
     // Camera Settings
     DirectX::XMFLOAT3 cameraPosition = { 0.0f, 18.0f, 0.0f };
     DirectX::XMFLOAT3 cameraTarget = { 0.0f, 0.0f, 0.0f };
