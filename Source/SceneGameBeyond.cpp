@@ -85,6 +85,33 @@ SceneGameBeyond::SceneGameBeyond()
     {
         m_boss->SetEnemyManager(m_enemyManager.get()); // Pass pointer agar Boss bisa spawn musuh
     }
+
+    // [BARU] 1. Setup Item Manager (Agar item drop berfungsi)
+    m_itemManager = std::make_unique<ItemManager>();
+    m_itemManager->Initialize(Graphics::Instance().GetDevice());
+
+    // [BARU] 2. Setup Collision Manager
+    m_collisionManager = std::make_unique<CollisionManager>();
+
+    // [UPDATE] Tambahkan m_boss.get() di parameter terakhir
+    m_collisionManager->Initialize(
+        m_player.get(),
+        nullptr,             // Stage null
+        m_blockManager.get(),
+        m_enemyManager.get(),
+        m_itemManager.get(),
+        m_boss.get()         // <--- INI PARAMETER BARU
+    );
+
+    // [OPSIONAL] Callback efek visual saat Player kena Hit
+    m_collisionManager->SetOnPlayerHitCallback([this]() {
+        if (m_player) {
+            // Trigger efek kaca pecah kecil saat player kena damage
+            auto pPos = m_player->GetPosition();
+            WindowShatterManager::Instance().TriggerExplosion({ pPos.x, pPos.z }, 4);
+        }
+        });
+
 }
 
 // =========================================================
@@ -284,30 +311,6 @@ void SceneGameBeyond::InitializeSubWindows()
         );
     }
 
-    // [BARU] 1. Setup Item Manager (Agar item drop berfungsi)
-    m_itemManager = std::make_unique<ItemManager>();
-    m_itemManager->Initialize(Graphics::Instance().GetDevice());
-
-    // [BARU] 2. Setup Collision Manager
-    m_collisionManager = std::make_unique<CollisionManager>();
-
-    // PERHATIKAN: Parameter ke-2 adalah nullptr karena tidak ada Stage
-    m_collisionManager->Initialize(
-        m_player.get(),
-        nullptr,               // <--- NO STAGE!
-        m_blockManager.get(),
-        m_enemyManager.get(),
-        m_itemManager.get()
-    );
-
-    // [OPSIONAL] Callback efek visual saat Player kena Hit
-    m_collisionManager->SetOnPlayerHitCallback([this]() {
-        if (m_player) {
-            // Trigger efek kaca pecah kecil saat player kena damage
-            auto pPos = m_player->GetPosition();
-            WindowShatterManager::Instance().TriggerExplosion({ pPos.x, pPos.z }, 4);
-        }
-        });
 
 
     WindowManager::Instance().EnforceWindowPriorities();
