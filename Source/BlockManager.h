@@ -44,6 +44,7 @@ public:
     {
         blocks.clear();
         m_formationBlocks.clear();
+        m_shieldAssignments.clear();
     }
 
     // Accessors for CollisionManager (Adjusted for unique_ptr)

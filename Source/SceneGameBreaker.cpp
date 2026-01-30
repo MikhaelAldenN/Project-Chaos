@@ -461,10 +461,9 @@ void SceneGameBreaker::SaveCheckpoint(const DirectX::XMFLOAT3& checkpointPos)
         m_checkpoint.position = { checkpointPos.x, 0.0f, checkpointPos.z };
         m_checkpoint.savedBlockCount = blockManager->GetActiveBlockCount();
         m_checkpoint.savedGameStage = player->GetGameStage();
+        m_checkpoint.savedCanShield = player->CanUseShield();
+        m_checkpoint.savedCanShoot = player->CanShoot();
         m_checkpoint.isValid = true;
-
-        printf("CHECKPOINT REACHED! Pos: %.1f, %.1f | Blocks: %d\n",
-            checkpointPos.x, checkpointPos.z, m_checkpoint.savedBlockCount);
     }
 }
 
@@ -484,6 +483,8 @@ void SceneGameBreaker::LoadCheckpoint()
         player->SetInputEnabled(true);
         player->SetGameStage(m_checkpoint.savedGameStage);
         player->GetMovement()->SetRotationY(DirectX::XM_PI);
+        player->SetAbilityShield(m_checkpoint.savedCanShield);
+        player->SetAbilityShoot(m_checkpoint.savedCanShoot);
     }
 
     if (m_enemyManager)

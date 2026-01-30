@@ -137,6 +137,8 @@ private:
         DirectX::XMFLOAT3 position;
         int savedBlockCount = 0;
         int savedGameStage = 0;
+        bool savedCanShield = false;
+        bool savedCanShoot = false;
     };
     CheckpointData m_checkpoint;
 

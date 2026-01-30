@@ -268,6 +268,8 @@ void BlockManager::Update(float elapsedTime, Camera* camera, Player* player)
 void BlockManager::RestoreShield(int count, Player* player)
 {
     ClearBlocks();
+    isShieldActive = false;
+    wasShieldActive = false;
     for (int i = 0; i < count; ++i)
     {
         SpawnAllyBlock(player);
