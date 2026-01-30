@@ -4,14 +4,19 @@
 
 CursorBlock::CursorBlock(ID3D11Device* device)
 {
-    // Setup Blend State: Invert Color Logic
+    // [PERBAIKAN] Ganti dari INVERT ke STANDARD ALPHA BLEND
+    // Ini menjamin warna kursor tetap AMBER TERANG di atas background apapun.
+
     D3D11_BLEND_DESC blendDesc = {};
     blendDesc.AlphaToCoverageEnable = FALSE;
     blendDesc.IndependentBlendEnable = FALSE;
 
     blendDesc.RenderTarget[0].BlendEnable = TRUE;
-    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_INV_DEST_COLOR;
-    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ZERO;
+
+    // SRC_ALPHA = Pakai alpha dari warna kursor
+    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+    // INV_SRC_ALPHA = Background terlihat sesuai sisa alpha kursor
+    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
     blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
 
     blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
@@ -49,14 +54,21 @@ void CursorBlock::SetBlink(bool enable, float visibleTime, float invisibleTime)
     blinkTimer = 0.0f;
 }
 
-// [UPDATED] Menerima Mouse&
-void CursorBlock::Update(float dt, Mouse& mouse)
+void CursorBlock::SetSize(float w, float h)
 {
-    // Akses data menggunakan titik (.) karena ini Reference
-    float rawX = static_cast<float>(mouse.GetPositionX());
-    float rawY = static_cast<float>(mouse.GetPositionY());
+    this->width = w;
+    this->height = h;
+}
 
-    // Logic Snapping
+void CursorBlock::SetColor(float r, float g, float b, float a)
+{
+    m_color[0] = r; m_color[1] = g; m_color[2] = b; m_color[3] = a;
+}
+
+// [BARU] Logika utama dipindah ke sini
+void CursorBlock::Update(float dt, float rawX, float rawY)
+{
+    // 1. Logic Snapping
     if (useGridSnap)
     {
         posX = floorf(rawX / gridW) * gridW;
@@ -68,23 +80,32 @@ void CursorBlock::Update(float dt, Mouse& mouse)
         posY = rawY;
     }
 
-    // Logic Blinking
+    // 2. Logic Blinking
     if (useBlink)
     {
         blinkTimer += dt;
-
         float currentLimit = isVisible ? blinkVisibleTime : blinkInvisibleTime;
 
         if (blinkTimer >= currentLimit)
         {
-            blinkTimer -= currentLimit; // Reset timer (sisa waktu diteruskan agar akurat)
-            isVisible = !isVisible;     // Balik status (Muncul <-> Hilang)
+            blinkTimer -= currentLimit;
+            isVisible = !isVisible;
         }
     }
     else
     {
         isVisible = true;
     }
+}
+
+// [MODIFIED] Fungsi lama sekarang cuma jadi wrapper
+void CursorBlock::Update(float dt, Mouse& mouse)
+{
+    float mx = static_cast<float>(mouse.GetPositionX());
+    float my = static_cast<float>(mouse.GetPositionY());
+
+    // Panggil fungsi generic di atas
+    Update(dt, mx, my);
 }
 
 void CursorBlock::Render(ID3D11DeviceContext* context, Primitive* primitiveBatcher)
@@ -101,7 +122,7 @@ void CursorBlock::Render(ID3D11DeviceContext* context, Primitive* primitiveBatch
 
     // 3. Gambar Kotak (Flush via Primitive)
     // Warna Amber: 0.96, 0.80, 0.23
-    primitiveBatcher->Rect(posX, posY, width, height, 0.0f, 0.0f, 0.0f, 0.96f, 0.80f, 0.23f, 1.0f);
+    primitiveBatcher->Rect(posX, posY, width, height, 0.0f, 0.0f, 0.0f, m_color[0], m_color[1], m_color[2], m_color[3]);
     primitiveBatcher->Render(context);
 
     // 4. Kembalikan State Lama

@@ -126,6 +126,9 @@ public:
 
     void DrawDebugGUI();
 
+    void SetMovementLock(bool locked) { m_isMovementLocked = locked; }
+    bool IsMovementLocked() const { return m_isMovementLocked; }
+
 private:
     void UpdateBreakoutLogic(float elapsedTime);
     void UpdateEscapeLogic(float elapsedTime);
@@ -163,4 +166,6 @@ private:
 
     // Menyimpan input yang sudah di-smooth (Current Velocity dalam konteks Input)
     DirectX::XMFLOAT2 currentSmoothInput = { 0.0f, 0.0f };
+
+    bool m_isMovementLocked = false;
 };

@@ -260,6 +260,14 @@ void Player::UpdateEscapeLogic(float elapsedTime)
 // Ubah definisi fungsi untuk menerima elapsedTime
 void Player::HandleMovementInput(float elapsedTime)
 {
+    if (m_isMovementLocked)
+    {
+        // Hentikan laju player seketika
+        movement->SetVelocity({ 0.0f, 0.0f, 0.0f });
+
+        return; // Skip logika input di bawah
+    }
+
     // 1. Ambil Raw Input (0, 1, atau -1)
     float targetX = 0.0f;
     float targetZ = 0.0f;

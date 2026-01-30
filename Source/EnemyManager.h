@@ -129,7 +129,7 @@ public:
 
     void Initialize(ID3D11Device* device);
     void Update(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos);
-    void Render(ModelRenderer* renderer);
+    void Render(ModelRenderer* renderer, Camera* camera = nullptr);
     void RenderDebug(ShapeRenderer* renderer);
     void SpawnEnemy(const EnemySpawnConfig& config);
 

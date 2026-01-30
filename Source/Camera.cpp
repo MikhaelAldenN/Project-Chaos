@@ -145,3 +145,49 @@ void Camera::UpdateViewMatrix()
     XMVECTOR vPos = XMLoadFloat3(&position);
     XMStoreFloat4x4(&view, XMMatrixLookToLH(vPos, vFront, vUp));
 }
+
+bool Camera::CheckSphere(float x, float y, float z, float radius)
+{
+    // 1. Hitung Matrix View * Projection (Frustum Matrix)
+    XMMATRIX matView = XMLoadFloat4x4(&view);
+    XMMATRIX matProj = XMLoadFloat4x4(&projection);
+    XMMATRIX matViewProj = XMMatrixMultiply(matView, matProj);
+
+    XMFLOAT4X4 M;
+    XMStoreFloat4x4(&M, matViewProj);
+
+    // 2. Ekstrak 6 Bidang Frustum (Left, Right, Bottom, Top, Near, Far)
+    // Rumus: Plane = Row4 +/- RowX
+    float planes[6][4];
+
+    // Left
+    planes[0][0] = M._14 + M._11; planes[0][1] = M._24 + M._21; planes[0][2] = M._34 + M._31; planes[0][3] = M._44 + M._41;
+    // Right
+    planes[1][0] = M._14 - M._11; planes[1][1] = M._24 - M._21; planes[1][2] = M._34 - M._31; planes[1][3] = M._44 - M._41;
+    // Bottom
+    planes[2][0] = M._14 + M._12; planes[2][1] = M._24 + M._22; planes[2][2] = M._34 + M._32; planes[2][3] = M._44 + M._42;
+    // Top
+    planes[3][0] = M._14 - M._12; planes[3][1] = M._24 - M._22; planes[3][2] = M._34 - M._32; planes[3][3] = M._44 - M._42;
+    // Near
+    planes[4][0] = M._13;         planes[4][1] = M._23;         planes[4][2] = M._33;         planes[4][3] = M._43;
+    // Far
+    planes[5][0] = M._14 - M._13; planes[5][1] = M._24 - M._23; planes[5][2] = M._34 - M._33; planes[5][3] = M._44 - M._43;
+
+    // 3. Cek Jarak Sphere ke 6 Bidang
+    for (int i = 0; i < 6; ++i)
+    {
+        // Normalisasi Plane (Penting agar radius akurat)
+        float length = sqrtf(planes[i][0] * planes[i][0] + planes[i][1] * planes[i][1] + planes[i][2] * planes[i][2]);
+
+        // Dot Product (Jarak titik ke bidang)
+        float dist = (planes[i][0] * x + planes[i][1] * y + planes[i][2] * z + planes[i][3]) / length;
+
+        // Jika jarak < -radius, berarti bola sepenuhnya di BELAKANG bidang ini (luar layar)
+        if (dist < -radius)
+        {
+            return false; // Culling! Jangan render.
+        }
+    }
+
+    return true; // Visible
+}

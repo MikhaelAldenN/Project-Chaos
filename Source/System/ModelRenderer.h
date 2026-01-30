@@ -25,6 +25,8 @@ public:
 
     void Draw(ShaderId shaderId, std::shared_ptr<Model> model, const DirectX::XMFLOAT4& color = { 1.0f, 1.0f, 1.0f, 1.0f });
 
+    void Draw(ShaderId shader, std::shared_ptr<Model> model, DirectX::XMFLOAT4 color, const DirectX::XMFLOAT4X4& worldMatrix);
+
     // ï`âÊé¿çs
     void Render(const RenderContext& rc);
 
@@ -52,6 +54,9 @@ private:
         ShaderId				shaderId;
         std::shared_ptr<Model>	model;
         DirectX::XMFLOAT4       color; 
+
+        bool                    useManualMatrix = false;
+        DirectX::XMFLOAT4X4     worldMatrix;
     };
 
     struct TransparencyDrawInfo
@@ -60,6 +65,9 @@ private:
         const Model::Mesh* mesh;
         float					distance;
         DirectX::XMFLOAT4       color; 
+
+        bool                    useManualMatrix = false;
+        DirectX::XMFLOAT4X4     worldMatrix;
     };
 
     std::unique_ptr<Shader>					shaders[static_cast<int>(ShaderId::EnumCount)];

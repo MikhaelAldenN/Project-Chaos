@@ -5,10 +5,17 @@
 #include "System/Graphics.h"
 #include "SceneGameBeyond.h"
 #include <mutex>
+#include <Framework.h>
 
 void WindowManager::Update(float dt)
 {
-    EnforceWindowPriorities();
+    // [OPTIMISASI 1] Hanya update Z-Order jika ditandai 'dirty'
+    // Jangan panggil SetWindowPos setiap frame! OS akan ngelag.
+    if (m_dirtyPriority)
+    {
+        EnforceWindowPriorities();
+        m_dirtyPriority = false;
+    }
 }
 
 void WindowManager::EnforceWindowPriorities()
@@ -19,7 +26,6 @@ void WindowManager::EnforceWindowPriorities()
 
     for (auto& win : windows)
     {
-        // Skip debug window (walaupun nullptr tetap aman)
         if (win.get() != debugWindow && win->GetPriority() < 100)
         {
             sortedWindows.push_back(win.get());
@@ -34,16 +40,19 @@ void WindowManager::EnforceWindowPriorities()
 
     // Apply Z-Order
     HWND hInsertAfter = HWND_TOPMOST;
+
+    // [OPTIMISASI] Gunakan SWP_NOREDRAW untuk mengurangi flicker saat reordering
+    UINT uFlags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOREDRAW;
+
     for (GameWindow* win : sortedWindows)
     {
-        SetWindowPos(win->GetHWND(), hInsertAfter, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        SetWindowPos(win->GetHWND(), hInsertAfter, 0, 0, 0, 0, uFlags);
         hInsertAfter = win->GetHWND();
     }
 
-    // Force Debug Window (Kodingan lama, dibiarkan aman karena debugWindow nullptr)
     if (debugWindow && debugWindow->IsVisible())
     {
-        SetWindowPos(debugWindow->GetHWND(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        SetWindowPos(debugWindow->GetHWND(), HWND_TOPMOST, 0, 0, 0, 0, uFlags);
     }
 }
 
@@ -51,37 +60,45 @@ void WindowManager::RenderAll(float dt, Scene* scene)
 {
     if (!scene) return;
 
-    // 1. UPDATE DATA IMGUI
-    // Panggil DrawGUI agar tombol/menu dimasukkan ke antrian render ImGui
+    // 1. UPDATE DATA IMGUI (Cukup sekali per frame)
     scene->DrawGUI();
 
-    // Cek Scene
     bool isBeyondScene = (dynamic_cast<SceneGameBeyond*>(scene) != nullptr);
+    auto context = Graphics::Instance().GetDeviceContext();
+    auto mainWindow = Framework::Instance()->GetMainWindow();
 
-    // 2. RENDER WINDOW (Sekarang cuma ada 1 Main Window)
+    // 2. RENDER WINDOW
     for (auto& win : windows)
     {
         if (!win->IsVisible()) continue;
 
-        // [SET BACKGROUND COLOR]
+        // [OPTIMISASI KECIL] Warna background hitam murni lebih cepat diproses
         if (isBeyondScene) {
-            win->BeginRender(0.1f, 0.1f, 0.15f); // Abu-abu kebiruan
+            win->BeginRender(0.1f, 0.1f, 0.15f);
         }
         else {
-            win->BeginRender(0.0f, 0.0f, 0.0f); // Hitam pekat
+            win->BeginRender(0.0f, 0.0f, 0.0f);
         }
 
-        // A. RENDER GAME SCENE 3D
         scene->OnResize(win->GetWidth(), win->GetHeight());
+
+        // Render Scene 
+        // Note: Pastikan Scene::Render melakukan Frustum Culling! 
+        // Jika kamera window melihat tembok kosong, jangan draw Boss-nya.
         scene->Render(dt, win->GetCamera());
 
-        // B. [PENTING] RENDER IMGUI SEBAGAI OVERLAY
-        // Ini kuncinya! Kita gambar UI di atas Scene 3D yang sudah digambar sebelumnya.
-        ImGuiRenderer::Render(Graphics::Instance().GetDeviceContext());
+        // Render ImGui HANYA di Main Window
+        if (win.get() == mainWindow)
+        {
+            ImGuiRenderer::Render(context);
+        }
 
-        // C. SWAP BUFFERS (VSync Nyala = 1)
-        // Kita nyalakan VSync di sini karena ini sekarang Window Utama
-        win->EndRender(1);
+        // [OPTIMISASI 2 - KRUSIAL]
+        // Hanya Main Window yang boleh Sync Interval 1 (VSync).
+        // Window pecahan (anak) harus 0 (Immediate) agar tidak saling menunggu.
+        int syncInterval = (win.get() == mainWindow) ? 1 : 0;
+
+        win->EndRender(syncInterval);
     }
 }
 
@@ -117,6 +134,9 @@ void WindowManager::DestroyWindow(GameWindow* targetWindow)
                 return p.get() == targetWindow;
             }),
         windows.end());
+
+    // Trigger re-sort
+    MarkPriorityDirty();
 }
 
 void WindowManager::ClearAll()
