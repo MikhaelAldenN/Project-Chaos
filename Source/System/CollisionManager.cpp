@@ -671,9 +671,11 @@ void CollisionManager::CheckBlockVsEnemies()
 
     auto& enemies = m_enemyManager->GetEnemies();
     auto& blocks = m_blockManager->GetBlocks();
-    float blockRadius = 0.01f;
-    const XMFLOAT3 PADDLE_EXTENTS = { 3.5f, 1.0f, 0.8f };
-    const float BALL_RADIUS = 1.0f;
+
+    float blockRadius = 0.5f;
+    const float BALL_RADIUS = 1.0f;     
+    const float PADDLE_THICKNESS = 0.5f;
+    const float PADDLE_WIDTH_HALF = 3.0f; 
 
     for (auto it = enemies.begin(); it != enemies.end(); )
     {
@@ -682,7 +684,8 @@ void CollisionManager::CheckBlockVsEnemies()
 
         XMFLOAT3 enemyPos = enemy->GetPosition();
         bool enemyDestroyed = false;
-        float queryRadius = 5.0f;
+
+        float queryRadius = 7.0f;
         auto nearbyIndices = m_blockGrid.QueryRadius(enemyPos, queryRadius);
 
         for (size_t i : nearbyIndices)
@@ -691,38 +694,40 @@ void CollisionManager::CheckBlockVsEnemies()
             Block& block = *blocks[i];
 
             if (!block.IsActive() || block.IsFalling()) continue;
-            if (!m_blockManager->IsShieldActive() && block.IsRelocating()) continue;
 
             XMFLOAT3 blockPos = block.GetMovement()->GetPosition();
+            XMVECTOR vBlockLocal = TransformToEnemyLocal(blockPos, enemy);
+            XMFLOAT3 localPos;
+            XMStoreFloat3(&localPos, vBlockLocal);
 
-            float dx = blockPos.x - enemyPos.x;
-            float dz = blockPos.z - enemyPos.z;
-            float distSq = dx * dx + dz * dz;
-            bool isHit = false;
+            float distSq = 0.0f;
+            float combinedRadius = 0.0f;
 
-            if (enemy->GetType() == EnemyType::Ball) {
-                float rSum = blockRadius + BALL_RADIUS;
-                if (distSq < rSum * rSum) isHit = true;
+            if (enemy->GetType() == EnemyType::Ball)
+            {
+                distSq = localPos.x * localPos.x + localPos.z * localPos.z;
+                combinedRadius = blockRadius + BALL_RADIUS;
             }
-            else {
-                XMVECTOR vLocalPos = TransformToEnemyLocal(blockPos, enemy);
-                XMFLOAT3 localPos;
-                XMStoreFloat3(&localPos, vLocalPos);
-                float closestX = (std::max)(-PADDLE_EXTENTS.x, (std::min)(localPos.x, PADDLE_EXTENTS.x));
-                float closestZ = (std::max)(-PADDLE_EXTENTS.z, (std::min)(localPos.z, PADDLE_EXTENTS.z));
-                float dX = localPos.x - closestX;
-                float dZ = localPos.z - closestZ;
-                if ((dX * dX + dZ * dZ) < (blockRadius * blockRadius)) isHit = true;
+            else 
+            {
+                float closestX = (std::max)(-PADDLE_WIDTH_HALF, (std::min)(localPos.x, PADDLE_WIDTH_HALF));
+                float dx = localPos.x - closestX;
+                float dz = localPos.z - 0.0f; 
+
+                distSq = dx * dx + dz * dz;
+                combinedRadius = blockRadius + PADDLE_THICKNESS;
             }
 
-            if (isHit)
+            if (distSq < (combinedRadius * combinedRadius))
             {
                 block.OnHit();
+
                 if (m_blockManager) m_blockManager->TriggerBlockBreakParams();
                 if (m_itemManager && enemy->GetType() == EnemyType::Paddle)
                 {
                     m_itemManager->SpawnHealAt(enemyPos);
                 }
+
                 enemyDestroyed = true;
                 break;
             }
@@ -817,9 +822,11 @@ void CollisionManager::CheckPlayerVsEnemies()
 
     auto& enemies = m_enemyManager->GetEnemies();
     XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
-    float playerRadius = 0.01f;
-    const XMFLOAT3 PADDLE_EXTENTS = { 3.5f, 1.0f, 0.8f };
+
+    float playerRadius = 0.5f;
     const float BALL_RADIUS = 1.0f;
+    const float PADDLE_THICKNESS = 0.5f;
+    const float PADDLE_WIDTH_HALF = 3.0f;
 
     for (auto it = enemies.begin(); it != enemies.end(); )
     {
@@ -827,45 +834,53 @@ void CollisionManager::CheckPlayerVsEnemies()
         if (!enemy) { ++it; continue; }
 
         XMFLOAT3 enemyPos = enemy->GetPosition();
-        bool isHit = false;
-        float dx = playerPos.x - enemyPos.x;
-        float dz = playerPos.z - enemyPos.z;
-        float distSq = dx * dx + dz * dz;
-        float maxReach = 6.0f;
+        XMVECTOR vPlayerLocal = TransformToEnemyLocal(playerPos, enemy);
+        XMFLOAT3 localPos;
+        XMStoreFloat3(&localPos, vPlayerLocal);
 
-        if (distSq > maxReach * maxReach) { ++it; continue; }
+        float distSq = 0.0f;
+        float combinedRadius = 0.0f;
 
-        if (enemy->GetType() == EnemyType::Ball) {
-            float rSum = playerRadius + BALL_RADIUS;
-            if (distSq < rSum * rSum) isHit = true;
+        if (enemy->GetType() == EnemyType::Ball)
+        {
+            distSq = localPos.x * localPos.x + localPos.z * localPos.z;
+            combinedRadius = playerRadius + BALL_RADIUS;
         }
-        else {
-            XMVECTOR vLocalPos = TransformToEnemyLocal(playerPos, enemy);
-            XMFLOAT3 localPos;
-            XMStoreFloat3(&localPos, vLocalPos);
-            float closestX = (std::max)(-PADDLE_EXTENTS.x, (std::min)(localPos.x, PADDLE_EXTENTS.x));
-            float closestZ = (std::max)(-PADDLE_EXTENTS.z, (std::min)(localPos.z, PADDLE_EXTENTS.z));
-            float dX = localPos.x - closestX;
-            float dZ = localPos.z - closestZ;
-            if ((dX * dX + dZ * dZ) < (playerRadius * playerRadius)) isHit = true;
+        else 
+        {
+            float closestX = (std::max)(-PADDLE_WIDTH_HALF, (std::min)(localPos.x, PADDLE_WIDTH_HALF));
+            float dx = localPos.x - closestX;
+            float dz = localPos.z - 0.0f;
+
+            distSq = dx * dx + dz * dz;
+            combinedRadius = playerRadius + PADDLE_THICKNESS;
         }
 
-        if (isHit)
+        if (distSq < (combinedRadius * combinedRadius))
         {
             if (m_player->IsInvincible())
             {
-                if (m_itemManager && enemy->GetType() == EnemyType::Paddle) { m_itemManager->SpawnHealAt(enemyPos); }
+                if (m_itemManager && enemy->GetType() == EnemyType::Paddle) {
+                    m_itemManager->SpawnHealAt(enemyPos);
+                }
                 it = enemies.erase(it);
                 continue;
             }
+
             if (m_onPlayerHitCallback) m_onPlayerHitCallback();
-            if (m_itemManager && enemy->GetType() == EnemyType::Paddle) { m_itemManager->SpawnHealAt(enemyPos); }
+
+            if (m_itemManager && enemy->GetType() == EnemyType::Paddle) {
+                m_itemManager->SpawnHealAt(enemyPos);
+            }
             it = enemies.erase(it);
 
             m_player->SetInputEnabled(false);
-            m_player->GetMovement()->SetPosition({ 0, -1000, 0 }); // Send to void
+            m_player->GetMovement()->SetPosition({ 0, -1000, 0 });
         }
-        else { ++it; }
+        else
+        {
+            ++it;
+        }
     }
 }
 
