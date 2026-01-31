@@ -162,4 +162,6 @@ private:
 
     // Konfigurasi Posisi Spawn File
     DirectX::XMFLOAT3 m_fileSpawnSource = { -19.0f, 6.0f, 11.2f }; // Pojok Kiri Atas (Luar Layar)
+
+    bool m_isMirrored = false;
 };

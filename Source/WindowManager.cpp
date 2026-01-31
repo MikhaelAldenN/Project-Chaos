@@ -101,7 +101,7 @@ void WindowManager::RenderAll(float dt, Scene* scene)
         // [OPTIMISASI 2 - KRUSIAL]
         // Hanya Main Window yang boleh Sync Interval 1 (VSync).
         // Window pecahan (anak) harus 0 (Immediate) agar tidak saling menunggu.
-        int syncInterval = (win.get() == mainWindow) ? 1 : 0;
+        int syncInterval = 0;
 
         win->EndRender(syncInterval);
     }

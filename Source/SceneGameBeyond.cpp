@@ -7,7 +7,7 @@
 #include "WindowManager.h"
 #include "Framework.h"
 #include "Enemy.h"
-
+#include <unordered_set>
 #include <imgui.h>
 
 using namespace DirectX;
@@ -289,11 +289,26 @@ void SceneGameBeyond::InitializeSubWindows()
                 // Ambil posisi asli model (yang sedang animasi slide)
                 auto pos = m_boss->GetAntennaVisualPos();
 
-                // Tambahkan Offset dari ImGui
-                pos.x += m_antennaTrackOffset.x;
-                pos.y += m_antennaTrackOffset.y;
-                pos.z += m_antennaTrackOffset.z;
+                bool isMirrored = (pos.x < -1.0f);
 
+                if (isMirrored)
+                {
+                    // === SETTING KHUSUS MIRRORED (KIRI) ===
+                    // Geser ke kanan dikit (X +) agar pas
+                    pos.x += 1.8f; // <--- UBAH ANGKA INI (Geser Kanan)
+
+                    // Kamu juga bisa atur Y atau Z beda kalau perlu
+                    pos.y += m_antennaTrackOffset.y;
+                    pos.z += m_antennaTrackOffset.z;
+                }
+                else
+                {
+                    // === SETTING NORMAL (KANAN) ===
+                    // Pakai settingan standar (bisa dari Slider ImGui)
+                    pos.x += m_antennaTrackOffset.x;
+                    pos.y += m_antennaTrackOffset.y;
+                    pos.z += m_antennaTrackOffset.z;
+                }
                 return { pos.x, pos.y, pos.z };
             },
 
@@ -575,6 +590,40 @@ void SceneGameBeyond::Update(float elapsedTime)
     {
         WindowManager::Instance().EnforceWindowPriorities();
         m_priorityEnforceTimer = 0.0f;
+    }
+
+    if (m_boss && m_player)
+    {
+        auto& projectiles = m_boss->GetProjectiles();
+        DirectX::XMFLOAT3 pPos = m_player->GetPosition();
+
+        for (auto& proj : projectiles)
+        {
+            if (!proj.active) continue;
+
+            // Cek Jarak (Hitbox)
+            float dx = pPos.x - proj.position.x;
+            float dy = pPos.y - proj.position.y;
+            float dz = pPos.z - proj.position.z;
+            float distSq = dx * dx + dy * dy + dz * dz;
+
+            // Jarak < 1.5 unit berarti kena
+            if (distSq < (1.5f * 1.5f))
+            {
+                // 1. Hapus Projectile (Biar gak kena berkali-kali)
+                proj.active = false;
+
+                // 2. Efek Visual: Camera Shake (Guncangan)
+                // Ini memberikan impact tanpa menghancurkan layar
+                //CameraController::Instance().ApplyShake(0.3f, 0.2f);
+
+                // 3. (Opsional) Log ke Debug Output
+                OutputDebugStringA("ouch! player hit.\n");
+
+                // JANGAN PANGGIL WindowShatterManager::Instance().TriggerExplosion(...) DI SINI!
+                // Kecuali nyawa player sudah 0 (Game Over).
+            }
+        }
     }
 
     HandleDebugInput();
@@ -1014,55 +1063,89 @@ void SceneGameBeyond::UpdateProjectileWindows()
     if (!m_boss || !m_windowSystem) return;
 
     const auto& projectiles = m_boss->GetProjectiles();
-
-    // === PENGATURAN FREKUENSI ===
-    // Ubah angka ini untuk mengatur seberapa sering window muncul.
-    // 1 = Muncul di SEMUA file (Terlalu ramai)
-    // 3 = Muncul setiap file ke-3 (Sekitar 33% file punya window)
-    // 5 = Muncul setiap file ke-5 (Sekitar 20% file punya window)
     int windowFrequency = 4;
 
+    // =========================================================
+    // TAHAP 1: DATA GATHERING (MARK)
+    // Catat semua ID Projectile yang "Berhak" punya window saat ini.
+    // =========================================================
+    std::unordered_set<int> activeProjectileIDs;
     for (const auto& p : projectiles)
     {
-        std::string winName = "file_proj_" + std::to_string(p.id);
-
-        // SYARAT BARU: 
-        // Window hanya dibuat jika ID projectile adalah kelipatan dari frequency
-        bool shouldHaveWindow = (p.id % windowFrequency == 0);
-
-        // LOGIC SPAWN
-        if (p.active && shouldHaveWindow)
+        if (p.active && (p.id % windowFrequency == 0))
         {
+            activeProjectileIDs.insert(p.id);
+        }
+    }
+
+    // =========================================================
+    // TAHAP 2: CLEANUP ORPHANS (SWEEP)
+    // Cek semua window yang ada. Jika ID-nya tidak ada di daftar aktif, HAPUS.
+    // =========================================================
+
+    // Kita butuh list sementara agar tidak merusak iterator saat looping
+    std::vector<std::string> windowsToRemove;
+    const auto& currentWindows = m_windowSystem->GetWindows();
+
+    for (const auto& win : currentWindows)
+    {
+        // Cek apakah ini window milik projectile (prefix "file_proj_")
+        if (win->name.find("file_proj_") == 0)
+        {
+            // Ambil ID dari nama string. "file_proj_" panjangnya 10 karakter.
+            // Contoh: "file_proj_105" -> diambil "105"
+            try {
+                std::string idStr = win->name.substr(10);
+                int id = std::stoi(idStr);
+
+                // Jika ID ini TIDAK ada di daftar projectile aktif -> Masukkan ke tong sampah
+                if (activeProjectileIDs.find(id) == activeProjectileIDs.end())
+                {
+                    windowsToRemove.push_back(win->name);
+                }
+            }
+            catch (...) { /* Safety jika parsing gagal */ }
+        }
+    }
+
+    // Eksekusi pembersihan (Release ke Pool)
+    for (const auto& name : windowsToRemove)
+    {
+        m_windowSystem->ReleasePooledWindow(name);
+    }
+
+    // =========================================================
+    // TAHAP 3: SPAWN NEW WINDOWS
+    // Buat window untuk projectile baru yang belum punya window
+    // =========================================================
+    for (const auto& p : projectiles)
+    {
+        if (p.active && (p.id % windowFrequency == 0))
+        {
+            std::string winName = "file_proj_" + std::to_string(p.id);
+
+            // Jika belum ada window-nya, bikin baru (ambil dari pool)
             if (m_windowSystem->GetTrackedWindow(winName) == nullptr)
             {
                 int targetID = p.id;
                 Boss* targetBoss = m_boss.get();
 
-                m_windowSystem->AddTrackedWindow(
-                    // Config: Size kecil, Priority tinggi
-                    { winName, "DOWNLOADING...", 120, 120, 10, { 0.0f, 0.0f, 0.0f }, 10.0f },
-
-                    // Lambda Posisi
+                m_windowSystem->AddPooledTrackedWindow(
+                    {
+                        winName,
+                        "DOWNLOADING...",
+                        120,
+                        120,
+                        10,
+                        { 0.0f, 0.0f, 0.0f },
+                        20.0f // FPS Limit
+                    },
                     [targetBoss, targetID]() -> DirectX::XMFLOAT3 {
                         DirectX::XMFLOAT3 pos = { 0,0,0 };
-                        if (targetBoss->GetProjectileData(targetID, pos)) {
-                            return pos;
-                        }
+                        if (targetBoss->GetProjectileData(targetID, pos)) return pos;
                         return { 0, -1000, 0 };
                     }
                 );
-            }
-        }
-        // LOGIC DESPAWN (Hapus Window)
-        else
-        {
-            // Masuk sini jika:
-            // 1. Projectile MATI (!active)
-            // 2. ATAU Projectile AKTIF tapi bukan kelipatan ID (shouldHaveWindow == false)
-
-            if (m_windowSystem->GetTrackedWindow(winName) != nullptr)
-            {
-                m_windowSystem->RemoveTrackedWindow(winName);
             }
         }
     }

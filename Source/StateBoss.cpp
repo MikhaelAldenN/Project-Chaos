@@ -322,18 +322,33 @@ void BossDownloadAttackState::Enter(Boss* boss)
     // 1. Visual & Audio Cues
     boss->GetMonitor1()->PlayCommandAnimation("DOWNLOADING FILES...");
     boss->AddTerminalLog("PROTOCOL: DATA_SIPHON");
-    boss->AddTerminalLog("SOURCE: EXTERNAL_SERVER");
 
-    // 2. Setup Awal
+    // 2. [BARU] RANDOMIZE MIRROR (50% Chance)
+    // 0 = Normal (Antenna Kanan, File Kiri)
+    // 1 = Mirrored (Antenna Kiri, File Kanan)
+    m_isMirrored = (rand() % 2 != 0);
+
+    if (m_isMirrored) {
+        boss->AddTerminalLog("CONFIG: MIRRORED_LAYOUT");
+    }
+    else {
+        boss->AddTerminalLog("CONFIG: STANDARD_LAYOUT");
+    }
+
+    // 3. Setup Awal
     m_timer = 0.0f;
     m_spawnTimer = 0.0f;
 
-    // 3. Pastikan part "antenna" ada dan reset posisinya
+    // 4. Reset Posisi Antena (Sesuai Mirror)
     if (boss->HasPart("antenna"))
     {
         BossPart* antenna = boss->GetPart("antenna");
-        antenna->position = m_antennaHiddenPos;
-        antenna->useFloating = false; // Matikan floating otomatis agar kita bisa kontrol manual
+
+        // Hitung Posisi Hidden Awal (Apakah positif atau negatif X)
+        float startX = m_isMirrored ? -m_antennaHiddenPos.x : m_antennaHiddenPos.x;
+
+        antenna->position = { startX, m_antennaHiddenPos.y, m_antennaHiddenPos.z };
+        antenna->useFloating = false;
     }
 }
 
@@ -345,25 +360,45 @@ void BossDownloadAttackState::Update(Boss* boss, float dt)
     float safeDt = dt;
     if (safeDt > 0.05f) safeDt = 0.05f;
 
+    // --- HELPER VARIABLES (MIRROR LOGIC) ---
+    // Kita buat target posisi lokal berdasarkan status mirror
+    DirectX::XMFLOAT3 targetHidden = m_antennaHiddenPos;
+    DirectX::XMFLOAT3 targetActive = m_antennaActivePos;
+    DirectX::XMFLOAT3 targetRotation = boss->m_antennaRotation;
+
+    if (m_isMirrored)
+    {
+        // Balik Posisi X (Kanan -> Kiri)
+        targetHidden.x = -targetHidden.x;
+        targetActive.x = -targetActive.x;
+
+        // Balik Rotasi (Supaya tetap menghadap tengah)
+        // Y: Flip arah hadap horizontal
+        // Z: Flip kemiringan (roll)
+        targetRotation.x = 445.0f;
+        targetRotation.y = 472.0f;
+        targetRotation.z = 101.0f;
+    }
+
     // =========================================================
-    // PHASE 1: SLIDE IN (Masuk Layar)
+    // PHASE 1: SLIDE IN
     // =========================================================
     if (m_timer < m_durationSlideIn)
     {
         if (antenna)
         {
-            // Hitung progress 0.0 - 1.0
             float t = m_timer / m_durationSlideIn;
-
-            // Easing: SmoothStep (t^2 * (3 - 2t)) biar gerakannya luwes
             float smoothT = t * t * (3.0f - 2.0f * t);
 
-            // Lerp Position
-            float x = m_antennaHiddenPos.x + (m_antennaActivePos.x - m_antennaHiddenPos.x) * smoothT;
-            float y = m_antennaHiddenPos.y + (m_antennaActivePos.y - m_antennaHiddenPos.y) * smoothT;
-            float z = m_antennaHiddenPos.z + (m_antennaActivePos.z - m_antennaHiddenPos.z) * smoothT;
+            // Lerp Posisi (Pakai target yang sudah dimirror)
+            float x = targetHidden.x + (targetActive.x - targetHidden.x) * smoothT;
+            float y = targetHidden.y + (targetActive.y - targetHidden.y) * smoothT;
+            float z = targetHidden.z + (targetActive.z - targetHidden.z) * smoothT;
 
             antenna->position = { x, y, z };
+
+            // [BARU] Update Rotasi juga sesuai mirror
+            antenna->rotation = targetRotation;
         }
     }
     // =========================================================
@@ -371,87 +406,96 @@ void BossDownloadAttackState::Update(Boss* boss, float dt)
     // =========================================================
     else if (m_timer < (m_durationSlideIn + m_durationAttack))
     {
-        // Pastikan antena diam di posisi aktif
-        if (antenna) antenna->position = m_antennaActivePos;
+        if (antenna) {
+            antenna->position = targetActive; // Kunci di posisi aktif
+            antenna->rotation = targetRotation;
+        }
 
-        // Logic Spawn
         m_spawnTimer += dt;
-        if (m_spawnTimer > 0.08f) // Spawn sangat cepat (setiap 0.08 detik)
+        if (m_spawnTimer > 0.08f)
         {
             m_spawnTimer = 0.0f;
 
-            // Target: Ujung atas antena
-            DirectX::XMFLOAT3 target = m_antennaActivePos;
-            target.y += 4.0f; // Offset ke ujung tiang
-            target.x -= 0.5f;
+            // 1. TENTUKAN TARGET (ANTENNA TIP)
+            DirectX::XMFLOAT3 target = targetActive; // Sudah dimirror di atas
+            target.y += 4.0f;
 
-            // Variasi posisi spawn sedikit biar tidak satu garis lurus
-            DirectX::XMFLOAT3 spawnPos = m_fileSpawnSource;
-            spawnPos.x += ((rand() % 100) / 50.0f) - 1.0f; // Random offset -1 s/d 1
-            spawnPos.y += ((rand() % 100) / 50.0f) - 1.0f;
+            // Offset X sedikit biar pas di tengah piringan
+            // Kalau mirror, offsetnya dibalik juga
+            float tipOffset = -0.5f;
+            if (m_isMirrored) tipOffset = 0.5f;
+            target.x += tipOffset;
 
+            // 2. TENTUKAN SPAWN SOURCE (MIRRORED)
+            DirectX::XMFLOAT3 spawnPos = boss->m_fileSpawnSource;
+
+            // [PENTING] Jika mode mirror (Antenna di Kiri), Spawn harus dari Kanan
+            // Default Spawn Source X adalah -19 (Kiri).
+            // Jadi:
+            // - Normal: Antenna Kanan (Pos), Spawn Kiri (Neg)
+            // - Mirror: Antenna Kiri (Neg), Spawn Kanan (Pos)
+            if (m_isMirrored) spawnPos.x = -spawnPos.x;
+
+            // Variasi Z (Spread)
+            float spreadZ = 8.0f;
+            float randomFactor = ((rand() % 200) / 100.0f) - 1.0f;
+            spawnPos.z += (randomFactor * spreadZ);
+
+            // Variasi X sedikit
+            spawnPos.x += ((rand() % 100) / 50.0f) - 1.0f;
+
+            // 3. SPAWN
             boss->SpawnFileProjectile(spawnPos, target);
         }
     }
     // =========================================================
-    // PHASE 3: SLIDE OUT (Keluar Layar)
+    // PHASE 3: SLIDE OUT
     // =========================================================
     else if (m_timer < (m_durationSlideIn + m_durationAttack + m_durationSlideOut))
     {
         if (antenna)
         {
-            // Hitung waktu lokal untuk fase keluar
             float exitTime = m_timer - (m_durationSlideIn + m_durationAttack);
             float t = exitTime / m_durationSlideOut;
             float smoothT = t * t * (3.0f - 2.0f * t);
 
             // Lerp Kebalik: Active -> Hidden
-            float x = m_antennaActivePos.x + (m_antennaHiddenPos.x - m_antennaActivePos.x) * smoothT;
-            float y = m_antennaActivePos.y + (m_antennaHiddenPos.y - m_antennaActivePos.y) * smoothT;
-            float z = m_antennaActivePos.z + (m_antennaHiddenPos.z - m_antennaActivePos.z) * smoothT;
+            float x = targetActive.x + (targetHidden.x - targetActive.x) * smoothT;
+            float y = targetActive.y + (targetHidden.y - targetActive.y) * smoothT;
+            float z = targetActive.z + (targetHidden.z - targetActive.z) * smoothT;
 
             antenna->position = { x, y, z };
+            antenna->rotation = targetRotation;
         }
     }
-    // =========================================================
-    // FINISH
-    // =========================================================
     else
     {
         boss->ChangeState(new BossIdleState());
     }
 
     // =========================================================
-    // UPDATE LOGIC PROJECTILE
-    // (Update Fisika Peluru di sini)
+    // UPDATE LOGIC PROJECTILE (SAMA SEPERTI SEBELUMNYA)
     // =========================================================
     auto& projectiles = boss->GetProjectiles();
     for (auto& p : projectiles)
     {
         if (!p.active) continue;
 
-        // Gerak menuju Target (Homing linear)
         float dx = p.targetPos.x - p.position.x;
         float dy = p.targetPos.y - p.position.y;
         float dz = p.targetPos.z - p.position.z;
 
         float dist = sqrt(dx * dx + dy * dy + dz * dz);
-
-        // Kecepatan frame-independent
         float step = p.speed * safeDt;
 
-        if (dist < step) // Sampai di tujuan
-        {
-            p.active = false; // Matikan (Nanti bisa tambah partikel impact di sini)
+        if (dist < step) {
+            p.active = false;
         }
-        else
-        {
-            // Normalize & Move
+        else {
             p.position.x += (dx / dist) * step;
             p.position.y += (dy / dist) * step;
             p.position.z += (dz / dist) * step;
 
-            // Rotasi Projectile (Spinning Floppy Disk)
             p.rotation.x += 360.0f * dt;
             p.rotation.y += 180.0f * dt;
         }

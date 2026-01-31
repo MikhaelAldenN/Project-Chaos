@@ -323,8 +323,19 @@ void Boss::Render(ModelRenderer* renderer, Camera* camera)
         {
             if (!p.active) continue;
 
+            // === TAMBAHAN CULLING DI SINI ===
+            if (camera)
+            {
+                // Radius 1.5f cukup aman untuk ukuran file model
+                if (!camera->CheckSphere(p.position.x, p.position.y, p.position.z, 1.5f))
+                {
+                    continue; // Skip jika di luar pandangan kamera window ini
+                }
+            }
+            // =================================
+
             // 1. Hitung Posisi
-            float displayScale = 150.0f; // Sesuaikan skala
+            float displayScale = 150.0f;
             XMMATRIX S = XMMatrixScaling(displayScale, displayScale, displayScale);
             XMMATRIX R = XMMatrixRotationRollPitchYaw(
                 XMConvertToRadians(p.rotation.x),
@@ -334,10 +345,6 @@ void Boss::Render(ModelRenderer* renderer, Camera* camera)
 
             XMFLOAT4X4 world;
             XMStoreFloat4x4(&world, S * R * T);
-
-            // 2. DRAW DENGAN MATRIX (Parameter ke-4)
-            // Ini akan mengirim posisi spesifik ini ke antrian render.
-            // Tidak perlu lagi memanggil m_fileModel->(Update)Transform(world) di sini!
 
             renderer->Draw(ShaderId::Lambert, m_fileModel, { 0.0f, 1.0f, 1.0f, 1.0f }, world);
         }

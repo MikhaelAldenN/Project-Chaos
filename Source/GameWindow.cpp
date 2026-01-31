@@ -176,3 +176,11 @@ void GameWindow::SetVisible(bool visible)
     if (visible) SDL_ShowWindow(sdlWindow);
     else SDL_HideWindow(sdlWindow);
 }
+
+void GameWindow::SetTitle(const char* title)
+{
+    if (sdlWindow)
+    {
+        SDL_SetWindowTitle(sdlWindow, title);
+    }
+}

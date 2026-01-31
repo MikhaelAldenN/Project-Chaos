@@ -148,7 +148,7 @@ public:
     DirectX::XMFLOAT3 m_antennaRotation = { 240.0f, 132.0f, 52.0f };
 
     // Posisi Spawn File
-    DirectX::XMFLOAT3 m_fileSpawnSource = { -19.0f, 100.0f, 11.2f };
+    DirectX::XMFLOAT3 m_fileSpawnSource = { -19.0f, 0.0f, 1.7f };
 
     void ReserveProjectiles(int count) { m_fileProjectiles.reserve(count); }
 

@@ -35,7 +35,7 @@ public:
 
     void SetDraggable(bool enable) { isDraggable = enable; }
     bool IsDraggable() const { return isDraggable; }
-
+    void SetTitle(const char* title);
     void* GetHandle() const { return m_hWnd; }
 
     void SetTargetFPS(float fps)
