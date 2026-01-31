@@ -645,7 +645,7 @@ void CollisionManager::CheckBlockVsEnemies()
     auto& blocks = m_blockManager->GetBlocks();
 
     float blockRadius = 0.5f;
-    const float BALL_RADIUS = 1.0f;     
+    const float BALL_RADIUS = 0.1f;     
     const float PADDLE_THICKNESS = 0.5f;
     const float PADDLE_WIDTH_HALF = 0.8f; 
 

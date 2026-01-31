@@ -43,7 +43,7 @@ std::string GenerateEnemyCopyString(Enemy* e, int index, const char* commentName
 {
     char buffer[512];
 
-    // [FIX] Use passed position
+    // [FIX] Use the passed 'currentPos' (which comes from GUI slider)
     XMFLOAT3 pos = currentPos;
     XMFLOAT3 rot = e->GetOriginalRotation();
 
@@ -57,7 +57,7 @@ std::string GenerateEnemyCopyString(Enemy* e, int index, const char* commentName
     // Determine Type & Color
     std::string typeStr = (e->GetType() == EnemyType::Paddle) ? "EnemyType::Paddle" : "EnemyType::Ball";
 
-    // [CHANGE] Use PaleYellow
+    // [CHANGE] Updated to PaleYellow
     std::string colorStr = (e->GetType() == EnemyType::Paddle) ? "Blue" : "PaleYellow";
 
     // Determine Attack & Params
@@ -151,24 +151,17 @@ void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
     auto& camCtrl = CameraController::Instance();
     auto mainCam = scene->GetMainCamera();
 
-    // [PERBAIKAN] Akses data dari m_director, bukan langsung dari scene
-    // Pastikan m_director ada (safety check)
     if (!scene->m_director)
     {
         ImGui::TextColored(ImVec4(1, 0, 0, 1), "Error: CinematicDirector is NULL!");
         return;
     }
 
-    // Ambil referensi vector dari Director
     auto& scenarios = scene->m_director->GetScenarios();
-
     static bool isSequencePlaying = false;
-
-    // Sync state dengan controller
     bool ctrlIsSequencing = camCtrl.IsSequencing();
     if (!ctrlIsSequencing) isSequencePlaying = false;
 
-    // --- BUTTONS ---
     float availWidth = ImGui::GetContentRegionAvail().x;
     if (isSequencePlaying)
     {
@@ -177,8 +170,6 @@ void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
         {
             camCtrl.StopSequence();
             isSequencePlaying = false;
-
-            // Reset ke Shot 1 (Start Point) jika ada
             if (!scenarios.empty()) {
                 camCtrl.SetFixedSetting(scenarios[0].StartPos);
                 camCtrl.SetTarget(scenarios[0].StartLookAt);
@@ -192,23 +183,16 @@ void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
         if (ImGui::Button("PLAY SEQUENCE", ImVec2(availWidth, 40)))
         {
             std::vector<CameraKeyframe> sequence;
-
-            // [PERBAIKAN] Loop menggunakan 'scenarios' yang kita ambil dari director
             for (const auto& point : scenarios)
             {
                 CameraKeyframe key;
                 key.isJumpCut = true;
-
-                // [PERBAIKAN] Gunakan fungsi helper lokal 'GUICalculateRotation'
                 key.StartPosition = point.StartPos;
                 key.StartRotation = GUICalculateRotation(point.StartPos, point.StartLookAt);
-
                 key.TargetPosition = point.EndPos;
                 key.TargetRotation = GUICalculateRotation(point.EndPos, point.EndLookAt);
-
                 key.Duration = point.Duration;
                 key.Easing = point.Easing;
-
                 sequence.push_back(key);
             }
             camCtrl.PlaySequence(sequence, false);
@@ -221,12 +205,10 @@ void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
     ImGui::Separator();
     ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), "SHOT LIST / KEYFRAMES");
 
-    // [PERBAIKAN] Loop scenarios
     for (int i = 0; i < scenarios.size(); ++i)
     {
-        auto& pt = scenarios[i]; // Ambil reference biar bisa diedit
+        auto& pt = scenarios[i];
         ImGui::PushID(i);
-
         char headerName[64];
         snprintf(headerName, 64, "#%d - %s", i + 1, pt.Name.c_str());
 
@@ -328,7 +310,6 @@ void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
             XMStoreFloat3(&newPt.StartLookAt, XMVectorAdd(XMLoadFloat3(&newPt.StartPos), vDir));
             newPt.EndLookAt = newPt.StartLookAt;
         }
-        // [PERBAIKAN] Push ke vector milik director
         scenarios.push_back(newPt);
     }
 
@@ -366,7 +347,6 @@ void GameBreakerGUI::DrawUI_LayoutTab(SceneGameBreaker* scene)
     ImGui::Text("Adjust In-Game UI Elements:");
     ImGui::Separator();
 
-    // Mengakses member 'tutorialLayout' dari scene
     ImGuiEditPanel("Tutorial Panel",
         scene->tutorialLayout.x,
         scene->tutorialLayout.y,
@@ -576,7 +556,7 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
     ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "Items");
     ImGui::Separator();
     ImGui::Spacing();
-    
+
     if (scene->m_itemManager)
     {
         if (ImGui::CollapsingHeader("Items"))
@@ -881,16 +861,17 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                     {
                         e->SetHighlight(true);
 
-                        XMFLOAT3 pos = e->GetPosition();
-                        XMFLOAT3 rot = e->GetRotation();
+                        // [FIX] Use Original Position to prevent jumping 0,0,0
+                        XMFLOAT3 pos = e->GetOriginalPosition();
+                        XMFLOAT3 rot = e->GetOriginalRotation();
 
                         ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "TRANSFORM");
                         if (ImGui::DragFloat3("Pos", &pos.x, 0.1f)) {
                             e->SetPosition(pos);
-                            if (!e->IsActive()) e->UpdateOriginalTransform(pos, rot);
+                            // [FIX] Force update even if active, so copy matches edit
+                            e->UpdateOriginalTransform(pos, rot);
                         }
 
-                        // ... (Rotation Presets logic) ...
                         ImGui::Text("Rotation:");
                         if (ImGui::Button("Back")) { e->SetRotation(EnemyLevelData::Rot::Backward); e->UpdateOriginalTransform(pos, EnemyLevelData::Rot::Backward); } ImGui::SameLine();
                         if (ImGui::Button("Fwd")) { e->SetRotation(EnemyLevelData::Rot::Forward);  e->UpdateOriginalTransform(pos, EnemyLevelData::Rot::Forward); } ImGui::SameLine();
@@ -900,12 +881,11 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                         rot = e->GetRotation();
                         if (ImGui::DragFloat3("Pitch/Yaw/Roll", &rot.x, 0.1f)) {
                             e->SetRotation(rot);
-                            if (!e->IsActive()) e->UpdateOriginalTransform(pos, rot);
+                            e->UpdateOriginalTransform(pos, rot);
                         }
 
                         ImGui::Separator();
 
-                        // ... (Spawn Logic) ...
                         if (e->IsActive()) { ImGui::TextDisabled("Enemy is active. Copy uses original spawn coords."); }
                         else {
                             ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "ACTIVATE BEHAVIOR");
@@ -919,7 +899,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                             }
                             ImGui::Spacing();
                             ImGui::Text("Horizontal:");
-                            // ... (Horizontal/Random Logic) ...
                             MoveDir currentMoveDir = e->GetMoveDir();
                             bool isLeft = (currentMoveDir == MoveDir::Left || currentMoveDir == MoveDir::None);
                             bool isRight = (currentMoveDir == MoveDir::Right);
@@ -937,7 +916,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                             }
 
                             ImGui::Spacing();
-                            // ... (Random Logic) ...
                             float rMinX = e->GetMinX(); float rMaxX = e->GetMaxX();
                             float rMinZ = e->GetMinZ(); float rMaxZ = e->GetMaxZ();
                             ImGui::Text("Random:");
@@ -951,7 +929,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                         }
 
                         ImGui::Spacing();
-
                         // [FIX] Pass 'pos' to Copy Function
                         if (ImGui::Button("Copy Value")) {
                             std::string copyStr = GenerateEnemyCopyString(e, paddleCount, "Paddle", pos);
@@ -1001,8 +978,9 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                     {
                         e->SetHighlight(true);
 
-                        XMFLOAT3 pos = e->GetPosition();
-                        XMFLOAT3 rot = e->GetRotation();
+                        // [FIX] Use Original Position to prevent jumping 0,0,0
+                        XMFLOAT3 pos = e->GetOriginalPosition();
+                        XMFLOAT3 rot = e->GetOriginalRotation();
                         XMFLOAT3 scl = e->scale;
 
                         ImGui::DragFloat3("Pos", &pos.x, 0.1f);
@@ -1013,9 +991,10 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                         e->SetRotation(rot);
                         e->scale = scl;
 
-                        if (!e->IsActive()) e->UpdateOriginalTransform(pos, rot);
+                        // [FIX] Always update original transform so dragging works
+                        e->UpdateOriginalTransform(pos, rot);
 
-                        // [FIX] Pass 'pos' to Copy Function to get correct coords
+                        // [FIX] Pass 'pos' to Copy Function
                         if (ImGui::Button("Copy Value")) {
                             std::string copyStr = GenerateEnemyCopyString(e, ballCount, "Ball", pos);
                             ImGui::SetClipboardText(copyStr.c_str());
@@ -1051,7 +1030,7 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
             ImGui::Unindent();
         }
     }
-    
+
     if (scene->m_itemManager)
     {
         if (ImGui::CollapsingHeader("Item Transform", ImGuiTreeNodeFlags_None))
@@ -1178,4 +1157,3 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
         }
     }
 }
-

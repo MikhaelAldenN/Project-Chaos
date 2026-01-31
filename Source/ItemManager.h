@@ -19,6 +19,9 @@ namespace ItemLevelData
 {
     static const std::vector<ItemSpawnData> Spawns =
     {
+        // ------------------------------------------
+        // HEAL LIST
+        // ------------------------------------------
         // Item Heal #1
         { { -2.8f, 0.4f, -164.5f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
         // Item Heal #2
@@ -97,6 +100,16 @@ namespace ItemLevelData
         { { 6.6f, 0.4f, -279.0f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
         // Item Heal #39
         { { 7.7f, 0.4f, -279.0f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
+
+        // ------------------------------------------
+        // INVINCIBLE LIST
+        // ------------------------------------------
+        // Item Invincible #1
+        { { 8.1f, 0.4f, -389.1f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Invincible },
+        // Item Invincible #2
+        { { -3.6f, 0.4f, -432.6f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Invincible },
+        // Item Invincible #3
+        { { 19.0f, 0.4f, -432.6f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Invincible },
     };
 }
 
