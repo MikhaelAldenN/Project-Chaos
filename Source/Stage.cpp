@@ -76,18 +76,25 @@ void Stage::Render(ModelRenderer* renderer)
 
 void Stage::RenderDebug(ShapeRenderer* shapeRenderer, PrimitiveRenderer* primRenderer)
 {
-    // Draw Debug Walls (GREEN BOXES)
     if (shapeRenderer)
     {
-        DirectX::XMFLOAT4 wallColor = { 0.0f, 1.0f, 0.0f, 1.0f };
-        for (const auto& wall : m_debugWalls)
+        // Default Color (Green)
+        DirectX::XMFLOAT4 defaultColor = { 0.0f, 1.0f, 0.0f, 1.0f };
+        // Highlight Color (Yellow)
+        DirectX::XMFLOAT4 highlightColor = { 1.0f, 1.0f, 0.0f, 1.0f };
+
+        for (size_t i = 0; i < m_debugWalls.size(); ++i)
         {
+            const auto& wall = m_debugWalls[i];
+            DirectX::XMFLOAT4 drawColor = (m_highlightWallIndex == (int)i) ? highlightColor : defaultColor;
             DirectX::XMFLOAT3 rotRadians = {
                 XMConvertToRadians(wall.Rotation.x),
                 XMConvertToRadians(wall.Rotation.y),
                 XMConvertToRadians(wall.Rotation.z)
             };
-            shapeRenderer->DrawBox(wall.Position, rotRadians, wall.Scale, wallColor);
+
+            // Use drawColor here
+            shapeRenderer->DrawBox(wall.Position, rotRadians, wall.Scale, drawColor);
         }
     }
 

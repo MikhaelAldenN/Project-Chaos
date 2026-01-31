@@ -677,6 +677,8 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
         ImGui::Spacing();
         if (ImGui::CollapsingHeader("Debug Wall Transform", ImGuiTreeNodeFlags_None))
         {
+            scene->m_stage->ClearWallHighlight();
+
             ImGui::Indent();
             ImGui::TextDisabled("Edit debug boxes for collision setup.");
 
@@ -686,10 +688,11 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                 auto& wall = scene->m_stage->m_debugWalls[i];
                 char label[32];
                 snprintf(label, 32, "Wall #%d", i + 1);
-
                 ImGui::PushID(i);
                 if (ImGui::TreeNode(label))
                 {
+                    scene->m_stage->SetWallHighlight(i);
+
                     ImGui::DragFloat3("Pos", &wall.Position.x, 0.1f);
                     ImGui::DragFloat3("Rot", &wall.Rotation.x, 0.1f, -180.0f, 180.0f);
                     ImGui::DragFloat3("Scale", &wall.Scale.x, 0.05f, 0.0f, 100.0f);
