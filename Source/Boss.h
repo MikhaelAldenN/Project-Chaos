@@ -74,10 +74,11 @@ enum class BgAnimState {
 
 struct FileProjectile
 {
+    int id = -1; // [BARU] ID Unik untuk tracking window
     bool active = false;
     DirectX::XMFLOAT3 position;
     DirectX::XMFLOAT3 rotation;
-    DirectX::XMFLOAT3 targetPos; // Posisi tujuan (Antena)
+    DirectX::XMFLOAT3 targetPos;
     float speed = 20.0f;
 
     FileProjectile() {}
@@ -140,7 +141,7 @@ public:
     // [BARU] Public Config Variables (Agar bisa diedit State & ImGui)
     // Posisi Antena (Start & End)
     DirectX::XMFLOAT3 m_antennaHiddenPos = { 30.5f, 0.0f, -8.7f }; // Luar Layar
-    DirectX::XMFLOAT3 m_antennaShowPos = { 19.5f, 0.0f, -8.7f };   // Dalam Layar
+    DirectX::XMFLOAT3 m_antennaShowPos = { 21.5f, 0.0f, -8.7f };   // Dalam Layar
 
     // Transform Antena (Scale & Rotation Global)
     DirectX::XMFLOAT3 m_antennaScale = { 8.0f,  8.0f,  8.0f };
@@ -152,7 +153,20 @@ public:
     void ReserveProjectiles(int count) { m_fileProjectiles.reserve(count); }
 
     // Debug Window Toggle
-bool m_showAntennaWindow = false; 
+bool m_showAntennaWindow = false;
+
+bool GetProjectileData(int id, DirectX::XMFLOAT3& outPos) const
+{
+    for (const auto& p : m_fileProjectiles)
+    {
+        if (p.active && p.id == id)
+        {
+            outPos = p.position;
+            return true;
+        }
+    }
+    return false;
+}
 private:
     void InitializeDefaultParts();
     void CreateScreenQuad(); // Helper to create screen geometry
@@ -212,4 +226,6 @@ private:
 
     // Object Pool untuk Projectile
     std::vector<FileProjectile> m_fileProjectiles;
+
+    int m_projectileIdCounter = 0;
 };

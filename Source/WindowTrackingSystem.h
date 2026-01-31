@@ -33,6 +33,7 @@ struct TrackedWindowConfig
     int height = 300;
     int priority = 0;
     DirectX::XMFLOAT3 trackingOffset = { 0.0f, 0.0f, 0.0f };
+    float fpsLimit = 0.0f;
 };
 
 struct TrackedWindow

@@ -39,6 +39,8 @@ public:
 
     Player* GetPlayer() { return m_player.get(); }
 
+    void UpdateProjectileWindows();
+
 private:
     void RenderScene(float elapsedTime, Camera* camera);
     void InitializeSubWindows();

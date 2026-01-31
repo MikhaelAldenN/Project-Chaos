@@ -484,6 +484,7 @@ void Boss::SpawnFileProjectile(const DirectX::XMFLOAT3& startPos, const DirectX:
 
     FileProjectile p;
     p.active = true;
+    p.id = m_projectileIdCounter++;
     p.position = startPos;
     p.targetPos = targetPos;
     p.rotation = { (float)(rand() % 360), (float)(rand() % 360), (float)(rand() % 360) };

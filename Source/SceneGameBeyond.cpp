@@ -547,6 +547,8 @@ void SceneGameBeyond::Update(float elapsedTime)
 
     if (m_boss) m_boss->Update(elapsedTime);
 
+    UpdateProjectileWindows();
+
     if (m_enemyManager && m_player)
     {
         // Enemy butuh Camera active dan Posisi Player untuk tracking
@@ -1005,4 +1007,63 @@ DirectX::XMFLOAT3 SceneGameBeyond::GetMouseOnGround(Camera* camera)
     float worldZ = -dy / PIXEL_TO_UNIT_RATIO;
 
     return DirectX::XMFLOAT3(worldX, 0.0f, worldZ);
+}
+
+void SceneGameBeyond::UpdateProjectileWindows()
+{
+    if (!m_boss || !m_windowSystem) return;
+
+    const auto& projectiles = m_boss->GetProjectiles();
+
+    // === PENGATURAN FREKUENSI ===
+    // Ubah angka ini untuk mengatur seberapa sering window muncul.
+    // 1 = Muncul di SEMUA file (Terlalu ramai)
+    // 3 = Muncul setiap file ke-3 (Sekitar 33% file punya window)
+    // 5 = Muncul setiap file ke-5 (Sekitar 20% file punya window)
+    int windowFrequency = 4;
+
+    for (const auto& p : projectiles)
+    {
+        std::string winName = "file_proj_" + std::to_string(p.id);
+
+        // SYARAT BARU: 
+        // Window hanya dibuat jika ID projectile adalah kelipatan dari frequency
+        bool shouldHaveWindow = (p.id % windowFrequency == 0);
+
+        // LOGIC SPAWN
+        if (p.active && shouldHaveWindow)
+        {
+            if (m_windowSystem->GetTrackedWindow(winName) == nullptr)
+            {
+                int targetID = p.id;
+                Boss* targetBoss = m_boss.get();
+
+                m_windowSystem->AddTrackedWindow(
+                    // Config: Size kecil, Priority tinggi
+                    { winName, "DOWNLOADING...", 120, 120, 10, { 0.0f, 0.0f, 0.0f }, 10.0f },
+
+                    // Lambda Posisi
+                    [targetBoss, targetID]() -> DirectX::XMFLOAT3 {
+                        DirectX::XMFLOAT3 pos = { 0,0,0 };
+                        if (targetBoss->GetProjectileData(targetID, pos)) {
+                            return pos;
+                        }
+                        return { 0, -1000, 0 };
+                    }
+                );
+            }
+        }
+        // LOGIC DESPAWN (Hapus Window)
+        else
+        {
+            // Masuk sini jika:
+            // 1. Projectile MATI (!active)
+            // 2. ATAU Projectile AKTIF tapi bukan kelipatan ID (shouldHaveWindow == false)
+
+            if (m_windowSystem->GetTrackedWindow(winName) != nullptr)
+            {
+                m_windowSystem->RemoveTrackedWindow(winName);
+            }
+        }
+    }
 }

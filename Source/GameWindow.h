@@ -38,6 +38,26 @@ public:
 
     void* GetHandle() const { return m_hWnd; }
 
+    void SetTargetFPS(float fps)
+    {
+        if (fps > 0.0f) m_renderInterval = 1.0f / fps;
+        else m_renderInterval = 0.0f;
+    }
+
+    // [BARU] Cek apakah window boleh dirender frame ini?
+    bool ShouldRender(float dt)
+    {
+        if (m_renderInterval <= 0.0f) return true; // Unlimited
+
+        m_renderTimer += dt;
+        if (m_renderTimer >= m_renderInterval)
+        {
+            m_renderTimer = 0.0f; // Reset
+            return true;
+        }
+        return false;
+    }
+
 private:
     void CreateBuffers(int w, int h);
 
@@ -62,4 +82,7 @@ private:
     bool isDraggable = true;
 
     HWND m_hWnd;
+
+    float m_renderInterval = 0.0f; // 0 = Render setiap frame
+    float m_renderTimer = 0.0f;
 };

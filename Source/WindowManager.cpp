@@ -72,6 +72,11 @@ void WindowManager::RenderAll(float dt, Scene* scene)
     {
         if (!win->IsVisible()) continue;
 
+        if (win.get() != mainWindow && !win->ShouldRender(dt))
+        {
+            continue;
+        }
+
         // [OPTIMISASI KECIL] Warna background hitam murni lebih cepat diproses
         if (isBeyondScene) {
             win->BeginRender(0.1f, 0.1f, 0.15f);

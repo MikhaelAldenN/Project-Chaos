@@ -48,6 +48,11 @@ bool WindowTrackingSystem::AddTrackedWindow(
     
     WindowManager::Instance().MarkPriorityDirty();
 
+    if (config.fpsLimit > 0.0f)
+    {
+        window->SetTargetFPS(config.fpsLimit);
+    }
+
     // Hardcoded logic: Player window usually shouldn't be draggable by mouse
     if (config.name == "player") window->SetDraggable(false);
 
