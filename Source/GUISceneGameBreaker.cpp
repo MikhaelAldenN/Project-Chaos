@@ -830,10 +830,21 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
             static EnemySpawnConfig lastSpawnConfig;
             static bool firstRun = true;
-            if (firstRun) {
+            if (firstRun) 
+            {
                 lastSpawnConfig.Position = { 0,0,-50 };
                 lastSpawnConfig.Rotation = EnemyLevelData::Rot::Backward;
                 lastSpawnConfig.Color = EnemyLevelData::Blue;
+
+                for (int k = (int)enemies.size() - 1; k >= 0; --k)
+                {
+                    const auto& e = enemies[k];
+                    if (e && e->GetType() == EnemyType::Paddle) {
+                        lastSpawnConfig.Position = e->GetOriginalPosition();
+                        lastSpawnConfig.Rotation = e->GetOriginalRotation();
+                        break; 
+                    }
+                }
                 firstRun = false;
             }
 
@@ -1014,12 +1025,25 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                 if (ImGui::Button("+ Add New Ball", ImVec2(-1, 30)))
                 {
                     EnemySpawnConfig cfg;
-                    cfg.Position = { 0,0,0 };
-                    cfg.Rotation = { 0,0,0 };
 
-                    // [CHANGE] Use PaleYellow
+                    bool foundLastBall = false;
+                    for (int k = (int)enemies.size() - 1; k >= 0; --k)
+                    {
+                        if (enemies[k]->GetType() == EnemyType::Ball) {
+                            cfg.Position = enemies[k]->GetPosition();
+                            cfg.Rotation = enemies[k]->GetRotation();
+                            foundLastBall = true;
+                            break;
+                        }
+                    }
+
+                    if (!foundLastBall) 
+                    {
+                        cfg.Position = { 0,0,0 };
+                        cfg.Rotation = { 0,0,0 };
+                    }
+
                     cfg.Color = EnemyLevelData::PaleYellow;
-
                     cfg.Type = EnemyType::Ball;
                     scene->m_enemyManager->SpawnEnemy(cfg);
                 }
