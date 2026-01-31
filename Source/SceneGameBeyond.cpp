@@ -646,6 +646,59 @@ void SceneGameBeyond::Update(float elapsedTime)
 
         m_collisionManager->Update(elapsedTime);
     }
+
+    if (m_boss && m_blockManager)
+    {
+        auto& projectiles = m_boss->GetProjectiles();
+
+        // Kita ambil referensi vector blocks biar cepat
+        // (Pastikan BlockManager punya getter GetBlocks() yang public)
+        const auto& blocks = m_blockManager->GetBlocks();
+
+        // LOOP 1: Untuk setiap Peluru
+        for (auto& proj : projectiles)
+        {
+            if (!proj.active) continue; // Skip peluru mati
+
+            // LOOP 2: Cek terhadap setiap Block
+            for (auto& block : blocks)
+            {
+                // PENTING: Jangan cek block yang sudah hancur!
+                // Kalau ini lupa, peluru akan meledak kena "angin" (bekas tempat block)
+                if (!block || !block->IsActive()) continue;
+
+                // Ambil posisi
+                DirectX::XMFLOAT3 bPos = block->GetMovement()->GetPosition();
+
+                // Hitung Jarak (Squared Distance check lebih cepat daripada sqrt)
+                float dx = bPos.x - proj.position.x;
+                float dy = bPos.y - proj.position.y;
+                float dz = bPos.z - proj.position.z;
+                float distSq = dx * dx + dy * dy + dz * dz;
+
+                // Radius Block ~0.8f, Radius File ~0.5f -> Total ~1.3f
+                // 1.3 * 1.3 = 1.69f (Kita bulatkan jadi 2.0f biar gampang kena)
+                if (distSq < 2.0f)
+                {
+                    // === TABRAKAN TERJADI ===
+
+                    // 1. Hancurkan Block
+                    block->SetActive(false); // Atau panggil fungsi Damage block
+
+                    // 2. Hancurkan Peluru
+                    proj.active = false;
+
+                    // 3. Efek Partikel/Suara (Opsional)
+                    // WindowShatterManager::Instance().SpawnSmallShard(bPos); 
+
+                    // 4. [SANGAT PENTING] BREAK INNER LOOP
+                    // Karena peluru ini SUDAH MATI, dia tidak boleh mengecek block lain lagi.
+                    // Jika tidak di-break, peluru mati ini bisa membunuh block lain di frame yang sama.
+                    break;
+                }
+            }
+        }
+    }
 }
 
 static void DrawTransformControl(const char* label, DirectX::XMFLOAT3* pos)
