@@ -86,3 +86,25 @@ void EnemyManager::RenderDebug(ShapeRenderer* renderer)
         enemy->RenderDebugProjectiles(renderer);
     }
 }
+
+void EnemyManager::RespawnEnemyAs(size_t index, AttackType attack, MoveDir dir, float minX, float maxX, float minZ, float maxZ)
+{
+    if (index >= m_enemies.size()) return;
+
+    auto& e = m_enemies[index];
+
+    EnemySpawnConfig config;
+    config.Position = e->GetPosition();
+    config.Rotation = e->GetRotation();
+    config.Color = e->color;
+    config.Type = e->GetType();
+    config.AttackBehavior = attack;
+    config.Direction = dir;
+    config.MinX = minX; config.MaxX = maxX;
+    config.MinZ = minZ; config.MaxZ = maxZ;
+
+    SpawnEnemy(config); 
+
+    std::swap(m_enemies[index], m_enemies.back());
+    m_enemies.pop_back();
+}

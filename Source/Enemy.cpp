@@ -22,9 +22,11 @@ Enemy::Enemy(ID3D11Device* device, const char* filePath, XMFLOAT3 startPos, XMFL
     m_patrolMinZ = startPos.z + minZ;
     m_patrolMaxZ = startPos.z + maxZ;
     m_randomTargetPos = startPos;
-    if (dir == MoveDir::Right)      m_currentSpeed = m_baseMoveSpeed;
-    else if (dir == MoveDir::Left)  m_currentSpeed = -m_baseMoveSpeed;
+    if (dir == MoveDir::Right)      m_currentSpeed = -m_baseMoveSpeed;
+    else if (dir == MoveDir::Left)  m_currentSpeed = m_baseMoveSpeed;
     else                            m_currentSpeed = 0.0f;
+    m_moveDir = dir;
+    m_isActive = true;
 }
 
 float Enemy::GetRandomFloat(float min, float max)
@@ -38,6 +40,13 @@ Enemy::~Enemy() {}
 
 void Enemy::Update(float elapsedTime, Camera* camera)
 {
+    if (!m_isActive)
+    {
+        if (movement) movement->Update(elapsedTime);
+        SyncData();
+        return;
+    }
+
     if (m_attackType == AttackType::TrackingHorizontal)
     {
         XMFLOAT3 pos = movement->GetPosition();
@@ -199,6 +208,37 @@ void Enemy::RenderDebugProjectiles(ShapeRenderer* renderer)
             float radius = ball->GetRadius();
             renderer->DrawSphere(pos, radius, { 1.0f, 0.0f, 0.0f, 1.0f });
         }
+    }
+
+    // Highlight for GUI
+    if (m_isHighlighted)
+    {
+        DirectX::XMFLOAT3 pos = movement->GetPosition();
+        renderer->DrawBox(pos, { 0.0f, 0.0f, 0.0f }, { 2.0f, 1.0f, 1.0f }, { 0.0f, 1.0f, 0.0f, 1.0f });
+    }
+}
+
+void Enemy::SetPatrolLimitsX(float minOffset, float maxOffset)
+{
+    m_patrolMinX = originalPosition.x + minOffset;
+    m_patrolMaxX = originalPosition.x + maxOffset;
+}
+
+void Enemy::SetPatrolLimitsZ(float minOffset, float maxOffset)
+{
+    m_patrolMinZ = originalPosition.z + minOffset;
+    m_patrolMaxZ = originalPosition.z + maxOffset;
+}
+
+void Enemy::UpdateOriginalTransform(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& rot)
+{
+    originalPosition = pos;
+    originalRotation = rot;
+
+    if (!m_isActive)
+    {
+        m_patrolMinX = pos.x; m_patrolMaxX = pos.x;
+        m_patrolMinZ = pos.z; m_patrolMaxZ = pos.z;
     }
 }
 

@@ -26,6 +26,68 @@ static DirectX::XMFLOAT3 GUICalculateRotation(const DirectX::XMFLOAT3& pos, cons
     return { pitch, yaw, 0.0f };
 }
 
+std::string FloatToString(float f)
+{
+    char buf[64];
+    snprintf(buf, 64, "%.6g", f);
+    std::string s(buf);
+
+    if (s.find('.') == std::string::npos && s.find('e') == std::string::npos)
+    {
+        s += ".0";
+    }
+    return s + "f";
+}
+
+std::string GenerateEnemyCopyString(Enemy* e, int index, const char* commentName)
+{
+    char buffer[512];
+    // Use Original Position so copy works even if enemy is moving
+    XMFLOAT3 pos = e->GetOriginalPosition();
+    XMFLOAT3 rot = e->GetOriginalRotation();
+
+    // Determine Rotation String
+    std::string rotStr = "{ " + FloatToString(rot.x) + ", " + FloatToString(rot.y) + ", " + FloatToString(rot.z) + " }";
+    if (abs(rot.y - 0.0f) < 0.01f) rotStr = "Rot::Backward";
+    else if (abs(rot.y - DirectX::XM_PI) < 0.01f) rotStr = "Rot::Forward";
+    else if (abs(rot.y - DirectX::XM_PIDIV2) < 0.01f) rotStr = "Rot::Left";
+    else if (abs(rot.y + DirectX::XM_PIDIV2) < 0.01f) rotStr = "Rot::Right";
+
+    // Determine Type & Color
+    std::string typeStr = (e->GetType() == EnemyType::Paddle) ? "EnemyType::Paddle" : "EnemyType::Ball";
+    std::string colorStr = (e->GetType() == EnemyType::Paddle) ? "Blue" : "Yellow";
+
+    // Determine Attack & Params
+    std::string attackStr = "AttackType::None";
+    std::string extraParams = "";
+
+    switch (e->GetAttackType())
+    {
+    case AttackType::Static: attackStr = "AttackType::Static"; break;
+    case AttackType::Tracking: attackStr = "AttackType::Tracking"; break;
+    case AttackType::TrackingHorizontal:
+        attackStr = "AttackType::TrackingHorizontal";
+        // Check MoveDir directly from Enemy
+        extraParams = ", MoveDir::" + std::string(e->GetMoveDir() == MoveDir::Left ? "Left" : "Right");
+        extraParams += ", " + FloatToString(e->GetMinX()) + ", " + FloatToString(e->GetMaxX());
+        break;
+    case AttackType::TrackingRandom:
+        attackStr = "AttackType::TrackingRandom";
+        extraParams = ", MoveDir::None";
+        extraParams += ", " + FloatToString(e->GetMinX()) + ", " + FloatToString(e->GetMaxX());
+        extraParams += ", " + FloatToString(e->GetMinZ()) + ", " + FloatToString(e->GetMaxZ());
+        break;
+    }
+
+    std::string posStr = "{ " + FloatToString(pos.x) + ", " + FloatToString(pos.y) + ", " + FloatToString(pos.z) + " }";
+
+    snprintf(buffer, sizeof(buffer),
+        "// %s %d\n{ %s, %s, %s, %s, %s%s },",
+        commentName, index, posStr.c_str(), rotStr.c_str(), colorStr.c_str(), typeStr.c_str(), attackStr.c_str(), extraParams.c_str());
+
+    return std::string(buffer);
+}
+
 void GameBreakerGUI::Draw(SceneGameBreaker* scene)
 {
     // 1. Debug Controller (Window Terpisah milik CameraController)
@@ -771,99 +833,256 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
             ImGui::Unindent();
         }
     }
-    // 3. ENEMY TRANSFORMS (Existing Code)
+
+    // 3. ENEMIES TRANSFORM
     if (scene->m_enemyManager)
     {
-        if (ImGui::CollapsingHeader("Enemies Transform", ImGuiTreeNodeFlags_None))
+        ImGui::Spacing();
+        if (ImGui::CollapsingHeader("Debug Enemy Transform", ImGuiTreeNodeFlags_None))
         {
             ImGui::Indent();
-    
             auto& enemies = scene->m_enemyManager->GetEnemies();
-            auto DrawEnemyUI = [](Enemy* e, int index, const char* label)
+
+            static EnemySpawnConfig lastSpawnConfig;
+            static bool firstRun = true;
+            if (firstRun) {
+                lastSpawnConfig.Position = { 0,0,-50 };
+                lastSpawnConfig.Rotation = EnemyLevelData::Rot::Backward;
+                lastSpawnConfig.Color = EnemyLevelData::Blue;
+                firstRun = false;
+            }
+
+            for (auto& e : enemies) e->SetHighlight(false);
+
+            // =========================================================
+            // SUB-HEADER: ENEMY PADDLES
+            // =========================================================
+            if (ImGui::TreeNode("Enemy Paddles"))
+            {
+                int paddleCount = 0;
+                for (size_t i = 0; i < enemies.size(); ++i)
                 {
-                    ImGui::PushID(index);
-    
+                    Enemy* e = enemies[i].get();
+                    if (e->GetType() != EnemyType::Paddle) continue;
+
+                    paddleCount++;
+                    char label[64];
+                    if (e->IsActive()) snprintf(label, 64, "Paddle #%d (Active)", paddleCount);
+                    else               snprintf(label, 64, "Paddle #%d (Setup)", paddleCount);
+
+                    ImGui::PushID((int)i);
+
                     if (ImGui::TreeNode(label))
                     {
-                        DirectX::XMFLOAT3 pos = e->GetPosition();
-                        DirectX::XMFLOAT3 rot = e->GetRotation();
-    
-                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
-                        if (ImGui::DragFloat3("XYZ##Pos", &pos.x, 0.1f)) e->SetPosition(pos);
-    
-                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
-                        if (ImGui::DragFloat3("Pitch/Yaw/Roll##Rot", &rot.x, 1.0f, -180.0f, 180.0f)) e->SetRotation(rot);
-    
-                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
-                        ImGui::DragFloat3("XYZ##Scl", &e->scale.x, 0.01f, 0.1f, 10.0f);
-    
-                        ImGui::Spacing();
-    
-                        if (ImGui::Button("Reset Transform"))
-                        {
-                            e->SetPosition(e->GetOriginalPosition());
-                            e->SetRotation(e->GetOriginalRotation());
-                            e->scale = { 1.0f, 1.0f, 1.0f };
+                        e->SetHighlight(true);
+
+                        XMFLOAT3 pos = e->GetPosition();
+                        XMFLOAT3 rot = e->GetRotation();
+
+                        // --- TRANSFORM ---
+                        ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "TRANSFORM");
+                        if (ImGui::DragFloat3("Pos", &pos.x, 0.1f)) {
+                            e->SetPosition(pos);
+                            if (!e->IsActive()) e->UpdateOriginalTransform(pos, rot);
                         }
-    
+
+                        // --- ROTATION PRESETS ---
+                        ImGui::Text("Rotation:");
+                        if (ImGui::Button("Back")) { e->SetRotation(EnemyLevelData::Rot::Backward); e->UpdateOriginalTransform(pos, EnemyLevelData::Rot::Backward); } ImGui::SameLine();
+                        if (ImGui::Button("Fwd")) { e->SetRotation(EnemyLevelData::Rot::Forward);  e->UpdateOriginalTransform(pos, EnemyLevelData::Rot::Forward); } ImGui::SameLine();
+                        if (ImGui::Button("Left")) { e->SetRotation(EnemyLevelData::Rot::Left);     e->UpdateOriginalTransform(pos, EnemyLevelData::Rot::Left); } ImGui::SameLine();
+                        if (ImGui::Button("Right")) { e->SetRotation(EnemyLevelData::Rot::Right);    e->UpdateOriginalTransform(pos, EnemyLevelData::Rot::Right); }
+
+                        rot = e->GetRotation();
+                        if (ImGui::DragFloat3("Pitch/Yaw/Roll", &rot.x, 0.1f)) {
+                            e->SetRotation(rot);
+                            if (!e->IsActive()) e->UpdateOriginalTransform(pos, rot);
+                        }
+
+                        ImGui::Separator();
+
+                        // --- SPAWN LOGIC ---
+                        if (e->IsActive())
+                        {
+                            ImGui::TextDisabled("Enemy is active. Copy uses original spawn coords.");
+                        }
+                        else
+                        {
+                            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "ACTIVATE BEHAVIOR");
+
+                            // 1. Static
+                            if (ImGui::Button("Spawn Static", ImVec2(-1, 0))) {
+                                scene->m_enemyManager->RespawnEnemyAs(i, AttackType::Static);
+                                lastSpawnConfig.Position = pos; lastSpawnConfig.Rotation = rot;
+                            }
+
+                            // 2. Tracking
+                            if (ImGui::Button("Spawn Tracking", ImVec2(-1, 0))) {
+                                scene->m_enemyManager->RespawnEnemyAs(i, AttackType::Tracking);
+                                lastSpawnConfig.Position = pos; lastSpawnConfig.Rotation = rot;
+                            }
+
+                            ImGui::Spacing();
+
+                            // 3. Horizontal
+                            ImGui::Text("Horizontal:");
+
+                            // Determine current state directly from Enemy
+                            MoveDir currentMoveDir = e->GetMoveDir();
+
+                            // LOGIC: Check "Left" if explicitly Left OR None (Default)
+                            bool isLeft = (currentMoveDir == MoveDir::Left || currentMoveDir == MoveDir::None);
+                            bool isRight = (currentMoveDir == MoveDir::Right);
+
+                            // DRAW: Direct boolean check. If clicked, force set the value.
+                            if (ImGui::RadioButton("Left##H", isLeft))
+                            {
+                                e->SetMoveDir(MoveDir::Left);
+                            }
+                            ImGui::SameLine();
+                            if (ImGui::RadioButton("Right##H", isRight))
+                            {
+                                e->SetMoveDir(MoveDir::Right);
+                            }
+
+                            // SLIDER: Read/Write Range directly
+                            //  - This slider allows adjusting the min/max X patrol range.
+                            float hMinX = e->GetMinX();
+                            float hMaxX = e->GetMaxX();
+
+                            // Using local variables ensures double-click editing works
+                            if (ImGui::DragFloatRange2("Range X##H", &hMinX, &hMaxX, 0.1f))
+                            {
+                                e->SetPatrolLimitsX(hMinX, hMaxX);
+                            }
+
+                            if (ImGui::Button("Spawn Tracking Horizontal", ImVec2(-1, 0))) {
+                                // Fallback: If None, spawn as Left
+                                MoveDir dir = (currentMoveDir == MoveDir::None) ? MoveDir::Left : currentMoveDir;
+
+                                scene->m_enemyManager->RespawnEnemyAs(i, AttackType::TrackingHorizontal, dir, e->GetMinX(), e->GetMaxX());
+                                lastSpawnConfig.Position = pos; lastSpawnConfig.Rotation = rot;
+                            }
+
+                            ImGui::Spacing();
+
+                            // 4. Random
+                            float rMinX = e->GetMinX(); float rMaxX = e->GetMaxX();
+                            float rMinZ = e->GetMinZ(); float rMaxZ = e->GetMaxZ();
+
+                            ImGui::Text("Random:");
+
+                            // [FIX] Unique variables -> No skipping on double click
+                            if (ImGui::DragFloatRange2("Rand Range X", &rMinX, &rMaxX, 0.1f))
+                            {
+                                e->SetPatrolLimitsX(rMinX, rMaxX);
+                            }
+                            if (ImGui::DragFloatRange2("Rand Range Z", &rMinZ, &rMaxZ, 0.1f))
+                            {
+                                e->SetPatrolLimitsZ(rMinZ, rMaxZ);
+                            }
+
+                            if (ImGui::Button("Spawn Tracking Random", ImVec2(-1, 0))) {
+                                scene->m_enemyManager->RespawnEnemyAs(i, AttackType::TrackingRandom, MoveDir::None, e->GetMinX(), e->GetMaxX(), e->GetMinZ(), e->GetMaxZ());
+                                lastSpawnConfig.Position = pos; lastSpawnConfig.Rotation = rot;
+                            }
+                        }
+
+                        ImGui::Spacing();
+                        // --- COPY / DELETE ---
+                        if (ImGui::Button("Copy Value")) {
+                            std::string copyStr = GenerateEnemyCopyString(e, paddleCount, "Paddle");
+                            ImGui::SetClipboardText(copyStr.c_str());
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::Button("Delete")) {
+                            enemies.erase(enemies.begin() + i);
+                            ImGui::TreePop(); ImGui::PopID(); break;
+                        }
+
                         ImGui::TreePop();
                     }
                     ImGui::PopID();
-                    ImGui::Separator();
-                };
-    
-            int paddleCounter = 0;
-            int ballCounter = 0;
-    
-            for (size_t i = 0; i < enemies.size(); ++i)
-            {
-                Enemy* e = enemies[i].get();
-                if (e->GetType() == EnemyType::Paddle)
-                {
-                    paddleCounter++;
-                    char headerName[64];
-                    snprintf(headerName, 64, "Enemy Paddle #%d", paddleCounter);
-                    DrawEnemyUI(e, (int)i, headerName);
                 }
-            }
-    
-            for (size_t i = 0; i < enemies.size(); ++i)
-            {
-                Enemy* e = enemies[i].get();
-                if (e->GetType() == EnemyType::Ball)
+
+                ImGui::Spacing();
+                if (ImGui::Button("+ Add New Paddle", ImVec2(-1, 30)))
                 {
-                    ballCounter++;
-                    char headerName[64];
-                    snprintf(headerName, 64, "Enemy Ball #%d", ballCounter);
-                    DrawEnemyUI(e, (int)i, headerName);
+                    EnemySpawnConfig cfg = lastSpawnConfig;
+                    cfg.Type = EnemyType::Paddle;
+                    cfg.Color = EnemyLevelData::Blue;
+
+                    scene->m_enemyManager->SpawnEnemy(cfg);
+                    auto& newE = scene->m_enemyManager->GetEnemies().back();
+                    newE->SetActive(false);
                 }
+
+                ImGui::TreePop();
             }
-    
-            ImGui::Spacing();
-    
-            ImGui::Text("Spawn Controls:");
-            if (ImGui::Button("+ Spawn Paddle"))
+
+            // =========================================================
+            // SUB-HEADER: ENEMY BALLS
+            // =========================================================
+            if (ImGui::TreeNode("Enemy Balls"))
             {
-                EnemySpawnConfig newSpawn;
-                newSpawn.Position = { 0.0f, 0.0f, 0.0f };
-                newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };
-                newSpawn.Color = { 1.0f, 0.2f, 0.2f, 1.0f };
-                newSpawn.Type = EnemyType::Paddle;
-                scene->m_enemyManager->SpawnEnemy(newSpawn);
+                int ballCount = 0;
+                for (size_t i = 0; i < enemies.size(); ++i)
+                {
+                    Enemy* e = enemies[i].get();
+                    if (e->GetType() != EnemyType::Ball) continue;
+
+                    ballCount++;
+                    char label[64];
+                    snprintf(label, 64, "Ball #%d", ballCount);
+
+                    ImGui::PushID((int)i);
+                    if (ImGui::TreeNode(label))
+                    {
+                        e->SetHighlight(true);
+
+                        XMFLOAT3 pos = e->GetPosition();
+                        XMFLOAT3 rot = e->GetRotation();
+                        XMFLOAT3 scl = e->scale;
+
+                        ImGui::DragFloat3("Pos", &pos.x, 0.1f);
+                        ImGui::DragFloat3("Rot", &rot.x, 0.1f);
+                        ImGui::DragFloat3("Scale", &scl.x, 0.1f);
+
+                        e->SetPosition(pos);
+                        e->SetRotation(rot);
+                        e->scale = scl;
+
+                        if (!e->IsActive()) e->UpdateOriginalTransform(pos, rot);
+
+                        if (ImGui::Button("Copy Value")) {
+                            std::string copyStr = GenerateEnemyCopyString(e, ballCount, "Ball");
+                            ImGui::SetClipboardText(copyStr.c_str());
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::Button("Delete")) {
+                            enemies.erase(enemies.begin() + i);
+                            ImGui::TreePop(); ImGui::PopID(); break;
+                        }
+
+                        ImGui::TreePop();
+                    }
+                    ImGui::PopID();
+                }
+
+                ImGui::Spacing();
+                if (ImGui::Button("+ Add New Ball", ImVec2(-1, 30)))
+                {
+                    EnemySpawnConfig cfg;
+                    cfg.Position = { 0,0,0 };
+                    cfg.Rotation = { 0,0,0 };
+                    cfg.Color = EnemyLevelData::Yellow;
+                    cfg.Type = EnemyType::Ball;
+                    scene->m_enemyManager->SpawnEnemy(cfg);
+                }
+
+                ImGui::TreePop();
             }
-    
-            ImGui::SameLine();
-    
-            if (ImGui::Button("+ Spawn Ball"))
-            {
-                EnemySpawnConfig newSpawn;
-                newSpawn.Position = { 0.0f, 0.0f, 0.0f };
-                newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };
-                newSpawn.Color = { 1.0f, 0.89f, 0.58f, 1.0f };
-                newSpawn.Type = EnemyType::Ball;
-                scene->m_enemyManager->SpawnEnemy(newSpawn);
-            }
-    
+
             ImGui::Unindent();
         }
     }
