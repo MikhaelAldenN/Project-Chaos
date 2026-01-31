@@ -178,6 +178,9 @@ void SceneGameBreaker::Update(float elapsedTime)
         bool isShielding = (GetKeyState(VK_LSHIFT) & 0x8000) && canUseShield;
         bool isShooting = (GetKeyState(VK_SPACE) & 0x8000) && canShoot;
 
+        // Delete later
+        if (player->GetGameStage() == 3) { if (Input::Instance().GetKeyboard().IsTriggered('R')) { blockManager->SpawnAllyBlock(player); } }
+
         DirectX::XMFLOAT3 mousePos = GetMouseOnGround(activeCam);
         DirectX::XMFLOAT3 playerPos = player->GetPosition();
 

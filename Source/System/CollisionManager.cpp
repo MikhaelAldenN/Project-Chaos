@@ -406,15 +406,11 @@ void CollisionManager::CheckBlockVsStage()
 
         auto* moveComp = block.GetMovement();
 
-        if (block.IsProjectile()) continue;
-
-        for (int iter = 0; iter < iterations; ++iter)
+        if (block.IsProjectile())
         {
             XMFLOAT3 blockPos = moveComp->GetPosition();
-            XMFLOAT3 vel = moveComp->GetVelocity();
-            bool collidedAny = false;
 
-            float queryRadius = blockRadius + 5.0f; 
+            float queryRadius = blockRadius + 5.0f;
             auto nearbyWallIndices = m_stage->GetSpatialGrid().QueryRadius(blockPos, queryRadius);
 
             for (size_t wallIdx : nearbyWallIndices)
@@ -426,6 +422,44 @@ void CollisionManager::CheckBlockVsStage()
                 float dz = blockPos.z - wall.Position.z;
                 if ((dx * dx + dz * dz) > pow(maxScale + blockRadius + 2.0f, 2)) continue;
 
+                XMVECTOR vLocalPos = TransformToLocal(blockPos, wall);
+                XMFLOAT3 localPos;
+                XMStoreFloat3(&localPos, vLocalPos);
+
+                float closestX = (std::max)(-wall.Scale.x, (std::min)(localPos.x, wall.Scale.x));
+                float closestZ = (std::max)(-wall.Scale.z, (std::min)(localPos.z, wall.Scale.z));
+                float localDx = localPos.x - closestX;
+                float localDz = localPos.z - closestZ;
+                float localDistSq = (localDx * localDx) + (localDz * localDz);
+
+                if (localDistSq < (blockRadius * blockRadius) && localDistSq > 0.00001f)
+                {
+                    block.OnHit();
+                    if (m_blockManager) m_blockManager->TriggerBlockBreakParams();
+
+                    break;
+                }
+            }
+            continue;
+        }
+
+        for (int iter = 0; iter < iterations; ++iter)
+        {
+            XMFLOAT3 blockPos = moveComp->GetPosition();
+            XMFLOAT3 vel = moveComp->GetVelocity();
+            bool collidedAny = false;
+
+            float queryRadius = blockRadius + 5.0f;
+            auto nearbyWallIndices = m_stage->GetSpatialGrid().QueryRadius(blockPos, queryRadius);
+
+            for (size_t wallIdx : nearbyWallIndices)
+            {
+                const auto& wall = m_stage->m_debugWalls[wallIdx];
+
+                float maxScale = (std::max)(wall.Scale.x, wall.Scale.z);
+                float dx = blockPos.x - wall.Position.x;
+                float dz = blockPos.z - wall.Position.z;
+                if ((dx * dx + dz * dz) > pow(maxScale + blockRadius + 2.0f, 2)) continue;
 
                 XMVECTOR vLocalPos = TransformToLocal(blockPos, wall);
                 XMFLOAT3 localPos;
@@ -453,7 +487,7 @@ void CollisionManager::CheckBlockVsStage()
                     XMStoreFloat3(&blockPos, vPos);
 
                     collidedAny = true;
-                    block.SetWallCollision({ 0, 1, 0 }); 
+                    block.SetWallCollision({ 0, 1, 0 });
 
                     XMVECTOR vVel = XMLoadFloat3(&vel);
                     float dot = XMVectorGetX(XMVector3Dot(vVel, vWorldNormal));
