@@ -383,5 +383,4 @@ private:
 
     SpatialHashGrid m_spatialGrid;
     std::shared_ptr<Model> model;
-    std::vector<DebugWallData> SegmentLongWall(const DebugWallData& wall);
 };

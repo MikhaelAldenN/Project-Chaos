@@ -64,6 +64,78 @@ static XMVECTOR TransformToLocalLine(const XMFLOAT3& worldPos, const DebugLineDa
     return XMVector3TransformNormal(vRelPos, matInvRot);
 }
 
+static float RayCastOBB(XMVECTOR rayOrigin, XMVECTOR rayDir, float rayLength, float radius, const DebugWallData& wall, XMVECTOR& outNormal)
+{
+    XMVECTOR vWallPos = XMLoadFloat3(&wall.Position);
+    XMMATRIX matRot = XMMatrixRotationRollPitchYaw(
+        XMConvertToRadians(wall.Rotation.x),
+        XMConvertToRadians(wall.Rotation.y),
+        XMConvertToRadians(wall.Rotation.z)
+    );
+    XMMATRIX matInvRot = XMMatrixTranspose(matRot); 
+
+    XMVECTOR vRelOrigin = XMVectorSubtract(rayOrigin, vWallPos);
+    XMVECTOR vLocalOrigin = XMVector3TransformNormal(vRelOrigin, matInvRot);
+    XMVECTOR vLocalDir = XMVector3TransformNormal(rayDir, matInvRot);
+
+    float r = radius;
+    float minX = -wall.Scale.x - r; float maxX = wall.Scale.x + r;
+    float minZ = -wall.Scale.z - r; float maxZ = wall.Scale.z + r;
+    float minY = -100.0f;           float maxY = 100.0f; 
+
+    float tMin = 0.0f;
+    float tMax = rayLength;
+
+    XMFLOAT3 start, dir;
+    XMStoreFloat3(&start, vLocalOrigin);
+    XMStoreFloat3(&dir, vLocalDir);
+
+    if (abs(dir.x) < 1e-6f) {
+        if (start.x < minX || start.x > maxX) return -1.0f;
+    }
+    else {
+        float invD = 1.0f / dir.x;
+        float t1 = (minX - start.x) * invD;
+        float t2 = (maxX - start.x) * invD;
+        if (t1 > t2) std::swap(t1, t2);
+        tMin = (std::max)(tMin, t1);
+        tMax = (std::min)(tMax, t2);
+        if (tMin > tMax) return -1.0f;
+    }
+
+    if (abs(dir.z) < 1e-6f) {
+        if (start.z < minZ || start.z > maxZ) return -1.0f;
+    }
+    else {
+        float invD = 1.0f / dir.z;
+        float t1 = (minZ - start.z) * invD;
+        float t2 = (maxZ - start.z) * invD;
+        if (t1 > t2) std::swap(t1, t2);
+        tMin = (std::max)(tMin, t1);
+        tMax = (std::min)(tMax, t2);
+        if (tMin > tMax) return -1.0f;
+    }
+
+    XMFLOAT3 hitPoint;
+    XMStoreFloat3(&hitPoint, vLocalOrigin + vLocalDir * tMin);
+
+    float distMinX = abs(hitPoint.x - minX);
+    float distMaxX = abs(hitPoint.x - maxX);
+    float distMinZ = abs(hitPoint.z - minZ);
+    float distMaxZ = abs(hitPoint.z - maxZ);
+
+    float bestDist = distMinX;
+    XMVECTOR localNormal = XMVectorSet(-1, 0, 0, 0);
+
+    if (distMaxX < bestDist) { bestDist = distMaxX; localNormal = XMVectorSet(1, 0, 0, 0); }
+    if (distMinZ < bestDist) { bestDist = distMinZ; localNormal = XMVectorSet(0, 0, -1, 0); }
+    if (distMaxZ < bestDist) { bestDist = distMaxZ; localNormal = XMVectorSet(0, 0, 1, 0); }
+
+    outNormal = XMVector3TransformNormal(localNormal, matRot);
+
+    return tMin;
+}
+
 void CollisionManager::Initialize(Player* p, Stage* s, BlockManager* bm, EnemyManager* em, ItemManager* im)
 {
     m_player = p;
@@ -156,10 +228,6 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
 {
     if (!m_enemyManager) return;
 
-    static const float PARALLEL_EPSILON = 1e-4f;
-    static const float SKIN_WIDTH = 0.01f;
-    static const float MIN_HIT_TIME = -0.001f;
-
     for (auto& enemy : m_enemyManager->GetEnemies())
     {
         auto& projectiles = enemy->GetProjectiles();
@@ -170,160 +238,39 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
             auto& ball = *it;
             if (!ball) { ++it; continue; }
 
-            auto* move = ball->GetMovement();
+            XMFLOAT3 currentPos = ball->GetMovement()->GetPosition();
+            XMFLOAT3 currentVel = ball->GetVelocity();
+
+            XMVECTOR vPos = XMLoadFloat3(&currentPos);
+            XMVECTOR vVel = XMLoadFloat3(&currentVel);
+            XMVECTOR vNextPos = vPos + (vVel * elapsedTime);
+            XMVECTOR vDir = XMVector3Normalize(vVel);
+
+            float speed = XMVectorGetX(XMVector3Length(vVel));
+            float frameDist = speed * elapsedTime;
             float ballRadius = ball->GetRadius();
 
-            XMFLOAT3 currentPos = move->GetPosition();
-            XMFLOAT3 currentVel = ball->GetVelocity();
-            XMFLOAT3 targetPos = ball->PredictNextPosition(elapsedTime);
-
             bool hitWall = false;
-            float closestHitTime = 2.0f;
-            XMFLOAT3 wallHitNormal = { 0, 0, 0 };
-            XMFLOAT3 wallHitPoint = currentPos;
+            float closestT = frameDist;
+            XMVECTOR hitNormal = XMVectorZero();
 
             if (m_stage)
             {
-                float dx = targetPos.x - currentPos.x;
-                float dz = targetPos.z - currentPos.z;
-                float travelDist = std::sqrt(dx * dx + dz * dz);
-                float queryRadius = travelDist + ballRadius + 2.0f;
-                auto nearbyWallIndices = m_stage->GetSpatialGrid().QueryRadius(currentPos, queryRadius);
-
-                for (size_t wallIdx : nearbyWallIndices)
+                for (const auto& wall : m_stage->m_debugWalls)
                 {
-                    const auto& wall = m_stage->m_debugWalls[wallIdx];
                     float dx = currentPos.x - wall.Position.x;
                     float dz = currentPos.z - wall.Position.z;
-                    float distSq = (dx * dx) + (dz * dz);
-                    float checkRadius = wall.WorldRadius + ballRadius + 2.0f;
 
-                    if (distSq > (checkRadius * checkRadius)) continue;
+                    float wallMax = (std::max)(wall.Scale.x, wall.Scale.z);
+                    if ((dx * dx + dz * dz) > pow(wallMax + frameDist + 10.0f, 2)) continue;
 
-                    float maxScale = (std::max)({ wall.Scale.x, wall.Scale.y, wall.Scale.z });
-                    float wMinX = wall.Position.x - maxScale;
-                    float wMaxX = wall.Position.x + maxScale;
-                    float wMinZ = wall.Position.z - maxScale;
-                    float wMaxZ = wall.Position.z + maxScale;
+                    XMVECTOR tempNormal;
+                    float t = RayCastOBB(vPos, vDir, frameDist, ballRadius, wall, tempNormal);
 
-                    float bMinX = currentPos.x - ballRadius;
-                    float bMaxX = currentPos.x + ballRadius;
-                    float bMinZ = currentPos.z - ballRadius;
-                    float bMaxZ = currentPos.z + ballRadius;
-
-                    if (bMaxX < wMinX || bMinX > wMaxX || bMaxZ < wMinZ || bMinZ > wMaxZ) continue;
-
-                    XMVECTOR vLocStart = TransformToLocal(currentPos, wall);
-                    XMVECTOR vLocEnd = TransformToLocal(targetPos, wall);
-
-                    XMFLOAT3 p0, p1;
-                    XMStoreFloat3(&p0, vLocStart);
-                    XMStoreFloat3(&p1, vLocEnd);
-
-                    float halfX = wall.Scale.x * 0.5f;
-                    float halfZ = wall.Scale.z * 0.5f;
-                    float boxMinX = -halfX - ballRadius - SKIN_WIDTH;
-                    float boxMaxX = halfX + ballRadius + SKIN_WIDTH;
-                    float boxMinZ = -halfZ - ballRadius - SKIN_WIDTH;
-                    float boxMaxZ = halfZ + ballRadius + SKIN_WIDTH;
-
-                    float dirX = p1.x - p0.x;
-                    float dirZ = p1.z - p0.z;
-                    float rayLengthSq = dirX * dirX + dirZ * dirZ;
-
-                    if (rayLengthSq < 1e-8f) {
-                        if (p0.x >= boxMinX && p0.x <= boxMaxX &&
-                            p0.z >= boxMinZ && p0.z <= boxMaxZ)
-                        {
-                            float distToMinX = p0.x - boxMinX;
-                            float distToMaxX = boxMaxX - p0.x;
-                            float distToMinZ = p0.z - boxMinZ;
-                            float distToMaxZ = boxMaxZ - p0.z;
-
-                            float minDist = (std::min)({ distToMinX, distToMaxX, distToMinZ, distToMaxZ });
-                            XMFLOAT3 localNormal = { 0, 0, 0 };
-                            if (minDist == distToMinX)      localNormal = { -1, 0, 0 };
-                            else if (minDist == distToMaxX) localNormal = { 1, 0, 0 };
-                            else if (minDist == distToMinZ) localNormal = { 0, 0, -1 };
-                            else                            localNormal = { 0, 0, 1 };
-
-                            closestHitTime = 0.0f;
-                            XMVECTOR vNormalLocal = XMLoadFloat3(&localNormal);
-                            XMMATRIX matRot = XMMatrixRotationRollPitchYaw(
-                                XMConvertToRadians(wall.Rotation.x),
-                                XMConvertToRadians(wall.Rotation.y),
-                                XMConvertToRadians(wall.Rotation.z)
-                            );
-                            XMVECTOR vNormalWorld = TransformNormalToWorld(vNormalLocal, wall);
-                            XMStoreFloat3(&wallHitNormal, XMVector3Normalize(vNormalWorld));
-                            wallHitPoint = currentPos;
-                            hitWall = true;
-                        }
-                        continue;
-                    }
-
-                    float tMin = 0.0f;
-                    float tMax = 1.0f;
-                    XMFLOAT3 hitNormalLocal = { 0, 0, 0 };
-
-                    if (fabsf(dirX) > PARALLEL_EPSILON)
+                    if (t >= 0.0f && t < closestT)
                     {
-                        float invDirX = 1.0f / dirX;
-                        float t1 = (boxMinX - p0.x) * invDirX;
-                        float t2 = (boxMaxX - p0.x) * invDirX;
-                        if (t1 > t2) std::swap(t1, t2);
-                        if (t1 > tMin) { tMin = t1; hitNormalLocal = (dirX > 0) ? XMFLOAT3{ -1, 0, 0 } : XMFLOAT3{ 1, 0, 0 }; }
-                        if (t2 < tMax) tMax = t2;
-                    }
-                    else if (p0.x < boxMinX - PARALLEL_EPSILON || p0.x > boxMaxX + PARALLEL_EPSILON) continue;
-
-                    if (tMin > tMax) continue;
-
-                    if (fabsf(dirZ) > PARALLEL_EPSILON)
-                    {
-                        float invDirZ = 1.0f / dirZ;
-                        float t1 = (boxMinZ - p0.z) * invDirZ;
-                        float t2 = (boxMaxZ - p0.z) * invDirZ;
-                        if (t1 > t2) std::swap(t1, t2);
-                        if (t1 > tMin) { tMin = t1; hitNormalLocal = (dirZ > 0) ? XMFLOAT3{ 0, 0, -1 } : XMFLOAT3{ 0, 0, 1 }; }
-                        if (t2 < tMax) tMax = t2;
-                    }
-                    else if (p0.z < boxMinZ - PARALLEL_EPSILON || p0.z > boxMaxZ + PARALLEL_EPSILON) continue;
-
-                    if (tMin > tMax) continue;
-
-                    if (tMin >= MIN_HIT_TIME && tMin <= 1.0f && tMin < closestHitTime)
-                    {
-                        XMFLOAT3 testHitLocal;
-                        testHitLocal.x = p0.x + dirX * tMin;
-                        testHitLocal.y = 0.0f;
-                        testHitLocal.z = p0.z + dirZ * tMin;
-
-                        const float BOUNDS_TOLERANCE = 0.05f;
-                        bool validHit = (
-                            testHitLocal.x >= boxMinX - BOUNDS_TOLERANCE &&
-                            testHitLocal.x <= boxMaxX + BOUNDS_TOLERANCE &&
-                            testHitLocal.z >= boxMinZ - BOUNDS_TOLERANCE &&
-                            testHitLocal.z <= boxMaxZ + BOUNDS_TOLERANCE
-                            );
-
-                        if (!validHit) continue;
-
-                        closestHitTime = tMin;
-                        XMVECTOR vNormalLocal = XMLoadFloat3(&hitNormalLocal);
-                        XMMATRIX matRot = XMMatrixRotationRollPitchYaw(
-                            XMConvertToRadians(wall.Rotation.x),
-                            XMConvertToRadians(wall.Rotation.y),
-                            XMConvertToRadians(wall.Rotation.z)
-                        );
-                        XMVECTOR vNormalWorld = XMVector3TransformNormal(vNormalLocal, matRot);
-                        vNormalWorld = XMVector3Normalize(vNormalWorld);
-                        XMStoreFloat3(&wallHitNormal, vNormalWorld);
-
-                        XMVECTOR vStart = XMLoadFloat3(&currentPos);
-                        XMVECTOR vEnd = XMLoadFloat3(&targetPos);
-                        XMVECTOR vHitPoint = XMVectorLerp(vStart, vEnd, tMin);
-                        XMStoreFloat3(&wallHitPoint, vHitPoint);
+                        closestT = t;
+                        hitNormal = tempNormal;
                         hitWall = true;
                     }
                 }
@@ -335,44 +282,34 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
                     it = projectiles.erase(it);
                     continue;
                 }
-                else {
-                    XMVECTOR vCur = XMLoadFloat3(&currentPos);
-                    XMVECTOR vTar = XMLoadFloat3(&targetPos);
-                    XMVECTOR vDir = XMVectorSubtract(vTar, vCur);
-                    float safeT = (std::max)(0.0f, closestHitTime * 0.95f);
-                    XMVECTOR vSafePos = XMVectorAdd(vCur, XMVectorScale(vDir, safeT));
 
-                    XMFLOAT3 safePos;
-                    XMStoreFloat3(&safePos, vSafePos);
-                    safePos.y = 0.0f;
+                float safeDist = (std::max)(0.0f, closestT - 0.01f);
+                XMVECTOR vSafePos = vPos + (vDir * safeDist);
 
-                    XMVECTOR vVel = XMLoadFloat3(&currentVel);
-                    XMVECTOR vNorm = XMLoadFloat3(&wallHitNormal);
-                    XMVECTOR vReflected = XMVector3Reflect(vVel, vNorm);
-                    vReflected = XMVectorSetY(vReflected, 0.0f);
+                XMVECTOR vReflectedVel = XMVector3Reflect(vVel, hitNormal);
 
-                    XMFLOAT3 reflectedVel;
-                    XMStoreFloat3(&reflectedVel, vReflected);
+                float remainingDist = frameDist - closestT;
+                vSafePos += (XMVector3Normalize(vReflectedVel) * remainingDist);
 
-                    float remainingT = (std::max)(0.0f, 1.0f - closestHitTime);
-                    float remainingTime = remainingT * elapsedTime;
+                vSafePos += hitNormal * 0.05f;
 
-                    XMFLOAT3 finalPos = safePos;
-                    finalPos.x += reflectedVel.x * remainingTime;
-                    finalPos.z += reflectedVel.z * remainingTime;
-                    finalPos.x += wallHitNormal.x * (ballRadius * 0.2f + SKIN_WIDTH);
-                    finalPos.z += wallHitNormal.z * (ballRadius * 0.2f + SKIN_WIDTH);
-                    finalPos.y = 0.0f;
+                XMFLOAT3 finalPos, finalVel;
+                XMStoreFloat3(&finalPos, vSafePos);
+                XMStoreFloat3(&finalVel, vReflectedVel);
 
-                    ball->ApplyMovement(finalPos, reflectedVel);
-                    ball->UpdatePreviousPosition();
+                finalPos.y = 0.0f;
+                finalVel.y = 0.0f;
 
-                    ++it;
-                    continue;
-                }
+                ball->ApplyMovement(finalPos, finalVel);
+                ball->UpdatePreviousPosition(); 
+
+                ++it;
+                continue;
             }
 
-            ball->ApplyMovement(targetPos, currentVel);
+            XMFLOAT3 nextPosFloat;
+            XMStoreFloat3(&nextPosFloat, vNextPos);
+            ball->ApplyMovement(nextPosFloat, currentVel);
             ball->UpdatePreviousPosition();
 
             if (m_blockManager) {
@@ -392,7 +329,7 @@ void CollisionManager::CheckStageCollision()
 
     float playerRadius = 0.5f;
     auto* moveComp = m_player->GetMovement();
-    int iterations = 4;
+    int iterations = 4; 
 
     for (int iter = 0; iter < iterations; ++iter)
     {
@@ -402,33 +339,49 @@ void CollisionManager::CheckStageCollision()
 
         for (const auto& wall : m_stage->m_debugWalls)
         {
+            float maxScale = (std::max)(wall.Scale.x, wall.Scale.z);
             float dx = playerPos.x - wall.Position.x;
             float dz = playerPos.z - wall.Position.z;
             float distSq = (dx * dx) + (dz * dz);
-            float checkRadius = wall.WorldRadius + playerRadius + 2.0f;
+            float checkDist = maxScale + playerRadius + 2.0f;
+            if (distSq > (checkDist * checkDist)) continue;
 
-            if (distSq > (checkRadius * checkRadius)) continue;
+            XMVECTOR vLocalPos = TransformToLocal(playerPos, wall);
+            XMFLOAT3 localPos;
+            XMStoreFloat3(&localPos, vLocalPos);
 
-            DebugWallData solidWall = wall;
-            solidWall.Scale.y = 1000.0f;
-            XMFLOAT3 fixPos = playerPos;
-            if (Collision::ResolveOBB(playerPos, playerRadius, solidWall, fixPos))
+            float closestX = (std::max)(-wall.Scale.x, (std::min)(localPos.x, wall.Scale.x));
+            float closestZ = (std::max)(-wall.Scale.z, (std::min)(localPos.z, wall.Scale.z));
+
+            float localDx = localPos.x - closestX;
+            float localDz = localPos.z - closestZ;
+            float localDistSq = (localDx * localDx) + (localDz * localDz);
+
+            if (localDistSq < (playerRadius * playerRadius) && localDistSq > 0.00001f)
             {
-                float dx = fixPos.x - playerPos.x;
-                float dy = fixPos.y - playerPos.y;
-                float dz = fixPos.z - playerPos.z;
-                playerPos = fixPos;
+                float localDist = sqrt(localDistSq);
+                float penetrationDepth = playerRadius - localDist;
+
+                XMVECTOR vLocalNormal = XMVectorSet(localDx / localDist, 0.0f, localDz / localDist, 0.0f);
+
+                XMVECTOR vWorldNormal = TransformNormalToWorld(vLocalNormal, wall);
+
+                XMVECTOR vPush = XMVectorScale(vWorldNormal, penetrationDepth);
+                XMVECTOR vCurrentPos = XMLoadFloat3(&playerPos);
+                vCurrentPos = XMVectorAdd(vCurrentPos, vPush);
+                XMStoreFloat3(&playerPos, vCurrentPos);
+
                 collidedAny = true;
-                XMVECTOR vPush = XMVectorSet(dx, dy, dz, 0.0f);
+
                 XMVECTOR vVel = XMLoadFloat3(&vel);
-                XMVECTOR vNormal = XMVector3Normalize(vPush);
-                float dot = XMVectorGetX(XMVector3Dot(vVel, vNormal));
+                float dot = XMVectorGetX(XMVector3Dot(vVel, vWorldNormal));
                 if (dot < 0.0f) {
-                    vVel = XMVectorSubtract(vVel, XMVectorScale(vNormal, dot));
+                    vVel = XMVectorSubtract(vVel, XMVectorScale(vWorldNormal, dot));
                     XMStoreFloat3(&vel, vVel);
                 }
             }
         }
+
         if (collidedAny) {
             moveComp->SetPosition(playerPos);
             moveComp->SetVelocity(vel);
@@ -446,7 +399,6 @@ void CollisionManager::CheckBlockVsStage()
     auto& blocks = m_blockManager->GetBlocks();
     for (auto& blockPtr : blocks)
     {
-        // Dereference unique_ptr
         Block& block = *blockPtr;
 
         if (!block.IsActive()) continue;
@@ -454,34 +406,7 @@ void CollisionManager::CheckBlockVsStage()
 
         auto* moveComp = block.GetMovement();
 
-        if (block.IsProjectile())
-        {
-            XMFLOAT3 blockPos = moveComp->GetPosition();
-            float queryRadius = blockRadius + 3.0f;
-            auto nearbyWallIndices = m_stage->GetSpatialGrid().QueryRadius(blockPos, queryRadius);
-
-            for (size_t wallIdx : nearbyWallIndices)
-            {
-                const auto& wall = m_stage->m_debugWalls[wallIdx];
-                float dx = blockPos.x - wall.Position.x;
-                float dz = blockPos.z - wall.Position.z;
-                float distSq = (dx * dx) + (dz * dz);
-                float checkRadius = wall.WorldRadius + blockRadius + 1.0f;
-
-                if (distSq > (checkRadius * checkRadius)) continue;
-
-                DebugWallData solidWall = wall;
-                solidWall.Scale.y = 1000.0f;
-                XMFLOAT3 fixPos = blockPos;
-
-                if (Collision::ResolveOBB(blockPos, blockRadius, solidWall, fixPos))
-                {
-                    block.OnHit();
-                    break;
-                }
-            }
-            continue;
-        }
+        if (block.IsProjectile()) continue;
 
         for (int iter = 0; iter < iterations; ++iter)
         {
@@ -489,44 +414,57 @@ void CollisionManager::CheckBlockVsStage()
             XMFLOAT3 vel = moveComp->GetVelocity();
             bool collidedAny = false;
 
-            float queryRadius = blockRadius + 3.0f;
+            float queryRadius = blockRadius + 5.0f; 
             auto nearbyWallIndices = m_stage->GetSpatialGrid().QueryRadius(blockPos, queryRadius);
 
             for (size_t wallIdx : nearbyWallIndices)
             {
                 const auto& wall = m_stage->m_debugWalls[wallIdx];
+
+                float maxScale = (std::max)(wall.Scale.x, wall.Scale.z);
                 float dx = blockPos.x - wall.Position.x;
                 float dz = blockPos.z - wall.Position.z;
-                float distSq = (dx * dx) + (dz * dz);
-                float checkRadius = wall.WorldRadius + blockRadius + 2.0f;
+                if ((dx * dx + dz * dz) > pow(maxScale + blockRadius + 2.0f, 2)) continue;
 
-                if (distSq > (checkRadius * checkRadius)) continue;
 
-                DebugWallData solidWall = wall;
-                solidWall.Scale.y = 1000.0f;
-                XMFLOAT3 fixPos = blockPos;
-                if (Collision::ResolveOBB(blockPos, blockRadius, solidWall, fixPos))
+                XMVECTOR vLocalPos = TransformToLocal(blockPos, wall);
+                XMFLOAT3 localPos;
+                XMStoreFloat3(&localPos, vLocalPos);
+
+                float closestX = (std::max)(-wall.Scale.x, (std::min)(localPos.x, wall.Scale.x));
+                float closestZ = (std::max)(-wall.Scale.z, (std::min)(localPos.z, wall.Scale.z));
+
+                float localDx = localPos.x - closestX;
+                float localDz = localPos.z - closestZ;
+                float localDistSq = (localDx * localDx) + (localDz * localDz);
+
+                if (localDistSq < (blockRadius * blockRadius) && localDistSq > 0.00001f)
                 {
-                    float dx = fixPos.x - blockPos.x;
-                    float dy = fixPos.y - blockPos.y;
-                    float dz = fixPos.z - blockPos.z;
+                    float localDist = sqrt(localDistSq);
+                    float penetration = blockRadius - localDist;
 
-                    blockPos = fixPos;
+                    XMVECTOR vLocalNormal = XMVectorSet(localDx / localDist, 0.0f, localDz / localDist, 0.0f);
+                    XMVECTOR vWorldNormal = TransformNormalToWorld(vLocalNormal, wall);
+
+                    XMVECTOR vPush = XMVectorScale(vWorldNormal, penetration);
+
+                    XMVECTOR vPos = XMLoadFloat3(&blockPos);
+                    vPos = XMVectorAdd(vPos, vPush);
+                    XMStoreFloat3(&blockPos, vPos);
+
                     collidedAny = true;
-                    block.SetWallCollision({ 0, 1, 0 });
+                    block.SetWallCollision({ 0, 1, 0 }); 
 
-                    XMVECTOR vPush = XMVectorSet(dx, dy, dz, 0.0f);
                     XMVECTOR vVel = XMLoadFloat3(&vel);
-                    XMVECTOR vNormal = XMVector3Normalize(vPush);
-                    float dot = XMVectorGetX(XMVector3Dot(vVel, vNormal));
-
+                    float dot = XMVectorGetX(XMVector3Dot(vVel, vWorldNormal));
                     if (dot < 0.0f)
                     {
-                        vVel = XMVectorSubtract(vVel, XMVectorScale(vNormal, dot));
+                        vVel = XMVectorSubtract(vVel, XMVectorScale(vWorldNormal, dot));
                         XMStoreFloat3(&vel, vVel);
                     }
                 }
             }
+
             if (collidedAny) {
                 moveComp->SetPosition(blockPos);
                 moveComp->SetVelocity(vel);
