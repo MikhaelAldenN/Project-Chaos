@@ -20,7 +20,7 @@ void WindowManager::Update(float dt)
 
 void WindowManager::EnforceWindowPriorities()
 {
-    // Filter valid game windows
+    // 1. Filter valid game windows
     std::vector<GameWindow*> sortedWindows;
     sortedWindows.reserve(windows.size());
 
@@ -32,21 +32,35 @@ void WindowManager::EnforceWindowPriorities()
         }
     }
 
-    // Sort by priority (Ascending)
+    // 2. Sort by priority (Ascending: Priority 0 paling atas, makin besar makin di belakang)
+    // Note: Logika sort kamu sebelumnya Ascending, pastikan ini sesuai keinginanmu.
     std::sort(sortedWindows.begin(), sortedWindows.end(),
         [](GameWindow* a, GameWindow* b) {
             return a->GetPriority() < b->GetPriority();
         });
 
-    // Apply Z-Order
+    // =========================================================
+    // [MODIFIKASI] SMART TOPMOST
+    // =========================================================
+#ifdef _DEBUG
+    // MODE DEBUG: Matikan TopMost agar tidak menghalangi debugging
+    // Window akan berperilaku normal (bisa ditumpuk window lain)
+    HWND hInsertAfter = HWND_NOTOPMOST;
+#else
+    // MODE RELEASE: Nyalakan TopMost (Sesuai desain game)
+    // Window akan selalu di atas aplikasi lain
     HWND hInsertAfter = HWND_TOPMOST;
+#endif
+    // =========================================================
 
-    // [OPTIMISASI] Gunakan SWP_NOREDRAW untuk mengurangi flicker saat reordering
+    // Gunakan flag SWP_NOACTIVATE agar tidak mencuri fokus keyboard
     UINT uFlags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOREDRAW;
 
     for (GameWindow* win : sortedWindows)
     {
         SetWindowPos(win->GetHWND(), hInsertAfter, 0, 0, 0, 0, uFlags);
+
+        // Chain Z-Order: Window berikutnya diletakkan DI BAWAH window ini.
         hInsertAfter = win->GetHWND();
     }
 
