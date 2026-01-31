@@ -102,3 +102,8 @@ void ItemManager::RenderDebug(ShapeRenderer* renderer)
         }
     }
 }
+
+void ItemManager::ResetAllAnimations()
+{
+    for (auto& item : m_items) { if (item) item->ResetAnimation(); }
+}

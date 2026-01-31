@@ -647,7 +647,7 @@ void CollisionManager::CheckBlockVsEnemies()
     float blockRadius = 0.5f;
     const float BALL_RADIUS = 1.0f;     
     const float PADDLE_THICKNESS = 0.5f;
-    const float PADDLE_WIDTH_HALF = 3.0f; 
+    const float PADDLE_WIDTH_HALF = 0.8f; 
 
     for (auto it = enemies.begin(); it != enemies.end(); )
     {
@@ -798,7 +798,7 @@ void CollisionManager::CheckPlayerVsEnemies()
     float playerRadius = 0.5f;
     const float BALL_RADIUS = 1.0f;
     const float PADDLE_THICKNESS = 0.5f;
-    const float PADDLE_WIDTH_HALF = 3.0f;
+    const float PADDLE_WIDTH_HALF = 0.8f;
 
     for (auto it = enemies.begin(); it != enemies.end(); )
     {

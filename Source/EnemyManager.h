@@ -50,7 +50,7 @@ namespace EnemyLevelData
     // COLOR PRESETS
     // ==========================================
     static const DirectX::XMFLOAT4 Blue         = { 0.0f, 0.0f, 0.8f, 1.0f };
-    static const DirectX::XMFLOAT4 Yellow       = { 0.96f, 0.80f, 0.23f, 1.0f };
+    static const DirectX::XMFLOAT4 PaleYellow   = { 0.76f, 0.74f, 0.56f, 1.0f };
 
     // ==========================================
     // ROTATION PRESETS
@@ -68,56 +68,40 @@ namespace EnemyLevelData
     // ==========================================
     static const std::vector<EnemySpawnConfig> Spawns =
     {
-        // Paddle 1 
-        { { 0.0f, 0.0f, -50.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::Tracking },
+        // ------------------------------------------
+        // PADDLE LIST
+        // ------------------------------------------
+        // Paddle 1
+        { { 4.6f, 0.0f, -40.3f }, Rot::Right, Blue, EnemyType::Paddle, AttackType::Static },
+        // Paddle 2
+        { { -4.7f, 0.0f, -52.9f }, Rot::Left, Blue, EnemyType::Paddle, AttackType::Static },
+        // Paddle 3
+        { { -2.9f, 0.0f, -157.2f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::Tracking },
+        // Paddle 4
+        { { 1.3f, 0.0f, -192.7f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Left, -4.4f, 4.3f },
+        // Paddle 5
+        { { 28.1f, 0.0f, -226.9f }, Rot::Right, Blue, EnemyType::Paddle, AttackType::Static },
+        // Paddle 6
+        { { 28.1f, 0.0f, -230.0f }, Rot::Right, Blue, EnemyType::Paddle, AttackType::Static },
+        // Paddle 7
+        { { 28.1f, 0.0f, -233.2f }, Rot::Right, Blue, EnemyType::Paddle, AttackType::Static },
+        // Paddle 8
+        { { 28.1f, 0.0f, -236.3f }, Rot::Right, Blue, EnemyType::Paddle, AttackType::Static },
+        // Paddle 9
+        { { 28.1f, 0.0f, -239.4f }, Rot::Right, Blue, EnemyType::Paddle, AttackType::Static },
+        // Paddle 10
+        { { 28.1f, 0.0f, -242.5f }, Rot::Right, Blue, EnemyType::Paddle, AttackType::Static },
+        // Paddle 11
+        { { 28.1f, 0.0f, -245.7f }, Rot::Right, Blue, EnemyType::Paddle, AttackType::Static },
+        // Paddle 12
+        { { 28.1f, 0.0f, -249.1f }, Rot::Right, Blue, EnemyType::Paddle, AttackType::Static },
 
-        //// Paddle 2
-        //{ { -10.0f, 0.0f, -40.0f }, Rot::Left, Blue, EnemyType::Paddle, AttackType::Static },
-
-        //// Paddle 3
-        //{ { 0.0f, 0.0f, -50.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::Tracking },
-
-        //// Paddle 4
-        //{ { 0.0f, 0.0f, -65.5f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Left, -4.0f, 4.0f },
-
-        //// Paddle 5
-        //{ { 0.0f, 0.0f, -79.1f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Right, -4.0f, 4.0f },
-
-        //// Paddle 6
-        //{ { 0.0f, 0.0f, -146.8f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::Tracking },
-
-        //// Paddle 7
-        //{ { -6.5f, 0.0f, -151.6f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Right, -5.0f, 5.0f },
-
-        //// Paddle 8 
-        //{ { 6.5f, 0.0f, -151.6f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Left, -5.0f, 5.0f },
-
-        //// Paddle 9
-        //{ { -3.5f, 0.0f, -162.9f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Left, -1.5f, 1.5f },
-
-        //// Paddle 10
-        //{ { 3.5f, 0.0f, -162.9f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Right, -1.5f, 1.5f },
-
-        //// Paddle 11
-        //{ { 0.0f, 0.0f, -189.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingRandom, MoveDir::None, -3.0f, 3.0f, -21.0f, 15.0f },
-
-        //// Paddle 12
-        //{ { -7.5f, 0.0f, -189.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingRandom, MoveDir::None, -3.0f, 3.0f, -21.0f, 15.0f },
-
-        //// Paddle 13
-        //{ { 7.5f, 0.0f, -189.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingRandom, MoveDir::None, -3.0f, 3.0f, -21.0f, 15.0f },
-
-        //// Paddle 14
-        //{ { -9.5f, 0.0f, -260.5f }, Rot::Left, Blue, EnemyType::Paddle, AttackType::Static },
-
-        //// Paddle 15
-        //{ { -9.5f, 0.0f, -270.0f }, Rot::Left, Blue, EnemyType::Paddle, AttackType::Static },
-
-        //// Paddle 16
-        //{ { -9.5f, 0.0f, -280.0f }, Rot::Left, Blue, EnemyType::Paddle, AttackType::Static },
-
-        //// Paddle 17
-        //{ { -9.5f, 0.0f, -289.5f }, Rot::Left, Blue, EnemyType::Paddle, AttackType::Static },
+        // ------------------------------------------
+        // BALL LIST
+        // ------------------------------------------
+        // Ball 1
+        
+        
     };
 }
 

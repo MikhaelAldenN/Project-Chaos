@@ -453,7 +453,8 @@ void SceneGameBreaker::Update(float elapsedTime)
             m_mashLoopCount = 0;   // Reset hitungan
             m_showSubText = false; // Sembunyikan subtext
         }
-    }}
+    }
+}
 
 void SceneGameBreaker::UpdateGameTriggers(float elapsedTime)
 {
