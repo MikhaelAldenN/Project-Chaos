@@ -13,7 +13,7 @@ Item::Item(ID3D11Device* device, const DirectX::XMFLOAT3& position, ItemType typ
     movement->SetGravityEnabled(false);
 
     originalY = position.y;
-    animTime = ((float)rand() / RAND_MAX) * 10.0f; // Random offset
+    animTime = 0.0f;
 }
 
 void Item::Update(float elapsedTime, Camera* camera)

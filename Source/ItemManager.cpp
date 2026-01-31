@@ -53,13 +53,14 @@ void ItemManager::AddItem(ItemType type)
     ItemSpawnData defaultData;
     defaultData.Type = type;
 
-    if (!m_items.empty()) {
-        defaultData.Position = m_items.back()->GetPosition();
-        defaultData.Position.x += 2.0f;
-        defaultData.Rotation = m_items.back()->GetRotation();
+    if (!m_items.empty()) 
+    {
+        defaultData.Position = m_items.back()->GetBasePosition(); 
+        defaultData.Rotation = { 0, 0, 0 };
         defaultData.Scale = m_items.back()->scale;
     }
-    else {
+    else 
+    {
         defaultData.Position = { 0, 0.4f, 0 };
         defaultData.Rotation = { 0, 0, 0 };
         defaultData.Scale = { 2.0f, 2.0f, 2.0f };

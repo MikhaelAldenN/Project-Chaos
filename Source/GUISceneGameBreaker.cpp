@@ -1142,10 +1142,9 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                             const char* typeEnum = (item->GetType() == ItemType::Heal) ? "ItemType::Heal" : "ItemType::Invincible";
 
                             snprintf(buffer, sizeof(buffer),
-                                "// %s\n{ { %.1ff, %.1ff, %.1ff }, { %.1ff, %.1ff, %.1ff }, { %.1ff, %.1ff, %.1ff }, %s },",
-                                label, // Uses the formatted name (e.g., "Item Heal #1")
+                                "// %s\n{ { %.1ff, %.1ff, %.1ff }, { 0.0f, 0.0f, 0.0f }, { %.1ff, %.1ff, %.1ff }, %s },",
+                                label,
                                 pos.x, pos.y, pos.z,
-                                rot.x, rot.y, rot.z,
                                 scl.x, scl.y, scl.z,
                                 typeEnum
                             );
@@ -1155,7 +1154,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                         ImGui::SameLine();
                         if (ImGui::Button("Delete"))
                         {
-                            // Actual deletion happens outside to avoid iterator invalidation
                             items.erase(items.begin() + index);
                             deleted = true;
                         }
