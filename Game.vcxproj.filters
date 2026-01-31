@@ -273,6 +273,15 @@
     <ClCompile Include="Source\ItemManager.cpp">
       <Filter>Source\Item</Filter>
     </ClCompile>
+    <ClCompile Include="Source\StateBoss.cpp">
+      <Filter>Source\State</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\TerminalMonitor1.cpp">
+      <Filter>Source\Character\Boss</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\UIImpactDisplay.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\AnimationController.h">
@@ -553,6 +562,15 @@
     </ClInclude>
     <ClInclude Include="Source\ItemManager.h">
       <Filter>Source\Item</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\StateBoss.h">
+      <Filter>Source\State</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\TerminalMonitor1.h">
+      <Filter>Source\Character\Boss</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UIImpactDisplay.h">
+      <Filter>Source\UI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

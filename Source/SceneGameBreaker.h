@@ -31,6 +31,8 @@
 #include "GUISceneGameBreaker.h" // Logic GUI ada di sini
 #include "PostProcessManager.h"
 
+#include "UIImpactDisplay.h"
+
 class SceneGameBreaker : public Scene
 {
     // Memberi akses ke class GUI untuk edit variabel private
@@ -155,6 +157,7 @@ private:
     // Graphics
     std::unique_ptr<Sprite> m_spriteBorderBreaker;
     std::unique_ptr<Sprite> m_spriteDEBUG_LAYOUT; // Jika masih dipakai
+    std::unique_ptr<Sprite> m_spriteSubText;
 
     std::unique_ptr<PostProcessManager> m_postProcess;
     UberShader::UberData uberParams;
@@ -175,4 +178,15 @@ private:
 
     // [PENTING] Director yang mengatur kamera sekarang
     std::unique_ptr<CinematicDirector> m_director;
+
+    std::unique_ptr<UIImpactDisplay> m_impactDisplay;
+
+
+    bool m_hasTriggeredEscapeSequence = false;
+    bool m_showSubText = false; // Status apakah subtext muncul
+    int m_mashLoopCount = 0;    // Hitungan loop mash
+
+    float m_mashTimer = 0.0f;       // Penghitung waktu manual
+    bool m_isMashFirstRun = true;   // Penanda apakah ini trigger pertama (1 detik)
+    bool m_mashSequenceActive = false;
 };

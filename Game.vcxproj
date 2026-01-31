@@ -143,8 +143,10 @@
     <ClInclude Include="Source\LogConsole.h" />
     <ClInclude Include="Source\PostProcessManager.h" />
     <ClInclude Include="Source\Stage.h" />
+    <ClInclude Include="Source\StateBoss.h" />
     <ClInclude Include="Source\System\Collision.h" />
     <ClInclude Include="Source\System\CollisionManager.h" />
+    <ClInclude Include="Source\TerminalMonitor1.h" />
     <ClInclude Include="Source\TextDatabase.h" />
     <ClInclude Include="Source\TUIBuilder.h" />
     <ClInclude Include="Source\UberShader.h" />
@@ -201,6 +203,7 @@
     <ClInclude Include="Source\UIButtonPrimitive.h" />
     <ClInclude Include="Source\UIButtonSprite.h" />
     <ClInclude Include="Source\UIComponents.h" />
+    <ClInclude Include="Source\UIImpactDisplay.h" />
     <ClInclude Include="Source\UILabel.h" />
     <ClInclude Include="Source\UIPanel.h" />
     <ClInclude Include="Source\WindowManager.h" />
@@ -254,6 +257,7 @@
     <ClCompile Include="Source\SceneIntroOS.cpp" />
     <ClCompile Include="Source\SceneTitle.cpp" />
     <ClCompile Include="Source\Stage.cpp" />
+    <ClCompile Include="Source\StateBoss.cpp" />
     <ClCompile Include="Source\System\BasicShader.cpp" />
     <ClCompile Include="Source\System\Collision.cpp" />
     <ClCompile Include="Source\System\CollisionManager.cpp" />
@@ -275,11 +279,13 @@
     <ClCompile Include="Source\System\ShapeRenderer.cpp" />
     <ClCompile Include="Source\System\Sprite.cpp" />
     <ClCompile Include="Source\System\TransformUtils.cpp" />
+    <ClCompile Include="Source\TerminalMonitor1.cpp" />
     <ClCompile Include="Source\TextDatabase.cpp" />
     <ClCompile Include="Source\TUIBuilder.cpp" />
     <ClCompile Include="Source\Typewriter.cpp" />
     <ClCompile Include="Source\UberShader.cpp" />
     <ClCompile Include="Source\UIComponents.cpp" />
+    <ClCompile Include="Source\UIImpactDisplay.cpp" />
     <ClCompile Include="Source\UIPanel.cpp" />
     <ClCompile Include="Source\WindowManager.cpp" />
     <ClCompile Include="Source\WindowShatter.cpp" />

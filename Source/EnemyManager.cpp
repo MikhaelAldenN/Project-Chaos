@@ -47,11 +47,34 @@ void EnemyManager::Update(float elapsedTime, Camera* camera, const DirectX::XMFL
     }
 }
 
-void EnemyManager::Render(ModelRenderer* renderer)
+void EnemyManager::Render(ModelRenderer* renderer, Camera* camera)
 {
     for (auto& enemy : m_enemies)
     {
-        renderer->Draw(ShaderId::Phong, enemy->GetModel(), enemy->color);
+        // --- STEP 1: LOGIC CULLING UNTUK BODY MUSUH ---
+        bool isBodyVisible = true;
+
+        if (camera)
+        {
+            DirectX::XMFLOAT3 pos = enemy->GetPosition();
+
+            // Cek apakah BODY musuh masuk kamera? (Radius 1.5f)
+            // Jika CheckSphere return false (di luar layar), kita set visible = false
+            if (!camera->CheckSphere(pos.x, pos.y, pos.z, 1.5f))
+            {
+                isBodyVisible = false;
+            }
+        }
+
+        // --- STEP 2: RENDER BODY (Hanya jika visible) ---
+        if (isBodyVisible)
+        {
+            renderer->Draw(ShaderId::Phong, enemy->GetModel(), enemy->color);
+        }
+
+        // --- STEP 3: RENDER PROJECTILES (SELALU RENDER!) ---
+        // PENTING: Jangan masukkan ini ke dalam blok 'if (isBodyVisible)'
+        // Peluru harus tetap digambar meskipun musuhnya ada di luar layar (off-screen)
         enemy->RenderProjectiles(renderer);
     }
 }

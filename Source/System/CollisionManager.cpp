@@ -73,6 +73,16 @@ void CollisionManager::Initialize(Player* p, Stage* s, BlockManager* bm, EnemyMa
     m_itemManager = im;
 }
 
+void CollisionManager::Initialize(Player* p, Stage* s, BlockManager* bm, EnemyManager* em, ItemManager* im, Boss* boss)
+{
+    m_player = p;
+    m_stage = s;
+    m_blockManager = bm;
+    m_enemyManager = em;
+    m_itemManager = im;
+    m_boss = boss; // Simpan pointer boss
+}
+
 void CollisionManager::Update(float elapsedTime)
 {
     if (!m_player->IsFalling())
@@ -120,6 +130,7 @@ void CollisionManager::Update(float elapsedTime)
     CheckPlayerVsCheckpointLines();
     CheckPlayerVsTriggerLines();
     CheckPlayerVsVoidLines();
+    CheckBossFilesVsPlayer();
 
     if (m_blockManager)
     {
@@ -131,6 +142,7 @@ void CollisionManager::Update(float elapsedTime)
         CheckBlockVsBlocks();
         CheckPlayerVsBlocks();
         CheckBlockVsEnemies();
+        CheckBossFilesVsBlocks();
     }
 
     if (m_itemManager)
@@ -565,22 +577,24 @@ void CollisionManager::CheckBlockVsBlocks()
     if (!m_blockManager) return;
 
     float boxRadius = 0.4f;
-    float minTouchDist = boxRadius * 2.45f;
-    float pushTarget = minTouchDist + 0.001f;
     auto& blocks = m_blockManager->GetBlocks();
     size_t count = blocks.size();
-    int physicsIterations = 4;
 
     m_blockGrid.Clear();
 
     for (size_t i = 0; i < count; ++i)
     {
+        // Add all active blocks to the grid
         if (!blocks[i]->IsActive() || blocks[i]->IsFilling()) continue;
         XMFLOAT3 pos = blocks[i]->GetMovement()->GetPosition();
         m_blockGrid.Insert(pos, boxRadius, i);
     }
 
     if (m_blockManager->IsShieldActive()) return;
+
+    float minTouchDist = boxRadius * 2.45f;
+    float pushTarget = minTouchDist + 0.001f;
+    int physicsIterations = 4;
 
     for (int k = 0; k < physicsIterations; ++k)
     {
@@ -591,6 +605,7 @@ void CollisionManager::CheckBlockVsBlocks()
             auto* movA = blocks[i]->GetMovement();
             XMFLOAT3 posA = movA->GetPosition();
             float queryRadius = minTouchDist + 0.5f;
+
             auto nearbyBlockIndices = m_blockGrid.QueryRadius(posA, queryRadius);
 
             for (size_t j : nearbyBlockIndices)
@@ -673,10 +688,11 @@ void CollisionManager::CheckBlockVsEnemies()
         for (size_t i : nearbyIndices)
         {
             if (i >= blocks.size()) continue;
-            // Use pointer access
             Block& block = *blocks[i];
 
             if (!block.IsActive() || block.IsFalling()) continue;
+            if (!m_blockManager->IsShieldActive() && block.IsRelocating()) continue;
+
             XMFLOAT3 blockPos = block.GetMovement()->GetPosition();
 
             float dx = blockPos.x - enemyPos.x;
@@ -1038,6 +1054,119 @@ void CollisionManager::CheckPlayerVsItems()
 
             // 2. Matikan Item
             item->SetActive(false);
+        }
+    }
+}
+
+// =========================================================
+// [BARU] CHECK BOSS FILES VS PLAYER
+// =========================================================
+void CollisionManager::CheckBossFilesVsPlayer()
+{
+    if (!m_boss || !m_player) return;
+
+    // Ambil referensi vector projectiles biar kodenya bersih
+    auto& files = m_boss->GetProjectiles();
+
+    // Ambil posisi & radius Player
+    XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
+    float pRadius = 0.5f; // Radius Player standar
+    float fileRadius = 0.6f; // Radius File (agak besar biar gampang kena)
+
+    for (auto& file : files)
+    {
+        if (!file.active) continue;
+
+        // Hitung jarak squared (biar gak perlu akar kuadrat / sqrt)
+        float dx = pPos.x - file.position.x;
+        float dz = pPos.z - file.position.z; // Abaikan Y karena top-down logic
+        float distSq = dx * dx + dz * dz;
+
+        float combinedRadius = pRadius + fileRadius;
+
+        if (distSq < (combinedRadius * combinedRadius))
+        {
+            // --- HIT PLAYER ---
+
+            // 1. Matikan File
+            file.active = false;
+
+            // 2. Player Kena Hit (Logic sama seperti kena musuh/bola)
+            if (m_player->IsInvincible())
+            {
+                // Kalau invincible, cuma file yang hancur, player aman
+            }
+            else
+            {
+                if (m_onPlayerHitCallback) m_onPlayerHitCallback();
+                m_player->SetInputEnabled(false);
+                m_player->GetMovement()->SetPosition({ 0, -1000, 0 }); // Lempar ke void (Game Over)
+            }
+        }
+    }
+}
+
+// =========================================================
+// [BARU] CHECK BOSS FILES VS BLOCKS
+// =========================================================
+void CollisionManager::CheckBossFilesVsBlocks()
+{
+    if (!m_boss || !m_blockManager) return;
+
+    // Kita gunakan m_blockGrid yang sudah diisi oleh CheckBlockVsBlocks()
+    // Ini jauh lebih cepat daripada loop 100 file x 64 block (6400 checks).
+
+    auto& files = m_boss->GetProjectiles();
+    auto& blocks = m_blockManager->GetBlocks();
+
+    float fileRadius = 0.6f;
+    float blockRadius = 0.4f; // Radius visual block
+
+    for (auto& file : files)
+    {
+        if (!file.active) continue;
+
+        // Query Grid: Cari block di sekitar posisi file
+        float queryRadius = 2.0f;
+        auto nearbyIndices = m_blockGrid.QueryRadius(file.position, queryRadius);
+
+        for (size_t i : nearbyIndices)
+        {
+            if (i >= blocks.size()) continue;
+            Block& block = *blocks[i];
+
+            if (!block.IsActive() || block.IsFilling() || block.IsProjectile()) continue;
+
+            XMFLOAT3 bPos = block.GetMovement()->GetPosition();
+
+            // Cek Collision Sphere vs Sphere (Cepat & Efektif untuk proyektil banyak)
+            float dx = bPos.x - file.position.x;
+            float dz = bPos.z - file.position.z;
+            float distSq = dx * dx + dz * dz;
+
+            float combinedRadius = fileRadius + blockRadius;
+
+            if (distSq < (combinedRadius * combinedRadius))
+            {
+                // --- HIT BLOCK ---
+
+                // 1. Matikan File
+                file.active = false;
+
+                // 2. Hancurkan Block
+                if (m_blockManager->IsInvincible())
+                {
+                    // Kalau mode invincible, block kuat (tidak hancur), cuma file yang hancur
+                }
+                else
+                {
+                    block.OnHit(); // Block hancur
+                    m_blockManager->TriggerBlockBreakParams(); // Trigger callback/sound
+                }
+
+                // File sudah mati, break loop nearbyIndices agar tidak menghancurkan 2 block sekaligus
+                break;
+            }
         }
     }
 }

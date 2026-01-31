@@ -1,56 +1,62 @@
+// BossTerminal.h
 #pragma once
-
-#include <DirectXMath.h>
+#include <d3d11.h>
+#include <wrl/client.h>
 #include <string>
 #include <vector>
+#include <deque>
+#include <DirectXMath.h>
+#include "BitmapFont.h"
 
-// Forward declarations untuk mengurangi dependency di header
-class BitmapFont;
-class Camera;
-
-// =========================================================
-// BOSS LOG ENTRY
-// =========================================================
-struct BossLogEntry {
-    std::string text;
-    int visibleChars = 0;
-    float typeTimer = 0.0f;
-    bool isDone = false;
-};
-
-// =========================================================
-// BOSS TERMINAL CLASS
-// Sistem console log bergaya 3D
-// =========================================================
 class BossTerminal
 {
 public:
-    void Initialize(int maxLines);
+    BossTerminal();
+    ~BossTerminal();
+
+    void Initialize(ID3D11Device* device, int width, int height);
     void Update(float dt);
+    void RenderToTexture(ID3D11DeviceContext* context, BitmapFont* font);
+    ID3D11ShaderResourceView* GetTexture() const { return m_srv.Get(); }
 
-    // Render butuh pointer ke Font dan Camera
-    void Render(BitmapFont* font, Camera* camera,
-        const DirectX::XMFLOAT3& parentPos,
-        const DirectX::XMFLOAT3& parentRot);
-
-    void AddLog(const std::string& message);
-
-    // --- Configuration (Public for ImGui access) ---
-    DirectX::XMFLOAT3 offset = { -2.3f, 3.8f, 0.0f }; // Offset dari Monitor Center
-    DirectX::XMFLOAT3 rotationOffset = { 0.0f, 0.0f, 0.0f }; // Rotasi manual tambahan
-    float scale = 0.011f;
-    float lineSpacing = 1.0f; // Jarak antar baris dalam unit 3D
-    DirectX::XMFLOAT4 color = { 0.93f, 0.75f, 0.06f, 1.0f }; // Amber CRT Color
+    void AddLog(const std::string& msg);
+    void Clear();
+    void DrawGUI();
+    void MarkAsDirty() { m_needsUpdate = true; }
 
 private:
-    std::vector<BossLogEntry> m_buffer;
-    int m_maxLines = 10;
-    int m_writeIndex = 0;
-    int m_activeCount = 0;
+    void InitializeLogs(); // Helper data dummy
 
-    // Timer spawn log otomatis
-    float m_spawnTimer = 0.0f;
-    float m_nextSpawnDelay = 0.5f;
+private:
+    // RTT Resources
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> m_renderTargetTexture;
+    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_rtv;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_srv;
+    D3D11_VIEWPORT m_viewport;
 
-    float m_typeSpeed = 0.005f; // Kecepatan ketikan
+    // Terminal State
+    int m_width = 0;
+    int m_height = 0;
+    std::deque<std::string> m_logs;
+    size_t m_maxLines = 12;
+    bool m_needsUpdate = true;
+
+    // --- AUTO SCROLL SYSTEM ---
+    std::vector<std::string> m_bootSequence;
+    float m_timer = 0.0f;
+    float m_lineDelay = 0.5f;
+    bool m_autoScrollActive = true;
+
+    // --- [BARU] VISUAL SETTINGS ---
+    // Warna Amber Klasik (R=1.0, G=0.7, B=0.0)
+    DirectX::XMFLOAT4 m_textColor = { 1.0f, 0.75f, 0.0f, 0.7f };
+
+    // Posisi awal teks (Padding kiri & atas)
+    DirectX::XMFLOAT2 m_textPadding = { 27.0f, 23.0f };
+
+    // Jarak antar baris
+    float m_lineSpacing = 44.0f;
+
+    // Ukuran Font Global
+    float m_fontScale = 0.8f;
 };

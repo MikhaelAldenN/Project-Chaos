@@ -81,6 +81,16 @@ SceneGameBreaker::SceneGameBreaker()
 
     m_postProcess = std::make_unique<PostProcessManager>();
     m_postProcess->Initialize((int)screenW, (int)screenH);
+
+    // Initialize Impact Display
+    m_impactDisplay = std::make_unique<UIImpactDisplay>();
+    m_impactDisplay->Initialize(Graphics::Instance().GetDevice());
+
+    // Sesuaikan ukuran layar awal
+    m_impactDisplay->OnResize(screenW, screenH);
+
+    m_spriteSubText = std::make_unique<Sprite>(Graphics::Instance().GetDevice(),
+        "Data/Sprite/Scene Breaker/Sprite_SubText_SPACEKEYRENDA.png");
 }
 
 SceneGameBreaker::~SceneGameBreaker()
@@ -140,6 +150,16 @@ void SceneGameBreaker::Update(float elapsedTime)
             {
                 player->TriggerEscape();
                 CameraController::Instance().SetControlMode(CameraControlMode::FixedFollow);
+            
+                if (!m_hasTriggeredEscapeSequence)
+                {
+                    m_hasTriggeredEscapeSequence = true;
+                    std::vector<ImpactEvent> seq = {
+                        { ImpactType::Super,  1.2f }, // ESCAPE
+                        { ImpactType::Nigero, 1.5f }  // NIGERO
+                    };
+                    m_impactDisplay->ShowSequence(seq);
+                }
             }
         }
 
@@ -324,7 +344,113 @@ void SceneGameBreaker::Update(float elapsedTime)
             uberParams.glitchStrength = 0.0f;
         }
     }
-}
+    // --- LOGIKA FISHEYE IMPACT ---
+    // Cek apakah ada impact text yang sedang aktif
+    if (m_impactDisplay && m_impactDisplay->IsActive())
+    {
+        // Ambil nilai "tendangan" (1.0 turun ke 0.0 dalam 0.2 detik)
+        float kick = m_impactDisplay->GetDistortionKick();
+
+        // [REVISI] Ubah 5.0f menjadi 0.025f
+        if (kick > 0.001f)
+        {
+            // Hasilnya: Mulai dari 0.025 lalu turun cepat ke 0
+            uberParams.distortion = kick * 0.025f;
+
+            // Opsional: Chromatic aberration juga bisa disesuaikan kalau mau
+            // uberParams.chromaticAberration = kick * 0.005f; 
+        }
+    }
+
+    if (m_impactDisplay) {
+        m_impactDisplay->Update(elapsedTime);
+    }
+
+    // CONTOH PEMICU:
+    // Jika player tekan tombol M, munculkan efek "MASH SPACE"
+    if (Input::Instance().GetKeyboard().IsTriggered('M')) {
+        // Definisikan urutannya
+        std::vector<ImpactEvent> sequence = {
+            { ImpactType::Super, 0.4f },  // Tampilkan ESCAPE selama 1.2 detik
+            { ImpactType::Nigero, 1.0f }  // Lanjut NIGERO selama 1.5 detik
+        };
+
+        // Jalankan urutannya
+        m_impactDisplay->ShowSequence(sequence);
+    }
+    if (Input::Instance().GetKeyboard().IsTriggered('N')) {
+        std::vector<ImpactEvent> sequence = {
+            // Tampilkan "SPACE KEY" (Jepang) selama 1.2 detik
+            { ImpactType::SpaceKeyJP, 0.8f },
+
+            // Lalu timpa dengan "RENDA SEYO!" (MASH IT!) selama 2.0 detik
+            { ImpactType::RendaSeyo,  1.0f }
+        };
+
+        m_impactDisplay->ShowSequence(sequence);
+    }
+
+    // =========================================================
+        // LOGIC KAMERA SEQUENCE & TRIGGER MASH BERKALA
+        // =========================================================
+    auto currentCamMode = CameraController::Instance().GetControlMode();
+    bool isCameraC = (currentCamMode == CameraControlMode::FixedFollow);
+
+    // 1. UPDATE STATUS (LATCH SYSTEM)
+    // Jika masuk Index 1, aktifkan status Mash
+    if (seqInfo.CurrentIndex == 1)
+    {
+        m_mashSequenceActive = true;
+    }
+    // Jika sudah masuk Kamera C (FixedFollow), matikan paksa
+    if (isCameraC)
+    {
+        m_mashSequenceActive = false;
+    }
+
+    // 2. JALANKAN TIMER (Hanya jika status aktif)
+    // Kita hapus ketergantungan pada 'seqInfo.IsPlaying'
+    if (m_mashSequenceActive)
+    {
+        // Hitung waktu sendiri (akumulasi)
+        m_mashTimer += elapsedTime;
+
+        // Target: Pertama 1.0 detik, selanjutnya 3.0 detik
+        float targetTime = m_isMashFirstRun ? 1.0f : 5.0f;
+
+        if (m_mashTimer >= targetTime)
+        {
+            // Trigger UI Sequence
+            std::vector<ImpactEvent> seq = {
+                { ImpactType::SpaceKeyJP, 0.8f },
+                { ImpactType::RendaSeyo,  1.0f }
+            };
+            m_impactDisplay->ShowSequence(seq);
+
+            m_mashLoopCount++;
+
+            if (m_mashLoopCount >= 2)
+            {
+                m_showSubText = true;
+            }
+
+            // Reset Timer
+            m_mashTimer = 0.0f;
+            m_isMashFirstRun = false;
+        }
+    }
+    else
+    {
+        // Jika status mash tidak aktif (reset atau belum mulai), reset counter juga
+        // Supaya nanti kalau mulai lagi, subtext hilang dulu
+        if (!m_mashSequenceActive) // Bisa juga cek !seqInfo.CurrentIndex == 1
+        {
+            m_mashTimer = 0.0f;
+            m_isMashFirstRun = true;
+            m_mashLoopCount = 0;   // Reset hitungan
+            m_showSubText = false; // Sembunyikan subtext
+        }
+    }}
 
 void SceneGameBreaker::UpdateGameTriggers(float elapsedTime)
 {
@@ -417,6 +543,44 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
         primRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection(), D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
     }
 
+    if (m_impactDisplay) {
+        auto rs = Graphics::Instance().GetRenderState();
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
+        m_impactDisplay->Render(dc);
+    }
+
+    // [BARU] Render SubText
+    if (m_spriteSubText && m_showSubText)
+    {
+        // Pastikan Blend Transparency Aktif (biasanya sudah aktif dari impactDisplay, tapi untuk aman:)
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
+        // Ukuran Sprite (Sesuai Request)
+        float w = 369.0f;
+        float h = 36.0f;
+
+        // Posisi: Tengah Bawah
+        // X = (Layar / 2) - (Gambar / 2)
+        // Y = Layar - (Gambar) - Margin (misal 50 pixel dari bawah)
+        float screenW = 1920.0f; // Atau ambil dari GetMainWindow
+        float screenH = 1080.0f;
+
+        // Cek update resolusi dynamic jika perlu (ambil dari framework window width/height)
+        if (auto win = Framework::Instance()->GetMainWindow()) {
+            screenW = (float)win->GetWidth();
+            screenH = (float)win->GetHeight();
+        }
+
+        float dx = (screenW * 0.5f) - (w * 0.5f);
+        float dy = screenH - h - 100.0f; // 100 pixel dari bawah biar agak naik dikit
+
+        // Render (Warna Putih Solid)
+        m_spriteSubText->Render(dc, dx, dy, 0.0f, w, h, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+    }
+
     if (m_fxState.MasterEnabled)
     {
         UberShader::UberData& activeData = m_postProcess->GetData();
@@ -429,6 +593,7 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
 
         m_postProcess->EndCapture(elapsedTime);
     }
+
 }
 
 void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
@@ -503,6 +668,14 @@ void SceneGameBreaker::LoadCheckpoint()
     {
         blockManager->RestoreShield(m_checkpoint.savedBlockCount, player);
     }
+
+    m_hasTriggeredEscapeSequence = false;
+    // [RESET MASH TIMER]
+    m_mashTimer = 0.0f;
+    m_isMashFirstRun = true;
+    m_mashSequenceActive = false;
+    m_showSubText = false;
+    m_mashLoopCount = 0;
 }
 
 void SceneGameBreaker::DrawGUI()

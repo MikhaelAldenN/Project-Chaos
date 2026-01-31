@@ -18,6 +18,11 @@ struct WindowState
     int actualY = 0;
     float targetX = 0.0f;
     float targetY = 0.0f;
+
+    int actualW = 0;
+    int actualH = 0;
+    float targetW = 0.0f;
+    float targetH = 0.0f;
 };
 
 struct TrackedWindowConfig
@@ -38,6 +43,7 @@ struct TrackedWindow
     WindowState state;
     DirectX::XMFLOAT3 trackingOffset = { 0.0f, 0.0f, 0.0f };
     std::function<DirectX::XMFLOAT3()> getTargetPositionFunc;
+    std::function<DirectX::XMFLOAT2()> getTargetSizeFunc = nullptr;
 };
 
 // =========================================================
@@ -53,7 +59,12 @@ public:
     void Update(float dt);
 
     // Management
-    bool AddTrackedWindow(const TrackedWindowConfig& config, std::function<DirectX::XMFLOAT3()> getTargetPos);
+    bool AddTrackedWindow(
+        const TrackedWindowConfig& config,
+        std::function<DirectX::XMFLOAT3()> getTargetPos,
+        std::function<DirectX::XMFLOAT2()> getTargetSize = nullptr // Default null
+    );
+    void RemoveTrackedWindow(const std::string& name);
     TrackedWindow* GetTrackedWindow(const std::string& name);
     void ClearAll();
 

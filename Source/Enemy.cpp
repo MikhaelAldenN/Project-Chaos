@@ -162,6 +162,8 @@ void Enemy::UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::
     {
         auto& ball = *it;
 
+        ball->Update(elapsedTime, camera);
+
         XMFLOAT3 bPos = ball->GetMovement()->GetPosition();
         float bDx = targetPos.x - bPos.x;
         float bDz = targetPos.z - bPos.z;

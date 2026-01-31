@@ -13,8 +13,10 @@
 #include "BlockManager.h"
 #include "EnemyManager.h"
 #include "ItemManager.h"
+#include "Boss.h"
 
 class ItemManager;
+class Boss;
 
 class CollisionManager
 {
@@ -23,6 +25,8 @@ public:
     ~CollisionManager() = default;
 
     void Initialize(Player* p, Stage* s, BlockManager* bm, EnemyManager* em, ItemManager* im);
+    void Initialize(Player* p, Stage* s, BlockManager* bm, EnemyManager* em, ItemManager* im, Boss* boss);
+
     void Update(float elapsedTime);
     void SetOnCheckpointReachCallback(std::function<void(DirectX::XMFLOAT3)> callback) { m_onCheckpointReachCallback = callback; }
     void SetOnPlayerDeathCallback(std::function<void()> callback) { m_onPlayerDeathCallback = callback; }
@@ -44,8 +48,13 @@ private:
     void CheckStageCollision();
     void CheckEnemyProjectilesFull(float elapsedTime);
 
+    void CheckBossFilesVsPlayer();
+    void CheckBossFilesVsBlocks();
+
     Player* m_player = nullptr;
     Stage* m_stage = nullptr;
+    Boss* m_boss = nullptr; // [BARU]
+
     BlockManager* m_blockManager = nullptr;
     EnemyManager* m_enemyManager = nullptr;
     ItemManager* m_itemManager = nullptr;
