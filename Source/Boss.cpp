@@ -377,6 +377,12 @@ void Boss::TriggerLockPlayer()
     ChangeState(new BossCommandState(new BossLockPlayerState(), "INITIATE LOCK"));
 }
 
+void Boss::TriggerSpawnPentagon()
+{
+    // Bungkus dengan Command State agar ada efek ngetik "DEPLOYING..."
+    ChangeState(new BossCommandState(new BossSpawnPentagonState(), "DEPLOYING HEAVY UNIT..."));
+}
+
 void Boss::AddTerminalLog(const std::string& msg)
 {
     m_terminal.AddLog(msg);
@@ -561,7 +567,23 @@ void Boss::DrawDebugGUI()
                 {
                     ChangeState(new BossCommandState(new BossDownloadAttackState(), "DOWNLOADING FILES..."));
                 }
-
+                
+                if (ImGui::Button("Force PENTAGON"))      TriggerSpawnPentagon();
+                if (ImGui::DragFloat("Pentagon Scale", &m_pentagonScale, 0.1f, 0.5f, 100.0f))
+                {
+                    // JIKA DIGESER: Cari musuh Pentagon yang aktif dan langsung update scale-nya!
+                    if (m_enemyManager)
+                    {
+                        for (auto& enemy : m_enemyManager->GetEnemies())
+                        {
+                            if (enemy->GetType() == EnemyType::Pentagon)
+                            {
+                                enemy->SetScale({ m_pentagonScale, m_pentagonScale, m_pentagonScale });
+                            }
+                        }
+                    }
+                }
+                ImGui::DragFloat3("Pentagon Pos", &m_pentagonPos.x, 0.5f, -50.0f, 50.0f);
                 ImGui::Separator();
 
                 // Debug Tree untuk Parts

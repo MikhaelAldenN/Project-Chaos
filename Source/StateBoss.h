@@ -165,3 +165,16 @@ private:
 
     bool m_isMirrored = false;
 };
+
+class BossSpawnPentagonState : public BossState
+{
+public:
+    void Enter(Boss* boss) override;
+    void Update(Boss* boss, float dt) override;
+    void Exit(Boss* boss) override;
+    std::string GetName() const override { return "Spawn Pentagon"; }
+
+private:
+    float m_timer = 0.0f;
+    float m_duration = 2.0f; // Jeda sebelum kembali ke Idle
+};

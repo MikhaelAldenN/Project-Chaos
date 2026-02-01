@@ -15,6 +15,8 @@
 
 #include "System/Sprite.h"
 
+#include "Enemy.h"
+
 class Player;
 class BitmapFont;
 
@@ -121,6 +123,7 @@ public:
     void TriggerIdle();
     void TriggerSpawnEnemy();
     void TriggerLockPlayer();
+    void TriggerSpawnPentagon();
 
     // --- External Dependencies ---
     void SetPlayer(Player* player) { m_player = player; }
@@ -167,6 +170,10 @@ bool GetProjectileData(int id, DirectX::XMFLOAT3& outPos) const
     }
     return false;
 }
+
+float m_pentagonScale = 150.0f;
+DirectX::XMFLOAT3 m_pentagonPos = { 0.0f, 0.0f, 0.0f };
+
 private:
     void InitializeDefaultParts();
     void CreateScreenQuad(); // Helper to create screen geometry
@@ -228,4 +235,5 @@ private:
     std::vector<FileProjectile> m_fileProjectiles;
 
     int m_projectileIdCounter = 0;
+
 };

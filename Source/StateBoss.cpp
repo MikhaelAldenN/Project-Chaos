@@ -520,3 +520,59 @@ void BossDownloadAttackState::Exit(Boss* boss)
 
     boss->GetMonitor1()->ResetToIdle();
 }
+
+// ==========================================
+// STATE: SPAWN PENTAGON (RADIAL BURST)
+// ==========================================
+void BossSpawnPentagonState::Enter(Boss* boss)
+{
+    boss->AddTerminalLog("WARNING: HEAVY UNIT DETECTED");
+    boss->AddTerminalLog("PROTOCOL: RADIAL_BURST");
+
+    EnemyManager* em = boss->GetEnemyManager();
+    if (em)
+    {
+        EnemySpawnConfig config;
+
+        // 1. POSISI (Ambil dari Slider Boss)
+        config.Position = boss->m_pentagonPos;
+
+        config.Rotation = { 0.0f, 0.0f, 0.0f };
+        config.Color = { 1.0f, 0.0f, 1.0f, 1.0f };
+        config.Type = EnemyType::Pentagon;
+        config.AttackBehavior = AttackType::RadialBurst;
+
+        // 2. [FIX] STOP GERAKAN
+        // Ubah dari MoveDir::Right menjadi None
+        config.Direction = MoveDir::None;
+
+        // Reset range patroli biar aman (gak ngaruh kalau None, tapi biar rapi)
+        config.MinX = 0.0f;
+        config.MaxX = 0.0f;
+
+        // 3. [FIX] SCALE (Ambil dari Slider Boss)
+        float s = boss->m_pentagonScale;
+        config.Scale = { s, s, s };
+
+        em->SpawnEnemy(config);
+
+        boss->AddTerminalLog("UNIT DEPLOYED: PENTAGON (STATIC)");
+    }
+
+    m_timer = 0.0f;
+}
+
+void BossSpawnPentagonState::Update(Boss* boss, float dt)
+{
+    m_timer += dt;
+    // Tunggu durasi selesai, lalu kembali Idle
+    if (m_timer >= m_duration)
+    {
+        boss->GetStateMachine()->ChangeState(boss, new BossIdleState());
+    }
+}
+
+void BossSpawnPentagonState::Exit(Boss* boss)
+{
+    // Cleanup jika perlu
+}

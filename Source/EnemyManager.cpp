@@ -19,11 +19,25 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
 {
     ID3D11Device* device = Graphics::Instance().GetDevice();
     const char* modelPath = "";
-    if (config.Type == EnemyType::Ball) { modelPath = "Data/Model/Character/PLACEHOLDER_mdl_Ball.glb"; }
-    else { modelPath = "Data/Model/Character/PLACEHOLDER_mdl_Paddle.glb"; }
+
+    // [MODIFIKASI] Seleksi Model
+    if (config.Type == EnemyType::Ball)
+    {
+        modelPath = "Data/Model/Character/PLACEHOLDER_mdl_Ball.glb";
+    }
+    else if (config.Type == EnemyType::Pentagon) // [BARU]
+    {
+        modelPath = "Data/Model/Character/PLACEHOLDER_mdl_Pentagon.glb";
+    }
+    else
+    {
+        // Default ke Paddle
+        modelPath = "Data/Model/Character/PLACEHOLDER_mdl_Paddle.glb";
+    }
+
     auto newEnemy = std::make_unique<Enemy>(
         device,
-        modelPath,       
+        modelPath,
         config.Position,
         config.Rotation,
         config.Color,
@@ -31,10 +45,13 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
         config.AttackBehavior,
         config.MinX,
         config.MaxX,
-        config.MinZ, 
-        config.MaxZ, 
+        config.MinZ,
+        config.MaxZ,
         config.Direction
     );
+
+    newEnemy->SetScale(config.Scale);
+
     m_enemies.push_back(std::move(newEnemy));
 }
 
@@ -51,30 +68,35 @@ void EnemyManager::Render(ModelRenderer* renderer, Camera* camera)
 {
     for (auto& enemy : m_enemies)
     {
-        // --- STEP 1: LOGIC CULLING UNTUK BODY MUSUH ---
         bool isBodyVisible = true;
 
         if (camera)
         {
             DirectX::XMFLOAT3 pos = enemy->GetPosition();
 
-            // Cek apakah BODY musuh masuk kamera? (Radius 1.5f)
-            // Jika CheckSphere return false (di luar layar), kita set visible = false
-            if (!camera->CheckSphere(pos.x, pos.y, pos.z, 1.5f))
+            // [PERBAIKAN] Ambil Scale musuh
+            DirectX::XMFLOAT3 scale = enemy->GetScale();
+
+            // Cari nilai scale terbesar (misal kalau X=2, Y=1, Z=2 -> ambil 2)
+            float maxScale = max(scale.x, max(scale.y, scale.z));
+
+            // Base radius 1.5f dikali scale. 
+            // Kalau scale 2.0, radius jadi 3.0. Kalau scale 100, radius jadi 150.
+            float cullingRadius = 150.0f * maxScale;
+
+            // Gunakan radius dinamis
+            if (!camera->CheckSphere(pos.x, pos.y, pos.z, cullingRadius))
             {
                 isBodyVisible = false;
             }
         }
 
-        // --- STEP 2: RENDER BODY (Hanya jika visible) ---
         if (isBodyVisible)
         {
             renderer->Draw(ShaderId::Phong, enemy->GetModel(), enemy->color);
         }
 
-        // --- STEP 3: RENDER PROJECTILES (SELALU RENDER!) ---
-        // PENTING: Jangan masukkan ini ke dalam blok 'if (isBodyVisible)'
-        // Peluru harus tetap digambar meskipun musuhnya ada di luar layar (off-screen)
+        // Projectiles tetap dirender terpisah (selalu render)
         enemy->RenderProjectiles(renderer);
     }
 }

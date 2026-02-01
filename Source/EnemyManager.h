@@ -11,16 +11,18 @@ class ShapeRenderer;
 enum class EnemyType
 {
     Paddle,
-    Ball
+    Ball,
+    Pentagon // [BARU] Tambahkan ini
 };
 
 enum class AttackType
 {
     None,
-    Static,   
+    Static,
     Tracking,
     TrackingHorizontal,
-    TrackingRandom
+    TrackingRandom,
+    RadialBurst // [BARU] Serangan menyebar ke segala arah
 };
 
 enum class MoveDir
@@ -42,6 +44,8 @@ struct EnemySpawnConfig
     float MaxX = 0.0f;
     float MinZ = 0.0f; 
     float MaxZ = 0.0f; 
+
+    DirectX::XMFLOAT3 Scale = { 1.0f, 1.0f, 1.0f };
 };
 
 namespace EnemyLevelData

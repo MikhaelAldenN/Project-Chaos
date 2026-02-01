@@ -45,6 +45,9 @@ public:
     AttackType GetAttackType() const { return m_attackType; }
     std::deque<std::unique_ptr<Ball>>& GetProjectiles() { return m_projectiles; }
 
+    void SetScale(const DirectX::XMFLOAT3& scale) { m_scale = scale; }
+    DirectX::XMFLOAT3 GetScale() const { return m_scale; }
+
 private:
     void UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos);
 
@@ -87,4 +90,6 @@ private:
 
     // Visuals
     DirectX::XMFLOAT4 m_projectileColor = { 1.0f, 1.0f, 1.0f, 1.0f }; 
+
+    DirectX::XMFLOAT3 m_scale = { 1.0f, 1.0f, 1.0f };
 };
