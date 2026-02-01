@@ -100,6 +100,22 @@ namespace ItemLevelData
         { { 6.6f, 0.4f, -279.0f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
         // Item Heal #39
         { { 7.7f, 0.4f, -279.0f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
+        // Item Heal #40
+        { { 8.3f, 0.4f, -523.8f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
+        // Item Heal #41
+        { { 8.3f, 0.4f, -526.4f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
+        // Item Heal #42
+        { { 6.9f, 0.4f, -528.5f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
+        // Item Heal #43
+        { { 4.5f, 0.4f, -529.4f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
+        // Item Heal #44
+        { { 2.3f, 0.4f, -529.7f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
+        // Item Heal #45
+        { { 6.3f, 0.4f, -522.2f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
+        // Item Heal #46
+        { { 3.8f, 0.4f, -521.5f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
+        // Item Heal #47
+        { { 1.0f, 0.4f, -521.6f }, { 0.0f, 0.0f, 0.0f }, { 2.0f, 2.0f, 2.0f }, ItemType::Heal },
 
         // ------------------------------------------
         // INVINCIBLE LIST
