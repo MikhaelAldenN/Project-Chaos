@@ -175,7 +175,7 @@ void Enemy::UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::
             // [FIX] Konversi ke DEGREES agar sesuai dengan sistem render
             float targetYawDeg = XMConvertToDegrees(targetYawRad);
 
-            movement->SetRotationY(targetYawDeg);
+            movement->SetRotation({ 0.0f, targetYawDeg, 0.0f });
         }
 
         m_attackTimer += elapsedTime;

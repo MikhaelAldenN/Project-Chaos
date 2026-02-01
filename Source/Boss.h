@@ -12,34 +12,28 @@
 #include "TerminalMonitor1.h"
 #include "StateBoss.h"
 #include "EnemyManager.h"
-
 #include "System/Sprite.h"
-
 #include "Enemy.h"
 
 class Player;
-class BitmapFont;
 
 // =========================================================
-// STRUCTS
+// DATA STRUCTURES
 // =========================================================
 
 struct BossPartConfig
 {
     std::string name;
     std::string modelPath;
-
-    DirectX::XMFLOAT3 position = { 0.0f, 0.0f, 0.0f };
-    DirectX::XMFLOAT3 rotation = { 0.0f, 0.0f, 0.0f };
-    DirectX::XMFLOAT3 scale = { 1.0f, 1.0f, 1.0f };
-
+    DirectX::XMFLOAT3 position = { 0.f, 0.f, 0.f };
+    DirectX::XMFLOAT3 rotation = { 0.f, 0.f, 0.f };
+    DirectX::XMFLOAT3 scale = { 1.f, 1.f, 1.f };
     bool useFloating = true;
     float floatSpeed = 2.0f;
     float floatIntensity = 0.2f;
-    DirectX::XMFLOAT3 floatAxis = { 0.0f, 1.0f, 0.0f };
-
+    DirectX::XMFLOAT3 floatAxis = { 0.f, 1.f, 0.f };
     float cullRadius = 2.0f;
-    DirectX::XMFLOAT3 cullOffset = { 0.0f, 0.0f, 0.0f };
+    DirectX::XMFLOAT3 cullOffset = { 0.f, 0.f, 0.f };
 };
 
 struct BossPart
@@ -47,47 +41,43 @@ struct BossPart
     std::string name;
     std::shared_ptr<Model> model;
 
-    // Transform
-    DirectX::XMFLOAT3 position = { 0.0f, 0.0f, 0.0f };
-    DirectX::XMFLOAT3 rotation = { 0.0f, 0.0f, 0.0f };
-    DirectX::XMFLOAT3 scale = { 1.0f, 1.0f, 1.0f };
+    // Transform Data
+    DirectX::XMFLOAT3 position = { 0.f, 0.f, 0.f };
+    DirectX::XMFLOAT3 rotation = { 0.f, 0.f, 0.f };
+    DirectX::XMFLOAT3 scale = { 1.f, 1.f, 1.f };
 
-    // Animation State
-    DirectX::XMFLOAT3 visualPosition = { 0.0f, 0.0f, 0.0f };
+    // Visual State (Calculated per frame)
+    DirectX::XMFLOAT3 visualPosition = { 0.f, 0.f, 0.f };
+
+    // Animation Settings
     bool useFloating = true;
     float timer = 0.0f;
     float floatSpeed = 2.0f;
     float floatIntensity = 0.2f;
-    DirectX::XMFLOAT3 floatAxis = { 0.0f, 1.0f, 0.0f };
+    DirectX::XMFLOAT3 floatAxis = { 0.f, 1.f, 0.f };
+
+    // Culling
+    float cullRadius = 2.0f;
+    DirectX::XMFLOAT3 cullOffset = { 0.f, 0.f, 0.f };
 
     void Update(float dt);
     void Render(ModelRenderer* renderer);
-    float cullRadius = 2.0f;
-    DirectX::XMFLOAT3 cullOffset = { 0.0f, 0.0f, 0.0f };
-
 };
 
-enum class BgAnimState {
-    HIDDEN,
-    ENTERING, // Fase Flash (0 -> 1.0 -> 0.7)
-    ACTIVE,   // Stabil di 0.7
-    EXITING   // Fade Out (0.7 -> 0)
-};
+enum class BgAnimState { HIDDEN, ENTERING, ACTIVE, EXITING };
 
 struct FileProjectile
 {
-    int id = -1; // [BARU] ID Unik untuk tracking window
+    int id = -1;
     bool active = false;
-    DirectX::XMFLOAT3 position;
-    DirectX::XMFLOAT3 rotation;
-    DirectX::XMFLOAT3 targetPos;
+    DirectX::XMFLOAT3 position = { 0,0,0 };
+    DirectX::XMFLOAT3 rotation = { 0,0,0 };
+    DirectX::XMFLOAT3 targetPos = { 0,0,0 };
     float speed = 20.0f;
-
-    FileProjectile() {}
 };
 
 // =========================================================
-// BOSS CLASS (MAIN CONTROLLER)
+// BOSS CONTROLLER
 // =========================================================
 
 class Boss
@@ -96,144 +86,108 @@ public:
     Boss();
     ~Boss();
 
-    // --- Core Lifecycle ---
     void Update(float dt);
     void Render(ModelRenderer* renderer, Camera* camera = nullptr);
     void DrawDebugGUI();
 
-    // --- Part Management ---
-    bool AddPart(const BossPartConfig& config);
+    // --- Part System ---
     BossPart* GetPart(const std::string& name);
-    DirectX::XMFLOAT3 GetPartVisualPos(const std::string& name) const;
     bool HasPart(const std::string& name) const;
-    std::vector<std::string> GetPartNames() const;
 
-    // --- Legacy Part Shortcuts ---
+    // Shortcuts for Window Tracking
+    DirectX::XMFLOAT3 GetPartVisualPos(const std::string& name) const;
     DirectX::XMFLOAT3 GetMonitorVisualPos() const { return GetPartVisualPos("monitor1"); }
     DirectX::XMFLOAT3 GetCPUVisualPos() const { return GetPartVisualPos("cpu"); }
     DirectX::XMFLOAT3 GetMonitor2VisualPos() const { return GetPartVisualPos("monitor2"); }
     DirectX::XMFLOAT3 GetMonitor3VisualPos() const { return GetPartVisualPos("monitor3"); }
     DirectX::XMFLOAT3 GetAntennaVisualPos() const { return GetPartVisualPos("antenna"); }
 
-    // --- AI & State Management ---
+    // --- State & Logic ---
     void ChangeState(class BossState* newState);
     BossStateMachine* GetStateMachine() { return &m_stateMachine; }
 
-    // AI Commands (Triggers)
+    // Triggers
     void TriggerIdle();
     void TriggerSpawnEnemy();
     void TriggerLockPlayer();
     void TriggerSpawnPentagon();
 
-    // --- External Dependencies ---
-    void SetPlayer(Player* player) { m_player = player; }
+    // --- Dependencies ---
+    void SetPlayer(Player* p) { m_player = p; }
     Player* GetPlayer() const { return m_player; }
-
     void SetEnemyManager(class EnemyManager* em) { m_enemyManager = em; }
     class EnemyManager* GetEnemyManager() const { return m_enemyManager; }
 
-    // --- Terminal Access ---
-    void AddTerminalLog(const std::string& msg); // For Monitor 2 (Log System)
-    TerminalMonitor1* GetMonitor1() { return &m_terminal1; } // For Monitor 1 (Command System)
+    // --- Terminals ---
+    void AddTerminalLog(const std::string& msg);
+    TerminalMonitor1* GetMonitor1() { return &m_terminal1; }
 
-    // [BARU] Helper Attack Data
+    // --- Projectile System ---
     std::vector<FileProjectile>& GetProjectiles() { return m_fileProjectiles; }
-    void SpawnFileProjectile(const DirectX::XMFLOAT3& startPos, const DirectX::XMFLOAT3& targetPos);
+    void SpawnFileProjectile(const DirectX::XMFLOAT3& start, const DirectX::XMFLOAT3& target);
     void ClearProjectiles();
+    bool GetProjectileData(int id, DirectX::XMFLOAT3& outPos) const;
 
-    // [BARU] Public Config Variables (Agar bisa diedit State & ImGui)
-    // Posisi Antena (Start & End)
-    DirectX::XMFLOAT3 m_antennaHiddenPos = { 30.5f, 0.0f, -8.7f }; // Luar Layar
-    DirectX::XMFLOAT3 m_antennaShowPos = { 21.5f, 0.0f, -8.7f };   // Dalam Layar
+    // --- Configuration (Exposed for State/GUI) ---
+    struct AntennaConfig {
+        DirectX::XMFLOAT3 hiddenPos = { 30.5f, 0.0f, -8.7f };
+        DirectX::XMFLOAT3 showPos = { 21.5f, 0.0f, -8.7f };
+        DirectX::XMFLOAT3 scale = { 8.0f, 8.0f, 8.0f };
+        DirectX::XMFLOAT3 rotation = { 240.0f, 132.0f, 52.0f };
+        DirectX::XMFLOAT3 spawnSrc = { -19.0f, 0.0f, 1.7f };
+    } m_antennaConfig;
 
-    // Transform Antena (Scale & Rotation Global)
-    DirectX::XMFLOAT3 m_antennaScale = { 8.0f,  8.0f,  8.0f };
-    DirectX::XMFLOAT3 m_antennaRotation = { 240.0f, 132.0f, 52.0f };
+    struct PentagonConfig {
+        float scale = 150.0f;
+        DirectX::XMFLOAT3 pos = { 0.0f, 0.0f, 0.0f };
+    } m_pentagonConfig;
 
-    // Posisi Spawn File
-    DirectX::XMFLOAT3 m_fileSpawnSource = { -19.0f, 0.0f, 1.7f };
-
-    void ReserveProjectiles(int count) { m_fileProjectiles.reserve(count); }
-
-    // Debug Window Toggle
-bool m_showAntennaWindow = false;
-
-bool GetProjectileData(int id, DirectX::XMFLOAT3& outPos) const
-{
-    for (const auto& p : m_fileProjectiles)
-    {
-        if (p.active && p.id == id)
-        {
-            outPos = p.position;
-            return true;
-        }
-    }
-    return false;
-}
-
-float m_pentagonScale = 150.0f;
-DirectX::XMFLOAT3 m_pentagonPos = { 0.0f, 0.0f, 0.0f };
+    bool m_debugShowAntenna = false;
 
 private:
-    void InitializeDefaultParts();
-    void CreateScreenQuad(); // Helper to create screen geometry
+    void InitializeParts();
+    void UpdateBackgroundAnim(float dt);
+    void RenderScreens(ModelRenderer* renderer);
+    void RenderProjectiles(ModelRenderer* renderer, Camera* camera);
 
 private:
-    // --- Components ---
+    // Core Components
     std::vector<std::unique_ptr<BossPart>> m_parts;
-    std::unordered_map<std::string, BossPart*> m_partLookup;
+    std::unordered_map<std::string, BossPart*> m_partMap;
     BossStateMachine m_stateMachine;
 
-    // --- External References ---
+    // External Refs
     Player* m_player = nullptr;
-    class EnemyManager* m_enemyManager = nullptr;
+    EnemyManager* m_enemyManager = nullptr;
 
-    // --- Terminal Systems ---
-    BossTerminal m_terminal;      // Monitor 2 (Logs)
-    TerminalMonitor1 m_terminal1; // Monitor 1 (Commands/Cursor)
+    // Sub-Systems
+    BossTerminal m_terminal;      // Logs
+    TerminalMonitor1 m_terminal1; // Commands
 
-    // --- Screen Geometry (Monitor Overlays) ---
-    // We use separate models for screens to support different textures
-    std::shared_ptr<Model> m_screenQuad;  // For Monitor 2
-    std::shared_ptr<Model> m_screenQuad1; // For Monitor 1
+    // Visuals: Screens
+    std::shared_ptr<Model> m_screenQuad;
+    std::shared_ptr<Model> m_screenQuad1;
 
-    // --- Screen Transforms (Configurable via ImGui) ---
-
-    // Monitor 2 Screen (Relative Transform)
-    DirectX::XMFLOAT3 m_screenOffset = { 0.0f, 0.002f, 0.0174f };
-    DirectX::XMFLOAT3 m_screenRotation = { 81.7f, 0.0f, 0.0f };
-    DirectX::XMFLOAT3 m_screenScale = { 3.2f, 3.2f, 3.2f };
-
-    // Monitor 1 Screen (Relative Transform)
-    DirectX::XMFLOAT3 m_screen1Offset = { -0.02f, 0.195f, -0.340f };
-    DirectX::XMFLOAT3 m_screen1Rotation = { 90.0f, 180.0f, 0.0f };
-    DirectX::XMFLOAT3 m_screen1Scale = { 46.0f, 46.0f, 46.0f };
-
+    // Visuals: Background Chain
     std::unique_ptr<Sprite> m_bgChainSprite;
-
-    DirectX::XMFLOAT3 m_bgChainPos = { 0.0f, 0.0f, 0.0f };
-    DirectX::XMFLOAT3 m_bgChainRotation = { 90.0f, 0.0f, 0.0f };
-    DirectX::XMFLOAT2 m_bgChainSize = { 48.0f, 26.0f };
-
-    // [BARU] Opacity & Animation Control
     BgAnimState m_bgState = BgAnimState::HIDDEN;
-    float       m_bgAlpha = 0.0f; // Alpha saat ini (dikirim ke Render)
-    float       m_bgAnimTimer = 0.0f; // Timer animasi
-
-    // Settings (Bisa di-tweak)
-    float m_bgFlashDuration = 0.1f; // Waktu naik ke 1.0 (Cepat)
-    float m_bgSettleDuration = 0.3f; // Waktu turun ke 0.7
-    float m_bgFadeOutSpeed = 2.0f; // Kecepatan hilang
-    float m_bgBaseOpacity = 0.5f; // Target Opacity Stabil
-
+    float m_bgAlpha = 0.0f;
+    float m_bgTimer = 0.0f;
     bool m_debugForceBG = false;
 
-    // [BARU] Resources untuk Attack Download
+    // Visuals: Projectiles
     std::shared_ptr<Model> m_fileModel;
-
-    // Object Pool untuk Projectile
     std::vector<FileProjectile> m_fileProjectiles;
-
     int m_projectileIdCounter = 0;
 
+    // Screen Transform Configs
+    struct ScreenTransform {
+        DirectX::XMFLOAT3 offset;
+        DirectX::XMFLOAT3 rotation;
+        DirectX::XMFLOAT3 scale;
+    };
+    ScreenTransform m_screen2Config = { {0.0f, 0.002f, 0.018f}, {81.7f, 0.0f, 0.0f}, {3.2f, 3.2f, 3.2f} };
+    ScreenTransform m_screen1Config = { {-0.02f, 0.195f, -0.34f}, {90.0f, 180.0f, 0.0f}, {46.0f, 46.0f, 46.0f} };
+
+    std::vector<std::shared_ptr<Model::Material>> m_materialCache;
 };

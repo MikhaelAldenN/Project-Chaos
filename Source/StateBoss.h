@@ -2,7 +2,7 @@
 #include <string>
 #include <DirectXMath.h>
 
-// Forward Declaration (Biar tidak circular dependency)
+// Forward Declaration
 class Boss;
 
 // ==========================================
@@ -13,21 +13,21 @@ class BossState
 public:
     virtual ~BossState() = default;
 
-    // Dipanggil sekali saat masuk state (Reset timer, set warna, audio, dll)
+    // Called once when entering the state
     virtual void Enter(Boss* boss) = 0;
 
-    // Logic per frame (Pilih attack, gerak, deteksi player)
+    // Per-frame logic
     virtual void Update(Boss* boss, float dt) = 0;
 
-    // Dipanggil sekali saat keluar state
+    // Called once when exiting the state
     virtual void Exit(Boss* boss) = 0;
 
-    // Opsional: Untuk debug nama state
+    // Debug helper
     virtual std::string GetName() const { return "Unknown"; }
 };
 
 // ==========================================
-// 2. BOSS STATE MACHINE MANAGER
+// 2. BOSS STATE MACHINE
 // ==========================================
 class BossStateMachine
 {
@@ -37,8 +37,6 @@ public:
     void Initialize(BossState* startState, Boss* boss);
     void ChangeState(Boss* boss, BossState* newState);
     void Update(Boss* boss, float dt);
-
-    // Cek apakah state tertentu sedang aktif (berguna untuk logic luar)
     bool IsState(const std::string& stateName) const;
 
 private:
@@ -46,10 +44,10 @@ private:
 };
 
 // ==========================================
-// 3. CONCRETE STATES (DEFINITIONS)
+// 3. CONCRETE STATES
 // ==========================================
 
-// State: Intro (Saat Boss baru muncul/spawn)
+// --- Intro State ---
 class BossIntroState : public BossState
 {
 public:
@@ -57,13 +55,12 @@ public:
     void Update(Boss* boss, float dt) override;
     void Exit(Boss* boss) override;
     std::string GetName() const override { return "Intro"; }
-
 private:
     float m_timer = 0.0f;
-    float m_duration = 3.0f; // Intro selama 3 detik
+    const float m_duration = 3.0f;
 };
 
-// State: Idle (Menunggu/Mencari Player sebelum menyerang)
+// --- Idle State ---
 class BossIdleState : public BossState
 {
 public:
@@ -71,13 +68,12 @@ public:
     void Update(Boss* boss, float dt) override;
     void Exit(Boss* boss) override;
     std::string GetName() const override { return "Idle"; }
-
 private:
     float m_timer = 0.0f;
-    float m_decisionTime = 2.0f; // Waktu berpikir sebelum attack
+    const float m_decisionTime = 2.0f;
 };
 
-// State: Spawn Enemy (Memunculkan Minion)
+// --- Spawn Minions State ---
 class BossSpawnEnemyState : public BossState
 {
 public:
@@ -85,13 +81,12 @@ public:
     void Update(Boss* boss, float dt) override;
     void Exit(Boss* boss) override;
     std::string GetName() const override { return "Spawn Enemy"; }
-
 private:
     float m_timer = 0.0f;
-    float m_duration = 2.0f; // Waktu delay setelah spawn sebelum kembali ke Idle
+    const float m_duration = 2.0f;
 };
 
-// State: Player Lock
+// --- Lock Player State ---
 class BossLockPlayerState : public BossState
 {
 public:
@@ -99,32 +94,22 @@ public:
     void Update(Boss* boss, float dt) override;
     void Exit(Boss* boss) override;
     std::string GetName() const override { return "Lock Player"; }
-
 private:
     float m_timer = 0.0f;
-    float m_duration = 5.0f; // Berapa lama player dikunci
+    const float m_introDuration = 4.4f; // Time until "SNAP"
+    const float m_holdDuration = 5.0f;
 
-    // Titik tengah arena tempat player ditarik
-    DirectX::XMFLOAT3 m_lockPosition = { 0.0f, 0.0f, -8.0f };
-    float m_pullSpeed = 5.0f;
+    const DirectX::XMFLOAT3 m_lockPosition = { 0.0f, 0.0f, -8.0f };
 };
 
+// --- Command/Typing State (Transition Wrapper) ---
 class BossCommandState : public BossState
 {
 public:
-    // Constructor menerima: State Tujuan (nextState) dan Pesan (message)
     BossCommandState(BossState* nextState, const std::string& message)
         : m_nextState(nextState), m_message(message) {}
 
-    // Destructor: PENTING! Jika state ini dihancurkan sebelum pindah,
-    // kita harus hapus m_nextState agar tidak memory leak.
-    ~BossCommandState()
-    {
-        if (m_nextState) {
-            delete m_nextState;
-            m_nextState = nullptr;
-        }
-    }
+    ~BossCommandState(); // Handles cleanup of pending nextState
 
     void Enter(Boss* boss) override;
     void Update(Boss* boss, float dt) override;
@@ -132,13 +117,12 @@ public:
     std::string GetName() const override { return "Command: " + m_message; }
 
 private:
-    BossState* m_nextState = nullptr;
+    BossState* m_nextState = nullptr; // Owns this pointer until transition
     std::string m_message;
     float m_waitTimer = 0.0f;
-    bool m_animStarted = false;
 };
 
-// [BARU] State: Download Attack
+// --- Download Attack State (Antenna) ---
 class BossDownloadAttackState : public BossState
 {
 public:
@@ -150,22 +134,15 @@ public:
 private:
     float m_timer = 0.0f;
     float m_spawnTimer = 0.0f;
-
-    // Konfigurasi Timeline
-    float m_durationSlideIn = 1.0f;
-    float m_durationAttack = 5.0f;
-    float m_durationSlideOut = 1.0f;
-
-    // Konfigurasi Posisi Antena (Slide)
-    DirectX::XMFLOAT3 m_antennaHiddenPos = { 30.5f, 0.0f, -8.7f }; // Pojok Kanan Bawah (Luar Layar)
-    DirectX::XMFLOAT3 m_antennaActivePos = { 21.5f, 0.0f, -8.7f };  // Pojok Kanan Bawah (Dalam Layar)
-
-    // Konfigurasi Posisi Spawn File
-    DirectX::XMFLOAT3 m_fileSpawnSource = { -19.0f, 6.0f, 11.2f }; // Pojok Kiri Atas (Luar Layar)
-
     bool m_isMirrored = false;
+
+    // Timeline configuration
+    const float m_durationSlideIn = 1.0f;
+    const float m_durationAttack = 5.0f;
+    const float m_durationSlideOut = 1.0f;
 };
 
+// --- Spawn Pentagon State ---
 class BossSpawnPentagonState : public BossState
 {
 public:
@@ -173,8 +150,7 @@ public:
     void Update(Boss* boss, float dt) override;
     void Exit(Boss* boss) override;
     std::string GetName() const override { return "Spawn Pentagon"; }
-
 private:
     float m_timer = 0.0f;
-    float m_duration = 2.0f; // Jeda sebelum kembali ke Idle
+    const float m_duration = 2.0f;
 };
