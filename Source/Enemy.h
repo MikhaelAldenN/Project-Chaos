@@ -27,7 +27,7 @@ public:
     ~Enemy() override;
 
     void Update(float elapsedTime, Camera* camera) override;
-    void UpdateTracking(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos);
+    void UpdateTracking(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack = true);
     void SetActive(bool active) { m_isActive = active; }
     void SetHighlight(bool highlight) { m_isHighlighted = highlight; }
     void UpdateOriginalTransform(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& rot);
@@ -62,7 +62,7 @@ public:
     MoveDir GetMoveDir() const { return m_moveDir; }
 
 private:
-    void UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos);
+    void UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack);
 
     DirectX::XMFLOAT3 GetForwardVector() const;
     DirectX::XMFLOAT3 originalPosition;

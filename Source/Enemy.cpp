@@ -95,13 +95,13 @@ void Enemy::Update(float elapsedTime, Camera* camera)
     SyncData();
 }
 
-void Enemy::UpdateTracking(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos)
+void Enemy::UpdateTracking(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack)
 {
     if (!camera) return;
-    UpdateAttackLogic(elapsedTime, camera, playerPos);
+    UpdateAttackLogic(elapsedTime, camera, playerPos, allowAttack);
 }
 
-void Enemy::UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos)
+void Enemy::UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack)
 {
     if (m_attackType == AttackType::None) return;
     if (!camera) return;
@@ -114,7 +114,7 @@ void Enemy::UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::
     float distSq = dx * dx + dz * dz;
 
 
-    if (distSq < (m_activationDistance * m_activationDistance))
+    if (allowAttack && distSq < (m_activationDistance * m_activationDistance))
     {
         bool isTrackingType = (m_attackType == AttackType::Tracking ||
             m_attackType == AttackType::TrackingHorizontal ||

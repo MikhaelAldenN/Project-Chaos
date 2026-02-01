@@ -38,12 +38,12 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
     m_enemies.push_back(std::move(newEnemy));
 }
 
-void EnemyManager::Update(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos)
+void EnemyManager::Update(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack)
 {
     for (auto& enemy : m_enemies)
     {
         enemy->Update(elapsedTime, camera);
-        enemy->UpdateTracking(elapsedTime, camera, playerPos);
+        enemy->UpdateTracking(elapsedTime, camera, playerPos, allowAttack);
     }
 }
 

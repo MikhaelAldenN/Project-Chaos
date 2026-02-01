@@ -251,9 +251,6 @@ void SceneGameBreaker::Update(float elapsedTime)
         bool isShielding = (GetKeyState(VK_LSHIFT) & 0x8000) && canUseShield;
         bool isShooting = (GetKeyState(VK_SPACE) & 0x8000) && canShoot;
 
-        // Delete later
-        if (player->GetGameStage() == 3) { if (Input::Instance().GetKeyboard().IsTriggered('R')) { blockManager->SpawnAllyBlock(player); } }
-
         DirectX::XMFLOAT3 mousePos = GetMouseOnGround(activeCam);
         DirectX::XMFLOAT3 playerPos = player->GetPosition();
 
@@ -271,7 +268,8 @@ void SceneGameBreaker::Update(float elapsedTime)
     {
         XMFLOAT3 targetPos = { 0,0,0 };
         if (player) { targetPos = player->GetPosition(); }
-        m_enemyManager->Update(elapsedTime, activeCam, targetPos);
+        bool canAttack = (player && player->GetGameStage() == 3);
+        m_enemyManager->Update(elapsedTime, activeCam, targetPos, canAttack);
     }
 
     if (m_itemManager) m_itemManager->Update(elapsedTime, activeCam);
@@ -440,30 +438,6 @@ void SceneGameBreaker::Update(float elapsedTime)
 
     if (m_impactDisplay) {
         m_impactDisplay->Update(elapsedTime);
-    }
-
-    // CONTOH PEMICU:
-    // Jika player tekan tombol M, munculkan efek "MASH SPACE"
-    if (Input::Instance().GetKeyboard().IsTriggered('M')) {
-        // Definisikan urutannya
-        std::vector<ImpactEvent> sequence = {
-            { ImpactType::Super, 0.4f },  // Tampilkan ESCAPE selama 1.2 detik
-            { ImpactType::Nigero, 1.0f }  // Lanjut NIGERO selama 1.5 detik
-        };
-
-        // Jalankan urutannya
-        m_impactDisplay->ShowSequence(sequence);
-    }
-    if (Input::Instance().GetKeyboard().IsTriggered('N')) {
-        std::vector<ImpactEvent> sequence = {
-            // Tampilkan "SPACE KEY" (Jepang) selama 1.2 detik
-            { ImpactType::SpaceKeyJP, 0.8f },
-
-            // Lalu timpa dengan "RENDA SEYO!" (MASH IT!) selama 2.0 detik
-            { ImpactType::RendaSeyo,  1.0f }
-        };
-
-        m_impactDisplay->ShowSequence(sequence);
     }
 
     // =========================================================
@@ -666,7 +640,6 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
 
         float w = 278.0f;
         float h = 55.0f;
-
         float screenW = 1920.0f;
         float screenH = 1080.0f;
 
@@ -678,7 +651,20 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
         float dx = (screenW * 0.5f) - (w * 0.5f);
         float dy = screenH - h - 100.0f;
 
-        m_spriteSubTextMouseShift->Render(dc, dx, dy, 0.0f, w, h, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+        // --- FADE LOGIC ---
+        float alpha = 1.0f;
+        if (m_defenseConditionMet)
+        {
+            float fadeStartTime = 2.5f;
+
+            if (m_defenseStopTimer > fadeStartTime)
+            {
+                float fadeProgress = m_defenseStopTimer - fadeStartTime;
+                alpha = 1.0f - fadeProgress; 
+                alpha = (std::max)(0.0f, alpha);
+            }
+        }
+        m_spriteSubTextMouseShift->Render(dc, dx, dy, 0.0f, w, h, 0.0f, 1.0f, 1.0f, 1.0f, alpha);
     }
 
     // Render Subtext (Mouse Space)
@@ -689,7 +675,6 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
 
         float w = 278.0f;
         float h = 55.0f;
-
         float screenW = 1920.0f;
         float screenH = 1080.0f;
 
@@ -701,7 +686,21 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
         float dx = (screenW * 0.5f) - (w * 0.5f);
         float dy = screenH - h - 100.0f;
 
-        m_spriteSubTextMouseSpace->Render(dc, dx, dy, 0.0f, w, h, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+        // --- FADE LOGIC ---
+        float alpha = 1.0f;
+        if (m_attackConditionMet)
+        {
+            float fadeStartTime = 2.5f;
+
+            if (m_attackStopTimer > fadeStartTime)
+            {
+                float fadeProgress = m_attackStopTimer - fadeStartTime;
+                alpha = 1.0f - fadeProgress;
+                alpha = (std::max)(0.0f, alpha);
+            }
+        }
+
+        m_spriteSubTextMouseSpace->Render(dc, dx, dy, 0.0f, w, h, 0.0f, 1.0f, 1.0f, 1.0f, alpha);
     }
 
     if (m_fxState.MasterEnabled)
