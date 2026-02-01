@@ -154,3 +154,20 @@ private:
     float m_timer = 0.0f;
     const float m_duration = 2.0f;
 };
+
+class BossWireAttackState : public BossState
+{
+public:
+    void Enter(Boss* boss) override;
+    void Update(Boss* boss, float dt) override;
+    void Exit(Boss* boss) override;
+    std::string GetName() const override { return "Wire Attack"; }
+
+private:
+    float m_timer = 0.0f;
+    float m_attackIntervalTimer = 0.0f;
+
+    // Konfigurasi Serangan
+    const float m_duration = 8.0f;       // Total durasi fase serangan
+    const float m_attackInterval = 1.5f; // Jeda antar tembakan kabel
+};

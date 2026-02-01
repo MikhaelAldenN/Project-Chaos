@@ -423,3 +423,48 @@ void BossSpawnPentagonState::Update(Boss* boss, float dt)
 }
 
 void BossSpawnPentagonState::Exit(Boss* boss) {}
+
+// ==========================================
+// STATE: WIRE ATTACK
+// ==========================================
+
+void BossWireAttackState::Enter(Boss* boss)
+{
+    // Pesan log saat fase dimulai (setelah ngetik selesai)
+    boss->AddTerminalLog("WARNING: VOLTAGE SURGE");
+    boss->AddTerminalLog("SYSTEM: DISCHARGING...");
+
+    // Reset timer
+    m_timer = 0.0f;
+    m_attackIntervalTimer = 0.0f;
+
+    // Tembakan pertama langsung saat mulai
+    boss->TriggerWireAttack();
+}
+
+void BossWireAttackState::Update(Boss* boss, float dt)
+{
+    m_timer += dt;
+    m_attackIntervalTimer += dt;
+
+    // Logika Spawn Kabel berkala
+    if (m_attackIntervalTimer >= m_attackInterval)
+    {
+        m_attackIntervalTimer = 0.0f; // Reset interval timer
+        boss->TriggerWireAttack();    // Panggil fungsi mekanik di Boss.cpp
+        boss->AddTerminalLog("SYSTEM: ARC DISCHARGE");
+    }
+
+    // Cek apakah durasi state habis
+    if (m_timer >= m_duration)
+    {
+        boss->GetStateMachine()->ChangeState(boss, new BossIdleState());
+    }
+}
+
+void BossWireAttackState::Exit(Boss* boss)
+{
+    boss->AddTerminalLog("SYSTEM: VOLTAGE STABILIZED");
+    // Opsional: Kalau mau boss kembali ke pose idle spesifik
+    boss->GetMonitor1()->ResetToIdle();
+}

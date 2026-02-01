@@ -76,6 +76,38 @@ struct FileProjectile
     float speed = 20.0f;
 };
 
+// ==========================================
+// WIRE ATTACK STRUCTURES
+// ==========================================
+enum class WireState {
+    INACTIVE,
+    TRAVELING,  // Sedang terbang ke target
+    WARNING,    // Nancep tapi belum nyetrum (Delay 2 detik)
+    ACTIVE,     // Nyetrum (Damage Player)
+    FADING      // Animasi hilang
+};
+
+struct ElectricWire
+{
+    int id = -1;
+    WireState state = WireState::INACTIVE;
+
+    // Transform
+    DirectX::XMFLOAT3 position = { 0,0,0 }; // Posisi ujung kabel
+    DirectX::XMFLOAT3 startPos = { 0,0,0 }; // Posisi asal (Boss)
+    DirectX::XMFLOAT3 rotation = { 0,0,0 };
+    DirectX::XMFLOAT3 direction = { 0,0,1 };
+
+    // Logic
+    float timer = 0.0f;
+    float speed = 25.0f;
+    int modelIndex = 0; // 0 = Wire1, 1 = Wire2
+
+    // Collision Params
+    float length = 10.0f; // Panjang kabel visual
+    float radius = 1.5f;  // Lebar area setrum
+};
+
 // =========================================================
 // BOSS CONTROLLER
 // =========================================================
@@ -142,13 +174,28 @@ public:
         DirectX::XMFLOAT3 pos = { 0.0f, 0.0f, 0.0f };
     } m_pentagonConfig;
 
+    struct WireConfig {
+        DirectX::XMFLOAT3 scale = { 100.0f, 100.0f, 100.0f }; // Untuk Scale (Besar/Kecil)
+        DirectX::XMFLOAT3 pivotOffset = { 16.0f, -0.5f, 0.0f };
+        float speed = 25.0f;       // Kecepatan terbang
+        float targetSpread = 1.0f; // Jarak lebar tembakan (kiri/kanan dari player)
+        float hitRadius = 1.5f;    // Besar area setrum (Collision)
+    } m_wireConfig;
+
     bool m_debugShowAntenna = false;
+
+    void TriggerWireAttack();
+
+    // Fungsi render khusus wire
+    void RenderWires(ModelRenderer* renderer);
+
 
 private:
     void InitializeParts();
     void UpdateBackgroundAnim(float dt);
     void RenderScreens(ModelRenderer* renderer);
     void RenderProjectiles(ModelRenderer* renderer, Camera* camera);
+    // Fungsi untuk State Machine atau Boss Logic memanggil serangan
 
 private:
     // Core Components
@@ -190,4 +237,16 @@ private:
     ScreenTransform m_screen1Config = { {-0.02f, 0.195f, -0.34f}, {90.0f, 180.0f, 0.0f}, {46.0f, 46.0f, 46.0f} };
 
     std::vector<std::shared_ptr<Model::Material>> m_materialCache;
+
+    void UpdateWires(float dt);
+    void SpawnSingleWire(const DirectX::XMFLOAT3& targetPos);
+
+    // Resources
+    std::shared_ptr<Model> m_wireModel1;
+    std::shared_ptr<Model> m_wireModel2;
+
+    // Object Pool
+    static const int MAX_WIRES = 10;
+    std::vector<ElectricWire> m_wires;
 };
+

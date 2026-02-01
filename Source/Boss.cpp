@@ -5,6 +5,7 @@
 #include <imgui.h>
 #include <cmath>
 #include <algorithm>
+#include "Player.h"
 
 using namespace DirectX;
 
@@ -70,6 +71,13 @@ Boss::Boss()
     m_screenQuad = LoadModel("Data/Model/Primitive/Plane.glb");
     m_screenQuad1 = LoadModel("Data/Model/Primitive/Plane.glb");
     m_fileModel = LoadModel("Data/Model/Character/Test_mdl_File.glb");
+    m_wireModel1 = LoadModel("Data/Model/Character/TEST_mdl_ElectricWire1.glb");
+    m_wireModel2 = LoadModel("Data/Model/Character/TEST_mdl_ElectricWire2.glb");
+    m_wires.resize(MAX_WIRES);
+    for (int i = 0; i < MAX_WIRES; ++i) {
+        m_wires[i].id = i;
+        m_wires[i].state = WireState::INACTIVE;
+    }
 
     m_fileProjectiles.reserve(100);
     m_stateMachine.Initialize(new BossIntroState(), this);
@@ -163,6 +171,7 @@ void Boss::Update(float dt)
     m_stateMachine.Update(this, safeDt);
 
     UpdateBackgroundAnim(dt);
+    UpdateWires(safeDt);
 }
 
 void Boss::UpdateBackgroundAnim(float dt)
@@ -237,6 +246,7 @@ void Boss::Render(ModelRenderer* renderer, Camera* camera)
 
     RenderScreens(renderer);
     RenderProjectiles(renderer, camera);
+    RenderWires(renderer);
 }
 
 void Boss::RenderScreens(ModelRenderer* renderer)
@@ -376,7 +386,42 @@ void Boss::DrawDebugGUI()
             if (ImGui::Button("DOWNLOAD")) ChangeState(new BossCommandState(new BossDownloadAttackState(), "DOWNLOADING..."));
 
             ImGui::Separator();
-            if (ImGui::Button("SPAWN PENTAGON")) TriggerSpawnPentagon();
+            if (ImGui::Button("SPAWN PENTAGON")) TriggerSpawnPentagon(); ImGui::SameLine();
+            if (ImGui::Button("WIRE ATTACK"))
+            {
+                // 1. Buat State Serangan (Wire Attack)
+                BossState* attackState = new BossWireAttackState();
+
+                // 2. Bungkus dengan CommandState (Untuk efek ngetik "INITIATING SURGE...")
+                // BossCommandState akan otomatis pindah ke attackState setelah ngetik selesai.
+                ChangeState(new BossCommandState(attackState, "INITIATING SURGE..."));
+            }
+
+            if (ImGui::TreeNode("Wire Settings"))
+            {
+                // Slider untuk Scale (XYZ)
+                ImGui::DragFloat3("Scale", &m_wireConfig.scale.x, 0.1f, 0.1f, 10.0f);
+                ImGui::Text("Anchor Adjustment:");
+                ImGui::DragFloat3("Pivot Offset", &m_wireConfig.pivotOffset.x, 0.01f);
+                // Slider untuk Posisi/Gameplay
+                ImGui::DragFloat("Target Spread", &m_wireConfig.targetSpread, 0.1f, 0.0f, 10.0f);
+                ImGui::DragFloat("Speed", &m_wireConfig.speed, 0.5f, 1.0f, 100.0f);
+                ImGui::DragFloat("Hit Radius", &m_wireConfig.hitRadius, 0.1f, 0.1f, 5.0f);
+
+                // Tombol Reset Config (Opsional)
+                if (ImGui::Button("Reset Defaults")) {
+                    // URUTAN: Scale, PivotOffset, Speed, Spread, Radius
+                    m_wireConfig = {
+                        {100.f, 100.f, 100.f}, // Scale
+                        {0.0f, 0.0f, -10.0f},   // Pivot Offset (YANG KURANG TADI)
+                        25.0f,                 // Speed
+                        2.0f,                  // Target Spread
+                        1.5f                   // Hit Radius
+                    };
+                }
+
+                ImGui::TreePop();
+            }
 
             // Pentagon Config
             if (ImGui::DragFloat("Pentagon Scale", &m_pentagonConfig.scale, 1.0f, 1.0f, 500.0f)) {
@@ -448,5 +493,293 @@ void Boss::DrawDebugGUI()
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
+
+        ImGui::Separator();
+        if (ImGui::TreeNode("Wire Settings (DEBUG)"))
+        {
+            // --------------------------------------------------------
+            // 1. STATUS CHECKER
+            // --------------------------------------------------------
+            // Cek apakah model berhasil di-load?
+            bool modelOK = (m_wireModel1 != nullptr);
+            if (modelOK)
+                ImGui::TextColored(ImVec4(0, 1, 0, 1), "[OK] Model Loaded");
+            else
+                ImGui::TextColored(ImVec4(1, 0, 0, 1), "[ERR] Model NULL! Cek path file .glb");
+
+            ImGui::Separator();
+
+            // --------------------------------------------------------
+            // 2. CONFIG NORMAL
+            // --------------------------------------------------------
+            ImGui::Text("Gameplay Config:");
+            ImGui::DragFloat3("Scale", &m_wireConfig.scale.x, 0.1f, 0.1f, 10.0f);
+            ImGui::DragFloat("Target Spread", &m_wireConfig.targetSpread, 0.1f);
+            ImGui::DragFloat("Speed", &m_wireConfig.speed, 0.5f);
+            ImGui::DragFloat("Hit Radius", &m_wireConfig.hitRadius, 0.1f);
+
+            ImGui::Separator();
+
+            // --------------------------------------------------------
+            // 3. FORCE SPAWN (DIAM DI TEMPAT)
+            // --------------------------------------------------------
+            ImGui::Text("Debug Tools:");
+
+            // Variabel static biar nilainya tersimpan selama game jalan
+            static float debugSpawnPos[3] = { 0.0f, 0.0f, 0.0f };
+            ImGui::DragFloat3("Spawn At", debugSpawnPos, 0.5f);
+
+            if (ImGui::Button("FORCE SPAWN (STATIC)"))
+            {
+                // Cari slot kosong manual
+                for (auto& w : m_wires)
+                {
+                    if (w.state == WireState::INACTIVE)
+                    {
+                        // Reset Data
+                        w.id = 999; // ID Debug
+
+                        // Set Posisi sesuai Input Slider
+                        w.position = { debugSpawnPos[0], debugSpawnPos[1], debugSpawnPos[2] };
+                        w.rotation = { 0, 0, 0 }; // Tegak lurus
+
+                        // STATE PENTING: Gunakan WARNING (fase diam/nancap)
+                        w.state = WireState::WARNING;
+
+                        // Timer SANGAT LAMA biar gak hilang
+                        w.timer = 9999.0f;
+
+                        w.modelIndex = 0; // Pakai model 1
+                        break; // Cukup spawn 1 aja
+                    }
+                }
+            }
+
+            // --------------------------------------------------------
+            // 4. LIST ACTIVE WIRES (LIVE EDIT)
+            // --------------------------------------------------------
+            // Ini gunanya buat nyari wire yang "hilang" ada di koordinat mana
+            if (ImGui::TreeNode("Active Wires List"))
+            {
+                bool found = false;
+                for (int i = 0; i < m_wires.size(); ++i)
+                {
+                    auto& w = m_wires[i];
+                    if (w.state != WireState::INACTIVE)
+                    {
+                        found = true;
+                        ImGui::PushID(i);
+
+                        std::string label = "Wire " + std::to_string(i) + " [" +
+                            (w.state == WireState::TRAVELING ? "FLY" : "STUCK") + "]";
+
+                        if (ImGui::TreeNode(label.c_str()))
+                        {
+                            // EDIT POSISI LANGSUNG
+                            ImGui::DragFloat3("Pos", &w.position.x, 0.1f);
+                            ImGui::DragFloat3("Rot", &w.rotation.x, 1.0f);
+
+                            // TOMBOL KILL
+                            if (ImGui::Button("Delete")) w.state = WireState::INACTIVE;
+
+                            ImGui::TreePop();
+                        }
+                        ImGui::PopID();
+                    }
+                }
+                if (!found) ImGui::TextDisabled("No active wires.");
+                ImGui::TreePop();
+            }
+
+            ImGui::TreePop();
+        }
+    }
+}
+
+void Boss::SpawnSingleWire(const DirectX::XMFLOAT3& playerPos)
+{
+    // 1. Cari Wire yang sedang INACTIVE
+    ElectricWire* wire = nullptr;
+    for (auto& w : m_wires) {
+        if (w.state == WireState::INACTIVE) {
+            wire = &w;
+            break;
+        }
+    }
+    if (!wire) return; // Pool penuh
+
+    // 2. Tentukan Posisi Awal (Dari Monitor 1)
+    wire->startPos = GetMonitorVisualPos();
+    wire->position = wire->startPos;
+
+    // SETUP DATA BARU DENGAN CONFIG
+    wire->speed = m_wireConfig.speed;   // <--- Ganti hardcoded value
+    wire->radius = m_wireConfig.hitRadius; // <--- Ganti hardcoded value
+
+    // 3. Hitung Arah ke Player (Hanya X dan Z, Y diabaikan dulu biar nembak lurus ground)
+    float dx = playerPos.x - wire->startPos.x;
+    float dz = playerPos.z - wire->startPos.z;
+
+    // Normalisasi arah
+    float dist = sqrt(dx * dx + dz * dz);
+    wire->direction = { dx / dist, 0.0f, dz / dist }; // Y 0 biar menyusur tanah atau menukik nanti
+
+    // Hitung Rotasi (Y-Axis facing player)
+    float yawRad = atan2f(dx, dz);
+    float yawDeg = XMConvertToDegrees(yawRad);
+
+    // UBAH BARIS INI:
+    // X = 90 (Nungging/Tegak), Y = Yaw (Arah Player), Z = 90 (Rotasi Sumbu)
+    wire->rotation = { 90.0f, yawDeg, 90.0f };
+
+    // 4. Setup State
+    wire->state = WireState::TRAVELING;
+    wire->timer = 0.0f;
+    wire->modelIndex = rand() % 2; // Random model 1 atau 2
+
+    // [OPTIONAL] Offset sedikit targetnya biar tidak 100% aimbot
+    // float offset = (rand() % 100 - 50) / 10.0f; 
+}
+
+void Boss::TriggerWireAttack()
+{
+    if (!m_player) return;
+
+    XMFLOAT3 pPos = m_player->GetPosition();
+
+    // Gunakan m_wireConfig.targetSpread
+    float spread = m_wireConfig.targetSpread;
+
+    // Tembak 2 kabel (Kanan & Kiri)
+    SpawnSingleWire({ pPos.x + spread, 0, pPos.z });
+    SpawnSingleWire({ pPos.x - spread, 0, pPos.z });
+}
+
+void Boss::UpdateWires(float dt)
+{
+    for (auto& w : m_wires)
+    {
+        if (w.state == WireState::INACTIVE) continue;
+
+        if (w.state == WireState::TRAVELING)
+        {
+            // Gerakkan kabel
+            w.position.x += w.direction.x * w.speed * dt;
+            w.position.z += w.direction.z * w.speed * dt;
+
+            // Logika "Nancep":
+            // Bisa berdasarkan jarak tempuh, atau jika sudah menyentuh lantai (Y <= 0)
+            // Disini kita asumsi dia turun dari ketinggian monitor ke tanah
+            // Kita simulasikan gerak parabola simpel untuk Y
+
+            float groundLevel = 0.0f;
+            if (w.position.y > groundLevel) {
+                w.position.y -= 15.0f * dt; // Gravity speed
+            }
+            else {
+                w.position.y = groundLevel;
+                // Sampai di tanah -> Pindah ke WARNING
+                w.state = WireState::WARNING;
+                w.timer = 2.0f; // 2 Detik menunggu
+            }
+        }
+        else if (w.state == WireState::WARNING)
+        {
+            w.timer -= dt;
+            if (w.timer <= 0.0f) {
+                w.state = WireState::ACTIVE; // MULAI NYETRUM
+                w.timer = 3.0f; // Nyetrum selama 3 detik
+            }
+        }
+        else if (w.state == WireState::ACTIVE)
+        {
+            // === LOGIKA COLLISION ===
+            if (m_player) {
+                XMFLOAT3 pPos = m_player->GetPosition();
+
+                // Hitung jarak Player ke Garis Kabel
+                // Kabel dianggap garis lurus dari w.position mundur ke belakang sesuai rotasi
+                // ATAU simplenya: Gunakan radius di titik jatuhnya kabel
+
+                float dx = pPos.x - w.position.x;
+                float dz = pPos.z - w.position.z;
+                float distSq = dx * dx + dz * dz;
+
+                // Jika kena area setrum
+                if (distSq < (w.radius * w.radius)) {
+                    // Panggil fungsi damage player
+                    // m_player->TakeDamage(10); 
+                    // WindowShatterManager::Instance().TriggerExplosion(pPos, 2);
+                    OutputDebugStringA("ZAP! Player tersengat listrik!\n");
+                }
+            }
+
+            w.timer -= dt;
+            if (w.timer <= 0.0f) w.state = WireState::FADING;
+        }
+        else if (w.state == WireState::FADING)
+        {
+            // Animasi mengecil atau tenggelam
+            w.position.y -= 5.0f * dt;
+            if (w.position.y < -5.0f) w.state = WireState::INACTIVE;
+        }
+    }
+}
+
+void Boss::RenderWires(ModelRenderer* renderer)
+{
+    for (const auto& w : m_wires)
+    {
+        if (w.state == WireState::INACTIVE) continue;
+
+        // Pilih model
+        auto model = (w.modelIndex == 0) ? m_wireModel1 : m_wireModel2;
+        if (!model) continue;
+
+        // Visual Feedback Warna
+        XMFLOAT4 color = { 1,1,1,1 };
+        if (w.state == WireState::WARNING) {
+            // Kedap kedip Merah
+            float flash = sinf(GetTickCount64() * 0.01f); // Cepat
+            color = (flash > 0) ? XMFLOAT4(1, 0, 0, 1) : XMFLOAT4(0.5f, 0, 0, 1);
+        }
+        else if (w.state == WireState::ACTIVE) {
+            // Biru Listrik / Kuning
+            float flash = sinf(GetTickCount64() * 0.05f);
+            color = (flash > 0) ? XMFLOAT4(0, 1, 1, 1) : XMFLOAT4(1, 1, 0, 1);
+        }
+
+        // === MATRIX CALCULATION ===
+
+                // 1. Scale
+        XMMATRIX S = XMMatrixScaling(
+            m_wireConfig.scale.x,
+            m_wireConfig.scale.y,
+            m_wireConfig.scale.z
+        );
+
+        // 2. Pivot Offset (BARU)
+        // Geser model secara lokal agar "Ujung Atas" berada di titik 0,0,0
+        XMMATRIX T_Pivot = XMMatrixTranslation(
+            m_wireConfig.pivotOffset.x,
+            m_wireConfig.pivotOffset.y,
+            m_wireConfig.pivotOffset.z
+        );
+
+        // 3. Rotation
+        XMMATRIX R = XMMatrixRotationRollPitchYaw(
+            XMConvertToRadians(w.rotation.x),
+            XMConvertToRadians(w.rotation.y),
+            XMConvertToRadians(w.rotation.z)
+        );
+
+        // 4. World Position
+        XMMATRIX T = XMMatrixTranslation(w.position.x, w.position.y, w.position.z);
+
+        // GABUNGKAN: Scale -> Geser Pivot -> Putar -> Pindah ke Lokasi Asli
+        XMFLOAT4X4 world;
+        XMStoreFloat4x4(&world, S * T_Pivot * R * T);
+
+        renderer->Draw(ShaderId::Lambert, model, color, world);
     }
 }
