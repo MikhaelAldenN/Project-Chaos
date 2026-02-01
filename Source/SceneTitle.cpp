@@ -380,8 +380,11 @@ void SceneTitle::Update(float elapsedTime)
     // Ini juga harus diblokir kalau lagi ada popup Exit
     if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN))
     {
-        ShowCursor(TRUE);
-        Framework::Instance()->ChangeScene(std::make_unique<SceneGameBreaker>());
+        if (selectedFileName.find("BEYONDBREAKER.exe") != std::string::npos)
+        {
+            ShowCursor(TRUE);
+            Framework::Instance()->ChangeScene(std::make_unique<SceneGameBreaker>());
+        }
     }
 }
 
@@ -562,107 +565,107 @@ void SceneTitle::PlayDescriptionAnim(const std::string& key)
 
 void SceneTitle::DrawGUI()
 {
-    ImGui::Begin("Title Scene Debugger");
+    //ImGui::Begin("Title Scene Debugger");
 
-    if (ImGui::BeginTabBar("InspectorTabs"))
-    {
-        if (ImGui::BeginTabItem("UI Layout"))
-        {
-            if (ImGui::CollapsingHeader("Text Layouts", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-                ImGui::Indent();
-                ImGuiEditPanel(panelStatus);
-                ImGuiEditPanel(panelDirectory);
-                ImGuiEditPanel(panelDescription);
-                ImGui::Unindent();
-            }
+    //if (ImGui::BeginTabBar("InspectorTabs"))
+    //{
+    //    if (ImGui::BeginTabItem("UI Layout"))
+    //    {
+    //        if (ImGui::CollapsingHeader("Text Layouts", ImGuiTreeNodeFlags_DefaultOpen))
+    //        {
+    //            ImGui::Indent();
+    //            ImGuiEditPanel(panelStatus);
+    //            ImGuiEditPanel(panelDirectory);
+    //            ImGuiEditPanel(panelDescription);
+    //            ImGui::Unindent();
+    //        }
 
-            if (ImGui::CollapsingHeader("Menu Group Settings"))
-            {
-                // Note: Sliders for menuConfig should go here.
-                if (ImGui::Button("Apply Layout")) ApplyMenuLayout();
-            }
-            ImGui::EndTabItem();
-        }
+    //        if (ImGui::CollapsingHeader("Menu Group Settings"))
+    //        {
+    //            // Note: Sliders for menuConfig should go here.
+    //            if (ImGui::Button("Apply Layout")) ApplyMenuLayout();
+    //        }
+    //        ImGui::EndTabItem();
+    //    }
 
-        if (ImGui::BeginTabItem("Data Debugger"))
-        {
-            ImGui::TextColored({ 0.0f, 1.0f, 0.0f, 1.0f }, "Selected: %s", selectedFileName.empty() ? "NONE" : selectedFileName.c_str());
-            ImGui::EndTabItem();
-        }
+    //    if (ImGui::BeginTabItem("Data Debugger"))
+    //    {
+    //        ImGui::TextColored({ 0.0f, 1.0f, 0.0f, 1.0f }, "Selected: %s", selectedFileName.empty() ? "NONE" : selectedFileName.c_str());
+    //        ImGui::EndTabItem();
+    //    }
 
-        if (ImGui::BeginTabItem("Post-Process & FX"))
-        {
-            GUIPostProcessTab();
-            ImGui::EndTabItem();
-        }
-        ImGui::EndTabBar();
-    }
-    ImGui::End();
+    //    if (ImGui::BeginTabItem("Post-Process & FX"))
+    //    {
+    //        GUIPostProcessTab();
+    //        ImGui::EndTabItem();
+    //    }
+    //    ImGui::EndTabBar();
+    //}
+    //ImGui::End();
 }
 
 void SceneTitle::ImGuiEditPanel(PanelLayout& layout)
 {
-    if (ImGui::TreeNode(layout.name))
-    {
-        ImGui::DragFloat("Pos X", &layout.x, 1.0f, 0.0f, 1920.0f);
-        ImGui::DragFloat("Pos Y", &layout.y, 1.0f, 0.0f, 1080.0f);
-        ImGui::DragFloat("Scale", &layout.scale, 0.01f, 0.1f, 5.0f);
-        ImGui::ColorEdit4("Color", layout.color);
-        ImGui::TreePop();
-    }
+    //if (ImGui::TreeNode(layout.name))
+    //{
+    //    ImGui::DragFloat("Pos X", &layout.x, 1.0f, 0.0f, 1920.0f);
+    //    ImGui::DragFloat("Pos Y", &layout.y, 1.0f, 0.0f, 1080.0f);
+    //    ImGui::DragFloat("Scale", &layout.scale, 0.01f, 0.1f, 5.0f);
+    //    ImGui::ColorEdit4("Color", layout.color);
+    //    ImGui::TreePop();
+    //}
 }
 
 void SceneTitle::GUIPostProcessTab()
 {
-    ImGui::Spacing();
+    //ImGui::Spacing();
 
-    // Master Switch
-    const char* label = m_fxState.MasterEnabled ? "Turn Off Filter" : "Turn On Filter";
-    ImVec4 color = m_fxState.MasterEnabled ? ImVec4(0.6f, 0.2f, 0.2f, 1.0f) : ImVec4(0.2f, 0.6f, 0.2f, 1.0f);
+    //// Master Switch
+    //const char* label = m_fxState.MasterEnabled ? "Turn Off Filter" : "Turn On Filter";
+    //ImVec4 color = m_fxState.MasterEnabled ? ImVec4(0.6f, 0.2f, 0.2f, 1.0f) : ImVec4(0.2f, 0.6f, 0.2f, 1.0f);
 
-    ImGui::PushStyleColor(ImGuiCol_Button, color);
-    if (ImGui::Button(label, ImVec2(-1, 40))) m_fxState.MasterEnabled = !m_fxState.MasterEnabled;
-    ImGui::PopStyleColor();
+    //ImGui::PushStyleColor(ImGuiCol_Button, color);
+    //if (ImGui::Button(label, ImVec2(-1, 40))) m_fxState.MasterEnabled = !m_fxState.MasterEnabled;
+    //ImGui::PopStyleColor();
 
-    if (!m_fxState.MasterEnabled) return;
+    //if (!m_fxState.MasterEnabled) return;
 
-    ImGui::Separator();
+    //ImGui::Separator();
 
-    auto CheckboxLayer = [&](const char* label, bool& val) {
-        ImGui::Checkbox(label, &val);
-        if (!val) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
-        };
+    //auto CheckboxLayer = [&](const char* label, bool& val) {
+    //    ImGui::Checkbox(label, &val);
+    //    if (!val) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
+    //    };
 
-    // Vignette
-    if (ImGui::CollapsingHeader("Vignette & Color", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        CheckboxLayer("ACTIVATE: Vignette", m_fxState.EnableVignette);
-        ImGui::ColorEdit3("Tint", &uberParams.color.x);
-        ImGui::SliderFloat("Intensity", &uberParams.intensity, 0.0f, 3.0f);
-        ImGui::SliderFloat("Smoothness", &uberParams.smoothness, 0.01f, 1.0f);
-        ImGui::Checkbox("Rounded", &uberParams.rounded);
-        if (!m_fxState.EnableVignette) ImGui::PopStyleVar();
-    }
+    //// Vignette
+    //if (ImGui::CollapsingHeader("Vignette & Color", ImGuiTreeNodeFlags_DefaultOpen))
+    //{
+    //    CheckboxLayer("ACTIVATE: Vignette", m_fxState.EnableVignette);
+    //    ImGui::ColorEdit3("Tint", &uberParams.color.x);
+    //    ImGui::SliderFloat("Intensity", &uberParams.intensity, 0.0f, 3.0f);
+    //    ImGui::SliderFloat("Smoothness", &uberParams.smoothness, 0.01f, 1.0f);
+    //    ImGui::Checkbox("Rounded", &uberParams.rounded);
+    //    if (!m_fxState.EnableVignette) ImGui::PopStyleVar();
+    //}
 
-    // Lens
-    if (ImGui::CollapsingHeader("Lens Distortion"))
-    {
-        CheckboxLayer("ACTIVATE: Lens", m_fxState.EnableLens);
-        ImGui::SliderFloat("Fisheye", &uberParams.distortion, -0.5f, 0.5f);
-        ImGui::SliderFloat("Chroma", &uberParams.blurStrength, 0.0f, 0.05f);
-        ImGui::SliderFloat("Glitch", &uberParams.glitchStrength, 0.0f, 1.0f);
-        if (!m_fxState.EnableLens) ImGui::PopStyleVar();
-    }
+    //// Lens
+    //if (ImGui::CollapsingHeader("Lens Distortion"))
+    //{
+    //    CheckboxLayer("ACTIVATE: Lens", m_fxState.EnableLens);
+    //    ImGui::SliderFloat("Fisheye", &uberParams.distortion, -0.5f, 0.5f);
+    //    ImGui::SliderFloat("Chroma", &uberParams.blurStrength, 0.0f, 0.05f);
+    //    ImGui::SliderFloat("Glitch", &uberParams.glitchStrength, 0.0f, 1.0f);
+    //    if (!m_fxState.EnableLens) ImGui::PopStyleVar();
+    //}
 
-    // CRT
-    if (ImGui::CollapsingHeader("CRT Monitor"))
-    {
-        CheckboxLayer("ACTIVATE: CRT", m_fxState.EnableCRT);
-        ImGui::SliderFloat("Density", &uberParams.fineDensity, 10.0f, 500.0f);
-        ImGui::SliderFloat("Opacity", &uberParams.fineOpacity, 0.0f, 1.0f);
-        ImGui::SliderFloat("Speed", &uberParams.scanlineSpeed, -10.0f, 10.0f);
-        ImGui::SliderFloat("Scan Opacity", &uberParams.scanlineStrength, 0.0f, 1.0f);
-        if (!m_fxState.EnableCRT) ImGui::PopStyleVar();
-    }
+    //// CRT
+    //if (ImGui::CollapsingHeader("CRT Monitor"))
+    //{
+    //    CheckboxLayer("ACTIVATE: CRT", m_fxState.EnableCRT);
+    //    ImGui::SliderFloat("Density", &uberParams.fineDensity, 10.0f, 500.0f);
+    //    ImGui::SliderFloat("Opacity", &uberParams.fineOpacity, 0.0f, 1.0f);
+    //    ImGui::SliderFloat("Speed", &uberParams.scanlineSpeed, -10.0f, 10.0f);
+    //    ImGui::SliderFloat("Scan Opacity", &uberParams.scanlineStrength, 0.0f, 1.0f);
+    //    if (!m_fxState.EnableCRT) ImGui::PopStyleVar();
+    //}
 }

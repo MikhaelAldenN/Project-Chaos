@@ -104,9 +104,8 @@ void SceneIntroOS::Update(float elapsedTime)
 
 	// Scene Transition
     bool timeIsUp = timer >= ConfigOS::LOADING_DURATION;
-    bool skipPressed = Input::Instance().GetKeyboard().IsTriggered(VK_RETURN);
 
-    if (timeIsUp || skipPressed)
+    if (timeIsUp)
     {
         Framework::Instance()->ChangeScene(std::make_unique<SceneTitle>());
     }
@@ -246,20 +245,20 @@ void SceneIntroOS::OnResize(int width, int height)
 
 void SceneIntroOS::DrawGUI() 
 {
-    ImGui::SetNextWindowSize(ImVec2(400, 600), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Bios Inspector", nullptr))
-    {
-        if (ImGui::BeginTabBar("InspectorTabs"))
-        {
-            if (ImGui::BeginTabItem("Post-Process & FX"))
-            {
-                GUIPostProcessTab();
-                ImGui::EndTabItem();
-            }
-            ImGui::EndTabBar();
-        }
-    }
-    ImGui::End();
+    //ImGui::SetNextWindowSize(ImVec2(400, 600), ImGuiCond_FirstUseEver);
+    //if (ImGui::Begin("Bios Inspector", nullptr))
+    //{
+    //    if (ImGui::BeginTabBar("InspectorTabs"))
+    //    {
+    //        if (ImGui::BeginTabItem("Post-Process & FX"))
+    //        {
+    //            GUIPostProcessTab();
+    //            ImGui::EndTabItem();
+    //        }
+    //        ImGui::EndTabBar();
+    //    }
+    //}
+    //ImGui::End();
 }
 
 void SceneIntroOS::GUIPostProcessTab()

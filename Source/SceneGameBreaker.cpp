@@ -1064,7 +1064,7 @@ void SceneGameBreaker::LoadCheckpoint()
 
 void SceneGameBreaker::DrawGUI()
 {
-    GameBreakerGUI::Draw(this);
+    //GameBreakerGUI::Draw(this);
 }
 
 void SceneGameBreaker::OnResize(int width, int height)

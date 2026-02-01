@@ -42,10 +42,27 @@ void TextDatabase::Initialize()
         "Ver : Alpha 1.0",
         "Dir : C:\\GAMES\\BEYOND_BREAKER\\BIN",
         "",
-        "Desc:",
-        "Project Game Programming tahun ke-2.",
-        "Menghancurkan batas dimensi OS.",
-        "Tekan ENTER untuk memulai."
+        "[ DESCRIPTION ]",
+        " This program is a dimension-breaking tool",
+        " disguised as a game application.",
+        " It requires direct user intervention to",
+        " bypass the operating system's security.",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "      +--------------------------+",
+        "      |  > PRESS ENTER TO RUN <  |",
+        "      +--------------------------+",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "     0x008F: A9 4C 00 FF 8B EC 5D C3",  // <--- Added
+        "     0x0090: 90 90 90 ERROR... NULL"    // <--- Added
+        ""
         });
 
     // File: README.TXT
@@ -127,6 +144,27 @@ void TextDatabase::Initialize()
     RegisterEntry("Misc", "joke.txt             5", "DAILY JOKE", {
         "Q: Why do Java developers wear glasses?",
         "A: Because they don't C#."
+        "",
+        "---------------------------------------",
+        "",
+        "Q: Why do programmers prefer dark mode?",
+        "A: Because light attracts bugs.",
+        "",
+        "---------------------------------------",
+        "",
+        "Q: Why did the C programmer get rejected?",
+        "A: Because he had no class.",
+        "",
+        "---------------------------------------",
+        "",
+        "Q: Why do game devs hate the sun?",
+        "A: The real-time shadows are too expensive.",
+        "",
+        "---------------------------------------",
+        "",
+        "Q: Why did the C++ code cross the road?",
+        "A: To get to the other... Segmentation fault.",
+        ""
         });
 
     // 2. FOLDER BARU: Art/
