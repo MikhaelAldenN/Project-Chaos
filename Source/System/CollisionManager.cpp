@@ -240,7 +240,6 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
 
             XMFLOAT3 currentPos = ball->GetMovement()->GetPosition();
             XMFLOAT3 currentVel = ball->GetVelocity();
-
             XMVECTOR vPos = XMLoadFloat3(&currentPos);
             XMVECTOR vVel = XMLoadFloat3(&currentVel);
             XMVECTOR vNextPos = vPos + (vVel * elapsedTime);
@@ -260,7 +259,6 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
                 {
                     float dx = currentPos.x - wall.Position.x;
                     float dz = currentPos.z - wall.Position.z;
-
                     float wallMax = (std::max)(wall.Scale.x, wall.Scale.z);
                     if ((dx * dx + dz * dz) > pow(wallMax + frameDist + 10.0f, 2)) continue;
 
@@ -285,26 +283,52 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
 
                 float safeDist = (std::max)(0.0f, closestT - 0.01f);
                 XMVECTOR vSafePos = vPos + (vDir * safeDist);
-
                 XMVECTOR vReflectedVel = XMVector3Reflect(vVel, hitNormal);
-
                 float remainingDist = frameDist - closestT;
                 vSafePos += (XMVector3Normalize(vReflectedVel) * remainingDist);
-
                 vSafePos += hitNormal * 0.05f;
 
                 XMFLOAT3 finalPos, finalVel;
                 XMStoreFloat3(&finalPos, vSafePos);
                 XMStoreFloat3(&finalVel, vReflectedVel);
-
-                finalPos.y = 0.0f;
-                finalVel.y = 0.0f;
+                finalPos.y = 0.0f; finalVel.y = 0.0f;
 
                 ball->ApplyMovement(finalPos, finalVel);
-                ball->UpdatePreviousPosition(); 
-
+                ball->UpdatePreviousPosition();
                 ++it;
                 continue;
+            }
+
+            bool hitPlayer = false;
+
+            if (m_player && !m_player->IsInvincible())
+            {
+                DirectX::XMFLOAT3 ballPos = ball->GetMovement()->GetPosition();
+
+                float playerHalfSize = 0.3f; // Matches BlockManager
+                float maxRange = playerHalfSize + ballRadius;
+
+                DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
+
+                float dx = ballPos.x - playerPos.x;
+                float dz = ballPos.z - playerPos.z;
+                float distSq = dx * dx + dz * dz;
+                float searchRangeSq = (maxRange * 2.0f) * (maxRange * 2.0f);
+
+                if (distSq <= searchRangeSq)
+                {
+                    float absX = std::abs(dx);
+                    float absZ = std::abs(dz);
+
+                    if (absX < maxRange && absZ < maxRange)
+                    {
+                        if (m_onPlayerDeathCallback) m_onPlayerDeathCallback();
+
+                        it = projectiles.erase(it);
+
+                        continue;
+                    }
+                }
             }
 
             XMFLOAT3 nextPosFloat;

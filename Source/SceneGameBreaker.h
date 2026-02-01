@@ -147,6 +147,16 @@ private:
     void SaveCheckpoint(const DirectX::XMFLOAT3& checkpointPos);
     void LoadCheckpoint();
 
+    // --- DEATH ANIMATION STATE ---
+    bool m_isDying = false;       
+    float m_deathTimer = 0.0f;    
+
+    const float DEATH_DELAY_DURATION = 0.5f; 
+    const float DEATH_FADE_DURATION = 3.0f;  
+
+    // Helper function
+    void StartPlayerDeathSequence();
+
     // Camera Settings
     DirectX::XMFLOAT3 cameraPosition = { 0.0f, 18.0f, 0.0f };
     DirectX::XMFLOAT3 cameraTarget = { 0.0f, 0.0f, 0.0f };

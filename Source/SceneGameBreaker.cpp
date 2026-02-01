@@ -59,7 +59,7 @@ SceneGameBreaker::SceneGameBreaker()
     m_collisionManager = std::make_unique<CollisionManager>();
     m_collisionManager->Initialize(player, m_stage.get(), blockManager.get(), m_enemyManager.get(), m_itemManager.get());
 
-    m_collisionManager->SetOnPlayerDeathCallback([this](){ LoadCheckpoint(); });
+    m_collisionManager->SetOnPlayerDeathCallback([this]() { StartPlayerDeathSequence(); });
     m_collisionManager->SetOnCheckpointReachCallback([this](DirectX::XMFLOAT3 pos){ SaveCheckpoint(pos); });
     // Callback untuk Shake saat blok hancur
     blockManager->SetOnBlockHitCallback([this]()
@@ -452,20 +452,46 @@ void SceneGameBreaker::Update(float elapsedTime)
         const float targetSmoothness = 4.0f;
         const float targetIntensity = 5.0f;
 
-        // PRIORITY 1: Handle Respawn Fade-In (Recovering from Black)
-        if (m_respawnTimer > 0.0f)
+        // --- DEATH SEQUENCE LOGIC ---
+        if (m_isDying)
+        {
+            m_deathTimer += elapsedTime;
+
+            // Phase 1: Wait 0.5s (Player is invisible)
+            if (m_deathTimer < DEATH_DELAY_DURATION)
+            {
+                uberParams.smoothness = baseSmoothness;
+                uberParams.intensity = baseIntensity;
+            }
+            // Phase 2: Fade Out over 3.0s
+            else
+            {
+                float fadeTime = m_deathTimer - DEATH_DELAY_DURATION;
+                float t = std::clamp(fadeTime / DEATH_FADE_DURATION, 0.0f, 1.0f);
+
+                // Fade Vignette to Black
+                uberParams.smoothness = baseSmoothness + (targetSmoothness - baseSmoothness) * t;
+                uberParams.intensity = baseIntensity + (targetIntensity - baseIntensity) * t;
+
+                // Phase 3: Finish -> Respawn
+                if (t >= 1.0f)
+                {
+                    LoadCheckpoint();
+                    // Keep screen black for one frame to match respawn start
+                    uberParams.smoothness = targetSmoothness;
+                    uberParams.intensity = targetIntensity;
+                }
+            }
+        }
+
+        // --- RESPAWN FADE IN ---
+        else if (m_respawnTimer > 0.0f)
         {
             m_respawnTimer -= elapsedTime;
 
-            // 1. Calculate Linear Progress (1.0 -> 0.0)
             float linearT = std::clamp(m_respawnTimer / RESPAWN_FADE_DURATION, 0.0f, 1.0f);
-
-            // 2. [FIX] Apply Easing (Quadratic In)
-            // Squaring 't' makes the value approach 0.0 (Normal State) much slower at the end.
-            // Effect: Fast opening at start -> Very slow, soft finish at the corners.
             float t = linearT * linearT;
 
-            // Interpolate Backwards: Black -> Normal
             uberParams.smoothness = baseSmoothness + (targetSmoothness - baseSmoothness) * t;
             uberParams.intensity = baseIntensity + (targetIntensity - baseIntensity) * t;
         }
@@ -920,6 +946,19 @@ void SceneGameBreaker::SaveCheckpoint(const DirectX::XMFLOAT3& checkpointPos)
     }
 }
 
+void SceneGameBreaker::StartPlayerDeathSequence()
+{
+    if (m_isDying) return;
+    m_isDying = true;
+    m_deathTimer = 0.0f;
+
+    if (player)
+    {
+        player->SetInputEnabled(false);
+        player->scale = { 0.0f, 0.0f, 0.0f };
+    }
+}
+
 void SceneGameBreaker::LoadCheckpoint()
 {
     if (!m_checkpoint.isValid)
@@ -938,6 +977,7 @@ void SceneGameBreaker::LoadCheckpoint()
         player->GetMovement()->SetRotationY(DirectX::XM_PI);
         player->SetAbilityShield(m_checkpoint.savedCanShield);
         player->SetAbilityShoot(m_checkpoint.savedCanShoot);
+        player->scale = { 3.0f, 3.0f, 3.0f };
     }
 
     if (m_enemyManager)
@@ -964,6 +1004,13 @@ void SceneGameBreaker::LoadCheckpoint()
     m_mashSequenceActive = false;
     m_showSubText = false;
     m_mashLoopCount = 0;
+
+    // Reset Flags
+    m_isDying = false;
+    m_deathTimer = 0.0f;
+
+    // Start Fade-In 
+    m_respawnTimer = RESPAWN_FADE_DURATION;
 }
 
 void SceneGameBreaker::DrawGUI()
