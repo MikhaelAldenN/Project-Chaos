@@ -143,6 +143,8 @@ public:
     void TriggerSpawnEnemy();
     void TriggerLockPlayer();
     void TriggerSpawnPentagon();
+    void TriggerDownloadAttack();      // [BARU] Trigger untuk Download Attack State
+    void TriggerWireAttackState();     // [BARU] Trigger untuk Wire Attack State (beda dari TriggerWireAttack mechanic)
 
     // --- Dependencies ---
     void SetPlayer(Player* p) { m_player = p; }
@@ -249,4 +251,3 @@ private:
     static const int MAX_WIRES = 10;
     std::vector<ElectricWire> m_wires;
 };
-

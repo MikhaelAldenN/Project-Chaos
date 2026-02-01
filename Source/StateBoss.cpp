@@ -7,6 +7,13 @@
 using namespace DirectX;
 
 // ==========================================
+// [AI] STATIC MEMBER DEFINITIONS
+// Definisi di sini (bukan di .h) agar linker tidak duplikat.
+// ==========================================
+int BossIdleState::s_nextAttackIndex = 0;
+int BossIdleState::s_cooldowns[static_cast<int>(AttackID::COUNT)] = { 0, 0, 0, 0, 0 };
+
+// ==========================================
 // BOSS STATE MACHINE
 // ==========================================
 
@@ -68,22 +75,159 @@ void BossIntroState::Exit(Boss* boss)
 }
 
 // ==========================================
-// STATE: IDLE
+// STATE: IDLE  (AI DECISION HUB)
+// ==========================================
+// Cara kerja AI:
+//
+// 1. ROUND-ROBIN CURSOR (s_nextAttackIndex)
+//    Setiap kali Idle dipanggil, AI akan mencoba serangan di index
+//    s_nextAttackIndex. Setelah dipilih, index maju +1 (wrap ke 0).
+//
+// 2. COOLDOWN CHECK
+//    Sebelum serangan dipilih, AI cek cooldown-nya. Jika masih > 0,
+//    serangan itu DILEWATI dan AI pindah ke index berikutnya.
+//    Ini mencegah serangan kuat (misal Pentagon) terlalu sering.
+//
+// 3. SHUFFLE (30% chance)
+//    Setelah serangan valid ditemukan, ada 30% chance AI akan SKIP
+//    ke serangan berikutnya yang juga valid. Ini bikin pola tidak
+//    terlalu prediktabel tanpa kehilangan priority structure.
+//
+// 4. COOLDOWN DECREMENT
+//    Setiap kali AI berhasil memilih serangan (apapun), SEMUA cooldown
+//    yang aktif didekremen sebesar 1. Ini yang bikin cooldown countdown.
+//
+// 5. COOLDOWN SET
+//    Setelah serangan dipilih, cooldown serangan itu di-set ke nilai
+//    default-nya (misal Pentagon = 3, artinya butuh 3 serangan lain
+//    sebelum Pentagon bisa dipilih lagi).
 // ==========================================
 
 void BossIdleState::Enter(Boss* boss)
 {
     m_timer = 0.0f;
     boss->GetMonitor1()->ResetToIdle();
+    boss->AddTerminalLog("SYSTEM: SCANNING...");
 }
 
 void BossIdleState::Update(Boss* boss, float dt)
 {
     m_timer += dt;
-    if (m_timer >= m_decisionTime)
+
+    if (m_timer < m_decisionTime) return;  // Tunggu delay sebelum memutus
+
+    // =========================================================
+    // [AI] STEP 1: CARI SERANGAN VALID DARI ROUND-ROBIN
+    // Putar dari s_nextAttackIndex, lewati yang masih di cooldown.
+    // Worst case: putar sebanyak COUNT kali (semua di cooldown).
+    // =========================================================
+    int candidateIndex = -1;
+    int searchStart = s_nextAttackIndex;
+
+    for (int i = 0; i < static_cast<int>(AttackID::COUNT); ++i)
     {
-        boss->AddTerminalLog("ANALYZING COMBAT DATA...");
-        m_timer = 0.0f; // Loop for now
+        int tryIndex = (searchStart + i) % static_cast<int>(AttackID::COUNT);
+
+        if (s_cooldowns[tryIndex] <= 0)
+        {
+            candidateIndex = tryIndex;
+            break;  // Ditemukan serangan yang tidak di cooldown
+        }
+    }
+
+    // =========================================================
+    // [AI] SAFETY: Kalau semua serangan di cooldown (edge case),
+    // paksa pilih SpawnEnemy (index 0) sebagai fallback.
+    // =========================================================
+    if (candidateIndex < 0)
+    {
+        candidateIndex = static_cast<int>(AttackID::SpawnEnemy);
+        s_cooldowns[candidateIndex] = 0;  // Hapus cooldown-nya
+    }
+
+    // =========================================================
+    // [AI] STEP 2: SHUFFLE CHANCE
+    // 30% chance untuk SKIP ke serangan valid berikutnya.
+    // Ini bikin AI tidak terlalu robotik / predictable.
+    // =========================================================
+    if ((rand() % 100) < static_cast<int>(k_shuffleChance * 100.0f))
+    {
+        // Cari serangan valid BERIKUTNYA setelah candidate
+        for (int i = 1; i < static_cast<int>(AttackID::COUNT); ++i)
+        {
+            int tryIndex = (candidateIndex + i) % static_cast<int>(AttackID::COUNT);
+            if (s_cooldowns[tryIndex] <= 0)
+            {
+                candidateIndex = tryIndex;  // Ganti ke yang ini
+                break;
+            }
+        }
+        // Kalau tidak ditemukan yang lain, tetap pakai candidate awal (wajar)
+    }
+
+    // =========================================================
+    // [AI] STEP 3: UPDATE ROUND-ROBIN CURSOR
+    // Pindahkan cursor ke SETELAH serangan yang dipilih,
+    // sehingga next Idle cycle akan mulai cari dari sana.
+    // =========================================================
+    s_nextAttackIndex = (candidateIndex + 1) % static_cast<int>(AttackID::COUNT);
+
+    // =========================================================
+    // [AI] STEP 4: DEKREMENT SEMUA COOLDOWN YANG AKTIF
+    // Ini dilakukan SEBELUM set cooldown serangan baru,
+    // sehingga cooldown yang baru di-set tidak langsung terdekrement.
+    // =========================================================
+    for (int i = 0; i < static_cast<int>(AttackID::COUNT); ++i)
+    {
+        if (s_cooldowns[i] > 0) s_cooldowns[i]--;
+    }
+
+    // =========================================================
+    // [AI] STEP 5: SET COOLDOWN SERANGAN YANG DIPILIH
+    // =========================================================
+    AttackID chosenAttack = static_cast<AttackID>(candidateIndex);
+
+    switch (chosenAttack)
+    {
+    case AttackID::SpawnEnemy:      s_cooldowns[candidateIndex] = k_cooldownSpawnEnemy;      break;
+    case AttackID::SpawnPentagon:   s_cooldowns[candidateIndex] = k_cooldownSpawnPentagon;   break;
+    case AttackID::LockPlayer:      s_cooldowns[candidateIndex] = k_cooldownLockPlayer;      break;
+    case AttackID::DownloadAttack:  s_cooldowns[candidateIndex] = k_cooldownDownloadAttack;  break;
+    case AttackID::WireAttack:      s_cooldowns[candidateIndex] = k_cooldownWireAttack;      break;
+    }
+
+    // =========================================================
+    // [AI] STEP 6: EKSEKUSI SERANGAN
+    // Panggil trigger function yang sesuai. Setiap trigger akan
+    // membungkus state attack-nya dengan BossCommandState (typing
+    // animation), lalu otomatis masuk ke state attack yang sebenarnya.
+    // =========================================================
+    switch (chosenAttack)
+    {
+    case AttackID::SpawnEnemy:
+        boss->AddTerminalLog("AI: SELECTED -> SPAWN ENEMY");
+        boss->TriggerSpawnEnemy();
+        break;
+
+    case AttackID::SpawnPentagon:
+        boss->AddTerminalLog("AI: SELECTED -> SPAWN PENTAGON");
+        boss->TriggerSpawnPentagon();
+        break;
+
+    case AttackID::LockPlayer:
+        boss->AddTerminalLog("AI: SELECTED -> LOCK PLAYER");
+        boss->TriggerLockPlayer();
+        break;
+
+    case AttackID::DownloadAttack:
+        boss->AddTerminalLog("AI: SELECTED -> DOWNLOAD ATTACK");
+        boss->TriggerDownloadAttack();
+        break;
+
+    case AttackID::WireAttack:
+        boss->AddTerminalLog("AI: SELECTED -> WIRE ATTACK");
+        boss->TriggerWireAttackState();
+        break;
     }
 }
 
@@ -153,10 +297,6 @@ void BossSpawnEnemyState::Update(Boss* boss, float dt)
                     {
                         // TERLALU DEKAT! -> Lempar ke seberang X
                         finalSpawnPos.x = -finalSpawnPos.x;
-
-                        // Opsional: Kalau di seberang juga ada player (mustahil sih), 
-                        // kita geser Z-nya menjauh
-                        // finalSpawnPos.z += 5.0f; 
 
                         boss->AddTerminalLog("WARN: SPAWN_REROUTE [PROXIMITY]");
                     }
