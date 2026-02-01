@@ -144,6 +144,15 @@ void Framework::CalculateFrameStats(float dt)
     }
 }
 
+void Framework::Quit()
+{
+    PostQuitMessage(0);
+    SDL_Event quitEvent;
+    SDL_zero(quitEvent);
+    quitEvent.type = SDL_EVENT_QUIT;
+    SDL_PushEvent(&quitEvent);
+}
+
 LRESULT CALLBACK Framework::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     GameWindow* mainWin = GetMainWindow();

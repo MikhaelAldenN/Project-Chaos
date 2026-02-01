@@ -16,6 +16,7 @@ public:
     void Render(float elapsedTime);
     void ForceUpdateRender();
     void ChangeScene(std::unique_ptr<Scene> newScene);
+    void Quit();
 
     // Helper untuk mengambil Main Window (Window index 0)
     GameWindow* GetMainWindow() const;

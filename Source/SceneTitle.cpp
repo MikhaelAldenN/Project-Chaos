@@ -68,7 +68,7 @@ SceneTitle::SceneTitle()
 
     // Tombol YES
     exitPopup->AddButton("YES", 75.0f, btnY, 200.0f, 40.0f, [this]() {
-        PostQuitMessage(0);
+        Framework::Instance()->Quit();
         });
 
     // Tombol NO
