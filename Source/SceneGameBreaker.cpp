@@ -93,6 +93,8 @@ SceneGameBreaker::SceneGameBreaker()
         "Data/Sprite/Scene Breaker/Sprite_SubText_SPACEKEYRENDA.png");
     m_spriteSubTextMouseShift = std::make_unique<Sprite>(Graphics::Instance().GetDevice(),
         "Data/Sprite/Scene Breaker/Sprite_SubText_MOUSESHIFT.png");
+    m_spriteSubTextMouseSpace = std::make_unique<Sprite>(Graphics::Instance().GetDevice(),
+        "Data/Sprite/Scene Breaker/Sprite_SubText_MOUSESPACE.png");
 
     m_lastMouseX = Input::Instance().GetMouse().GetPositionX();
     m_lastMouseY = Input::Instance().GetMouse().GetPositionY();
@@ -202,6 +204,34 @@ void SceneGameBreaker::Update(float elapsedTime)
             if (m_defenseStopTimer >= 3.5f)
             {
                 m_showDefenseSubtext = false;
+            }
+        }
+
+        if (player && player->CanShoot() && !m_hasTriggeredAttackTutorial)
+        {
+            m_hasTriggeredAttackTutorial = true;
+
+            if (m_impactDisplay) m_impactDisplay->Show(ImpactType::Kougeki, 2.5f);
+
+            m_showAttackSubtext = true;
+            m_attackConditionMet = false;
+            m_attackStopTimer = 0.0f;
+        }
+
+        if (m_showAttackSubtext && !m_attackConditionMet)
+        {
+            if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+            {
+                m_attackConditionMet = true;
+            }
+        }
+
+        if (m_attackConditionMet)
+        {
+            m_attackStopTimer += elapsedTime;
+            if (m_attackStopTimer >= 3.5f)
+            {
+                m_showAttackSubtext = false;
             }
         }
 
@@ -649,6 +679,29 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
         float dy = screenH - h - 100.0f;
 
         m_spriteSubTextMouseShift->Render(dc, dx, dy, 0.0f, w, h, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+    }
+
+    // Render Subtext (Mouse Space)
+    if (m_spriteSubTextMouseSpace && m_showAttackSubtext)
+    {
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
+        float w = 278.0f;
+        float h = 55.0f;
+
+        float screenW = 1920.0f;
+        float screenH = 1080.0f;
+
+        if (auto win = Framework::Instance()->GetMainWindow()) {
+            screenW = (float)win->GetWidth();
+            screenH = (float)win->GetHeight();
+        }
+
+        float dx = (screenW * 0.5f) - (w * 0.5f);
+        float dy = screenH - h - 100.0f;
+
+        m_spriteSubTextMouseSpace->Render(dc, dx, dy, 0.0f, w, h, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     if (m_fxState.MasterEnabled)

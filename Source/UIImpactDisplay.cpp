@@ -26,6 +26,7 @@ void UIImpactDisplay::Initialize(ID3D11Device* device)
     LoadSprite(ImpactType::SpaceKeyJP, "Data/Sprite/Scene Breaker/Sprite_Text_SPACEKEY_jp.png");
     LoadSprite(ImpactType::RendaSeyo, "Data/Sprite/Scene Breaker/Sprite_Text_RENDASEYO.png");
     LoadSprite(ImpactType::Bougyo, "Data/Sprite/Scene Breaker/Sprite_Text_BOUGYO.png");
+    LoadSprite(ImpactType::Kougeki, "Data/Sprite/Scene Breaker/Sprite_Text_KOUGEKI.png");
     // Pastikan status awal bersih
     ResetAnim();
 }
@@ -192,17 +193,15 @@ bool UIImpactDisplay::IsActive() const
 float UIImpactDisplay::GetDistortionKick() const
 {
     if (!m_anim.isActive) return 0.0f;
-    if (m_anim.currentType == ImpactType::Bougyo) return 0.0f;
-    // Kita ingin efek distorsinya SANGAT CEPAT (lebih cepat dari animasi teksnya)
-    // Supaya layar seperti "terpukul" sekejap.
-    float kickDuration = 0.2f; // 0.2 detik durasi total distorsi
+    if (m_anim.currentType == ImpactType::Bougyo || m_anim.currentType == ImpactType::Kougeki)
+    {
+        return 0.0f;
+    }
+   
+    float kickDuration = 0.2f; 
 
     if (m_anim.timer < kickDuration)
     {
-        // Rumus Exponential Decay:
-        // Saat timer 0.0 -> hasil 1.0
-        // Saat timer 0.1 -> hasil drastis turun
-        // Angka 20.0f adalah kecepatan decay-nya. Semakin besar semakin cepat hilang.
         return exp(-20.0f * m_anim.timer);
     }
 

@@ -159,6 +159,7 @@ private:
     std::unique_ptr<Sprite> m_spriteDEBUG_LAYOUT; // Jika masih dipakai
     std::unique_ptr<Sprite> m_spriteSubText;
     std::unique_ptr<Sprite> m_spriteSubTextMouseShift;
+    std::unique_ptr<Sprite> m_spriteSubTextMouseSpace;
     std::unique_ptr<PostProcessManager> m_postProcess;
     UberShader::UberData uberParams;
     PostProcessState m_fxState;
@@ -179,6 +180,10 @@ private:
     bool m_showDefenseSubtext = false;
     bool m_defenseConditionMet = false;
     float m_defenseStopTimer = 0.0f;
+    bool m_hasTriggeredAttackTutorial = false;
+    bool m_showAttackSubtext = false;
+    bool m_attackConditionMet = false;
+    float m_attackStopTimer = 0.0f;
     int m_lastMouseX = 0;
     int m_lastMouseY = 0;
 
