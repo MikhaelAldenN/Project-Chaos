@@ -6,7 +6,8 @@
 #include <imgui.h>
 #include <vector>
 #include <string>
-#include <cstdio> 
+#include <cstdio>
+#include <unordered_map>
 
 using namespace DirectX;
 
@@ -828,8 +829,13 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
             ImGui::Indent();
             auto& enemies = scene->m_enemyManager->GetEnemies();
 
+            static std::unordered_map<Enemy*, int> paddleIDs;
+            static int nextPaddleID = 1;
+            static std::unordered_map<Enemy*, int> ballIDs;
+            static int nextBallID = 1;
             static EnemySpawnConfig lastSpawnConfig;
             static bool firstRun = true;
+
             if (firstRun) 
             {
                 lastSpawnConfig.Position = { 0,0,-50 };
@@ -855,16 +861,20 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
             // =========================================================
             if (ImGui::TreeNode("Enemy Paddles"))
             {
-                int paddleCount = 0;
                 for (size_t i = 0; i < enemies.size(); ++i)
                 {
                     Enemy* e = enemies[i].get();
                     if (e->GetType() != EnemyType::Paddle) continue;
 
-                    paddleCount++;
+                    // [FIX] Assign or Retrieve Persistent ID
+                    if (paddleIDs.find(e) == paddleIDs.end()) {
+                        paddleIDs[e] = nextPaddleID++;
+                    }
+                    int displayID = paddleIDs[e];
+
                     char label[64];
-                    if (e->IsActive()) snprintf(label, 64, "Paddle #%d (Active)", paddleCount);
-                    else               snprintf(label, 64, "Paddle #%d (Setup)", paddleCount);
+                    if (e->IsActive()) snprintf(label, 64, "Paddle #%d (Active)", displayID);
+                    else               snprintf(label, 64, "Paddle #%d (Setup)", displayID);
 
                     ImGui::PushID((int)i);
 
@@ -902,10 +912,14 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                             ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "ACTIVATE BEHAVIOR");
                             if (ImGui::Button("Spawn Static", ImVec2(-1, 0))) {
                                 scene->m_enemyManager->RespawnEnemyAs(i, AttackType::Static);
+                                auto* newE = enemies[i].get();
+                                paddleIDs[newE] = displayID;
                                 lastSpawnConfig.Position = pos; lastSpawnConfig.Rotation = rot;
                             }
                             if (ImGui::Button("Spawn Tracking", ImVec2(-1, 0))) {
                                 scene->m_enemyManager->RespawnEnemyAs(i, AttackType::Tracking);
+                                auto* newE = enemies[i].get();
+                                paddleIDs[newE] = displayID;
                                 lastSpawnConfig.Position = pos; lastSpawnConfig.Rotation = rot;
                             }
                             ImGui::Spacing();
@@ -923,6 +937,8 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                             if (ImGui::Button("Spawn Tracking Horizontal", ImVec2(-1, 0))) {
                                 MoveDir dir = (currentMoveDir == MoveDir::None) ? MoveDir::Left : currentMoveDir;
                                 scene->m_enemyManager->RespawnEnemyAs(i, AttackType::TrackingHorizontal, dir, e->GetMinX(), e->GetMaxX());
+                                auto* newE = enemies[i].get();
+                                paddleIDs[newE] = displayID;
                                 lastSpawnConfig.Position = pos; lastSpawnConfig.Rotation = rot;
                             }
 
@@ -935,6 +951,8 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
                             if (ImGui::Button("Spawn Tracking Random", ImVec2(-1, 0))) {
                                 scene->m_enemyManager->RespawnEnemyAs(i, AttackType::TrackingRandom, MoveDir::None, e->GetMinX(), e->GetMaxX(), e->GetMinZ(), e->GetMaxZ());
+                                auto* newE = enemies[i].get();
+                                paddleIDs[newE] = displayID;
                                 lastSpawnConfig.Position = pos; lastSpawnConfig.Rotation = rot;
                             }
                         }
@@ -942,7 +960,7 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                         ImGui::Spacing();
                         // [FIX] Pass 'pos' to Copy Function
                         if (ImGui::Button("Copy Value")) {
-                            std::string copyStr = GenerateEnemyCopyString(e, paddleCount, "Paddle", pos);
+                            std::string copyStr = GenerateEnemyCopyString(e, displayID, "Paddle", pos);
                             ImGui::SetClipboardText(copyStr.c_str());
                         }
                         ImGui::SameLine();
@@ -974,15 +992,17 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
             // =========================================================
             if (ImGui::TreeNode("Enemy Balls"))
             {
-                int ballCount = 0;
                 for (size_t i = 0; i < enemies.size(); ++i)
                 {
                     Enemy* e = enemies[i].get();
                     if (e->GetType() != EnemyType::Ball) continue;
 
-                    ballCount++;
+                    if (ballIDs.find(e) == ballIDs.end()) {
+                        ballIDs[e] = nextBallID++;
+                    }
+                    int displayID = ballIDs[e];
                     char label[64];
-                    snprintf(label, 64, "Ball #%d", ballCount);
+                    snprintf(label, 64, "Ball #%d", displayID);
 
                     ImGui::PushID((int)i);
                     if (ImGui::TreeNode(label))
@@ -1007,7 +1027,7 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
                         // [FIX] Pass 'pos' to Copy Function
                         if (ImGui::Button("Copy Value")) {
-                            std::string copyStr = GenerateEnemyCopyString(e, ballCount, "Ball", pos);
+                            std::string copyStr = GenerateEnemyCopyString(e, displayID, "Ball", pos);
                             ImGui::SetClipboardText(copyStr.c_str());
                         }
                         ImGui::SameLine();
@@ -1061,11 +1081,12 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
         {
             ImGui::Indent();
             scene->m_itemManager->SetHighlight(-1); // Clear highlight
-
             auto& items = scene->m_itemManager->GetItems();
+            static std::unordered_map<Item*, int> healIDs;
+            static int nextHealID = 1;
+            static std::unordered_map<Item*, int> invIDs;
+            static int nextInvID = 1;
 
-            // --- HELPER LAMBDA: Draws a single item node ---
-            // Returns TRUE if the item was deleted (so we can break the loop safely)
             auto DrawSingleItemNode = [&](int index, Item* item, int displayIndex, const char* namePrefix) -> bool
                 {
                     char label[64];
@@ -1131,14 +1152,19 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
             // --- PASS 1: HEAL ITEMS (Top) ---
             ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.4f, 1.0f), "--- HEAL ITEMS ---");
-            int healCount = 0;
             for (int i = 0; i < items.size(); ++i)
             {
                 if (items[i]->GetType() == ItemType::Heal)
                 {
-                    healCount++;
-                    // If deleted, stop immediately to prevent crash, will redraw next frame
-                    if (DrawSingleItemNode(i, items[i].get(), healCount, "Item Heal")) break;
+                    // [FIX] Persistent ID Logic
+                    Item* ptr = items[i].get();
+                    if (healIDs.find(ptr) == healIDs.end()) {
+                        healIDs[ptr] = nextHealID++;
+                    }
+                    int displayID = healIDs[ptr];
+
+                    // Pass displayID instead of a local counter
+                    if (DrawSingleItemNode(i, items[i].get(), displayID, "Item Heal")) break;
                 }
             }
 
@@ -1146,13 +1172,18 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
             // --- PASS 2: INVINCIBLE ITEMS (Bottom) ---
             ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "--- INVINCIBLE ITEMS ---");
-            int invCount = 0;
             for (int i = 0; i < items.size(); ++i)
             {
                 if (items[i]->GetType() == ItemType::Invincible)
                 {
-                    invCount++;
-                    if (DrawSingleItemNode(i, items[i].get(), invCount, "Item Invincible")) break;
+                    // [FIX] Persistent ID Logic
+                    Item* ptr = items[i].get();
+                    if (invIDs.find(ptr) == invIDs.end()) {
+                        invIDs[ptr] = nextInvID++;
+                    }
+                    int displayID = invIDs[ptr];
+
+                    if (DrawSingleItemNode(i, items[i].get(), displayID, "Item Invincible")) break;
                 }
             }
 
