@@ -31,6 +31,7 @@ public:
     void SetActive(bool active) { m_isActive = active; }
     void SetHighlight(bool highlight) { m_isHighlighted = highlight; }
     void UpdateOriginalTransform(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& rot);
+    void SetBaseMoveSpeed(float speed) { m_baseMoveSpeed = speed; }
     void SetMoveDir(MoveDir dir) { m_moveDir = dir; }
     void SetPatrolLimitsX(float minOffset, float maxOffset);
     void SetPatrolLimitsZ(float minOffset, float maxOffset);

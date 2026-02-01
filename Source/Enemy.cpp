@@ -108,15 +108,15 @@ void Enemy::Update(float elapsedTime, Camera* camera)
     }
     else if (m_attackType == AttackType::Tracking)
     {
-        XMFLOAT3 fwd = GetForwardVector();
-
-        float chaseSpeed = m_baseMoveSpeed * 0.4f;
-
-        XMFLOAT3 pos = movement->GetPosition();
-        pos.x += fwd.x * chaseSpeed * elapsedTime;
-        pos.z += fwd.z * chaseSpeed * elapsedTime;
-
-        movement->SetPosition(pos);
+        if (m_baseMoveSpeed > 0.0f)
+        {
+            XMFLOAT3 fwd = GetForwardVector();
+            float chaseSpeed = m_baseMoveSpeed * 0.4f;
+            XMFLOAT3 pos = movement->GetPosition();
+            pos.x += fwd.x * chaseSpeed * elapsedTime;
+            pos.z += fwd.z * chaseSpeed * elapsedTime;
+            movement->SetPosition(pos);
+        }
     }
 
     if (movement) movement->Update(elapsedTime);

@@ -46,6 +46,7 @@ struct EnemySpawnConfig
     float MaxZ = 0.0f; 
 
     DirectX::XMFLOAT3 Scale = { 1.0f, 1.0f, 1.0f };
+    float BaseSpeed = 2.0f;         // Game Beyond Enemy Speed
 };
 
 namespace EnemyLevelData
@@ -80,7 +81,7 @@ namespace EnemyLevelData
         // Paddle 2
         { { -4.7f, 0.0f, -52.9f }, Rot::Left, Blue, EnemyType::Paddle, AttackType::Static },
         // Paddle 3
-        { { -2.9f, 0.0f, -157.2f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::Tracking },
+        { { -2.9f, 0.0f, -157.2f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::Tracking, MoveDir::None, 0, 0, 0, 0, {1,1,1}, 0.0f },
         // Paddle 4
         { { 1.3f, 0.0f, -192.7f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Left, -4.4f, 4.3f },
         // Paddle 5
@@ -100,13 +101,13 @@ namespace EnemyLevelData
         // Paddle 12
         { { 28.1f, 0.0f, -249.1f }, Rot::Right, Blue, EnemyType::Paddle, AttackType::Static },
         // Paddle 13
-        { { 7.2f, 0.0f, -341.5f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::Tracking },
+        { { 7.2f, 0.0f, -341.5f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::Tracking, MoveDir::None, 0, 0, 0, 0, {1,1,1}, 0.0f },
         // Paddle 14
         { { 4.0f, 0.0f, -354.2f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Left, -2.0f, 2.0f },
         // Paddle 15
         { { 10.0f, 0.0f, -354.2f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Right, -2.0f, 2.0f },
         // Paddle 16
-        { { 8.0f, 0.0f, -377.7f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::Tracking },
+        { { 8.0f, 0.0f, -377.7f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::Tracking, MoveDir::None, 0, 0, 0, 0, {1,1,1}, 0.0f },
         // Paddle 17
         { { 15.4f, 0.0f, -381.7f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingRandom, MoveDir::None, -5.0f, 5.0f, -10.0f, 10.0f },
         // Paddle 18

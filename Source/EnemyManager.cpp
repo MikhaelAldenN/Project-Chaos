@@ -51,7 +51,7 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
     );
 
     newEnemy->SetScale(config.Scale);
-
+    newEnemy->SetBaseMoveSpeed(config.BaseSpeed);
     m_enemies.push_back(std::move(newEnemy));
 }
 
