@@ -869,15 +869,9 @@ void CollisionManager::CheckPlayerVsEnemies()
                 continue;
             }
 
-            if (m_onPlayerHitCallback) m_onPlayerHitCallback();
+            if (m_onPlayerDeathCallback) m_onPlayerDeathCallback();
 
-            if (m_itemManager && enemy->GetType() == EnemyType::Paddle) {
-                m_itemManager->SpawnHealAt(enemyPos);
-            }
             it = enemies.erase(it);
-
-            m_player->SetInputEnabled(false);
-            m_player->GetMovement()->SetPosition({ 0, -1000, 0 });
         }
         else
         {
