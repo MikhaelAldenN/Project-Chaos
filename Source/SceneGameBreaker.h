@@ -158,7 +158,7 @@ private:
     std::unique_ptr<Sprite> m_spriteBorderBreaker;
     std::unique_ptr<Sprite> m_spriteDEBUG_LAYOUT; // Jika masih dipakai
     std::unique_ptr<Sprite> m_spriteSubText;
-
+    std::unique_ptr<Sprite> m_spriteSubTextMouseShift;
     std::unique_ptr<PostProcessManager> m_postProcess;
     UberShader::UberData uberParams;
     PostProcessState m_fxState;
@@ -175,6 +175,12 @@ private:
     float m_configFineDensity = 30.0f;
     float m_configZoomDensity = 0.0f;
     bool m_introFinished = false;
+    bool m_hasTriggeredDefenseTutorial = false;
+    bool m_showDefenseSubtext = false;
+    bool m_defenseConditionMet = false;
+    float m_defenseStopTimer = 0.0f;
+    int m_lastMouseX = 0;
+    int m_lastMouseY = 0;
 
     // [PENTING] Director yang mengatur kamera sekarang
     std::unique_ptr<CinematicDirector> m_director;

@@ -91,6 +91,11 @@ SceneGameBreaker::SceneGameBreaker()
 
     m_spriteSubText = std::make_unique<Sprite>(Graphics::Instance().GetDevice(),
         "Data/Sprite/Scene Breaker/Sprite_SubText_SPACEKEYRENDA.png");
+    m_spriteSubTextMouseShift = std::make_unique<Sprite>(Graphics::Instance().GetDevice(),
+        "Data/Sprite/Scene Breaker/Sprite_SubText_MOUSESHIFT.png");
+
+    m_lastMouseX = Input::Instance().GetMouse().GetPositionX();
+    m_lastMouseY = Input::Instance().GetMouse().GetPositionY();
 }
 
 SceneGameBreaker::~SceneGameBreaker()
@@ -163,12 +168,50 @@ void SceneGameBreaker::Update(float elapsedTime)
             }
         }
 
+        if (player && player->CanUseShield() && !m_hasTriggeredDefenseTutorial)
+        {
+            m_hasTriggeredDefenseTutorial = true;
+
+            if (m_impactDisplay) m_impactDisplay->Show(ImpactType::Bougyo, 2.5f);
+
+            m_showDefenseSubtext = true;
+            m_defenseConditionMet = false;
+            m_defenseStopTimer = 0.0f;
+        }
+
+        if (m_showDefenseSubtext && !m_defenseConditionMet)
+        {
+            bool isShiftHeld = (GetAsyncKeyState(VK_LSHIFT) & 0x8000) || (GetAsyncKeyState(VK_RSHIFT) & 0x8000);
+
+            int currMx = Input::Instance().GetMouse().GetPositionX();
+            int currMy = Input::Instance().GetMouse().GetPositionY();
+            bool isMouseMoving = (currMx != m_lastMouseX) || (currMy != m_lastMouseY);
+
+            m_lastMouseX = currMx;
+            m_lastMouseY = currMy;
+
+            if (isShiftHeld && isMouseMoving)
+            {
+                m_defenseConditionMet = true;
+            }
+        }
+
+        if (m_defenseConditionMet)
+        {
+            m_defenseStopTimer += elapsedTime;
+            if (m_defenseStopTimer >= 3.5f)
+            {
+                m_showDefenseSubtext = false;
+            }
+        }
+
         if (player->IsEscaping() || player->GetGameStage() == 3)
         {
             DirectX::XMFLOAT3 pPos = player->GetPosition();
             CameraController::Instance().SetTarget(pPos);
         }
     }
+
 
     if (blockManager && player)
     {
@@ -583,6 +626,29 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
 
         // Render (Warna Putih Solid)
         m_spriteSubText->Render(dc, dx, dy, 0.0f, w, h, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+    }
+
+    // Render SubText (Mouse Shift)
+    if (m_spriteSubTextMouseShift && m_showDefenseSubtext)
+    {
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
+        float w = 278.0f;
+        float h = 55.0f;
+
+        float screenW = 1920.0f;
+        float screenH = 1080.0f;
+
+        if (auto win = Framework::Instance()->GetMainWindow()) {
+            screenW = (float)win->GetWidth();
+            screenH = (float)win->GetHeight();
+        }
+
+        float dx = (screenW * 0.5f) - (w * 0.5f);
+        float dy = screenH - h - 100.0f;
+
+        m_spriteSubTextMouseShift->Render(dc, dx, dy, 0.0f, w, h, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     if (m_fxState.MasterEnabled)
