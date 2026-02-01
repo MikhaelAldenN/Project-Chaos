@@ -451,7 +451,7 @@ void SceneGameBreaker::Update(float elapsedTime)
         const float baseSmoothness = 0.2f;
         const float baseIntensity = 0.38f;
         // Target Values (Pitch Black)
-        const float targetSmoothness = 4.0f;
+        const float targetSmoothness = 7.0f;
         const float targetIntensity = 5.0f;
 
         if (m_isTransitioning)
