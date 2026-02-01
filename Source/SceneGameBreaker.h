@@ -169,6 +169,9 @@ private:
     const char* pathBorderBreaker = "Data/Sprite/Scene Breaker/Sprite_BorderBreakertransparent.png";
 
     // State Variables
+    bool m_modelIntroFinished = false; 
+    float m_modelIntroTimer = 0.0f;    
+    float m_modelIntroSpeed = 0.003f;  
     bool m_hasTriggered = false;
     float m_globalTime = 0.0f;
     float m_bgRotation = 0.0f;

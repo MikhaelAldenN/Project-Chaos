@@ -38,6 +38,8 @@ public:
     bool IsInvincible() const { return m_isInvincible; }
     bool IsShieldActive() const { return isShieldActive; }
     int GetActiveBlockCount() const;
+    int GetRows() const { return m_rows; }
+    int GetColumns() const { return m_columns; }
 
     void SpawnAllyBlock(Player* player);
     void ClearBlocks()

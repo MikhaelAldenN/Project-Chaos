@@ -113,6 +113,8 @@ void SceneGameBreaker::Update(float elapsedTime)
     m_globalTime += elapsedTime;
     if (m_globalTime > 1000.0f) m_globalTime -= 1000.0f;
 
+    if (!m_modelIntroFinished) { m_modelIntroTimer += elapsedTime; }
+
     Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
 
     // Update Entities
@@ -572,7 +574,7 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
     }
 
     BitmapFont* text = ResourceManager::Instance().GetFont("VGA_FONT");
-    if (text) {
+    if (text && m_modelIntroFinished) {
         dc->OMSetBlendState(Graphics::Instance().GetAlphaBlendState(), nullptr, 0xFFFFFFFF);
         text->Draw(tutorialText.c_str(), tutorialLayout.x, tutorialLayout.y, tutorialLayout.scale, tutorialLayout.color[0], tutorialLayout.color[1], tutorialLayout.color[2], tutorialLayout.color[3]);
     }
@@ -725,16 +727,110 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, &m_lightManager };
 
-    if (ball) ball->Render(modelRenderer);
-    if (blockManager) blockManager->Render(modelRenderer);
-    if (paddle && paddle->IsActive()) modelRenderer->Draw(ShaderId::Phong, paddle->GetModel(), paddle->color);
-    if (player) 
+    // =========================================================
+    // [MODIFIED] SEQUENTIAL INTRO: GRID -> BALL -> PADDLE
+    // =========================================================
+    if (!m_modelIntroFinished)
     {
-        modelRenderer->Draw(ShaderId::Phong, player->GetModel(), player->color);
+        int visibleCount = (int)(m_modelIntroTimer / m_modelIntroSpeed);
+
+        int rows = 7;
+        int cols = 7;
+        if (blockManager) {
+            rows = blockManager->GetRows();
+            cols = blockManager->GetColumns();
+        }
+
+        int centerZ = rows / 2;
+        int centerX = cols / 2;
+        int totalGridCells = rows * cols;
+
+        // Clamp limit to total cells so the loop doesn't overflow
+        int limit = (std::min)(visibleCount, totalGridCells);
+
+        // 1. Render Grid (Blocks + Player) - Top-Left to Bottom-Right
+        if (blockManager)
+        {
+            auto& blocks = blockManager->GetBlocks();
+            DirectX::XMFLOAT4 bColor = blockManager->globalBlockColor;
+
+            for (int k = 0; k < limit; ++k)
+            {
+                // Map linear 'k' to Visual Grid (Top-Left start)
+                int visRow = k / cols;
+                int visCol = k % cols;
+
+                // Map Visual Grid to Storage Grid (Bottom-Up Z)
+                // Row 0 (Visual Top) -> Z = 6 (Storage Top)
+                int storageZ = (rows - 1) - visRow;
+                int storageX = visCol;
+
+                // CHECK: Is this the Player Hole?
+                if (storageZ == centerZ && storageX == centerX)
+                {
+                    // Render Player EXACTLY when the scan hits the middle
+                    if (player) modelRenderer->Draw(ShaderId::Phong, player->GetModel(), player->color);
+                }
+                else
+                {
+                    // Calculate Index in 'blocks' vector
+                    // Vector is filled Bottom-Up, Left-Right. 
+                    // We must account for the missing hole in the index calculation.
+                    int linearIdx = storageZ * cols + storageX;
+                    if (storageZ > centerZ || (storageZ == centerZ && storageX > centerX))
+                    {
+                        linearIdx--; // Shift back 1 because the hole wasn't added to the vector
+                    }
+
+                    if (linearIdx >= 0 && linearIdx < blocks.size())
+                    {
+                        if (blocks[linearIdx]->IsActive())
+                            blocks[linearIdx]->Render(modelRenderer, bColor);
+                    }
+                }
+            }
+        }
+
+        // 2. Render Ball (After Grid)
+        // Delay: 5 frames after grid finishes
+        if (ball && visibleCount > totalGridCells + 5)
+        {
+            ball->Render(modelRenderer);
+        }
+
+        // 3. Render Paddle (After Ball)
+        // Delay: 10 frames after grid finishes (so 5 frames after Ball)
+        if (paddle && paddle->IsActive())
+        {
+            if (visibleCount > totalGridCells + 10)
+            {
+                modelRenderer->Draw(ShaderId::Phong, paddle->GetModel(), paddle->color);
+            }
+        }
+
+        // 4. Finish Animation State
+        // Give a small buffer before enabling the text
+        if (visibleCount > totalGridCells + 20)
+        {
+            m_modelIntroFinished = true;
+        }
     }
+    else
+    {
+        // =========================================================
+        // NORMAL RENDERING (OPTIMIZED)
+        // =========================================================
+        if (ball) ball->Render(modelRenderer);
+        if (blockManager) blockManager->Render(modelRenderer);
+        if (paddle && paddle->IsActive()) modelRenderer->Draw(ShaderId::Phong, paddle->GetModel(), paddle->color);
+        if (player) modelRenderer->Draw(ShaderId::Phong, player->GetModel(), player->color);
+    }
+
+    // Always render these normally
     if (m_introFinished && m_enemyManager) { m_enemyManager->Render(modelRenderer); }
     if (m_introFinished && m_itemManager) m_itemManager->Render(modelRenderer);
     if (m_isShakeEnabled && m_stage) { m_stage->UpdateTransform(); m_stage->Render(modelRenderer); }
+
     modelRenderer->Render(rc);
 }
 
