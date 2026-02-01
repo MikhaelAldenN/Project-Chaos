@@ -716,7 +716,15 @@ void CollisionManager::CheckBlockVsEnemies()
 
             if (distSq < (combinedRadius * combinedRadius))
             {
-                block.OnHit();
+                bool isPaddle = (enemy->GetType() == EnemyType::Paddle);
+                bool isInvincible = (m_blockManager && m_blockManager->IsInvincible());
+
+                if (isInvincible && isPaddle) { }
+                else
+                {
+                    block.OnHit();
+                    if (m_blockManager) m_blockManager->TriggerBlockBreakParams();
+                }
 
                 if (m_blockManager) m_blockManager->TriggerBlockBreakParams();
 
