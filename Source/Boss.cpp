@@ -732,34 +732,56 @@ void Boss::RenderWires(ModelRenderer* renderer)
     {
         if (w.state == WireState::INACTIVE) continue;
 
-        // Pilih model
         auto model = (w.modelIndex == 0) ? m_wireModel1 : m_wireModel2;
         if (!model) continue;
 
-        // Visual Feedback Warna
-        XMFLOAT4 color = { 1,1,1,1 };
-        if (w.state == WireState::WARNING) {
-            // Kedap kedip Merah
-            float flash = sinf(GetTickCount64() * 0.01f); // Cepat
-            color = (flash > 0) ? XMFLOAT4(1, 0, 0, 1) : XMFLOAT4(0.5f, 0, 0, 1);
+        // =========================================================
+        // LOGIKA WARNA (VISUAL EFFECT)
+        // =========================================================
+        XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f }; // Default
+
+        if (w.state == WireState::WARNING)
+        {
+            // === FASE CHARGING (Normal -> Merah MENYALA) ===
+            float maxTime = 2.0f;
+            float t = 1.0f - (w.timer / maxTime); // 0.0 -> 1.0
+            if (t < 0.0f) t = 0.0f;
+            if (t > 1.0f) t = 1.0f;
+
+            // Kita pakai Base 1.0 ditambah Boost sampai 10.0
+            // Supaya saat peak, warnanya menembus kegelapan tekstur
+            float boost = 1.0f + (t * 15.0f); // Hasilnya 1.0 s/d 16.0
+
+            color.x = boost;                // Merah super terang
+            color.y = 1.0f - t;             // Hijau turun
+            color.z = 1.0f - t;             // Biru turun
         }
-        else if (w.state == WireState::ACTIVE) {
-            // Biru Listrik / Kuning
-            float flash = sinf(GetTickCount64() * 0.05f);
-            color = (flash > 0) ? XMFLOAT4(0, 1, 1, 1) : XMFLOAT4(1, 1, 0, 1);
+        else if (w.state == WireState::ACTIVE)
+        {
+            // === FASE NYETRUM (SUPER BRIGHT STROBE) ===
+            int flicker = rand() % 3;
+
+            // Gunakan angka besar (HDR) biar glowing parah
+            if (flicker == 0)
+                color = { 2.0f, 8.0f, 20.0f, 1.0f }; // Cyan Terang (Biru dikit, Putih banyak)
+            else if (flicker == 1)
+                color = { 20.0f, 20.0f, 20.0f, 1.0f }; // Putih Ledakan (Mentok Kanan)
+            else
+                color = { 0.0f, 2.0f, 10.0f, 1.0f }; // Biru Deep tapi terang
         }
 
-        // === MATRIX CALCULATION ===
+        // =========================================================
+        // TRANSFORM MATRIX
+        // =========================================================
 
-                // 1. Scale
+        // 1. Scale
         XMMATRIX S = XMMatrixScaling(
             m_wireConfig.scale.x,
             m_wireConfig.scale.y,
             m_wireConfig.scale.z
         );
 
-        // 2. Pivot Offset (BARU)
-        // Geser model secara lokal agar "Ujung Atas" berada di titik 0,0,0
+        // 2. Pivot Offset (Supaya Anchor di Ujung Atas)
         XMMATRIX T_Pivot = XMMatrixTranslation(
             m_wireConfig.pivotOffset.x,
             m_wireConfig.pivotOffset.y,
@@ -773,13 +795,29 @@ void Boss::RenderWires(ModelRenderer* renderer)
             XMConvertToRadians(w.rotation.z)
         );
 
-        // 4. World Position
-        XMMATRIX T = XMMatrixTranslation(w.position.x, w.position.y, w.position.z);
+        // 4. World Position + GUNCANGAN (Vibration)
+        float shakeX = 0.0f;
+        float shakeZ = 0.0f;
 
-        // GABUNGKAN: Scale -> Geser Pivot -> Putar -> Pindah ke Lokasi Asli
+        // Tambahkan efek getar hanya saat NYETRUM
+        if (w.state == WireState::ACTIVE)
+        {
+            float intensity = 0.15f; // Kekuatan getar
+            shakeX = ((rand() % 100) / 50.0f - 1.0f) * intensity;
+            shakeZ = ((rand() % 100) / 50.0f - 1.0f) * intensity;
+        }
+
+        XMMATRIX T = XMMatrixTranslation(
+            w.position.x + shakeX,
+            w.position.y,
+            w.position.z + shakeZ
+        );
+
+        // GABUNGKAN
         XMFLOAT4X4 world;
         XMStoreFloat4x4(&world, S * T_Pivot * R * T);
 
+        // Render
         renderer->Draw(ShaderId::Lambert, model, color, world);
     }
 }
