@@ -719,10 +719,17 @@ void CollisionManager::CheckBlockVsEnemies()
             {
                 block.OnHit();
                 if (m_blockManager) m_blockManager->TriggerBlockBreakParams();
-                if (m_itemManager && enemy->GetType() == EnemyType::Paddle)
+
+                // [MODIFIKASI] DROP ITEM LOGIC
+                // Jika musuh adalah PADDLE atau PENTAGON -> Spawn Heal
+                if (m_itemManager)
                 {
-                    m_itemManager->SpawnHealAt(enemyPos);
+                    if (enemy->GetType() == EnemyType::Paddle || enemy->GetType() == EnemyType::Pentagon)
+                    {
+                        m_itemManager->SpawnHealAt(enemyPos);
+                    }
                 }
+
                 enemyDestroyed = true;
                 break;
             }
