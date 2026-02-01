@@ -96,7 +96,7 @@ void Framework::Update(float elapsedTime)
 
     CalculateFrameStats(elapsedTime);
     Input::Instance().Update();
-    AudioManager::Instance().Update();
+    AudioManager::Instance().Update(elapsedTime);
 
     ImGuiRenderer::NewFrame();
 

@@ -766,6 +766,7 @@ void CollisionManager::CheckBlockVsItems()
 
             if (distSq < combinedRadius * combinedRadius)
             {
+                AudioManager::Instance().PlaySFX("Data/Sound/SE_Pop.wav", 0.4f);
                 if (item->GetType() == ItemType::Heal) {
                     if (m_blockManager) m_blockManager->AddBlockFromItem(iPos);
                 }
@@ -1046,6 +1047,7 @@ void CollisionManager::CheckPlayerVsItems()
         {
             // COLLISION TERJADI!
 
+            AudioManager::Instance().PlaySFX("Data/Sound/SE_Pop.wav", 0.4f);
             // 1. Efek Item
             if (item->GetType() == ItemType::Heal)
             {

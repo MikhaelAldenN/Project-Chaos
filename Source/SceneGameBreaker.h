@@ -13,6 +13,7 @@
 #include "GameWindow.h"
 #include "CameraController.h"
 #include "UberShader.h"
+#include "System/AudioManager.h"
 #include "System/Sprite.h"
 #include "System/Light.h"
 #include "System/Collision.h"

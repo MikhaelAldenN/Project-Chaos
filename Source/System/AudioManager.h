@@ -11,12 +11,13 @@ public:
 
     bool Initialize();
     void Finalize();
-    void Update();
+
+    void Update(float elapsedTime);
 
     void PlayMusic(const std::string& filePath, bool loop = true, float loopStartSeconds = 0.0f);
-
-    void StopMusic();
     void PlaySFX(const std::string& filePath, float volume = 1.0f);
+    void StopMusic();
+    void FadeOutMusic(float duration);
 
 private:
     AudioManager() = default;
@@ -37,8 +38,12 @@ private:
     SoundData* m_currentMusicData = nullptr;
 
     bool m_isMusicLooping = false;
-
     float m_musicLoopStart = 0.0f;
+
+    // Fading Variables
+    bool m_isFadingOut = false;
+    float m_fadeTimer = 0.0f;
+    float m_fadeDuration = 0.0f;
 
     std::vector<SDL_AudioStream*> m_activeSFXStreams;
 };

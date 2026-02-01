@@ -14,7 +14,7 @@ public:
 
     void Update(float elapsedTime, Camera* camera) override;
     void UpdateAI(float elapsedTime, Ball* ball, BlockManager* blockManager);
-    void CheckCollision(Ball* ball);
+    bool CheckCollision(Ball* ball);
     void SetAIEnabled(bool enable) { isAIEnabled = enable; }
     void SetActive(bool active) { isActive = active; }
     bool IsActive() const { return isActive; }

@@ -177,9 +177,9 @@ void Paddle::HandleInput()
     movement->SetMoveInput(velocityX, 0.0f);
 }
 
-void Paddle::CheckCollision(Ball* ball)
+bool Paddle::CheckCollision(Ball* ball)
 {
-    if (!isActive || !ball) return;
+    if (!isActive || !ball) return false;
 
     auto ballPos = ball->GetPosition();
     auto padPos = movement->GetPosition();
@@ -208,6 +208,9 @@ void Paddle::CheckCollision(Ball* ball)
             newVz = fabsf(newVz);
 
             ball->SetVelocity({ newVx, 0.0f, newVz });
+
+            return true;
         }
     }
+    return false;
 }

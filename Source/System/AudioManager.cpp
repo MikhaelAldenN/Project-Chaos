@@ -40,7 +40,23 @@ void AudioManager::Finalize() {
     SDL_CloseAudioDevice(m_deviceId);
 }
 
-void AudioManager::Update() {
+void AudioManager::Update(float elapsedTime) {
+    
+    if (m_musicStream && m_isFadingOut) 
+    {
+        m_fadeTimer -= elapsedTime;
+
+        if (m_fadeTimer <= 0.0f) 
+        {
+            StopMusic();
+        }
+        else 
+        {
+            float volume = m_fadeTimer / m_fadeDuration;
+            SDL_SetAudioStreamGain(m_musicStream, volume);
+        }
+    }
+
     auto it = std::remove_if(m_activeSFXStreams.begin(), m_activeSFXStreams.end(),
         [](SDL_AudioStream* stream) {
             if (SDL_GetAudioStreamAvailable(stream) == 0) {
@@ -97,10 +113,12 @@ void AudioManager::PlayMusic(const std::string& filePath, bool loop, float loopS
 
     SDL_BindAudioStream(m_deviceId, m_musicStream);
     SDL_PutAudioStreamData(m_musicStream, data->buffer, data->length);
+    SDL_SetAudioStreamGain(m_musicStream, 1.0f);
 
     m_currentMusicData = data;
     m_isMusicLooping = loop;
     m_musicLoopStart = loopStartSeconds; 
+    m_isFadingOut = false;
 }
 
 void AudioManager::StopMusic() {
@@ -110,6 +128,15 @@ void AudioManager::StopMusic() {
         m_musicStream = nullptr;
     }
     m_currentMusicData = nullptr;
+    m_isFadingOut = false;
+}
+
+void AudioManager::FadeOutMusic(float duration) {
+    if (m_musicStream && !m_isFadingOut) {
+        m_isFadingOut = true;
+        m_fadeDuration = duration;
+        m_fadeTimer = duration;
+    }
 }
 
 void AudioManager::PlaySFX(const std::string& filePath, float volume) {
@@ -120,6 +147,7 @@ void AudioManager::PlaySFX(const std::string& filePath, float volume) {
     if (stream) {
         SDL_BindAudioStream(m_deviceId, stream);
         SDL_PutAudioStreamData(stream, data->buffer, data->length);
+        SDL_SetAudioStreamGain(stream, volume);
         m_activeSFXStreams.push_back(stream);
     }
 }

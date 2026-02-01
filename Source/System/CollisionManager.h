@@ -5,6 +5,7 @@
 #include <DirectXMath.h>
 #include <functional>
 #include <vector>
+#include "System/AudioManager.h"
 #include "System/Collision.h"
 #include "Enemy.h"
 #include "Player.h"

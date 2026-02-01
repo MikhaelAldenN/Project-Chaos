@@ -59,13 +59,27 @@ SceneGameBreaker::SceneGameBreaker()
     m_collisionManager = std::make_unique<CollisionManager>();
     m_collisionManager->Initialize(player, m_stage.get(), blockManager.get(), m_enemyManager.get(), m_itemManager.get());
 
-    m_collisionManager->SetOnPlayerDeathCallback([this]() { StartPlayerDeathSequence(); });
+    m_collisionManager->SetOnPlayerDeathCallback([this]() {
+        AudioManager::Instance().PlaySFX("Data/Sound/SE_Explosion.wav", 0.4f);
+        StartPlayerDeathSequence();
+        });
+    m_collisionManager->SetOnPlayerHitCallback([this]() {
+        AudioManager::Instance().PlaySFX("Data/Sound/SE_Explosion.wav", 0.4f);
+        });
     m_collisionManager->SetOnCheckpointReachCallback([this](DirectX::XMFLOAT3 pos){ SaveCheckpoint(pos); });
     m_collisionManager->SetOnLevelCompleteCallback([this]() { StartLevelTransition(); });
 
     // Callback untuk Shake saat blok hancur
     blockManager->SetOnBlockHitCallback([this]()
         {
+            if (!m_hasTriggered)
+            {
+                AudioManager::Instance().PlaySFX("Data/Sound/SE_Tap.wav", 0.4f);
+            }
+            else if (m_introFinished)
+            {
+                AudioManager::Instance().PlaySFX("Data/Sound/SE_Explosion.wav", 0.4f);
+            }
             if (m_isShakeEnabled)
             {
                 ShakeSettings hitShake;
@@ -293,7 +307,16 @@ void SceneGameBreaker::Update(float elapsedTime)
             ball->GetMovement()->SetPosition(padPos);
         }
         ball->Update(elapsedTime, activeCam);
-        if (paddle && ball->IsActive()) paddle->CheckCollision(ball);
+        if (paddle && ball->IsActive())
+        {
+            if (paddle->CheckCollision(ball)) 
+            {
+                if (!m_hasTriggered)
+                {
+                    AudioManager::Instance().PlaySFX("Data/Sound/SE_Tap.wav", 0.4f);
+                }
+            }
+        }
         if (player && player->GetGameStage() >= 2)
         {
             DirectX::XMFLOAT3 bPos = ball->GetMovement()->GetPosition();
@@ -327,7 +350,8 @@ void SceneGameBreaker::Update(float elapsedTime)
         if (!s_hasEnabledMashing)
         {
             s_hasEnabledMashing = true;
-            player->SetBreakoutMode(true); 
+            player->SetBreakoutMode(true);
+            AudioManager::Instance().PlayMusic("Data/Sound/BGM_GameBreaker.wav", true);
         }
     }
 
@@ -633,6 +657,7 @@ void SceneGameBreaker::UpdateGameTriggers(float elapsedTime)
         if (paddle) paddle->SetAIEnabled(true);
 
         m_director->TriggerIntroSequence();
+        AudioManager::Instance().FadeOutMusic(3.0f);
     }
 }
 
