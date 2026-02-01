@@ -55,7 +55,7 @@ Framework::Framework()
     ResourceManager::Instance().LoadFont("VGA_FONT", "Data/Font/IBM_VGA_32px_0.png", "Data/Font/IBM_VGA_32px.fnt");
 
     // Init Scene
-    scene = std::make_unique<SceneTitle>();
+    scene = std::make_unique<SceneGameBreaker>();
 }
 
 Framework::~Framework()

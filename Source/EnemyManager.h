@@ -62,9 +62,9 @@ namespace EnemyLevelData
     namespace Rot
     {
         static const DirectX::XMFLOAT3 Backward = { 0.0f, 0.0f, 0.0f };
-        static const DirectX::XMFLOAT3 Forward  = { 0.0f, DirectX::XM_PI, 0.0f };
-        static const DirectX::XMFLOAT3 Left     = { 0.0f, DirectX::XM_PIDIV2, 0.0f };
-        static const DirectX::XMFLOAT3 Right    = { 0.0f, -DirectX::XM_PIDIV2, 0.0f };
+        static const DirectX::XMFLOAT3 Forward  = { 0.0f, 180.0f, 0.0f };
+        static const DirectX::XMFLOAT3 Left     = { 0.0f, 90.0f, 0.0f };
+        static const DirectX::XMFLOAT3 Right    = { 0.0f, -90.0f, 0.0f };
     }
 
     // ==========================================
