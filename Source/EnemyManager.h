@@ -266,6 +266,162 @@ namespace EnemyLevelData
         { { 16.4f, 0.0f, -449.4f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
         // Ball 80
         { { 16.4f, 0.0f, -451.6f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 81
+        { { -0.1f, 0.0f, -477.2f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 82
+        { { -1.2f, 0.0f, -480.7f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 83
+        { { -2.3f, 0.0f, -484.2f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 84
+        { { -3.5f, 0.0f, -487.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 85
+        { { -4.6f, 0.0f, -491.1f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 86
+        { { 4.3f, 0.0f, -477.2f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 87
+        { { 8.8f, 0.0f, -477.2f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 88
+        { { 12.6f, 0.0f, -477.2f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 89
+        { { 16.8f, 0.0f, -477.2f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 90
+        { { 2.5f, 0.0f, -480.7f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 91
+        { { 7.2f, 0.0f, -480.7f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 92
+        { { 11.4f, 0.0f, -480.7f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 93
+        { { 15.2f, 0.0f, -480.7f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 94
+        { { 12.2f, 0.0f, -486.5f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 95
+        { { 10.8f, 0.0f, -486.5f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 96
+        { { 9.6f, 0.0f, -486.5f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 97
+        { { 13.7f, 0.0f, -486.6f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 98
+        { { 8.4f, 0.0f, -483.7f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 99
+        { { 6.5f, 0.0f, -484.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 100
+        { { 4.7f, 0.0f, -484.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 101
+        { { 3.1f, 0.0f, -486.4f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 102
+        { { 2.9f, 0.0f, -489.1f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 103
+        { { 4.8f, 0.0f, -491.6f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 104
+        { { 6.8f, 0.0f, -492.1f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 105
+        { { 8.2f, 0.0f, -492.2f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 106
+        { { 9.8f, 0.0f, -489.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 107
+        { { 11.1f, 0.0f, -489.9f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 108
+        { { 12.5f, 0.0f, -489.9f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 109
+        { { 13.7f, 0.0f, -489.9f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 110
+        { { 4.5f, 0.0f, -506.3f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 111
+        { { 4.5f, 0.0f, -510.7f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 112
+        { { -3.4f, 0.0f, -510.7f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 113
+        { { -3.3f, 0.0f, -506.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 114
+        { { -5.3f, 0.0f, -508.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 115
+        { { -7.3f, 0.0f, -506.9f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 116
+        { { -8.9f, 0.0f, -508.9f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 117
+        { { -10.9f, 0.0f, -507.4f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 118
+        { { -10.7f, 0.0f, -511.7f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 119
+        { { -6.9f, 0.0f, -511.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 120
+        { { 7.2f, 0.0f, -508.6f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 121
+        { { 8.9f, 0.0f, -506.4f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 122
+        { { 11.5f, 0.0f, -508.5f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 123
+        { { 13.5f, 0.0f, -506.3f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 124
+        { { 14.1f, 0.0f, -510.1f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 125
+        { { 10.0f, 0.0f, -510.6f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 126
+        { { 16.3f, 0.0f, -523.7f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 127
+        { { 14.7f, 0.0f, -523.7f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 128
+        { { 13.1f, 0.0f, -523.7f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 129
+        { { 11.4f, 0.0f, -523.7f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 130
+        { { 11.4f, 0.0f, -527.1f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 131
+        { { 13.2f, 0.0f, -527.1f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 132
+        { { 14.9f, 0.0f, -527.1f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 133
+        { { 16.6f, 0.0f, -527.1f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 134
+        { { -12.3f, 0.0f, -536.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 135
+        { { -10.8f, 0.0f, -536.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 136
+        { { -9.2f, 0.0f, -536.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 137
+        { { -7.3f, 0.0f, -536.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 138
+        { { -5.4f, 0.0f, -536.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 139
+        { { -3.4f, 0.0f, -536.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 140
+        { { -1.3f, 0.0f, -536.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 141
+        { { 0.9f, 0.0f, -536.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 142
+        { { 3.4f, 0.0f, -536.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 143
+        { { 5.8f, 0.0f, -536.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 144
+        { { 8.1f, 0.0f, -536.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 145
+        { { 10.4f, 0.0f, -536.8f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 146
+        { { -15.0f, 0.0f, -551.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 147
+        { { -13.4f, 0.0f, -551.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 148
+        { { -11.8f, 0.0f, -551.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 149
+        { { -10.1f, 0.0f, -551.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 150
+        { { -8.4f, 0.0f, -551.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 151
+        { { -6.8f, 0.0f, -551.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 152
+        { { -4.9f, 0.0f, -551.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 153
+        { { -3.1f, 0.0f, -551.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 154
+        { { -1.1f, 0.0f, -551.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 155
+        { { 0.7f, 0.0f, -551.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 156
+        { { 2.6f, 0.0f, -551.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 157
+        { { 4.4f, 0.0f, -551.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
+        // Ball 158
+        { { 6.2f, 0.0f, -551.0f }, Rot::Backward, PaleYellow, EnemyType::Ball, AttackType::None },
     };
 }
 
