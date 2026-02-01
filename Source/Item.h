@@ -34,9 +34,10 @@ public:
     DirectX::XMFLOAT3 GetBasePosition() const 
     {
         DirectX::XMFLOAT3 pos = movement->GetPosition();
-        pos.y = originalY; // Return the stable Y, not the floating Y
+        pos.y = originalY; 
         return pos;
     }
+    void ResetAnimation() { animTime = 0.0f; }
     void SetPosition(const DirectX::XMFLOAT3& pos) { movement->SetPosition(pos); originalY = pos.y; }
     void SetRotation(const DirectX::XMFLOAT3& rot) { movement->SetRotation(rot); }
 

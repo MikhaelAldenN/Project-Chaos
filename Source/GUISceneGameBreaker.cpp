@@ -6,7 +6,8 @@
 #include <imgui.h>
 #include <vector>
 #include <string>
-#include <cstdio> 
+#include <cstdio>
+#include <unordered_map>
 
 using namespace DirectX;
 
@@ -24,6 +25,70 @@ static DirectX::XMFLOAT3 GUICalculateRotation(const DirectX::XMFLOAT3& pos, cons
     float yaw = atan2f(dir.x, dir.z);
 
     return { pitch, yaw, 0.0f };
+}
+
+std::string FloatToString(float f)
+{
+    char buf[64];
+    snprintf(buf, 64, "%.6g", f);
+    std::string s(buf);
+
+    if (s.find('.') == std::string::npos && s.find('e') == std::string::npos)
+    {
+        s += ".0";
+    }
+    return s + "f";
+}
+
+std::string GenerateEnemyCopyString(Enemy* e, int index, const char* commentName, const DirectX::XMFLOAT3& currentPos)
+{
+    char buffer[512];
+
+    // [FIX] Use the passed 'currentPos' (which comes from GUI slider)
+    XMFLOAT3 pos = currentPos;
+    XMFLOAT3 rot = e->GetOriginalRotation();
+
+    // Determine Rotation String
+    std::string rotStr = "{ " + FloatToString(rot.x) + ", " + FloatToString(rot.y) + ", " + FloatToString(rot.z) + " }";
+    if (abs(rot.y - 0.0f) < 0.01f) rotStr = "Rot::Backward";
+    else if (abs(rot.y - DirectX::XM_PI) < 0.01f) rotStr = "Rot::Forward";
+    else if (abs(rot.y - DirectX::XM_PIDIV2) < 0.01f) rotStr = "Rot::Left";
+    else if (abs(rot.y + DirectX::XM_PIDIV2) < 0.01f) rotStr = "Rot::Right";
+
+    // Determine Type & Color
+    std::string typeStr = (e->GetType() == EnemyType::Paddle) ? "EnemyType::Paddle" : "EnemyType::Ball";
+
+    // [CHANGE] Updated to PaleYellow
+    std::string colorStr = (e->GetType() == EnemyType::Paddle) ? "Blue" : "PaleYellow";
+
+    // Determine Attack & Params
+    std::string attackStr = "AttackType::None";
+    std::string extraParams = "";
+
+    switch (e->GetAttackType())
+    {
+    case AttackType::Static: attackStr = "AttackType::Static"; break;
+    case AttackType::Tracking: attackStr = "AttackType::Tracking"; break;
+    case AttackType::TrackingHorizontal:
+        attackStr = "AttackType::TrackingHorizontal";
+        extraParams = ", MoveDir::" + std::string(e->GetMoveDir() == MoveDir::Left ? "Left" : "Right");
+        extraParams += ", " + FloatToString(e->GetMinX()) + ", " + FloatToString(e->GetMaxX());
+        break;
+    case AttackType::TrackingRandom:
+        attackStr = "AttackType::TrackingRandom";
+        extraParams = ", MoveDir::None";
+        extraParams += ", " + FloatToString(e->GetMinX()) + ", " + FloatToString(e->GetMaxX());
+        extraParams += ", " + FloatToString(e->GetMinZ()) + ", " + FloatToString(e->GetMaxZ());
+        break;
+    }
+
+    std::string posStr = "{ " + FloatToString(pos.x) + ", " + FloatToString(pos.y) + ", " + FloatToString(pos.z) + " }";
+
+    snprintf(buffer, sizeof(buffer),
+        "// %s %d\n{ %s, %s, %s, %s, %s%s },",
+        commentName, index, posStr.c_str(), rotStr.c_str(), colorStr.c_str(), typeStr.c_str(), attackStr.c_str(), extraParams.c_str());
+
+    return std::string(buffer);
 }
 
 void GameBreakerGUI::Draw(SceneGameBreaker* scene)
@@ -87,24 +152,17 @@ void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
     auto& camCtrl = CameraController::Instance();
     auto mainCam = scene->GetMainCamera();
 
-    // [PERBAIKAN] Akses data dari m_director, bukan langsung dari scene
-    // Pastikan m_director ada (safety check)
     if (!scene->m_director)
     {
         ImGui::TextColored(ImVec4(1, 0, 0, 1), "Error: CinematicDirector is NULL!");
         return;
     }
 
-    // Ambil referensi vector dari Director
     auto& scenarios = scene->m_director->GetScenarios();
-
     static bool isSequencePlaying = false;
-
-    // Sync state dengan controller
     bool ctrlIsSequencing = camCtrl.IsSequencing();
     if (!ctrlIsSequencing) isSequencePlaying = false;
 
-    // --- BUTTONS ---
     float availWidth = ImGui::GetContentRegionAvail().x;
     if (isSequencePlaying)
     {
@@ -113,8 +171,6 @@ void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
         {
             camCtrl.StopSequence();
             isSequencePlaying = false;
-
-            // Reset ke Shot 1 (Start Point) jika ada
             if (!scenarios.empty()) {
                 camCtrl.SetFixedSetting(scenarios[0].StartPos);
                 camCtrl.SetTarget(scenarios[0].StartLookAt);
@@ -128,23 +184,16 @@ void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
         if (ImGui::Button("PLAY SEQUENCE", ImVec2(availWidth, 40)))
         {
             std::vector<CameraKeyframe> sequence;
-
-            // [PERBAIKAN] Loop menggunakan 'scenarios' yang kita ambil dari director
             for (const auto& point : scenarios)
             {
                 CameraKeyframe key;
                 key.isJumpCut = true;
-
-                // [PERBAIKAN] Gunakan fungsi helper lokal 'GUICalculateRotation'
                 key.StartPosition = point.StartPos;
                 key.StartRotation = GUICalculateRotation(point.StartPos, point.StartLookAt);
-
                 key.TargetPosition = point.EndPos;
                 key.TargetRotation = GUICalculateRotation(point.EndPos, point.EndLookAt);
-
                 key.Duration = point.Duration;
                 key.Easing = point.Easing;
-
                 sequence.push_back(key);
             }
             camCtrl.PlaySequence(sequence, false);
@@ -157,12 +206,10 @@ void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
     ImGui::Separator();
     ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), "SHOT LIST / KEYFRAMES");
 
-    // [PERBAIKAN] Loop scenarios
     for (int i = 0; i < scenarios.size(); ++i)
     {
-        auto& pt = scenarios[i]; // Ambil reference biar bisa diedit
+        auto& pt = scenarios[i];
         ImGui::PushID(i);
-
         char headerName[64];
         snprintf(headerName, 64, "#%d - %s", i + 1, pt.Name.c_str());
 
@@ -264,7 +311,6 @@ void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
             XMStoreFloat3(&newPt.StartLookAt, XMVectorAdd(XMLoadFloat3(&newPt.StartPos), vDir));
             newPt.EndLookAt = newPt.StartLookAt;
         }
-        // [PERBAIKAN] Push ke vector milik director
         scenarios.push_back(newPt);
     }
 
@@ -302,7 +348,6 @@ void GameBreakerGUI::DrawUI_LayoutTab(SceneGameBreaker* scene)
     ImGui::Text("Adjust In-Game UI Elements:");
     ImGui::Separator();
 
-    // Mengakses member 'tutorialLayout' dari scene
     ImGuiEditPanel("Tutorial Panel",
         scene->tutorialLayout.x,
         scene->tutorialLayout.y,
@@ -512,7 +557,7 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
     ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "Items");
     ImGui::Separator();
     ImGui::Spacing();
-    
+
     if (scene->m_itemManager)
     {
         if (ImGui::CollapsingHeader("Items"))
@@ -615,6 +660,8 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
         ImGui::Spacing();
         if (ImGui::CollapsingHeader("Debug Wall Transform", ImGuiTreeNodeFlags_None))
         {
+            scene->m_stage->ClearWallHighlight();
+
             ImGui::Indent();
             ImGui::TextDisabled("Edit debug boxes for collision setup.");
 
@@ -624,10 +671,11 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                 auto& wall = scene->m_stage->m_debugWalls[i];
                 char label[32];
                 snprintf(label, 32, "Wall #%d", i + 1);
-
                 ImGui::PushID(i);
                 if (ImGui::TreeNode(label))
                 {
+                    scene->m_stage->SetWallHighlight(i);
+
                     ImGui::DragFloat3("Pos", &wall.Position.x, 0.1f);
                     ImGui::DragFloat3("Rot", &wall.Rotation.x, 0.1f, -180.0f, 180.0f);
                     ImGui::DragFloat3("Scale", &wall.Scale.x, 0.05f, 0.0f, 100.0f);
@@ -771,114 +819,274 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
             ImGui::Unindent();
         }
     }
-    // 3. ENEMY TRANSFORMS (Existing Code)
+
+    // 3. ENEMIES TRANSFORM
     if (scene->m_enemyManager)
     {
-        if (ImGui::CollapsingHeader("Enemies Transform", ImGuiTreeNodeFlags_None))
+        ImGui::Spacing();
+        if (ImGui::CollapsingHeader("Debug Enemy Transform", ImGuiTreeNodeFlags_None))
         {
             ImGui::Indent();
-    
             auto& enemies = scene->m_enemyManager->GetEnemies();
-            auto DrawEnemyUI = [](Enemy* e, int index, const char* label)
+
+            static std::unordered_map<Enemy*, int> paddleIDs;
+            static int nextPaddleID = 1;
+            static std::unordered_map<Enemy*, int> ballIDs;
+            static int nextBallID = 1;
+            static EnemySpawnConfig lastSpawnConfig;
+            static bool firstRun = true;
+
+            if (firstRun) 
+            {
+                lastSpawnConfig.Position = { 0,0,-50 };
+                lastSpawnConfig.Rotation = EnemyLevelData::Rot::Backward;
+                lastSpawnConfig.Color = EnemyLevelData::Blue;
+
+                for (int k = (int)enemies.size() - 1; k >= 0; --k)
                 {
-                    ImGui::PushID(index);
-    
+                    const auto& e = enemies[k];
+                    if (e && e->GetType() == EnemyType::Paddle) {
+                        lastSpawnConfig.Position = e->GetOriginalPosition();
+                        lastSpawnConfig.Rotation = e->GetOriginalRotation();
+                        break; 
+                    }
+                }
+                firstRun = false;
+            }
+
+            for (auto& e : enemies) e->SetHighlight(false);
+
+            // =========================================================
+            // SUB-HEADER: ENEMY PADDLES
+            // =========================================================
+            if (ImGui::TreeNode("Enemy Paddles"))
+            {
+                for (size_t i = 0; i < enemies.size(); ++i)
+                {
+                    Enemy* e = enemies[i].get();
+                    if (e->GetType() != EnemyType::Paddle) continue;
+
+                    // [FIX] Assign or Retrieve Persistent ID
+                    if (paddleIDs.find(e) == paddleIDs.end()) {
+                        paddleIDs[e] = nextPaddleID++;
+                    }
+                    int displayID = paddleIDs[e];
+
+                    char label[64];
+                    if (e->IsActive()) snprintf(label, 64, "Paddle #%d (Active)", displayID);
+                    else               snprintf(label, 64, "Paddle #%d (Setup)", displayID);
+
+                    ImGui::PushID((int)i);
+
                     if (ImGui::TreeNode(label))
                     {
-                        DirectX::XMFLOAT3 pos = e->GetPosition();
-                        DirectX::XMFLOAT3 rot = e->GetRotation();
-    
-                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "POSITION");
-                        if (ImGui::DragFloat3("XYZ##Pos", &pos.x, 0.1f)) e->SetPosition(pos);
-    
-                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ROTATION");
-                        if (ImGui::DragFloat3("Pitch/Yaw/Roll##Rot", &rot.x, 1.0f, -180.0f, 180.0f)) e->SetRotation(rot);
-    
-                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE");
-                        ImGui::DragFloat3("XYZ##Scl", &e->scale.x, 0.01f, 0.1f, 10.0f);
-    
-                        ImGui::Spacing();
-    
-                        if (ImGui::Button("Reset Transform"))
-                        {
-                            e->SetPosition(e->GetOriginalPosition());
-                            e->SetRotation(e->GetOriginalRotation());
-                            e->scale = { 1.0f, 1.0f, 1.0f };
+                        e->SetHighlight(true);
+
+                        // [FIX] Use Original Position to prevent jumping 0,0,0
+                        XMFLOAT3 pos = e->GetOriginalPosition();
+                        XMFLOAT3 rot = e->GetOriginalRotation();
+
+                        ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "TRANSFORM");
+                        if (ImGui::DragFloat3("Pos", &pos.x, 0.1f)) {
+                            e->SetPosition(pos);
+                            // [FIX] Force update even if active, so copy matches edit
+                            e->UpdateOriginalTransform(pos, rot);
                         }
-    
+
+                        ImGui::Text("Rotation:");
+                        if (ImGui::Button("Back")) { e->SetRotation(EnemyLevelData::Rot::Backward); e->UpdateOriginalTransform(pos, EnemyLevelData::Rot::Backward); } ImGui::SameLine();
+                        if (ImGui::Button("Fwd")) { e->SetRotation(EnemyLevelData::Rot::Forward);  e->UpdateOriginalTransform(pos, EnemyLevelData::Rot::Forward); } ImGui::SameLine();
+                        if (ImGui::Button("Left")) { e->SetRotation(EnemyLevelData::Rot::Left);     e->UpdateOriginalTransform(pos, EnemyLevelData::Rot::Left); } ImGui::SameLine();
+                        if (ImGui::Button("Right")) { e->SetRotation(EnemyLevelData::Rot::Right);    e->UpdateOriginalTransform(pos, EnemyLevelData::Rot::Right); }
+
+                        rot = e->GetRotation();
+                        if (ImGui::DragFloat3("Pitch/Yaw/Roll", &rot.x, 0.1f)) {
+                            e->SetRotation(rot);
+                            e->UpdateOriginalTransform(pos, rot);
+                        }
+
+                        ImGui::Separator();
+
+                        if (e->IsActive()) { ImGui::TextDisabled("Enemy is active. Copy uses original spawn coords."); }
+                        else {
+                            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "ACTIVATE BEHAVIOR");
+                            if (ImGui::Button("Spawn Static", ImVec2(-1, 0))) {
+                                scene->m_enemyManager->RespawnEnemyAs(i, AttackType::Static);
+                                auto* newE = enemies[i].get();
+                                paddleIDs[newE] = displayID;
+                                lastSpawnConfig.Position = pos; lastSpawnConfig.Rotation = rot;
+                            }
+                            if (ImGui::Button("Spawn Tracking", ImVec2(-1, 0))) {
+                                scene->m_enemyManager->RespawnEnemyAs(i, AttackType::Tracking);
+                                auto* newE = enemies[i].get();
+                                paddleIDs[newE] = displayID;
+                                lastSpawnConfig.Position = pos; lastSpawnConfig.Rotation = rot;
+                            }
+                            ImGui::Spacing();
+                            ImGui::Text("Horizontal:");
+                            MoveDir currentMoveDir = e->GetMoveDir();
+                            bool isLeft = (currentMoveDir == MoveDir::Left || currentMoveDir == MoveDir::None);
+                            bool isRight = (currentMoveDir == MoveDir::Right);
+                            if (ImGui::RadioButton("Left##H", isLeft)) e->SetMoveDir(MoveDir::Left);
+                            ImGui::SameLine();
+                            if (ImGui::RadioButton("Right##H", isRight)) e->SetMoveDir(MoveDir::Right);
+
+                            float hMinX = e->GetMinX(); float hMaxX = e->GetMaxX();
+                            if (ImGui::DragFloatRange2("Range X##H", &hMinX, &hMaxX, 0.1f)) e->SetPatrolLimitsX(hMinX, hMaxX);
+
+                            if (ImGui::Button("Spawn Tracking Horizontal", ImVec2(-1, 0))) {
+                                MoveDir dir = (currentMoveDir == MoveDir::None) ? MoveDir::Left : currentMoveDir;
+                                scene->m_enemyManager->RespawnEnemyAs(i, AttackType::TrackingHorizontal, dir, e->GetMinX(), e->GetMaxX());
+                                auto* newE = enemies[i].get();
+                                paddleIDs[newE] = displayID;
+                                lastSpawnConfig.Position = pos; lastSpawnConfig.Rotation = rot;
+                            }
+
+                            ImGui::Spacing();
+                            float rMinX = e->GetMinX(); float rMaxX = e->GetMaxX();
+                            float rMinZ = e->GetMinZ(); float rMaxZ = e->GetMaxZ();
+                            ImGui::Text("Random:");
+                            if (ImGui::DragFloatRange2("Rand Range X", &rMinX, &rMaxX, 0.1f)) e->SetPatrolLimitsX(rMinX, rMaxX);
+                            if (ImGui::DragFloatRange2("Rand Range Z", &rMinZ, &rMaxZ, 0.1f)) e->SetPatrolLimitsZ(rMinZ, rMaxZ);
+
+                            if (ImGui::Button("Spawn Tracking Random", ImVec2(-1, 0))) {
+                                scene->m_enemyManager->RespawnEnemyAs(i, AttackType::TrackingRandom, MoveDir::None, e->GetMinX(), e->GetMaxX(), e->GetMinZ(), e->GetMaxZ());
+                                auto* newE = enemies[i].get();
+                                paddleIDs[newE] = displayID;
+                                lastSpawnConfig.Position = pos; lastSpawnConfig.Rotation = rot;
+                            }
+                        }
+
+                        ImGui::Spacing();
+                        // [FIX] Pass 'pos' to Copy Function
+                        if (ImGui::Button("Copy Value")) {
+                            std::string copyStr = GenerateEnemyCopyString(e, displayID, "Paddle", pos);
+                            ImGui::SetClipboardText(copyStr.c_str());
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::Button("Delete")) {
+                            enemies.erase(enemies.begin() + i);
+                            ImGui::TreePop(); ImGui::PopID(); break;
+                        }
+
                         ImGui::TreePop();
                     }
                     ImGui::PopID();
-                    ImGui::Separator();
-                };
-    
-            int paddleCounter = 0;
-            int ballCounter = 0;
-    
-            for (size_t i = 0; i < enemies.size(); ++i)
-            {
-                Enemy* e = enemies[i].get();
-                if (e->GetType() == EnemyType::Paddle)
-                {
-                    paddleCounter++;
-                    char headerName[64];
-                    snprintf(headerName, 64, "Enemy Paddle #%d", paddleCounter);
-                    DrawEnemyUI(e, (int)i, headerName);
                 }
-            }
-    
-            for (size_t i = 0; i < enemies.size(); ++i)
-            {
-                Enemy* e = enemies[i].get();
-                if (e->GetType() == EnemyType::Ball)
+
+                ImGui::Spacing();
+                if (ImGui::Button("+ Add New Paddle", ImVec2(-1, 30)))
                 {
-                    ballCounter++;
-                    char headerName[64];
-                    snprintf(headerName, 64, "Enemy Ball #%d", ballCounter);
-                    DrawEnemyUI(e, (int)i, headerName);
+                    EnemySpawnConfig cfg = lastSpawnConfig;
+                    cfg.Type = EnemyType::Paddle;
+                    cfg.Color = EnemyLevelData::Blue;
+                    scene->m_enemyManager->SpawnEnemy(cfg);
+                    auto& newE = scene->m_enemyManager->GetEnemies().back();
+                    newE->SetActive(false);
                 }
+                ImGui::TreePop();
             }
-    
-            ImGui::Spacing();
-    
-            ImGui::Text("Spawn Controls:");
-            if (ImGui::Button("+ Spawn Paddle"))
+
+            // =========================================================
+            // SUB-HEADER: ENEMY BALLS
+            // =========================================================
+            if (ImGui::TreeNode("Enemy Balls"))
             {
-                EnemySpawnConfig newSpawn;
-                newSpawn.Position = { 0.0f, 0.0f, 0.0f };
-                newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };
-                newSpawn.Color = { 1.0f, 0.2f, 0.2f, 1.0f };
-                newSpawn.Type = EnemyType::Paddle;
-                scene->m_enemyManager->SpawnEnemy(newSpawn);
+                for (size_t i = 0; i < enemies.size(); ++i)
+                {
+                    Enemy* e = enemies[i].get();
+                    if (e->GetType() != EnemyType::Ball) continue;
+
+                    if (ballIDs.find(e) == ballIDs.end()) {
+                        ballIDs[e] = nextBallID++;
+                    }
+                    int displayID = ballIDs[e];
+                    char label[64];
+                    snprintf(label, 64, "Ball #%d", displayID);
+
+                    ImGui::PushID((int)i);
+                    if (ImGui::TreeNode(label))
+                    {
+                        e->SetHighlight(true);
+
+                        // [FIX] Use Original Position to prevent jumping 0,0,0
+                        XMFLOAT3 pos = e->GetOriginalPosition();
+                        XMFLOAT3 rot = e->GetOriginalRotation();
+                        XMFLOAT3 scl = e->scale;
+
+                        ImGui::DragFloat3("Pos", &pos.x, 0.1f);
+                        ImGui::DragFloat3("Rot", &rot.x, 0.1f);
+                        ImGui::DragFloat3("Scale", &scl.x, 0.1f);
+
+                        e->SetPosition(pos);
+                        e->SetRotation(rot);
+                        e->scale = scl;
+
+                        // [FIX] Always update original transform so dragging works
+                        e->UpdateOriginalTransform(pos, rot);
+
+                        // [FIX] Pass 'pos' to Copy Function
+                        if (ImGui::Button("Copy Value")) {
+                            std::string copyStr = GenerateEnemyCopyString(e, displayID, "Ball", pos);
+                            ImGui::SetClipboardText(copyStr.c_str());
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::Button("Delete")) {
+                            enemies.erase(enemies.begin() + i);
+                            ImGui::TreePop(); ImGui::PopID(); break;
+                        }
+
+                        ImGui::TreePop();
+                    }
+                    ImGui::PopID();
+                }
+
+                ImGui::Spacing();
+                if (ImGui::Button("+ Add New Ball", ImVec2(-1, 30)))
+                {
+                    EnemySpawnConfig cfg;
+
+                    bool foundLastBall = false;
+                    for (int k = (int)enemies.size() - 1; k >= 0; --k)
+                    {
+                        if (enemies[k]->GetType() == EnemyType::Ball) {
+                            cfg.Position = enemies[k]->GetPosition();
+                            cfg.Rotation = enemies[k]->GetRotation();
+                            foundLastBall = true;
+                            break;
+                        }
+                    }
+
+                    if (!foundLastBall) 
+                    {
+                        cfg.Position = { 0,0,0 };
+                        cfg.Rotation = { 0,0,0 };
+                    }
+
+                    cfg.Color = EnemyLevelData::PaleYellow;
+                    cfg.Type = EnemyType::Ball;
+                    scene->m_enemyManager->SpawnEnemy(cfg);
+                }
+
+                ImGui::TreePop();
             }
-    
-            ImGui::SameLine();
-    
-            if (ImGui::Button("+ Spawn Ball"))
-            {
-                EnemySpawnConfig newSpawn;
-                newSpawn.Position = { 0.0f, 0.0f, 0.0f };
-                newSpawn.Rotation = { 0.0f, 0.0f, 0.0f };
-                newSpawn.Color = { 1.0f, 0.89f, 0.58f, 1.0f };
-                newSpawn.Type = EnemyType::Ball;
-                scene->m_enemyManager->SpawnEnemy(newSpawn);
-            }
-    
+
             ImGui::Unindent();
         }
     }
-    
+
     if (scene->m_itemManager)
     {
         if (ImGui::CollapsingHeader("Item Transform", ImGuiTreeNodeFlags_None))
         {
             ImGui::Indent();
             scene->m_itemManager->SetHighlight(-1); // Clear highlight
-
             auto& items = scene->m_itemManager->GetItems();
+            static std::unordered_map<Item*, int> healIDs;
+            static int nextHealID = 1;
+            static std::unordered_map<Item*, int> invIDs;
+            static int nextInvID = 1;
 
-            // --- HELPER LAMBDA: Draws a single item node ---
-            // Returns TRUE if the item was deleted (so we can break the loop safely)
             auto DrawSingleItemNode = [&](int index, Item* item, int displayIndex, const char* namePrefix) -> bool
                 {
                     char label[64];
@@ -920,10 +1128,9 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                             const char* typeEnum = (item->GetType() == ItemType::Heal) ? "ItemType::Heal" : "ItemType::Invincible";
 
                             snprintf(buffer, sizeof(buffer),
-                                "// %s\n{ { %.1ff, %.1ff, %.1ff }, { %.1ff, %.1ff, %.1ff }, { %.1ff, %.1ff, %.1ff }, %s },",
-                                label, // Uses the formatted name (e.g., "Item Heal #1")
+                                "// %s\n{ { %.1ff, %.1ff, %.1ff }, { 0.0f, 0.0f, 0.0f }, { %.1ff, %.1ff, %.1ff }, %s },",
+                                label,
                                 pos.x, pos.y, pos.z,
-                                rot.x, rot.y, rot.z,
                                 scl.x, scl.y, scl.z,
                                 typeEnum
                             );
@@ -933,7 +1140,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                         ImGui::SameLine();
                         if (ImGui::Button("Delete"))
                         {
-                            // Actual deletion happens outside to avoid iterator invalidation
                             items.erase(items.begin() + index);
                             deleted = true;
                         }
@@ -946,14 +1152,19 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
             // --- PASS 1: HEAL ITEMS (Top) ---
             ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.4f, 1.0f), "--- HEAL ITEMS ---");
-            int healCount = 0;
             for (int i = 0; i < items.size(); ++i)
             {
                 if (items[i]->GetType() == ItemType::Heal)
                 {
-                    healCount++;
-                    // If deleted, stop immediately to prevent crash, will redraw next frame
-                    if (DrawSingleItemNode(i, items[i].get(), healCount, "Item Heal")) break;
+                    // [FIX] Persistent ID Logic
+                    Item* ptr = items[i].get();
+                    if (healIDs.find(ptr) == healIDs.end()) {
+                        healIDs[ptr] = nextHealID++;
+                    }
+                    int displayID = healIDs[ptr];
+
+                    // Pass displayID instead of a local counter
+                    if (DrawSingleItemNode(i, items[i].get(), displayID, "Item Heal")) break;
                 }
             }
 
@@ -961,13 +1172,18 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
             // --- PASS 2: INVINCIBLE ITEMS (Bottom) ---
             ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "--- INVINCIBLE ITEMS ---");
-            int invCount = 0;
             for (int i = 0; i < items.size(); ++i)
             {
                 if (items[i]->GetType() == ItemType::Invincible)
                 {
-                    invCount++;
-                    if (DrawSingleItemNode(i, items[i].get(), invCount, "Item Invincible")) break;
+                    // [FIX] Persistent ID Logic
+                    Item* ptr = items[i].get();
+                    if (invIDs.find(ptr) == invIDs.end()) {
+                        invIDs[ptr] = nextInvID++;
+                    }
+                    int displayID = invIDs[ptr];
+
+                    if (DrawSingleItemNode(i, items[i].get(), displayID, "Item Invincible")) break;
                 }
             }
 
@@ -987,8 +1203,12 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                 scene->m_itemManager->AddItem(type);
             }
 
+            ImGui::SameLine();
+            if (ImGui::Button("Reset Animation"))
+            {
+                scene->m_itemManager->ResetAllAnimations();
+            }
             ImGui::Unindent();
         }
     }
 }
-

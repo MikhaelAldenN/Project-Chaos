@@ -38,6 +38,8 @@ public:
     bool IsInvincible() const { return m_isInvincible; }
     bool IsShieldActive() const { return isShieldActive; }
     int GetActiveBlockCount() const;
+    int GetRows() const { return m_rows; }
+    int GetColumns() const { return m_columns; }
 
     void SpawnAllyBlock(Player* player);
     void ClearBlocks()
@@ -113,8 +115,8 @@ private:
     std::vector<Block*> m_formationBlocks;
 
     // Grid Configuration
-    int m_rows = 8;
-    int m_columns = 8;
+    int m_rows = 7;
+    int m_columns = 7;
     float m_xSpacing = 0.7f;
     float m_zSpacing = 0.7f;
     float m_zOffsetWorld = 2.5f;

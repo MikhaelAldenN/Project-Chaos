@@ -18,7 +18,9 @@ enum class ImpactType {
     Go,
     Nigero, // [BARU] Tambah tipe baru
     SpaceKeyJP,  // Untuk "Sprite_Text_SPACEKEY_jp.png"
-    RendaSeyo
+    RendaSeyo,
+    Bougyo,
+    Kougeki
 };
 
 // [BARU] Struct untuk menyimpan data sequence

@@ -414,24 +414,25 @@ void BlockManager::UpdateShootLogic(bool isInputPressed, const DirectX::XMFLOAT3
             dx /= length;
             dz /= length;
 
+            float finalSpeed = shootSettings.ProjectileSpeed;
+            finalSpeed += 5.0f; 
+
             if (IsInvincible())
             {
                 auto newProjectile = std::make_unique<Block>();
-
                 newProjectile->SetActive(true);
                 newProjectile->GetMovement()->SetPosition(startPos);
-
                 newProjectile->SetProjectile(true);
-                newProjectile->GetMovement()->SetVelocityX(dx * shootSettings.ProjectileSpeed);
-                newProjectile->GetMovement()->SetVelocityZ(dz * shootSettings.ProjectileSpeed);
+                newProjectile->GetMovement()->SetVelocityX(dx * finalSpeed);
+                newProjectile->GetMovement()->SetVelocityZ(dz * finalSpeed);
 
                 blocks.push_back(std::move(newProjectile));
             }
             else
             {
                 closestBlock->SetProjectile(true);
-                closestBlock->GetMovement()->SetVelocityX(dx * shootSettings.ProjectileSpeed);
-                closestBlock->GetMovement()->SetVelocityZ(dz * shootSettings.ProjectileSpeed);
+                closestBlock->GetMovement()->SetVelocityX(dx * finalSpeed);
+                closestBlock->GetMovement()->SetVelocityZ(dz * finalSpeed);
 
                 if (closestSlotIndex != -1) {
                     m_formationBlocks[closestSlotIndex] = nullptr;

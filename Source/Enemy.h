@@ -27,7 +27,13 @@ public:
     ~Enemy() override;
 
     void Update(float elapsedTime, Camera* camera) override;
-    void UpdateTracking(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos);
+    void UpdateTracking(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack = true);
+    void SetActive(bool active) { m_isActive = active; }
+    void SetHighlight(bool highlight) { m_isHighlighted = highlight; }
+    void UpdateOriginalTransform(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& rot);
+    void SetMoveDir(MoveDir dir) { m_moveDir = dir; }
+    void SetPatrolLimitsX(float minOffset, float maxOffset);
+    void SetPatrolLimitsZ(float minOffset, float maxOffset);
     void SetPosition(const DirectX::XMFLOAT3& pos);
     void SetRotation(const DirectX::XMFLOAT3& rot);
     void RenderDebugProjectiles(ShapeRenderer* renderer);
@@ -45,11 +51,21 @@ public:
     AttackType GetAttackType() const { return m_attackType; }
     std::deque<std::unique_ptr<Ball>>& GetProjectiles() { return m_projectiles; }
 
+    bool IsActive() const { return m_isActive; }
+    bool IsHighlighted() const { return m_isHighlighted; }
+
+    // Getters for Copy Logic
+    float GetMinX() const { return m_patrolMinX - originalPosition.x; } 
+    float GetMaxX() const { return m_patrolMaxX - originalPosition.x; }
+    float GetMinZ() const { return m_patrolMinZ - originalPosition.z; }
+    float GetMaxZ() const { return m_patrolMaxZ - originalPosition.z; }
+    MoveDir GetMoveDir() const { return m_moveDir; }
+
     void SetScale(const DirectX::XMFLOAT3& scale) { m_scale = scale; }
     DirectX::XMFLOAT3 GetScale() const { return m_scale; }
 
 private:
-    void UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos);
+    void UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack);
 
     DirectX::XMFLOAT3 GetForwardVector() const;
     DirectX::XMFLOAT3 originalPosition;
@@ -65,7 +81,7 @@ private:
     // Gameplay Stats
     float m_attackTimer         = 0.0f;
     float m_fireRate            = 1.5f;   // Time between shots (seconds)
-    float m_projectileSpeed     = 10.0f;  // Speed of the ball
+    float m_projectileSpeed     = 7.0f;   // Speed of the ball
     float m_activationDistance  = 35.0f;  // Enemy starts firing when player is this close
     float m_despawnDistance     = 55.0f;  // Projectiles die when this far from player
     float m_patrolMinX          = 0.0f;
@@ -88,8 +104,13 @@ private:
     static constexpr float SPAWN_OFFSET_FWD = 0.6f;
     static constexpr float SPAWN_OFFSET_Y = 0.0f;
 
+    // GUI
+    bool m_isActive = false;
+    MoveDir m_moveDir;
+
     // Visuals
     DirectX::XMFLOAT4 m_projectileColor = { 1.0f, 1.0f, 1.0f, 1.0f }; 
 
     DirectX::XMFLOAT3 m_scale = { 1.0f, 1.0f, 1.0f };
+    bool m_isHighlighted = false;
 };

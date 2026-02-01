@@ -91,6 +91,13 @@ SceneGameBreaker::SceneGameBreaker()
 
     m_spriteSubText = std::make_unique<Sprite>(Graphics::Instance().GetDevice(),
         "Data/Sprite/Scene Breaker/Sprite_SubText_SPACEKEYRENDA.png");
+    m_spriteSubTextMouseShift = std::make_unique<Sprite>(Graphics::Instance().GetDevice(),
+        "Data/Sprite/Scene Breaker/Sprite_SubText_MOUSESHIFT.png");
+    m_spriteSubTextMouseSpace = std::make_unique<Sprite>(Graphics::Instance().GetDevice(),
+        "Data/Sprite/Scene Breaker/Sprite_SubText_MOUSESPACE.png");
+
+    m_lastMouseX = Input::Instance().GetMouse().GetPositionX();
+    m_lastMouseY = Input::Instance().GetMouse().GetPositionY();
 }
 
 SceneGameBreaker::~SceneGameBreaker()
@@ -105,6 +112,8 @@ void SceneGameBreaker::Update(float elapsedTime)
 {
     m_globalTime += elapsedTime;
     if (m_globalTime > 1000.0f) m_globalTime -= 1000.0f;
+
+    if (!m_modelIntroFinished) { m_modelIntroTimer += elapsedTime; }
 
     Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
 
@@ -163,12 +172,78 @@ void SceneGameBreaker::Update(float elapsedTime)
             }
         }
 
+        if (player && player->CanUseShield() && !m_hasTriggeredDefenseTutorial)
+        {
+            m_hasTriggeredDefenseTutorial = true;
+
+            if (m_impactDisplay) m_impactDisplay->Show(ImpactType::Bougyo, 2.5f);
+
+            m_showDefenseSubtext = true;
+            m_defenseConditionMet = false;
+            m_defenseStopTimer = 0.0f;
+        }
+
+        if (m_showDefenseSubtext && !m_defenseConditionMet)
+        {
+            bool isShiftHeld = (GetAsyncKeyState(VK_LSHIFT) & 0x8000) || (GetAsyncKeyState(VK_RSHIFT) & 0x8000);
+
+            int currMx = Input::Instance().GetMouse().GetPositionX();
+            int currMy = Input::Instance().GetMouse().GetPositionY();
+            bool isMouseMoving = (currMx != m_lastMouseX) || (currMy != m_lastMouseY);
+
+            m_lastMouseX = currMx;
+            m_lastMouseY = currMy;
+
+            if (isShiftHeld && isMouseMoving)
+            {
+                m_defenseConditionMet = true;
+            }
+        }
+
+        if (m_defenseConditionMet)
+        {
+            m_defenseStopTimer += elapsedTime;
+            if (m_defenseStopTimer >= 3.5f)
+            {
+                m_showDefenseSubtext = false;
+            }
+        }
+
+        if (player && player->CanShoot() && !m_hasTriggeredAttackTutorial)
+        {
+            m_hasTriggeredAttackTutorial = true;
+
+            if (m_impactDisplay) m_impactDisplay->Show(ImpactType::Kougeki, 2.5f);
+
+            m_showAttackSubtext = true;
+            m_attackConditionMet = false;
+            m_attackStopTimer = 0.0f;
+        }
+
+        if (m_showAttackSubtext && !m_attackConditionMet)
+        {
+            if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+            {
+                m_attackConditionMet = true;
+            }
+        }
+
+        if (m_attackConditionMet)
+        {
+            m_attackStopTimer += elapsedTime;
+            if (m_attackStopTimer >= 3.5f)
+            {
+                m_showAttackSubtext = false;
+            }
+        }
+
         if (player->IsEscaping() || player->GetGameStage() == 3)
         {
             DirectX::XMFLOAT3 pPos = player->GetPosition();
             CameraController::Instance().SetTarget(pPos);
         }
     }
+
 
     if (blockManager && player)
     {
@@ -195,7 +270,8 @@ void SceneGameBreaker::Update(float elapsedTime)
     {
         XMFLOAT3 targetPos = { 0,0,0 };
         if (player) { targetPos = player->GetPosition(); }
-        m_enemyManager->Update(elapsedTime, activeCam, targetPos);
+        bool canAttack = (player && player->GetGameStage() == 3);
+        m_enemyManager->Update(elapsedTime, activeCam, targetPos, canAttack);
     }
 
     if (m_itemManager) m_itemManager->Update(elapsedTime, activeCam);
@@ -362,32 +438,78 @@ void SceneGameBreaker::Update(float elapsedTime)
         }
     }
 
+    if (player)
+    {
+        float currentY = player->GetPosition().y;
+
+        // Configuration
+        const float startFadeY = -30.0f;
+        const float killPlaneY = -88.0f;
+        // Default Shader Values (From UberShader.h)
+        const float baseSmoothness = 0.2f;
+        const float baseIntensity = 0.38f;
+        // Target Values (Pitch Black)
+        const float targetSmoothness = 4.0f;
+        const float targetIntensity = 5.0f;
+
+        // PRIORITY 1: Handle Respawn Fade-In (Recovering from Black)
+        if (m_respawnTimer > 0.0f)
+        {
+            m_respawnTimer -= elapsedTime;
+
+            // 1. Calculate Linear Progress (1.0 -> 0.0)
+            float linearT = std::clamp(m_respawnTimer / RESPAWN_FADE_DURATION, 0.0f, 1.0f);
+
+            // 2. [FIX] Apply Easing (Quadratic In)
+            // Squaring 't' makes the value approach 0.0 (Normal State) much slower at the end.
+            // Effect: Fast opening at start -> Very slow, soft finish at the corners.
+            float t = linearT * linearT;
+
+            // Interpolate Backwards: Black -> Normal
+            uberParams.smoothness = baseSmoothness + (targetSmoothness - baseSmoothness) * t;
+            uberParams.intensity = baseIntensity + (targetIntensity - baseIntensity) * t;
+        }
+        // PRIORITY 2: Handle Falling Fade-Out (Going to Black)
+        else if (player)
+        {
+            float currentY = player->GetPosition().y;
+
+            if (currentY < startFadeY)
+            {
+                // Calculate Fall Progress (0.0 = Start Fall, 1.0 = Dead)
+                float totalDist = startFadeY - killPlaneY;
+                float currentFall = startFadeY - currentY;
+                float t = std::clamp(currentFall / totalDist, 0.0f, 1.0f);
+
+                // Apply Fade Out
+                uberParams.smoothness = baseSmoothness + (targetSmoothness - baseSmoothness) * t;
+                uberParams.intensity = baseIntensity + (targetIntensity - baseIntensity) * t;
+
+                // Check for Death
+                if (currentY <= (killPlaneY + 1.0f))
+                {
+                    LoadCheckpoint(); // Reset Position
+
+                    // [FIX] Do NOT snap variables back. 
+                    // Start the Fade-In timer instead.
+                    m_respawnTimer = RESPAWN_FADE_DURATION;
+
+                    // Force values to remain Black for this specific frame
+                    uberParams.smoothness = targetSmoothness;
+                    uberParams.intensity = targetIntensity;
+                }
+            }
+            else
+            {
+                // Normal State (Safe on ground)
+                uberParams.smoothness = baseSmoothness;
+                uberParams.intensity = baseIntensity;
+            }
+        }
+    }
+
     if (m_impactDisplay) {
         m_impactDisplay->Update(elapsedTime);
-    }
-
-    // CONTOH PEMICU:
-    // Jika player tekan tombol M, munculkan efek "MASH SPACE"
-    if (Input::Instance().GetKeyboard().IsTriggered('M')) {
-        // Definisikan urutannya
-        std::vector<ImpactEvent> sequence = {
-            { ImpactType::Super, 0.4f },  // Tampilkan ESCAPE selama 1.2 detik
-            { ImpactType::Nigero, 1.0f }  // Lanjut NIGERO selama 1.5 detik
-        };
-
-        // Jalankan urutannya
-        m_impactDisplay->ShowSequence(sequence);
-    }
-    if (Input::Instance().GetKeyboard().IsTriggered('N')) {
-        std::vector<ImpactEvent> sequence = {
-            // Tampilkan "SPACE KEY" (Jepang) selama 1.2 detik
-            { ImpactType::SpaceKeyJP, 0.8f },
-
-            // Lalu timpa dengan "RENDA SEYO!" (MASH IT!) selama 2.0 detik
-            { ImpactType::RendaSeyo,  1.0f }
-        };
-
-        m_impactDisplay->ShowSequence(sequence);
     }
 
     // =========================================================
@@ -450,7 +572,8 @@ void SceneGameBreaker::Update(float elapsedTime)
             m_mashLoopCount = 0;   // Reset hitungan
             m_showSubText = false; // Sembunyikan subtext
         }
-    }}
+    }
+}
 
 void SceneGameBreaker::UpdateGameTriggers(float elapsedTime)
 {
@@ -521,7 +644,7 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
     }
 
     BitmapFont* text = ResourceManager::Instance().GetFont("VGA_FONT");
-    if (text) {
+    if (text && m_modelIntroFinished) {
         dc->OMSetBlendState(Graphics::Instance().GetAlphaBlendState(), nullptr, 0xFFFFFFFF);
         text->Draw(tutorialText.c_str(), tutorialLayout.x, tutorialLayout.y, tutorialLayout.scale, tutorialLayout.color[0], tutorialLayout.color[1], tutorialLayout.color[2], tutorialLayout.color[3]);
     }
@@ -581,6 +704,77 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
         m_spriteSubText->Render(dc, dx, dy, 0.0f, w, h, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
     }
 
+    // Render SubText (Mouse Shift)
+    if (m_spriteSubTextMouseShift && m_showDefenseSubtext)
+    {
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
+        float w = 278.0f;
+        float h = 55.0f;
+        float screenW = 1920.0f;
+        float screenH = 1080.0f;
+
+        if (auto win = Framework::Instance()->GetMainWindow()) {
+            screenW = (float)win->GetWidth();
+            screenH = (float)win->GetHeight();
+        }
+
+        float dx = (screenW * 0.5f) - (w * 0.5f);
+        float dy = screenH - h - 100.0f;
+
+        // --- FADE LOGIC ---
+        float alpha = 1.0f;
+        if (m_defenseConditionMet)
+        {
+            float fadeStartTime = 2.5f;
+
+            if (m_defenseStopTimer > fadeStartTime)
+            {
+                float fadeProgress = m_defenseStopTimer - fadeStartTime;
+                alpha = 1.0f - fadeProgress; 
+                alpha = (std::max)(0.0f, alpha);
+            }
+        }
+        m_spriteSubTextMouseShift->Render(dc, dx, dy, 0.0f, w, h, 0.0f, 1.0f, 1.0f, 1.0f, alpha);
+    }
+
+    // Render Subtext (Mouse Space)
+    if (m_spriteSubTextMouseSpace && m_showAttackSubtext)
+    {
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
+        float w = 278.0f;
+        float h = 55.0f;
+        float screenW = 1920.0f;
+        float screenH = 1080.0f;
+
+        if (auto win = Framework::Instance()->GetMainWindow()) {
+            screenW = (float)win->GetWidth();
+            screenH = (float)win->GetHeight();
+        }
+
+        float dx = (screenW * 0.5f) - (w * 0.5f);
+        float dy = screenH - h - 100.0f;
+
+        // --- FADE LOGIC ---
+        float alpha = 1.0f;
+        if (m_attackConditionMet)
+        {
+            float fadeStartTime = 2.5f;
+
+            if (m_attackStopTimer > fadeStartTime)
+            {
+                float fadeProgress = m_attackStopTimer - fadeStartTime;
+                alpha = 1.0f - fadeProgress;
+                alpha = (std::max)(0.0f, alpha);
+            }
+        }
+
+        m_spriteSubTextMouseSpace->Render(dc, dx, dy, 0.0f, w, h, 0.0f, 1.0f, 1.0f, 1.0f, alpha);
+    }
+
     if (m_fxState.MasterEnabled)
     {
         UberShader::UberData& activeData = m_postProcess->GetData();
@@ -603,16 +797,110 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, &m_lightManager };
 
-    if (ball) ball->Render(modelRenderer);
-    if (blockManager) blockManager->Render(modelRenderer);
-    if (paddle && paddle->IsActive()) modelRenderer->Draw(ShaderId::Phong, paddle->GetModel(), paddle->color);
-    if (player) 
+    // =========================================================
+    // [MODIFIED] SEQUENTIAL INTRO: GRID -> BALL -> PADDLE
+    // =========================================================
+    if (!m_modelIntroFinished)
     {
-        modelRenderer->Draw(ShaderId::Phong, player->GetModel(), player->color);
+        int visibleCount = (int)(m_modelIntroTimer / m_modelIntroSpeed);
+
+        int rows = 7;
+        int cols = 7;
+        if (blockManager) {
+            rows = blockManager->GetRows();
+            cols = blockManager->GetColumns();
+        }
+
+        int centerZ = rows / 2;
+        int centerX = cols / 2;
+        int totalGridCells = rows * cols;
+
+        // Clamp limit to total cells so the loop doesn't overflow
+        int limit = (std::min)(visibleCount, totalGridCells);
+
+        // 1. Render Grid (Blocks + Player) - Top-Left to Bottom-Right
+        if (blockManager)
+        {
+            auto& blocks = blockManager->GetBlocks();
+            DirectX::XMFLOAT4 bColor = blockManager->globalBlockColor;
+
+            for (int k = 0; k < limit; ++k)
+            {
+                // Map linear 'k' to Visual Grid (Top-Left start)
+                int visRow = k / cols;
+                int visCol = k % cols;
+
+                // Map Visual Grid to Storage Grid (Bottom-Up Z)
+                // Row 0 (Visual Top) -> Z = 6 (Storage Top)
+                int storageZ = (rows - 1) - visRow;
+                int storageX = visCol;
+
+                // CHECK: Is this the Player Hole?
+                if (storageZ == centerZ && storageX == centerX)
+                {
+                    // Render Player EXACTLY when the scan hits the middle
+                    if (player) modelRenderer->Draw(ShaderId::Phong, player->GetModel(), player->color);
+                }
+                else
+                {
+                    // Calculate Index in 'blocks' vector
+                    // Vector is filled Bottom-Up, Left-Right. 
+                    // We must account for the missing hole in the index calculation.
+                    int linearIdx = storageZ * cols + storageX;
+                    if (storageZ > centerZ || (storageZ == centerZ && storageX > centerX))
+                    {
+                        linearIdx--; // Shift back 1 because the hole wasn't added to the vector
+                    }
+
+                    if (linearIdx >= 0 && linearIdx < blocks.size())
+                    {
+                        if (blocks[linearIdx]->IsActive())
+                            blocks[linearIdx]->Render(modelRenderer, bColor);
+                    }
+                }
+            }
+        }
+
+        // 2. Render Ball (After Grid)
+        // Delay: 5 frames after grid finishes
+        if (ball && visibleCount > totalGridCells + 5)
+        {
+            ball->Render(modelRenderer);
+        }
+
+        // 3. Render Paddle (After Ball)
+        // Delay: 10 frames after grid finishes (so 5 frames after Ball)
+        if (paddle && paddle->IsActive())
+        {
+            if (visibleCount > totalGridCells + 10)
+            {
+                modelRenderer->Draw(ShaderId::Phong, paddle->GetModel(), paddle->color);
+            }
+        }
+
+        // 4. Finish Animation State
+        // Give a small buffer before enabling the text
+        if (visibleCount > totalGridCells + 20)
+        {
+            m_modelIntroFinished = true;
+        }
     }
+    else
+    {
+        // =========================================================
+        // NORMAL RENDERING (OPTIMIZED)
+        // =========================================================
+        if (ball) ball->Render(modelRenderer);
+        if (blockManager) blockManager->Render(modelRenderer);
+        if (paddle && paddle->IsActive()) modelRenderer->Draw(ShaderId::Phong, paddle->GetModel(), paddle->color);
+        if (player) modelRenderer->Draw(ShaderId::Phong, player->GetModel(), player->color);
+    }
+
+    // Always render these normally
     if (m_introFinished && m_enemyManager) { m_enemyManager->Render(modelRenderer); }
     if (m_introFinished && m_itemManager) m_itemManager->Render(modelRenderer);
     if (m_isShakeEnabled && m_stage) { m_stage->UpdateTransform(); m_stage->Render(modelRenderer); }
+
     modelRenderer->Render(rc);
 }
 
