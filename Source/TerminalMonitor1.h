@@ -45,6 +45,8 @@ public:
     void ResetToIdle(bool force = false);
     bool IsBusy() const;
     bool IsSystemLocked() const;
+    void SetTextImmediate(const std::string& text);
+
 
     ID3D11ShaderResourceView* GetTexture() const { return m_srv.Get(); }
     void DrawGUI();

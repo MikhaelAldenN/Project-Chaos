@@ -328,7 +328,10 @@ DirectX::XMFLOAT3 Boss::GetPartVisualPos(const std::string& name) const
 
 void Boss::ChangeState(BossState* newState) { m_stateMachine.ChangeState(this, newState); }
 void Boss::TriggerIdle() { ChangeState(new BossIdleState()); }
-void Boss::TriggerSpawnEnemy() { ChangeState(new BossCommandState(new BossSpawnEnemyState(), "DEPLOY MINIONS")); }
+void Boss::TriggerSpawnEnemy()
+{
+    ChangeState(new BossCommandState(new BossSpawnEnemyState(), "INSTANCE: PADDLE_UNIT"));
+}
 void Boss::TriggerLockPlayer() { ChangeState(new BossCommandState(new BossLockPlayerState(), "INITIATE LOCK")); }
 void Boss::TriggerSpawnPentagon() { ChangeState(new BossCommandState(new BossSpawnPentagonState(), "DEPLOYING HEAVY UNIT")); }
 void Boss::AddTerminalLog(const std::string& msg) { m_terminal.AddLog(msg); }
@@ -381,7 +384,12 @@ void Boss::DrawDebugGUI()
 
             ImGui::Separator();
             if (ImGui::Button("IDLE")) TriggerIdle(); ImGui::SameLine();
-            if (ImGui::Button("SPAWN ENEMY")) TriggerSpawnEnemy(); ImGui::SameLine();
+            if (ImGui::Button("SPAWN ENEMY"))
+            {
+                // Kita panggil CommandState dulu untuk Intro ngetik "INSTANCE: PADDLE_UNIT"
+                // Setelah ngetik selesai, dia masuk ke BossSpawnEnemyState yang akan lanjut hitung (0), (1)...
+                ChangeState(new BossCommandState(new BossSpawnEnemyState(), "INSTANCE: PADDLE_UNIT"));
+            }
             if (ImGui::Button("LOCK PLAYER")) TriggerLockPlayer(); ImGui::SameLine();
             if (ImGui::Button("DOWNLOAD")) ChangeState(new BossCommandState(new BossDownloadAttackState(), "DOWNLOADING..."));
 

@@ -104,6 +104,18 @@ void Enemy::Update(float elapsedTime, Camera* camera)
         XMStoreFloat3(&pos, vNewPos);
         movement->SetPosition(pos);
     }
+    else if (m_attackType == AttackType::Tracking)
+    {
+        XMFLOAT3 fwd = GetForwardVector();
+
+        float chaseSpeed = m_baseMoveSpeed * 0.4f;
+
+        XMFLOAT3 pos = movement->GetPosition();
+        pos.x += fwd.x * chaseSpeed * elapsedTime;
+        pos.z += fwd.z * chaseSpeed * elapsedTime;
+
+        movement->SetPosition(pos);
+    }
 
     if (movement) movement->Update(elapsedTime);
     //SyncData();
@@ -273,8 +285,16 @@ void Enemy::UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::
 DirectX::XMFLOAT3 Enemy::GetForwardVector() const
 {
     XMFLOAT3 rot = movement->GetRotation();
-    float yaw = rot.y; float pitch = rot.x;
-    float x = sinf(yaw) * cosf(pitch); float y = -sinf(pitch); float z = cosf(yaw) * cosf(pitch);
+
+    // [FIX] Konversi Derajat ke Radian sebelum masuk sin/cos!
+    float yawRad = XMConvertToRadians(rot.y);
+    float pitchRad = XMConvertToRadians(rot.x);
+
+    // Gunakan nilai Radian untuk menghitung vektor
+    float x = sinf(yawRad) * cosf(pitchRad);
+    float y = -sinf(pitchRad);
+    float z = cosf(yawRad) * cosf(pitchRad);
+
     return { x, y, z };
 }
 

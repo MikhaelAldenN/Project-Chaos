@@ -90,46 +90,109 @@ void BossIdleState::Update(Boss* boss, float dt)
 void BossIdleState::Exit(Boss* boss) {}
 
 // ==========================================
-// STATE: SPAWN ENEMY (MINIONS)
+// STATE: SPAWN ENEMY (SEQUENCE)
 // ==========================================
 
 void BossSpawnEnemyState::Enter(Boss* boss)
 {
-    boss->AddTerminalLog("PROTOCOL: REINFORCEMENT...");
+    boss->AddTerminalLog("EXEC: THREAD_FORK [4]");
 
-    if (auto* em = boss->GetEnemyManager())
-    {
-        EnemySpawnConfig config;
-        config.Position = { 0.f, 0.f, 0.f };
-        config.Color = { 1.f, 0.f, 0.f, 1.f };
-        config.Type = EnemyType::Paddle;
-        config.AttackBehavior = AttackType::Tracking;
-        config.Direction = MoveDir::None;
-        config.MinX = -1.0f; config.MaxX = 1.0f;
-        config.MinZ = -1.0f; config.MaxZ = 1.0f;
+    // Set timer LEBIH BESAR dari max interval (1.5f)
+    // Supaya pas masuk state, spawn pertama langsung keluar (Instant)
+    m_spawnTimer = 2.0f;
 
-        em->SpawnEnemy(config);
-        boss->AddTerminalLog("UNIT DEPLOYED: [0,0,0]");
-    }
-    else
-    {
-        boss->AddTerminalLog("ERROR: ENEMY MANAGER DISCONNECTED");
-    }
-    m_timer = 0.0f;
+    m_currentSpawnCount = 0;
+
+    // Animasi Typing Awal
+    boss->GetMonitor1()->PlayCommandAnimation("INSTANCE: PADDLE_UNIT(0)");
 }
 
 void BossSpawnEnemyState::Update(Boss* boss, float dt)
 {
-    m_timer += dt;
-    if (m_timer >= m_duration)
+    // Jika masih ada jatah spawn
+    if (m_currentSpawnCount < m_totalSpawns)
     {
-        boss->GetStateMachine()->ChangeState(boss, new BossIdleState());
+        m_spawnTimer += dt;
+
+        // 1. Dynamic Interval (Makin cepat)
+        float t = (float)m_currentSpawnCount / (float)(m_totalSpawns - 1);
+        if (t < 0.0f) t = 0.0f; if (t > 1.0f) t = 1.0f;
+        float currentInterval = m_startInterval + (m_endInterval - m_startInterval) * t;
+
+        if (m_spawnTimer >= currentInterval)
+        {
+            m_spawnTimer = 0.0f;
+
+            if (auto* em = boss->GetEnemyManager())
+            {
+                // --- A. TENTUKAN POSISI AWAL (POLA) ---
+                float xOffset = (m_currentSpawnCount % 2 == 0) ? -10.0f : 10.0f; // Kiri/Kanan
+
+                float zPos = 0.0f;
+                if (m_currentSpawnCount == 2) zPos = 9.0f; // Atas
+                else {
+                    float variasi = (float)(m_currentSpawnCount % 3);
+                    zPos = -7.0f - (variasi * 2.0f); // Bawah
+                }
+
+                XMFLOAT3 finalSpawnPos = { xOffset, 0.0f, zPos };
+
+                // --- B. SAFETY CHECK (ANTI-SPAWN KILL) ---
+                // Cek jarak ke Player. Jika terlalu dekat, pindah sisi!
+                if (auto* player = boss->GetPlayer())
+                {
+                    XMFLOAT3 pPos = player->GetPosition();
+
+                    // Hitung Jarak Kuadrat (biar hemat akar)
+                    float dx = finalSpawnPos.x - pPos.x;
+                    float dz = finalSpawnPos.z - pPos.z;
+                    float distSq = dx * dx + dz * dz;
+
+                    // Batas Aman: 8.0 unit (8x8 = 64)
+                    if (distSq < 64.0f)
+                    {
+                        // TERLALU DEKAT! -> Lempar ke seberang X
+                        finalSpawnPos.x = -finalSpawnPos.x;
+
+                        // Opsional: Kalau di seberang juga ada player (mustahil sih), 
+                        // kita geser Z-nya menjauh
+                        // finalSpawnPos.z += 5.0f; 
+
+                        boss->AddTerminalLog("WARN: SPAWN_REROUTE [PROXIMITY]");
+                    }
+                }
+
+                // --- C. SPAWN MUSUH ---
+                EnemySpawnConfig config;
+                config.Position = finalSpawnPos;
+                config.Color = { 1.f, 0.f, 0.f, 1.f };
+                config.Type = EnemyType::Paddle;
+                config.AttackBehavior = AttackType::Tracking;
+                config.Direction = MoveDir::None;
+
+                em->SpawnEnemy(config);
+
+                // --- D. UPDATE INFO ---
+                m_currentSpawnCount++;
+                std::string cmd = "INSTANCE: PADDLE_UNIT(" + std::to_string(m_currentSpawnCount) + ")";
+                boss->GetMonitor1()->SetTextImmediate(cmd);
+                boss->AddTerminalLog("FORK: PROCESS_ID_" + std::to_string(m_currentSpawnCount));
+            }
+        }
+    }
+    else
+    {
+        m_spawnTimer += dt;
+        if (m_spawnTimer >= m_exitDelay)
+        {
+            boss->GetStateMachine()->ChangeState(boss, new BossIdleState());
+        }
     }
 }
 
 void BossSpawnEnemyState::Exit(Boss* boss)
 {
-    boss->AddTerminalLog("PROTOCOL: COMPLETE.");
+    boss->AddTerminalLog("THREAD_FORK: COMPLETE");
 }
 
 // ==========================================

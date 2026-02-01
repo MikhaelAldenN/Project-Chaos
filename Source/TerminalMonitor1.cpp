@@ -396,7 +396,7 @@ void TerminalMonitor1::RenderToTexture(ID3D11DeviceContext* context, BitmapFont*
                 m_typingStartPos.x,
                 m_typingStartPos.y + (i * m_lineSpacing),
                 m_fontScale,
-                1.0f, 0.2f, 0.2f, 1.0f);
+                m_cursorColor.x, m_cursorColor.y, m_cursorColor.z, 1.0f);
         }
 
         // Render Cursor
@@ -414,6 +414,49 @@ void TerminalMonitor1::RenderToTexture(ID3D11DeviceContext* context, BitmapFont*
     context->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestAndWrite), 0);
     if (prevRTV) prevRTV->Release();
     if (prevDSV) prevDSV->Release();
+}
+
+void TerminalMonitor1::SetTextImmediate(const std::string& text)
+{
+    // 1. Update Data String Utama
+    m_targetCommand = text;
+    m_currentDisplay = text;
+
+    // 2. Bypass Animasi
+    m_animState = TerminalAnimState::DONE; // Langsung ke status SELESAI
+    m_animTimer = 0.0f;
+
+    // 3. REBUILD DISPLAY LINES (Penting!)
+    // Kita harus memecah teks ke dalam baris-baris sesuai m_maxCharsPerLine
+    // agar tampilannya sama persis dengan hasil ketikan manual.
+    m_displayLines.clear();
+
+    for (char c : text)
+    {
+        // Logika wrapping yang sama dengan di fungsi Update()
+        if (m_displayLines.empty() || m_displayLines.back().length() >= m_maxCharsPerLine)
+        {
+            m_displayLines.push_back(std::string(1, c));
+        }
+        else
+        {
+            m_displayLines.back() += c;
+        }
+    }
+
+    // 4. Update Posisi Kursor ke Akhir Teks
+    // Agar kursor berkedip di sebelah angka terakhir
+    if (!m_displayLines.empty())
+    {
+        int row = (int)m_displayLines.size() - 1;
+        int col = (int)m_displayLines.back().length();
+
+        m_cursorPos.x = m_typingStartPos.x + (col * m_charWidth) + m_cursorOffsetX;
+        m_cursorPos.y = m_typingStartPos.y + (row * m_lineSpacing);
+    }
+
+    // Pastikan cursor terlihat dan berkedip santai
+    if (m_cursor) m_cursor->SetBlink(true, 0.5f, 0.5f);
 }
 
 void TerminalMonitor1::DrawGUI()

@@ -80,10 +80,18 @@ public:
     void Enter(Boss* boss) override;
     void Update(Boss* boss, float dt) override;
     void Exit(Boss* boss) override;
-    std::string GetName() const override { return "Spawn Enemy"; }
+    std::string GetName() const override { return "Spawn Enemy Sequence"; }
+
 private:
-    float m_timer = 0.0f;
-    const float m_duration = 2.0f;
+    float m_spawnTimer = 0.0f;
+    int m_currentSpawnCount = 0;
+
+    // Config Baru
+    const int m_totalSpawns = 4;        // Total musuh
+    const float m_startInterval = 1.5f; // Delay awal (lambat)
+    const float m_endInterval = 0.5f;   // Delay akhir (cepat)
+
+    const float m_exitDelay = 1.0f;     // Jeda setelah selesai
 };
 
 // --- Lock Player State ---
