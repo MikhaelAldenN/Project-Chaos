@@ -438,6 +438,76 @@ void SceneGameBreaker::Update(float elapsedTime)
         }
     }
 
+    if (player)
+    {
+        float currentY = player->GetPosition().y;
+
+        // Configuration
+        const float startFadeY = -30.0f;
+        const float killPlaneY = -88.0f;
+        // Default Shader Values (From UberShader.h)
+        const float baseSmoothness = 0.2f;
+        const float baseIntensity = 0.38f;
+        // Target Values (Pitch Black)
+        const float targetSmoothness = 4.0f;
+        const float targetIntensity = 5.0f;
+
+        // PRIORITY 1: Handle Respawn Fade-In (Recovering from Black)
+        if (m_respawnTimer > 0.0f)
+        {
+            m_respawnTimer -= elapsedTime;
+
+            // 1. Calculate Linear Progress (1.0 -> 0.0)
+            float linearT = std::clamp(m_respawnTimer / RESPAWN_FADE_DURATION, 0.0f, 1.0f);
+
+            // 2. [FIX] Apply Easing (Quadratic In)
+            // Squaring 't' makes the value approach 0.0 (Normal State) much slower at the end.
+            // Effect: Fast opening at start -> Very slow, soft finish at the corners.
+            float t = linearT * linearT;
+
+            // Interpolate Backwards: Black -> Normal
+            uberParams.smoothness = baseSmoothness + (targetSmoothness - baseSmoothness) * t;
+            uberParams.intensity = baseIntensity + (targetIntensity - baseIntensity) * t;
+        }
+        // PRIORITY 2: Handle Falling Fade-Out (Going to Black)
+        else if (player)
+        {
+            float currentY = player->GetPosition().y;
+
+            if (currentY < startFadeY)
+            {
+                // Calculate Fall Progress (0.0 = Start Fall, 1.0 = Dead)
+                float totalDist = startFadeY - killPlaneY;
+                float currentFall = startFadeY - currentY;
+                float t = std::clamp(currentFall / totalDist, 0.0f, 1.0f);
+
+                // Apply Fade Out
+                uberParams.smoothness = baseSmoothness + (targetSmoothness - baseSmoothness) * t;
+                uberParams.intensity = baseIntensity + (targetIntensity - baseIntensity) * t;
+
+                // Check for Death
+                if (currentY <= (killPlaneY + 1.0f))
+                {
+                    LoadCheckpoint(); // Reset Position
+
+                    // [FIX] Do NOT snap variables back. 
+                    // Start the Fade-In timer instead.
+                    m_respawnTimer = RESPAWN_FADE_DURATION;
+
+                    // Force values to remain Black for this specific frame
+                    uberParams.smoothness = targetSmoothness;
+                    uberParams.intensity = targetIntensity;
+                }
+            }
+            else
+            {
+                // Normal State (Safe on ground)
+                uberParams.smoothness = baseSmoothness;
+                uberParams.intensity = baseIntensity;
+            }
+        }
+    }
+
     if (m_impactDisplay) {
         m_impactDisplay->Update(elapsedTime);
     }

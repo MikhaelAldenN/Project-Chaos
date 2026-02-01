@@ -195,7 +195,6 @@ private:
 
     std::unique_ptr<UIImpactDisplay> m_impactDisplay;
 
-
     bool m_hasTriggeredEscapeSequence = false;
     bool m_showSubText = false; // Status apakah subtext muncul
     int m_mashLoopCount = 0;    // Hitungan loop mash
@@ -203,4 +202,7 @@ private:
     float m_mashTimer = 0.0f;       // Penghitung waktu manual
     bool m_isMashFirstRun = true;   // Penanda apakah ini trigger pertama (1 detik)
     bool m_mashSequenceActive = false;
+
+    float m_respawnTimer = 0.0f;
+    const float RESPAWN_FADE_DURATION = 3.0f;
 };
