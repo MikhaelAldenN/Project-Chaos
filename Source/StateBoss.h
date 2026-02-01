@@ -109,9 +109,9 @@ private:
     // boleh dipilih lagi setelah digunakan.
     // =========================================================
     static constexpr int k_cooldownSpawnEnemy = 0;  // Bisa langsung ulang
-    static constexpr int k_cooldownSpawnPentagon = 3;  // Tunggu 3 serangan lain
-    static constexpr int k_cooldownLockPlayer = 2;  // Tunggu 2 serangan lain
-    static constexpr int k_cooldownDownloadAttack = 2;  // Tunggu 2 serangan lain
+    static constexpr int k_cooldownSpawnPentagon = 2;  // Tunggu 2 serangan lain (dari 3)
+    static constexpr int k_cooldownLockPlayer = 1;  // Tunggu 1 serangan lain (dari 2)
+    static constexpr int k_cooldownDownloadAttack = 1;  // Tunggu 1 serangan lain (dari 2)
     static constexpr int k_cooldownWireAttack = 1;  // Tunggu 1 serangan lain
 
     // =========================================================
@@ -120,13 +120,13 @@ private:
     // untuk SKIP ke serangan berikutnya (menghindari pola terlalu
     // prediktabel). Nilai 0.0 = pure round-robin, 1.0 = pure random.
     // =========================================================
-    static constexpr float k_shuffleChance = 0.3f;  // 30% chance skip
+    static constexpr float k_shuffleChance = 0.55f;  // 55% chance skip (dari 30%)
 
     // =========================================================
     // TIMER (non-static, reset setiap masuk state)
     // =========================================================
     float m_timer = 0.0f;
-    const float m_decisionTime = 2.0f;  // Delay sebelum AI memilih serangan
+    const float m_decisionTime = 1.2f;  // Delay sebelum AI memilih serangan (dari 2.0s)
 };
 
 // --- Spawn Minions State ---
@@ -143,9 +143,9 @@ private:
     int m_currentSpawnCount = 0;
 
     // Config Baru
-    const int m_totalSpawns = 4;        // Total musuh
-    const float m_startInterval = 1.5f; // Delay awal (lambat)
-    const float m_endInterval = 0.5f;   // Delay akhir (cepat)
+    const int m_totalSpawns = 6;        // Total musuh (dari 4)
+    const float m_startInterval = 1.2f; // Delay awal (dari 1.5f)
+    const float m_endInterval = 0.3f;   // Delay akhir (dari 0.5f)
 
     const float m_exitDelay = 1.0f;     // Jeda setelah selesai
 };

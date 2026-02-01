@@ -164,6 +164,62 @@ void Boss::Update(float dt)
 
     UpdateBackgroundAnim(dt);
     UpdateWires(safeDt);
+
+    // =========================================================
+    // CONCURRENT SPAWN: Spawn minion sambil state lain jalan
+    // =========================================================
+    if (m_concurrentSpawnConfig.enabled && IsConcurrentSpawnEligibleState() && m_enemyManager && m_player)
+    {
+        m_concurrentSpawnTimer += dt;
+
+        if (m_concurrentSpawnTimer >= m_concurrentSpawnConfig.activateDelay)
+        {
+            // Setelah activateDelay terlewat, spawn setiap `interval` detik
+            float effectiveInterval = m_concurrentSpawnConfig.interval;
+
+            if (m_concurrentSpawnTimer >= (m_concurrentSpawnConfig.activateDelay + effectiveInterval))
+            {
+                m_concurrentSpawnTimer = m_concurrentSpawnConfig.activateDelay; // Reset ke batas (bukan 0), biar interval konsisten
+
+                // --- Tentukan posisi spawn ---
+                // Pilih sisi acak (kiri / kanan) dan Z acak di area tengah layar
+                float side = (rand() % 2 == 0) ? 1.0f : -1.0f;
+                float xPos = side * (8.0f + (rand() % 40) / 10.0f); // 8.0 - 12.0, kiri atau kanan
+                float zPos = -6.0f + (rand() % 120) / 10.0f;        // -6.0 sampai +6.0
+
+                XMFLOAT3 spawnPos = { xPos, 0.0f, zPos };
+
+                // --- Safety check: jangan spawn terlalu dekat player ---
+                XMFLOAT3 pPos = m_player->GetPosition();
+                float dx = spawnPos.x - pPos.x;
+                float dz = spawnPos.z - pPos.z;
+                float distSq = dx * dx + dz * dz;
+                float safeDistSq = m_concurrentSpawnConfig.safeDistance * m_concurrentSpawnConfig.safeDistance;
+
+                if (distSq < safeDistSq)
+                {
+                    // Lempar ke sisi sebelah
+                    spawnPos.x = -spawnPos.x;
+                }
+
+                // --- Spawn ---
+                EnemySpawnConfig config;
+                config.Position = spawnPos;
+                config.Color = { 1.f, 0.f, 0.f, 1.f };
+                config.Type = EnemyType::Paddle;
+                config.AttackBehavior = AttackType::Tracking;
+                config.Direction = MoveDir::None;
+
+                m_enemyManager->SpawnEnemy(config);
+                AddTerminalLog("CONCURRENT: UNIT_SPAWNED");
+            }
+        }
+    }
+    else
+    {
+        // Reset timer kalau state tidak eligible (misal balik ke Idle / SpawnEnemy)
+        m_concurrentSpawnTimer = 0.0f;
+    }
 }
 
 void Boss::UpdateBackgroundAnim(float dt)
@@ -580,6 +636,15 @@ void Boss::DrawDebugGUI()
             ImGui::TreePop();
         }
     }
+}
+
+bool Boss::IsConcurrentSpawnEligibleState() const
+{
+    // Concurrent spawn hanya aktif saat state yang "memakan waktu" 
+    // yaitu state di mana player biasanya punya breathing room.
+    return m_stateMachine.IsState("Lock Player")
+        || m_stateMachine.IsState("Download Attack")
+        || m_stateMachine.IsState("Wire Attack");
 }
 
 void Boss::SpawnSingleWire(const DirectX::XMFLOAT3& playerPos)

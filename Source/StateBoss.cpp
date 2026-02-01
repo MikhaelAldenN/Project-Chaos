@@ -119,7 +119,6 @@ void BossIdleState::Update(Boss* boss, float dt)
     // =========================================================
     // [AI] STEP 1: CARI SERANGAN VALID DARI ROUND-ROBIN
     // Putar dari s_nextAttackIndex, lewati yang masih di cooldown.
-    // Worst case: putar sebanyak COUNT kali (semua di cooldown).
     // =========================================================
     int candidateIndex = -1;
     int searchStart = s_nextAttackIndex;
@@ -131,51 +130,78 @@ void BossIdleState::Update(Boss* boss, float dt)
         if (s_cooldowns[tryIndex] <= 0)
         {
             candidateIndex = tryIndex;
-            break;  // Ditemukan serangan yang tidak di cooldown
+            break;
         }
     }
 
     // =========================================================
-    // [AI] SAFETY: Kalau semua serangan di cooldown (edge case),
-    // paksa pilih SpawnEnemy (index 0) sebagai fallback.
+    // [AI] SAFETY: Kalau semua serangan di cooldown, fallback SpawnEnemy
     // =========================================================
     if (candidateIndex < 0)
     {
         candidateIndex = static_cast<int>(AttackID::SpawnEnemy);
-        s_cooldowns[candidateIndex] = 0;  // Hapus cooldown-nya
+        s_cooldowns[candidateIndex] = 0;
     }
 
     // =========================================================
-    // [AI] STEP 2: SHUFFLE CHANCE
-    // 30% chance untuk SKIP ke serangan valid berikutnya.
-    // Ini bikin AI tidak terlalu robotik / predictable.
+    // [AI] STEP 2: CONDITION-BASED WEIGHTING
+    // Sebelum shuffle, cek kondisi gameplay dan bias pilihan.
+    // Ini yang bikin AI "adaptive"  bukan cuma round-robin.
+    // =========================================================
+    if (auto* player = boss->GetPlayer())
+    {
+        XMFLOAT3 pPos = player->GetPosition();
+
+        // Hitung jarak player ke center (0, 0, 0)  proxy untuk "player di mana"
+        float distFromCenter = sqrtf(pPos.x * pPos.x + pPos.z * pPos.z);
+
+        // --- BIAS A: Player jauh dari center -> lebih sering Wire Attack ---
+        // Wire Attack lebih efektif kalau player ada di pinggir (sulit dodge ke samping)
+        if (distFromCenter > 7.0f && s_cooldowns[static_cast<int>(AttackID::WireAttack)] <= 0)
+        {
+            // 40% chance override ke WireAttack
+            if ((rand() % 100) < 40)
+            {
+                candidateIndex = static_cast<int>(AttackID::WireAttack);
+            }
+        }
+
+        // --- BIAS B: Player di center -> lebih sering Lock Player ---
+        // Lock Player paling devastating kalau player di tengah (banyak musuh di sekitar)
+        if (distFromCenter < 4.0f && s_cooldowns[static_cast<int>(AttackID::LockPlayer)] <= 0)
+        {
+            // 35% chance override ke LockPlayer
+            if ((rand() % 100) < 35)
+            {
+                candidateIndex = static_cast<int>(AttackID::LockPlayer);
+            }
+        }
+    }
+
+    // =========================================================
+    // [AI] STEP 3: SHUFFLE CHANCE (55%)
+    // Skip ke serangan valid berikutnya.
     // =========================================================
     if ((rand() % 100) < static_cast<int>(k_shuffleChance * 100.0f))
     {
-        // Cari serangan valid BERIKUTNYA setelah candidate
         for (int i = 1; i < static_cast<int>(AttackID::COUNT); ++i)
         {
             int tryIndex = (candidateIndex + i) % static_cast<int>(AttackID::COUNT);
             if (s_cooldowns[tryIndex] <= 0)
             {
-                candidateIndex = tryIndex;  // Ganti ke yang ini
+                candidateIndex = tryIndex;
                 break;
             }
         }
-        // Kalau tidak ditemukan yang lain, tetap pakai candidate awal (wajar)
     }
 
     // =========================================================
-    // [AI] STEP 3: UPDATE ROUND-ROBIN CURSOR
-    // Pindahkan cursor ke SETELAH serangan yang dipilih,
-    // sehingga next Idle cycle akan mulai cari dari sana.
+    // [AI] STEP 4: UPDATE ROUND-ROBIN CURSOR
     // =========================================================
     s_nextAttackIndex = (candidateIndex + 1) % static_cast<int>(AttackID::COUNT);
 
     // =========================================================
-    // [AI] STEP 4: DEKREMENT SEMUA COOLDOWN YANG AKTIF
-    // Ini dilakukan SEBELUM set cooldown serangan baru,
-    // sehingga cooldown yang baru di-set tidak langsung terdekrement.
+    // [AI] STEP 5: DEKREMENT SEMUA COOLDOWN YANG AKTIF
     // =========================================================
     for (int i = 0; i < static_cast<int>(AttackID::COUNT); ++i)
     {
@@ -183,7 +209,7 @@ void BossIdleState::Update(Boss* boss, float dt)
     }
 
     // =========================================================
-    // [AI] STEP 5: SET COOLDOWN SERANGAN YANG DIPILIH
+    // [AI] STEP 6: SET COOLDOWN SERANGAN YANG DIPILIH
     // =========================================================
     AttackID chosenAttack = static_cast<AttackID>(candidateIndex);
 
@@ -197,10 +223,7 @@ void BossIdleState::Update(Boss* boss, float dt)
     }
 
     // =========================================================
-    // [AI] STEP 6: EKSEKUSI SERANGAN
-    // Panggil trigger function yang sesuai. Setiap trigger akan
-    // membungkus state attack-nya dengan BossCommandState (typing
-    // animation), lalu otomatis masuk ke state attack yang sebenarnya.
+    // [AI] STEP 7: EKSEKUSI SERANGAN
     // =========================================================
     switch (chosenAttack)
     {
@@ -239,7 +262,7 @@ void BossIdleState::Exit(Boss* boss) {}
 
 void BossSpawnEnemyState::Enter(Boss* boss)
 {
-    boss->AddTerminalLog("EXEC: THREAD_FORK [4]");
+    boss->AddTerminalLog("EXEC: THREAD_FORK [6]");
 
     // Set timer LEBIH BESAR dari max interval (1.5f)
     // Supaya pas masuk state, spawn pertama langsung keluar (Instant)
@@ -270,13 +293,20 @@ void BossSpawnEnemyState::Update(Boss* boss, float dt)
             if (auto* em = boss->GetEnemyManager())
             {
                 // --- A. TENTUKAN POSISI AWAL (POLA) ---
-                float xOffset = (m_currentSpawnCount % 2 == 0) ? -10.0f : 10.0f; // Kiri/Kanan
+                // Pola spread untuk 6 musuh: kiri/kanan alternating,
+                // dengan variasi Z yang lebih luas agar tidak numpuk.
+                float xOffset = (m_currentSpawnCount % 2 == 0) ? -10.0f : 10.0f;
 
                 float zPos = 0.0f;
-                if (m_currentSpawnCount == 2) zPos = 9.0f; // Atas
-                else {
-                    float variasi = (float)(m_currentSpawnCount % 3);
-                    zPos = -7.0f - (variasi * 2.0f); // Bawah
+                switch (m_currentSpawnCount)
+                {
+                case 0: zPos = -7.0f;  break;  // Bawah kiri
+                case 1: zPos = -3.0f;  break;  // Bawah kanan
+                case 2: zPos = 9.0f;  break;  // Atas kiri
+                case 3: zPos = 5.0f;  break;  // Tengah kanan
+                case 4: zPos = -9.0f;  break;  // Bawah jauh kiri
+                case 5: zPos = 7.0f;  break;  // Atas jauh kanan
+                default: zPos = 0.0f;  break;
                 }
 
                 XMFLOAT3 finalSpawnPos = { xOffset, 0.0f, zPos };

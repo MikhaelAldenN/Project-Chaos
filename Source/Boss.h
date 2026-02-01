@@ -191,6 +191,21 @@ public:
     // Fungsi render khusus wire
     void RenderWires(ModelRenderer* renderer);
 
+    // ==========================================
+    // CONCURRENT SPAWN SYSTEM
+    // Spawn minion tetap jalan meskipun state lain
+    // (LockPlayer / DownloadAttack / WireAttack) sedang aktif.
+    // ==========================================
+    struct ConcurrentSpawnConfig
+    {
+        bool enabled = true;                // Master switch
+        float interval = 3.5f;              // Jeda antar spawn (detik)
+        float activateDelay = 1.5f;         // Delay dari awal state sebelum pertama spawn
+        float safeDistance = 8.0f;           // Min jarak ke player (anti instant-kill)
+    } m_concurrentSpawnConfig;
+
+    bool IsConcurrentSpawnEligibleState() const;
+
 
 private:
     void InitializeParts();
@@ -242,6 +257,9 @@ private:
 
     void UpdateWires(float dt);
     void SpawnSingleWire(const DirectX::XMFLOAT3& targetPos);
+
+    // Concurrent spawn
+    float m_concurrentSpawnTimer = 0.0f;
 
     // Resources
     std::shared_ptr<Model> m_wireModel1;
