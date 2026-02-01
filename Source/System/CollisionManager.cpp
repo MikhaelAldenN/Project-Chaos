@@ -950,6 +950,7 @@ void CollisionManager::CheckPlayerVsTriggerLines()
             else if (i == 2)
             {
                 m_player->SetAbilityShield(true);
+                if (m_onLevelCompleteCallback) m_onLevelCompleteCallback();
             }
         }
     }

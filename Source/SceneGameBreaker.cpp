@@ -61,6 +61,8 @@ SceneGameBreaker::SceneGameBreaker()
 
     m_collisionManager->SetOnPlayerDeathCallback([this]() { StartPlayerDeathSequence(); });
     m_collisionManager->SetOnCheckpointReachCallback([this](DirectX::XMFLOAT3 pos){ SaveCheckpoint(pos); });
+    m_collisionManager->SetOnLevelCompleteCallback([this]() { StartLevelTransition(); });
+
     // Callback untuk Shake saat blok hancur
     blockManager->SetOnBlockHitCallback([this]()
         {
@@ -452,8 +454,23 @@ void SceneGameBreaker::Update(float elapsedTime)
         const float targetSmoothness = 4.0f;
         const float targetIntensity = 5.0f;
 
+        if (m_isTransitioning)
+        {
+            m_transitionTimer += elapsedTime;
+
+            float t = std::clamp(m_transitionTimer / TRANSITION_DURATION, 0.0f, 1.0f);
+
+            uberParams.smoothness = baseSmoothness + (targetSmoothness - baseSmoothness) * t;
+            uberParams.intensity = baseIntensity + (targetIntensity - baseIntensity) * t;
+
+            if (m_transitionTimer >= TRANSITION_DURATION)
+            {
+                Framework::Instance()->ChangeScene(std::make_unique<SceneGameBeyond>());
+            }
+        }
+
         // --- DEATH SEQUENCE LOGIC ---
-        if (m_isDying)
+        else if (m_isDying)
         {
             m_deathTimer += elapsedTime;
 
@@ -944,6 +961,13 @@ void SceneGameBreaker::SaveCheckpoint(const DirectX::XMFLOAT3& checkpointPos)
         m_checkpoint.savedCanShoot = player->CanShoot();
         m_checkpoint.isValid = true;
     }
+}
+
+void SceneGameBreaker::StartLevelTransition()
+{
+    if (m_isTransitioning) return;
+    m_isTransitioning = true;
+    m_transitionTimer = 0.0f;
 }
 
 void SceneGameBreaker::StartPlayerDeathSequence()

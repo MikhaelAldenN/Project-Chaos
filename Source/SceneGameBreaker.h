@@ -7,7 +7,9 @@
 #include <wrl/client.h> 
 
 // Game Systems
+#include "Framework.h"
 #include "Scene.h"
+#include "SceneGameBeyond.h"
 #include "GameWindow.h"
 #include "CameraController.h"
 #include "UberShader.h"
@@ -156,6 +158,13 @@ private:
 
     // Helper function
     void StartPlayerDeathSequence();
+
+    // Transition State
+    bool m_isTransitioning = false;
+    float m_transitionTimer = 0.0f;
+    const float TRANSITION_DURATION = 10.0f; 
+
+    void StartLevelTransition();
 
     // Camera Settings
     DirectX::XMFLOAT3 cameraPosition = { 0.0f, 18.0f, 0.0f };
