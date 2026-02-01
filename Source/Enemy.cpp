@@ -154,7 +154,10 @@ void Enemy::Update(float elapsedTime, Camera* camera)
 void Enemy::UpdateTracking(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack)
 {
     if (!camera) return;
-    UpdateAttackLogic(elapsedTime, camera, playerPos, allowAttack);
+    if (allowAttack)
+    {
+        UpdateAttackLogic(elapsedTime, camera, playerPos, allowAttack);
+    }
 }
 
 void Enemy::UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack)
