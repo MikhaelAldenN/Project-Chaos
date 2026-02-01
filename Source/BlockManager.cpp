@@ -354,6 +354,7 @@ void BlockManager::UpdateShieldLogic(bool isInputHeld, const DirectX::XMFLOAT3& 
     for (int i = 0; i < m_shieldAssignments.size(); ++i) {
         Block* b = m_shieldAssignments[i];
         if (!b || !b->IsActive()) continue;
+        if (b->IsFalling()) continue;
         float ox = m_shieldOffsets[i].x; float oz = m_shieldOffsets[i].z;
         float rotX = ox * cosA + oz * sinA; float rotZ = oz * cosA - ox * sinA;
         DirectX::XMFLOAT3 finalTarget = { targetCenter.x + rotX, 0.0f, targetCenter.z + rotZ };

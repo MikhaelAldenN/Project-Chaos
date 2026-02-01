@@ -987,7 +987,6 @@ void CollisionManager::CheckPlayerVsVoidLines()
 void CollisionManager::CheckBlockVsVoidLines()
 {
     if (!m_blockManager || !m_stage) return;
-    if (m_blockManager->IsShieldActive()) return;
 
     const float BLOCK_RADIUS = 0.5f;
     const float FALL_THRESHOLD = 0.1f;
