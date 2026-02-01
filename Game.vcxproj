@@ -144,6 +144,7 @@
     <ClInclude Include="Source\PostProcessManager.h" />
     <ClInclude Include="Source\Stage.h" />
     <ClInclude Include="Source\StateBoss.h" />
+    <ClInclude Include="Source\System\AudioManager.h" />
     <ClInclude Include="Source\System\Collision.h" />
     <ClInclude Include="Source\System\CollisionManager.h" />
     <ClInclude Include="Source\TerminalMonitor1.h" />
@@ -258,6 +259,7 @@
     <ClCompile Include="Source\SceneTitle.cpp" />
     <ClCompile Include="Source\Stage.cpp" />
     <ClCompile Include="Source\StateBoss.cpp" />
+    <ClCompile Include="Source\System\AudioManager.cpp" />
     <ClCompile Include="Source\System\BasicShader.cpp" />
     <ClCompile Include="Source\System\Collision.cpp" />
     <ClCompile Include="Source\System\CollisionManager.cpp" />

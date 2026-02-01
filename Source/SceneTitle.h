@@ -13,6 +13,7 @@
 #include "ButtonManager.h"
 #include "UIButtonPrimitive.h"
 #include "Typewriter.h"
+#include "System/AudioManager.h"
 #include "System/Sprite.h" 
 #include "TextDatabase.h"
 #include "PostProcessManager.h"

@@ -4,6 +4,7 @@
 #include <wrl/client.h>
 #include "Scene.h"
 #include "Camera.h"
+#include "System/AudioManager.h"
 #include "System/Sprite.h" 
 #include "BitmapFont.h"
 #include "Typewriter.h"

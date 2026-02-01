@@ -28,6 +28,8 @@ SceneIntroBios::SceneIntroBios()
     // Initialize UberShader & Render Targets
     uberShader = std::make_unique<UberShader>(Graphics::Instance().GetDevice());
     CreateRenderTarget();     
+
+    AudioManager::Instance().PlayMusic("Data/Sound/BGM_Intro.wav", true, 6.0f);
 }
 
 void SceneIntroBios::SetupBiosLog()
