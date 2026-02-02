@@ -20,19 +20,43 @@ SceneGameBreaker::SceneGameBreaker()
         screenH = static_cast<float>(window->GetHeight());
     }
 
-    // 1. Setup Main Camera
+    // ------------------------------------------------------------
+    // [STEP 1] CLEAN UP SINGLETONS (CRITICAL FIX)
+    // ------------------------------------------------------------
+
+    // A. Reset Juice Engine (Stop any lingering shakes from previous game)
+    JuiceEngine::Instance().Reset();
+
+    // B. Reset Camera Controller State
+    auto& camCtrl = CameraController::Instance();
+    camCtrl.ClearCamera();
+    camCtrl.StopSequence(); // Stop any active cinematic interpolation
+
+    // [THE FIX IS HERE] Reset persistent offsets that caused the dislocation
+    camCtrl.SetTargetOffset({ 0.0f, 0.0f, 0.0f });
+    camCtrl.SetFixedYawOffset(0.0f);
+    camCtrl.SetFixedRollOffset(0.0f);
+    camCtrl.SetSplineTension(1.0f); // Reset spline config just in case
+
+    // ------------------------------------------------------------
+    // [STEP 2] SETUP NEW CAMERA
+    // ------------------------------------------------------------
     mainCamera = std::make_shared<Camera>();
     mainCamera->SetPerspectiveFov(XMConvertToRadians(Config::CAM_FOV), screenW / screenH, Config::CAM_NEAR, Config::CAM_FAR);
 
-    auto& camCtrl = CameraController::Instance();
-    camCtrl.SetActiveCamera(mainCamera);
-
+    // Prepare Start Position
     XMFLOAT3 startPos = cameraPosition;
     startPos.x = 0.0f; startPos.z = 0.0f; startPos.y = Config::CAM_START_HEIGHT;
+
+    // Force internal camera object values immediately
     mainCamera->SetPosition(startPos);
     mainCamera->LookAt(cameraTarget);
 
+    // Link to Controller
+    camCtrl.SetActiveCamera(mainCamera);
     camCtrl.SetControlMode(CameraControlMode::FixedStatic);
+
+    // Set Controller Values (Now safe because offsets are 0)
     camCtrl.SetFixedSetting(startPos);
     camCtrl.SetTarget(cameraTarget);
 
@@ -111,6 +135,8 @@ SceneGameBreaker::SceneGameBreaker()
         "Data/Sprite/Scene Breaker/Sprite_SubText_MOUSESHIFT.png");
     m_spriteSubTextMouseSpace = std::make_unique<Sprite>(Graphics::Instance().GetDevice(),
         "Data/Sprite/Scene Breaker/Sprite_SubText_MOUSESPACE.png");
+
+    m_hasEnabledMashing = false;
 
     m_lastMouseX = Input::Instance().GetMouse().GetPositionX();
     m_lastMouseY = Input::Instance().GetMouse().GetPositionY();
@@ -347,11 +373,11 @@ void SceneGameBreaker::Update(float elapsedTime)
     if (m_hasTriggered && !seqInfo.IsPlaying && player)
     {
         static bool s_hasEnabledMashing = false;
-        if (!s_hasEnabledMashing)
+        if (!m_hasEnabledMashing) 
         {
-            s_hasEnabledMashing = true;
-            player->SetBreakoutMode(true);
-            AudioManager::Instance().PlayMusic("Data/Sound/BGM_GameBreaker.wav", true);
+            m_hasEnabledMashing = true;
+            player->SetBreakoutMode(true); 
+            AudioManager::Instance().PlayMusic("Data/Sound/BGM_GameBreaker.wav", true); 
         }
     }
 
@@ -482,7 +508,7 @@ void SceneGameBreaker::Update(float elapsedTime)
         {
             m_transitionTimer += elapsedTime;
             
-            if (!m_hasTriggeredBGMFade && m_transitionTimer >= 4.0f)
+            if (!m_hasTriggeredBGMFade && m_transitionTimer >= 3.0f)
             {
                 AudioManager::Instance().FadeOutMusic(4.0f);
                 m_hasTriggeredBGMFade = true;
@@ -651,9 +677,7 @@ void SceneGameBreaker::UpdateGameTriggers(float elapsedTime)
 {
     if (m_hasTriggered) return;
 
-    // Trigger Breakout Mode (Tombol T atau blok habis)
-    bool triggerCondition = (GetKeyState('T') & 0x8000)
-        || (blockManager && blockManager->GetActiveBlockCount() <= Config::TRIGGER_BLOCK_COUNT);
+    bool triggerCondition = (blockManager && blockManager->GetActiveBlockCount() <= Config::TRIGGER_BLOCK_COUNT);
 
     if (triggerCondition)
     {

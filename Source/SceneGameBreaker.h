@@ -223,6 +223,7 @@ private:
     float m_mashTimer = 0.0f;       // Penghitung waktu manual
     bool m_isMashFirstRun = true;   // Penanda apakah ini trigger pertama (1 detik)
     bool m_mashSequenceActive = false;
+    bool m_hasEnabledMashing = false;
 
     float m_respawnTimer = 0.0f;
     const float RESPAWN_FADE_DURATION = 3.0f;

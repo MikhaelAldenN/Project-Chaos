@@ -23,6 +23,9 @@ void TextDatabase::RegisterEntry(const std::string& folder, const std::string& d
 
 void TextDatabase::Initialize()
 {
+    m_fileSystem.clear();
+    m_fileDatabase.clear();
+    m_systemStrings.clear();
     // 1. SYSTEM STRINGS
     m_systemStrings["StatusOnline"] = "Online - Unstable";
     m_systemStrings["DirectoryHeader"] = "NAME             SIZE";
