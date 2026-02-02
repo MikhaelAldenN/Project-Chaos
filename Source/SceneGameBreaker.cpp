@@ -481,7 +481,12 @@ void SceneGameBreaker::Update(float elapsedTime)
         if (m_isTransitioning)
         {
             m_transitionTimer += elapsedTime;
-
+            
+            if (!m_hasTriggeredBGMFade && m_transitionTimer >= 4.0f)
+            {
+                AudioManager::Instance().FadeOutMusic(4.0f);
+                m_hasTriggeredBGMFade = true;
+            }
             float t = std::clamp(m_transitionTimer / TRANSITION_DURATION, 0.0f, 1.0f);
 
             uberParams.smoothness = baseSmoothness + (targetSmoothness - baseSmoothness) * t;
@@ -489,7 +494,7 @@ void SceneGameBreaker::Update(float elapsedTime)
 
             if (m_transitionTimer >= TRANSITION_DURATION)
             {
-                Framework::Instance()->ChangeScene(std::make_unique<SceneGameBeyond>());
+                Framework::Instance()->ChangeScene(std::make_unique<SceneIntroBios>());
             }
         }
 
@@ -993,6 +998,7 @@ void SceneGameBreaker::StartLevelTransition()
     if (m_isTransitioning) return;
     m_isTransitioning = true;
     m_transitionTimer = 0.0f;
+    m_hasTriggeredBGMFade = false;
 }
 
 void SceneGameBreaker::StartPlayerDeathSequence()

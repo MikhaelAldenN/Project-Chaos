@@ -9,7 +9,7 @@
 // Game Systems
 #include "Framework.h"
 #include "Scene.h"
-#include "SceneGameBeyond.h"
+#include "SceneIntroBios.h"
 #include "GameWindow.h"
 #include "CameraController.h"
 #include "UberShader.h"
@@ -164,6 +164,7 @@ private:
     bool m_isTransitioning = false;
     float m_transitionTimer = 0.0f;
     const float TRANSITION_DURATION = 10.0f; 
+    bool m_hasTriggeredBGMFade = false;
 
     void StartLevelTransition();
 
