@@ -718,8 +718,9 @@ void CollisionManager::CheckBlockVsEnemies()
             {
                 bool isPaddle = (enemy->GetType() == EnemyType::Paddle);
                 bool isInvincible = (m_blockManager && m_blockManager->IsInvincible());
+                bool isProjectile = block.IsProjectile();
 
-                if (isInvincible && isPaddle) { }
+                if (isInvincible && isPaddle && !isProjectile) { }
                 else
                 {
                     block.OnHit();
