@@ -37,7 +37,7 @@ Primitive::Primitive(ID3D11Device* device)
 
     std::vector<char> vsBlob, psBlob;
     // NOTE: Kamu butuh file "primitive_vs.cso" dan "primitive_ps.cso"
-    if (LoadShader(L"Shader/primitive_vs.cso", vsBlob)) {
+    if (LoadShader(L"Data/Shader/primitive_vs.cso", vsBlob)) {
         device->CreateVertexShader(vsBlob.data(), vsBlob.size(), nullptr, vertexShader.GetAddressOf());
 
         // Input Layout
@@ -48,7 +48,7 @@ Primitive::Primitive(ID3D11Device* device)
         device->CreateInputLayout(layout, 2, vsBlob.data(), vsBlob.size(), inputLayout.GetAddressOf());
     }
 
-    if (LoadShader(L"Shader/primitive_ps.cso", psBlob)) {
+    if (LoadShader(L"Data/Shader/primitive_ps.cso", psBlob)) {
         device->CreatePixelShader(psBlob.data(), psBlob.size(), nullptr, pixelShader.GetAddressOf());
     }
 
