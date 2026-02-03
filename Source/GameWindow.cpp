@@ -89,7 +89,7 @@ GameWindow::GameWindow(const char* title, int w, int h)
 {
     // ... (Kode Constructor SAMA) ...
     // Copy dari file sebelumnya
-    std::cout << "[GameWindow] Creating Window: " << title << "..." << std::endl;
+    //std::cout << "[GameWindow] Creating Window: " << title << "..." << std::endl;
     sdlWindow = SDL_CreateWindow(title, w, h, SDL_WINDOW_RESIZABLE);
     hWnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(sdlWindow), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
     

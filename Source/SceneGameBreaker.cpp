@@ -401,7 +401,7 @@ void SceneGameBreaker::Update(float elapsedTime)
     if (isInsideProgram)
     {
         // DALAM PROGRAM: Hilang
-        uberParams.chromaticAberration = 0.00404f;
+        uberParams.chromaticAberration = -0.00615f;
         uberParams.distortion = 0.0f;   
         uberParams.fineOpacity = 0.0f;
         uberParams.fineRotation = targetRotation;
@@ -499,7 +499,7 @@ void SceneGameBreaker::Update(float elapsedTime)
         const float killPlaneY = -88.0f;
         // Default Shader Values (From UberShader.h)
         const float baseSmoothness = 0.2f;
-        const float baseIntensity = 0.38f;
+        const float baseIntensity = isInsideProgram ? 0.7f : 0.38f;
         // Target Values (Pitch Black)
         const float targetSmoothness = 7.0f;
         const float targetIntensity = 5.0f;
@@ -514,8 +514,14 @@ void SceneGameBreaker::Update(float elapsedTime)
                 m_hasTriggeredBGMFade = true;
             }
             float t = std::clamp(m_transitionTimer / TRANSITION_DURATION, 0.0f, 1.0f);
+            float currentSmoothness = baseSmoothness + (targetSmoothness - baseSmoothness) * t;
 
-            uberParams.smoothness = baseSmoothness + (targetSmoothness - baseSmoothness) * t;
+            if (currentSmoothness > 1.5f)
+            {
+                currentSmoothness = targetSmoothness; 
+            }
+
+            uberParams.smoothness = currentSmoothness;
             uberParams.intensity = baseIntensity + (targetIntensity - baseIntensity) * t;
 
             if (m_transitionTimer >= TRANSITION_DURATION)
@@ -599,9 +605,10 @@ void SceneGameBreaker::Update(float elapsedTime)
             }
             else
             {
-                // Normal State (Safe on ground)
-                uberParams.smoothness = baseSmoothness;
-                uberParams.intensity = baseIntensity;
+                if (!isInsideProgram)
+                {
+                    uberParams.smoothness = baseSmoothness;
+                }
             }
         }
     }
@@ -1094,7 +1101,7 @@ void SceneGameBreaker::LoadCheckpoint()
 
 void SceneGameBreaker::DrawGUI()
 {
-    //GameBreakerGUI::Draw(this);
+    GameBreakerGUI::Draw(this);
 }
 
 void SceneGameBreaker::OnResize(int width, int height)
