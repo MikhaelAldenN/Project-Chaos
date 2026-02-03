@@ -1,8 +1,8 @@
 ﻿#include <windows.h>
 #include <memory>
 #include <SDL3/SDL.h> 
-#include <iostream> // Untuk print error
-#include <exception> // Untuk menangkap error
+#include <iostream> 
+#include <exception> 
 #include "WindowManager.h"
 #include <thread>
 
@@ -12,26 +12,15 @@ void EmergencyWatchdog()
 {
     while (true)
     {
-        // Cek Kombinasi Tombol: CTRL + F12
-        // Kita pakai GetAsyncKeyState karena dia cek hardware langsung, 
-        // tidak peduli window game lagi hang atau tidak.
         bool ctrlPressed = (GetAsyncKeyState(VK_CONTROL) & 0x8000);
         bool f12Pressed = (GetAsyncKeyState(VK_F12) & 0x8000);
 
         if (ctrlPressed && f12Pressed)
         {
-            // Opsi 1: Bunyi Beep biar tau tombol bekerja
             Beep(200, 50);
-
-            // Opsi 2: Print Debug
             OutputDebugStringA("!!! EMERGENCY EXIT TRIGGERED !!!\n");
-
-            // Opsi 3: NUCLEAR OPTION (Kill Process Detik Itu Juga)
-            // ExitProcess tidak menunggu destructor atau cleanup. Langsung mati.
             ExitProcess(-1);
         }
-
-        // Tidur sebentar biar gak makan CPU (cek 10x per detik)
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
@@ -40,13 +29,6 @@ int main(int argc, char* argv[])
 {
     std::thread safetyThread(EmergencyWatchdog);
     safetyThread.detach();
-
-    AllocConsole();
-
-    // 1. Setup Console untuk melihat error log (Optional tapi berguna)
-    FILE* stream;
-    freopen_s(&stream, "CONOUT$", "w", stdout);
-    freopen_s(&stream, "CONOUT$", "w", stderr);
 
     // 2. Init SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
@@ -57,11 +39,6 @@ int main(int argc, char* argv[])
 
     try
     {
-        // =========================================================
-        // PROGRAM UTAMA DI DALAM BLOK TRY
-        // =========================================================
-
-        // Buat Framework (Ini akan memicu semua constructor Scene, Player, dll)
         auto framework = std::make_unique<Framework>();
 
         bool running = true;
@@ -95,19 +72,14 @@ int main(int argc, char* argv[])
                 running = false;
             }
         }
-        // =========================================================
     }
     catch (const std::exception& e)
     {
-        // TANGKAP ERRORNYA DAN TAMPILKAN DI LAYAR!
         std::string errorMessage = "Runtime Error Occurred:\n";
         errorMessage += e.what();
-
-        // Tampilkan Popup Error agar kita tahu apa salahnya
         MessageBoxA(NULL, errorMessage.c_str(), "CRITICAL ERROR", MB_OK | MB_ICONERROR);
 
-        // Print ke console juga
-        std::cerr << "!!! CRITICAL ERROR: " << e.what() << std::endl;
+        OutputDebugStringA(errorMessage.c_str());
 
         SDL_Quit();
         return -1;

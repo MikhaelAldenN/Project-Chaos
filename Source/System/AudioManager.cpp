@@ -20,7 +20,6 @@ bool AudioManager::Initialize() {
     }
 
     SDL_ResumeAudioDevice(m_deviceId);
-    SDL_Log("Audio System Initialized (SDL3 Core)");
     return true;
 }
 

@@ -11,7 +11,7 @@ public:
     // [USER SETTINGS] DEFAULTS
     // =========================================================
     static constexpr bool  DEFAULT_ENABLED      = false;
-    static constexpr float DEFAULT_INTENSITY    = 0.38f;
+    static constexpr float DEFAULT_INTENSITY    = false;
     static constexpr float DEFAULT_SMOOTHNESS   = 0.2f;
     static constexpr bool  DEFAULT_ROUNDED      = false;
     static constexpr float DEFAULT_ROUNDNESS    = 1.0f;
