@@ -666,5 +666,18 @@
     <Filter Include="Source\Item">
       <UniqueIdentifier>{53f85d7a-51db-4e9e-9f4e-9401e52b27ec}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Icon">
+      <UniqueIdentifier>{7bd705e7-0625-4051-be3a-e8803d3aae3d}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Data\Icon\BeyondBreakerIcon.ico">
+      <Filter>Source\Icon</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Data\Icon\Resource.rc">
+      <Filter>Source\Icon</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

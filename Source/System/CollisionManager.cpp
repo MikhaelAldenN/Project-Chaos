@@ -668,6 +668,14 @@ void CollisionManager::CheckBlockVsEnemies()
     auto& enemies = m_enemyManager->GetEnemies();
     auto& blocks = m_blockManager->GetBlocks();
 
+    struct HitCandidate {
+        Enemy* enemy;
+        Block* block;
+        float distSq;
+        bool isPaddle;
+    };
+    std::vector<HitCandidate> hits;
+
     float blockRadius = 0.5f;
     const float BALL_RADIUS = 0.1f;     
     const float PADDLE_THICKNESS = 0.5f;

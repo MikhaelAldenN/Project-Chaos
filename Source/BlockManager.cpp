@@ -94,6 +94,7 @@ void BlockManager::AddBlockFromItem(const DirectX::XMFLOAT3& startPos)
     // Set "Relocating" to true to suck it into the grid
     targetBlock->SetRelocating(true);
     targetBlock->WakeUp();
+    targetBlock->Update(0.0f, nullptr);
 }
 
 void BlockManager::CalculateShieldOffsets()
