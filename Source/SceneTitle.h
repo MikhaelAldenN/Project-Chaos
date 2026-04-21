@@ -12,15 +12,18 @@
 #include "Primitive.h"
 #include "ButtonManager.h"
 #include "UIButtonPrimitive.h"
-#include "Typewriter.h"
 #include "System/AudioManager.h"
 #include "System/Sprite.h" 
 #include "TextDatabase.h"
 #include "PostProcessManager.h"
-#include "LogConsole.h"
-#include "UILabel.h"
 #include "UIPanel.h"
-#include "CursorBlock.h"
+#include "SceneGameBreaker.h"
+#include "Framework.h"
+#include "ResourceManager.h"
+#include "System/Input.h"
+#include "System/Graphics.h"
+#include "TUIBuilder.h"
+#include <imgui.h>
 
 // Structs for UI Layout
 struct PanelLayout {
@@ -53,11 +56,7 @@ private:
     std::unique_ptr<Primitive> primitiveBatcher;
     std::unique_ptr<ButtonManager> uiManager;
     std::unique_ptr<PostProcessManager> postProcess;
-    std::unique_ptr<Typewriter> descTypewriter;
-    std::unique_ptr<LogConsole> logConsole;
-    std::unique_ptr<UILabel> fileHeaderLabel;
     std::unique_ptr<UIPanel> exitPopup;
-    std::unique_ptr<CursorBlock> cursorBlock;
 
     // --- Layout & Visual Configuration ---
     PanelLayout panelStatus;
@@ -86,6 +85,9 @@ private:
     UIButtonPrimitive* btnExit = nullptr;
     std::vector<UIButtonPrimitive*> menuButtons;
 
+    // --- Cached Description Text ---
+    std::vector<std::string> currentDescriptionLines;
+
     // --- Cached Strings ---
     std::string textStatusOnline;
     std::string textDirectoryHeader;
@@ -105,7 +107,7 @@ private:
     void SetupLayout();
     void SetupContent();
     void ApplyMenuLayout();
-    void PlayDescriptionAnim(const std::string& key);
+    void UpdateDescriptionText(const std::string& key);
 
     void BuildMenu(const std::string& folderName);
     std::string currentFolder = "ROOT";
@@ -117,5 +119,5 @@ private:
 
     int animButtonIndex = 0;   // Tombol ke-berapa yang sedang ngetik?
     float animTimer = 0.0f;    // Timer per huruf
-    float animSpeed = 0.001f;   // Kecepatan ngetik (makin kecil makin ngebut)
+    float animSpeed = 0.001f;  // Kecepatan ngetik (makin kecil makin ngebut)
 };

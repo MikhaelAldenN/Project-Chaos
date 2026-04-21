@@ -10,8 +10,6 @@
 #include "Enemy.h"
 #include "Player.h"
 #include "Stage.h"
-#include "Block.h"
-#include "BlockManager.h"
 #include "EnemyManager.h"
 #include "ItemManager.h"
 #include "Boss.h"
@@ -25,8 +23,11 @@ public:
     CollisionManager() = default;
     ~CollisionManager() = default;
 
-    void Initialize(Player* p, Stage* s, BlockManager* bm, EnemyManager* em, ItemManager* im);
-    void Initialize(Player* p, Stage* s, BlockManager* bm, EnemyManager* em, ItemManager* im, Boss* boss);
+    // OVERLOAD 1: Untuk SceneGameBreaker (Tidak butuh Boss)
+    void Initialize(Player* p, Stage* s, EnemyManager* em, ItemManager* im);
+
+    // OVERLOAD 2: Untuk SceneGameBeyond (Butuh Boss)
+    void Initialize(Player* p, Stage* s, EnemyManager* em, ItemManager* im, Boss* boss);
 
     void Update(float elapsedTime);
     void SetOnCheckpointReachCallback(std::function<void(DirectX::XMFLOAT3)> callback) { m_onCheckpointReachCallback = callback; }
@@ -35,13 +36,6 @@ public:
     void SetOnPlayerHitCallback(std::function<void()> callback) { m_onPlayerHitCallback = callback; }
 
 private:
-    void UpdateBlockStackFlags();
-    void CheckBlockVsBlocks();
-    void CheckBlockVsEnemies();
-    void CheckBlockVsItems();
-    void CheckBlockVsStage();
-    void CheckBlockVsVoidLines();
-    void CheckPlayerVsBlocks();
     void CheckPlayerVsCheckpointLines();
     void CheckPlayerVsEnemies();
     void CheckPlayerVsItems();
@@ -49,18 +43,14 @@ private:
     void CheckPlayerVsVoidLines();
     void CheckStageCollision();
     void CheckEnemyProjectilesFull(float elapsedTime);
-
     void CheckBossFilesVsPlayer();
-    void CheckBossFilesVsBlocks();
 
     Player* m_player = nullptr;
     Stage* m_stage = nullptr;
-    Boss* m_boss = nullptr; // [BARU]
+    Boss* m_boss = nullptr;
 
-    BlockManager* m_blockManager = nullptr;
     EnemyManager* m_enemyManager = nullptr;
     ItemManager* m_itemManager = nullptr;
-    SpatialHashGrid m_blockGrid;
 
     std::function<void(DirectX::XMFLOAT3)> m_onCheckpointReachCallback;
     std::function<void()> m_onLevelCompleteCallback = nullptr;

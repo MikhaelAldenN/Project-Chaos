@@ -5,7 +5,7 @@ using namespace DirectX;
 Stage::Stage(ID3D11Device* device)
 {
     // Load the model
-    model = std::make_shared<Model>(device, StageConfig::MODEL_PATH);
+    //model = std::make_shared<Model>(device, StageConfig::MODEL_PATH);
 
     // Apply defaults
     position = StageConfig::DEFAULT_POS;
@@ -76,73 +76,73 @@ void Stage::Render(ModelRenderer* renderer)
 
 void Stage::RenderDebug(ShapeRenderer* shapeRenderer, PrimitiveRenderer* primRenderer)
 {
-    //if (shapeRenderer)
-    //{
-    //    // Default Color (Green)
-    //    DirectX::XMFLOAT4 defaultColor = { 0.0f, 1.0f, 0.0f, 1.0f };
-    //    // Highlight Color (Yellow)
-    //    DirectX::XMFLOAT4 highlightColor = { 1.0f, 1.0f, 0.0f, 1.0f };
+    if (shapeRenderer)
+    {
+        // Default Color (Green)
+        DirectX::XMFLOAT4 defaultColor = { 0.0f, 1.0f, 0.0f, 1.0f };
+        // Highlight Color (Yellow)
+        DirectX::XMFLOAT4 highlightColor = { 1.0f, 1.0f, 0.0f, 1.0f };
 
-    //    for (size_t i = 0; i < m_debugWalls.size(); ++i)
-    //    {
-    //        const auto& wall = m_debugWalls[i];
-    //        DirectX::XMFLOAT4 drawColor = (m_highlightWallIndex == (int)i) ? highlightColor : defaultColor;
-    //        DirectX::XMFLOAT3 rotRadians = {
-    //            XMConvertToRadians(wall.Rotation.x),
-    //            XMConvertToRadians(wall.Rotation.y),
-    //            XMConvertToRadians(wall.Rotation.z)
-    //        };
+        for (size_t i = 0; i < m_debugWalls.size(); ++i)
+        {
+            const auto& wall = m_debugWalls[i];
+            DirectX::XMFLOAT4 drawColor = (m_highlightWallIndex == (int)i) ? highlightColor : defaultColor;
+            DirectX::XMFLOAT3 rotRadians = {
+                XMConvertToRadians(wall.Rotation.x),
+                XMConvertToRadians(wall.Rotation.y),
+                XMConvertToRadians(wall.Rotation.z)
+            };
 
-    //        // Use drawColor here
-    //        shapeRenderer->DrawBox(wall.Position, rotRadians, wall.Scale, drawColor);
-    //    }
-    //}
+            // Use drawColor here
+            shapeRenderer->DrawBox(wall.Position, rotRadians, wall.Scale, drawColor);
+        }
+    }
 
-    //// Draw Debug Lines
-    //if (primRenderer)
-    //{
-    //    auto DrawLineList = [&](const std::vector<DebugLineData>& lines, DirectX::XMFLOAT4 defaultColor, DebugLineType listType)
-    //        {
-    //            for (int i = 0; i < lines.size(); ++i)
-    //            {
-    //                const auto& line = lines[i];
-    //                DirectX::XMFLOAT4 finalColor = defaultColor;
+    // Draw Debug Lines
+    if (primRenderer)
+    {
+        auto DrawLineList = [&](const std::vector<DebugLineData>& lines, DirectX::XMFLOAT4 defaultColor, DebugLineType listType)
+            {
+                for (int i = 0; i < lines.size(); ++i)
+                {
+                    const auto& line = lines[i];
+                    DirectX::XMFLOAT4 finalColor = defaultColor;
 
-    //                if (m_highlightState.index == i && m_highlightState.type == listType)
-    //                {
-    //                    finalColor = { 1.0f, 1.0f, 0.0f, 1.0f }; // Bright Yellow Highlight
-    //                }
+                    if (m_highlightState.index == i && m_highlightState.type == listType)
+                    {
+                        finalColor = { 1.0f, 1.0f, 0.0f, 1.0f }; // Bright Yellow Highlight
+                    }
 
-    //                XMMATRIX T = XMMatrixTranslation(line.Position.x, line.Position.y, line.Position.z);
-    //                XMMATRIX R = XMMatrixRotationRollPitchYaw(
-    //                    XMConvertToRadians(line.Rotation.x),
-    //                    XMConvertToRadians(line.Rotation.y),
-    //                    XMConvertToRadians(line.Rotation.z)
-    //                );
+                    XMMATRIX T = XMMatrixTranslation(line.Position.x, line.Position.y, line.Position.z);
+                    XMMATRIX R = XMMatrixRotationRollPitchYaw(
+                        XMConvertToRadians(line.Rotation.x),
+                        XMConvertToRadians(line.Rotation.y),
+                        XMConvertToRadians(line.Rotation.z)
+                    );
 
-    //                float halfLen = line.Scale.x * 0.5f;
-    //                XMVECTOR p0 = XMVectorSet(-halfLen, 0, 0, 1);
-    //                XMVECTOR p1 = XMVectorSet(halfLen, 0, 0, 1);
+                    float halfLen = line.Scale.x * 0.5f;
+                    XMVECTOR p0 = XMVectorSet(-halfLen, 0, 0, 1);
+                    XMVECTOR p1 = XMVectorSet(halfLen, 0, 0, 1);
 
-    //                XMMATRIX W = R * T;
-    //                p0 = XMVector3TransformCoord(p0, W);
-    //                p1 = XMVector3TransformCoord(p1, W);
+                    XMMATRIX W = R * T;
+                    p0 = XMVector3TransformCoord(p0, W);
+                    p1 = XMVector3TransformCoord(p1, W);
 
-    //                XMFLOAT3 v0, v1;
-    //                XMStoreFloat3(&v0, p0);
-    //                XMStoreFloat3(&v1, p1);
+                    XMFLOAT3 v0, v1;
+                    XMStoreFloat3(&v0, p0);
+                    XMStoreFloat3(&v1, p1);
 
-    //                primRenderer->AddVertex(v0, finalColor);
-    //                primRenderer->AddVertex(v1, finalColor);
-    //            }
-    //        };
+                    primRenderer->AddVertex(v0, finalColor);
+                    primRenderer->AddVertex(v1, finalColor);
+                }
+            };
 
-    //    // Draw Lists with their Type identifier
-    //    DrawLineList(m_linesVoid, { 0.0f, 1.0f, 1.0f, 1.0f }, DebugLineType::Void);         // Cyan
-    //    DrawLineList(m_linesDisable, { 1.0f, 0.0f, 0.0f, 1.0f }, DebugLineType::Disable);   // Red
-    //    DrawLineList(m_linesEnable, { 0.0f, 1.0f, 0.0f, 1.0f }, DebugLineType::Enable);     // Green
-    //    DrawLineList(m_linesCheckpoint, { 0.2f, 0.4f, 1.0f, 1.0f }, DebugLineType::Checkpoint); // Bright Blue
-    //}
+        // Draw Lists with their Type identifier
+        DrawLineList(m_linesVoid, { 0.0f, 1.0f, 1.0f, 1.0f }, DebugLineType::Void);         // Cyan
+        DrawLineList(m_linesDisable, { 1.0f, 0.0f, 0.0f, 1.0f }, DebugLineType::Disable);   // Red
+        DrawLineList(m_linesEnable, { 0.0f, 1.0f, 0.0f, 1.0f }, DebugLineType::Enable);     // Green
+        DrawLineList(m_linesCheckpoint, { 0.2f, 0.4f, 1.0f, 1.0f }, DebugLineType::Checkpoint); // Bright Blue
+    }
 }
 
 void Stage::AddDebugWall()

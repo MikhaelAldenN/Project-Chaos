@@ -1,11 +1,5 @@
 #include "SceneTitle.h"
-#include "SceneGameBreaker.h"
-#include "Framework.h"
-#include "ResourceManager.h"
-#include "System/Input.h"
-#include "System/Graphics.h"
-#include "TUIBuilder.h"
-#include <imgui.h>
+
 
 SceneTitle::SceneTitle()
 {
@@ -17,18 +11,7 @@ SceneTitle::SceneTitle()
     TextDatabase::Instance().Initialize();
 
     primitiveBatcher = std::make_unique<Primitive>(Graphics::Instance().GetDevice());
-    uiManager = std::make_unique<ButtonManager>(); 
-
-    ShowCursor(FALSE);
-    cursorBlock = std::make_unique<CursorBlock>(Graphics::Instance().GetDevice());
-    cursorBlock->Initialize(14.0f, 24.0f);
-    cursorBlock->SetGridSnap(true, 10.0f, 10.0f);
-    cursorBlock->SetBlink(false);
-
-    logConsole = std::make_unique<LogConsole>();
-    logConsole->Initialize(335.0f, 695.0f, 6);
-    logConsole->SetStyle(0.625f, 30.0f, 0.96f, 0.80f, 0.23f, 0.6f);
-    logConsole->SetSpeed(0.2f, 5.0f);
+    uiManager = std::make_unique<ButtonManager>();
 
     postProcess = std::make_unique<PostProcessManager>();
     postProcess->Initialize(1920, 1080);
@@ -37,18 +20,6 @@ SceneTitle::SceneTitle()
     menuConfig.styleStandby = { {0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f}, {0.96f, 0.80f, 0.23f, 1.0f} };
     menuConfig.styleHover = { {0.0f, 0.0f, 0.8f, 1.0f}, {0.0f, 0.0f, 0.8f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
     menuConfig.stylePress = { {0.0f, 0.0f, 0.8f, 1.0f}, {0.0f, 0.0f, 0.8f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
-
-    fileHeaderLabel = std::make_unique<UILabel>(primitiveBatcher.get());
-    // Posisi Label: 
-    // X = Sama dengan panelDescription.x + sedikit offset biar ga nempel pojok banget
-    // Y = panelDescription.y MINUS setengah tinggi huruf, supaya pas di tengah garis border atas.
-    // (Kamu mungkin perlu fine-tune nilai Y ini biar pas nindih garis)
-    fileHeaderLabel->SetPosition(860.0f, 93.0f);
-
-    fileHeaderLabel->SetScale(0.625f);
-    fileHeaderLabel->SetColor(0.96f, 0.80f, 0.23f, 1.0f); // Warna Teks (Kuning)
-    fileHeaderLabel->SetBackgroundColor(0.0f, 0.0f, 0.0f, 1.0f); // Warna Box (Hitam)
-    fileHeaderLabel->SetText(""); // Awal kosong
 
     // 4. Load Assets & Finalize Setup
     bgSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Sprite_BorderBrickDos.png");
@@ -72,7 +43,6 @@ SceneTitle::SceneTitle()
         });
 
     // Tombol NO
-    // X = 75 + 200 (btn1) + 50 (gap) = 325
     exitPopup->AddButton("NO", 325.0f, btnY, 200.0f, 40.0f, [this]() {
 
         this->exitPopup->Hide();
@@ -97,7 +67,7 @@ SceneTitle::SceneTitle()
 
                 // Jangan lupa update Panel Kanan (Deskripsi) biar sinkron
                 this->selectedFileName = btn->GetText();
-                this->PlayDescriptionAnim(this->selectedFileName);
+                this->UpdateDescriptionText(this->selectedFileName);
 
                 break; // Stop loop kalau sudah ketemu
             }
@@ -106,16 +76,10 @@ SceneTitle::SceneTitle()
 
     exitPopup->Hide();
 
-
     SetupLayout();
     SetupContent();
     BuildMenu("ROOT");
 }
-
-//SceneTitle::~SceneTitle()
-//{
-//    ShowCursor(TRUE); // Balikin kursor windows
-//}
 
 void SceneTitle::BuildMenu(const std::string& folderName)
 {
@@ -146,20 +110,15 @@ void SceneTitle::BuildMenu(const std::string& folderName)
     // =========================================================
 
     // A. Logic Dekorasi (Header)
-    // HANYA TAMPILKAN DEKORASI JIKA DI ROOT.
     if (folderName == "ROOT")
     {
         builder.SetStartPosition(menuConfig.startX, 260.0f);
         builder.AddDecoration(" VOL (C:)          <SYS>");
     }
-    // "Else" dihapus supaya folder Misc tidak punya header "SUB DIR"
 
     // B. Logic Posisi Tombol
-    // Default Y = 299.0f (Sesuai config awal)
     float currentListY = menuConfig.startY;
 
-    // Jika BUKAN ROOT (misal di Misc), kita "naikkan" posisi tombolnya 
-    // ke 260.0f (posisi bekas header tadi) supaya tidak ompong.
     if (folderName != "ROOT")
     {
         currentListY = 260.0f;
@@ -186,59 +145,17 @@ void SceneTitle::BuildMenu(const std::string& folderName)
 
             if (fileName.find("Exit.exe") != std::string::npos)
             {
-                // [HAPUS] this->lastSelectedBeforePopup = ... (Ga butuh lagi)
-
-                // 1. Matikan tombol apapun yang sedang nyala (misal ReadMe)
                 if (this->currentActiveButton)
                 {
                     this->currentActiveButton->SetSelected(false);
                     this->currentActiveButton->SetState(ButtonState::STANDBY);
                 }
 
-                // 2. Nyalakan tombol Exit ini (Visual Only)
                 this->currentActiveButton = btn;
                 this->currentActiveButton->SetSelected(true);
                 this->currentActiveButton->SetState(ButtonState::PRESSED);
 
-                // 3. Munculkan Popup
                 this->exitPopup->Show();
-                return;
-            }
-
-            // A. Tombol BACK ("../")
-            if (fileName.find("..\\") != std::string::npos)
-            {
-                this->PlayDescriptionAnim("");
-
-                // Kalau sekarang di Art, baliknya ke Misc
-                if (currentFolder == "Art")
-                {
-                    this->pendingFolder = "Misc";
-                    if (this->logConsole) this->logConsole->AddLog("> CD .. (Misc)", 1.0f);
-                }
-                // Kalau bukan (misal di Misc), baliknya ke ROOT
-                else
-                {
-                    this->pendingFolder = "ROOT";
-                    if (this->logConsole) this->logConsole->AddLog("> CD C:", 1.0f);
-                }
-                return;
-            }
-            // B. Masuk Folder MISC ("Misc/")
-            if (fileName.find("Misc\\") != std::string::npos)
-            {
-                this->PlayDescriptionAnim(fileName);
-                this->pendingFolder = "Misc";
-                if (this->logConsole) this->logConsole->AddLog("> CD Misc", 1.0f);
-                return;
-            }
-
-            // C. Masuk Folder ART [BARU]
-            if (fileName.find("Art\\") != std::string::npos)
-            {
-                this->PlayDescriptionAnim(fileName);
-                this->pendingFolder = "Art"; // Masuk ke "Art" (sesuai kunci di TextDatabase)
-                if (this->logConsole) this->logConsole->AddLog("> CD Art", 1.0f);
                 return;
             }
 
@@ -250,20 +167,15 @@ void SceneTitle::BuildMenu(const std::string& folderName)
             currentActiveButton->SetSelected(true);
 
             this->selectedFileName = fileName;
-            this->PlayDescriptionAnim(fileName);
-
-            if (this->logConsole) {
-                std::string shortName = fileName.substr(0, fileName.find(" "));
-                this->logConsole->AddLog("> Open: " + shortName, 1.0f);
-            }
+            this->UpdateDescriptionText(fileName);
 
             });
 
         menuButtons.push_back(btn);
     }
 
-    // [BARU] Reset State Animasi
-    animButtonIndex = 0; // Mulai dari tombol pertama (index 0)
+    // Reset State Animasi
+    animButtonIndex = 0;
     animTimer = 0.0f;
 
     if (!menuButtons.empty()) btnExit = menuButtons.back();
@@ -272,24 +184,17 @@ void SceneTitle::BuildMenu(const std::string& folderName)
     {
         for (auto* btn : menuButtons)
         {
-            // Cari tombol yang teksnya mengandung "README.txt"
             if (btn->GetText().find("ReadMe.txt") != std::string::npos)
             {
-                // 1. Reset seleksi lama (jika ada)
                 if (currentActiveButton) currentActiveButton->SetSelected(false);
 
-                // 2. Set tombol README jadi terpilih
                 currentActiveButton = btn;
                 currentActiveButton->SetSelected(true);
 
-                // 3. Load Konten ke Panel Kanan
                 this->selectedFileName = btn->GetText();
-                this->PlayDescriptionAnim(selectedFileName);
+                this->UpdateDescriptionText(selectedFileName);
 
-                // 4. Catat di Log (Opsional)
-                //if (this->logConsole) this->logConsole->AddLog("> Default: README", 1.0f);
-
-                break; // Berhenti mencari karena sudah ketemu
+                break;
             }
         }
     }
@@ -302,62 +207,28 @@ void SceneTitle::BuildMenu(const std::string& folderName)
 void SceneTitle::Update(float elapsedTime)
 {
     // ==============================================================
-    // 1. UPDATE BACKGROUND ELEMENTS (TETAP JALAN WALAU ADA POPUP)
-    // ==============================================================
-
-    // Log Console tetap update (tambah teks/scroll) agar terlihat "hidup"
-    if (logConsole)
-    {
-        logConsole->Update(elapsedTime);
-    }
-
-    // Typewriter effect (Deskripsi panel kanan) boleh tetap jalan atau mau distop juga bebas.
-    // Aku taruh di sini biar dia menyelesaikan ketikannya dulu.
-    if (descTypewriter)
-    {
-        for (int i = 0; i < 5; ++i) descTypewriter->Update(elapsedTime);
-    }
-
-    // ==============================================================
     // 2. CEK POPUP / MODAL (BLOCKING AREA)
     // ==============================================================
-
-
-    if (cursorBlock)
-    {
-        cursorBlock->Update(elapsedTime, Input::Instance().GetMouse());
-    }
-
-    // Jika Popup Exit muncul...
     if (exitPopup && exitPopup->IsVisible())
     {
-        // ... Update logika tombol YES/NO di dalam popup
         exitPopup->Update();
-
-        // [STOP!] 
-        // Return di sini membuat kode di bawahnya TIDAK dijalankan.
-        // Artinya: User tidak bisa klik file lain, tidak bisa tekan Enter untuk Start Game.
-        return;
+        return; // Return preventing interaction behind popup
     }
 
     // ==============================================================
-    // 3. UPDATE MENU UTAMA (HANYA JIKA POPUP MATI)
+    // 3. UPDATE MENU UTAMA 
     // ==============================================================
-
-    // Logika ganti folder
     if (!pendingFolder.empty())
     {
         BuildMenu(pendingFolder);
         pendingFolder = "";
     }
 
-    // Update Mouse & Tombol Menu Utama
     if (uiManager)
     {
         uiManager->Update();
     }
 
-    // Animasi mengetik nama file di menu (List file muncul satu-satu)
     if (animButtonIndex < menuButtons.size())
     {
         animTimer += elapsedTime;
@@ -376,14 +247,12 @@ void SceneTitle::Update(float elapsedTime)
         }
     }
 
-    // Shortcut Keyboard (Start Game)
-    // Ini juga harus diblokir kalau lagi ada popup Exit
     if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN))
     {
         if (selectedFileName.find("BEYONDBREAKER.exe") != std::string::npos)
         {
             ShowCursor(TRUE);
-            Framework::Instance()->ChangeScene(std::make_unique<SceneGameBreaker>());
+            Framework::Instance()->ChangeScene(std::make_unique<SceneGameBeyond>());
         }
     }
 }
@@ -428,11 +297,8 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
         bgSprite->Render(dc, camera.get(), 0, 0, 0, 1920.0f, 1080.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
     }
 
-
     uiManager->Render(dc, targetCamera);
     primitiveBatcher->Render(dc);
-
-
 
     // Text Rendering
     BitmapFont* font = ResourceManager::Instance().GetFont("VGA_FONT");
@@ -446,23 +312,19 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
         DrawPanelText(textDirectoryHeader, panelDirectory);
         font->Draw(textTUIMenuBar.c_str(), 400.0f, 960.0f, 0.625f, 0.96f, 0.80f, 0.23f, 1.0f);
 
-        if (descTypewriter) descTypewriter->Render(font);
-        logConsole->Render(font);
-    }
-
-    if (fileHeaderLabel)
-    {
-        fileHeaderLabel->Render(dc);
+        // Draw the cached description text instantly
+        float currentY = panelDescription.y + 30.0f;
+        for (const std::string& line : currentDescriptionLines)
+        {
+            font->Draw(line.c_str(), panelDescription.x, currentY, panelDescription.scale,
+                panelDescription.color[0], panelDescription.color[1], panelDescription.color[2], panelDescription.color[3]);
+            currentY += panelDescription.lineSpacing;
+        }
     }
 
     if (exitPopup)
     {
         exitPopup->Render(dc);
-    }
-
-    if (cursorBlock)
-    {
-        cursorBlock->Render(dc, primitiveBatcher.get());
     }
 
     // --- STEP 3: Apply Post-Processing & Present ---
@@ -524,39 +386,27 @@ void SceneTitle::ApplyMenuLayout()
     }
 }
 
-void SceneTitle::PlayDescriptionAnim(const std::string& key)
+void SceneTitle::UpdateDescriptionText(const std::string& key)
 {
+    currentDescriptionLines.clear();
+
     if (key.empty()) {
-        fileHeaderLabel->SetText("");
         return;
     }
 
-    // [BARU] Bersihkan Key (Ambil nama file saja, buang spasi/size)
-    // Contoh: "joke.txt       5" -> "joke.txt"
     std::string cleanKey = key;
     size_t spacePos = key.find(" ");
     if (spacePos != std::string::npos) cleanKey = key.substr(0, spacePos);
 
-    fileHeaderLabel->SetText(cleanKey);
-
-    // [UBAH] Gunakan cleanKey untuk mencari data
     const FileMetadata* data = TextDatabase::Instance().GetMetadata(cleanKey);
 
     if (!data) {
-        // Debugging: Kalau masih ga muncul, cek output window
         printf("[Warning] Metadata not found for key: '%s'\n", cleanKey.c_str());
         return;
     }
 
-    descTypewriter = std::make_unique<Typewriter>();
-
-    float currentY = panelDescription.y + 30.0f;
-
-    for (const std::string& line : data->lines)
-    {
-        descTypewriter->AddLine(line, panelDescription.x, currentY, panelDescription.scale, panelDescription.color, 0.01f);
-        currentY += panelDescription.lineSpacing;
-    }
+    // Assign the lines to draw them instantly in Render()
+    currentDescriptionLines = data->lines;
 }
 
 // =========================================================
@@ -565,107 +415,106 @@ void SceneTitle::PlayDescriptionAnim(const std::string& key)
 
 void SceneTitle::DrawGUI()
 {
-    //ImGui::Begin("Title Scene Debugger");
+    ImGui::Begin("Title Scene Debugger");
 
-    //if (ImGui::BeginTabBar("InspectorTabs"))
-    //{
-    //    if (ImGui::BeginTabItem("UI Layout"))
-    //    {
-    //        if (ImGui::CollapsingHeader("Text Layouts", ImGuiTreeNodeFlags_DefaultOpen))
-    //        {
-    //            ImGui::Indent();
-    //            ImGuiEditPanel(panelStatus);
-    //            ImGuiEditPanel(panelDirectory);
-    //            ImGuiEditPanel(panelDescription);
-    //            ImGui::Unindent();
-    //        }
+    if (ImGui::BeginTabBar("InspectorTabs"))
+    {
+        if (ImGui::BeginTabItem("UI Layout"))
+        {
+            if (ImGui::CollapsingHeader("Text Layouts", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Indent();
+                ImGuiEditPanel(panelStatus);
+                ImGuiEditPanel(panelDirectory);
+                ImGuiEditPanel(panelDescription);
+                ImGui::Unindent();
+            }
 
-    //        if (ImGui::CollapsingHeader("Menu Group Settings"))
-    //        {
-    //            // Note: Sliders for menuConfig should go here.
-    //            if (ImGui::Button("Apply Layout")) ApplyMenuLayout();
-    //        }
-    //        ImGui::EndTabItem();
-    //    }
+            if (ImGui::CollapsingHeader("Menu Group Settings"))
+            {
+                if (ImGui::Button("Apply Layout")) ApplyMenuLayout();
+            }
+            ImGui::EndTabItem();
+        }
 
-    //    if (ImGui::BeginTabItem("Data Debugger"))
-    //    {
-    //        ImGui::TextColored({ 0.0f, 1.0f, 0.0f, 1.0f }, "Selected: %s", selectedFileName.empty() ? "NONE" : selectedFileName.c_str());
-    //        ImGui::EndTabItem();
-    //    }
+        if (ImGui::BeginTabItem("Data Debugger"))
+        {
+            ImGui::TextColored({ 0.0f, 1.0f, 0.0f, 1.0f }, "Selected: %s", selectedFileName.empty() ? "NONE" : selectedFileName.c_str());
+            ImGui::EndTabItem();
+        }
 
-    //    if (ImGui::BeginTabItem("Post-Process & FX"))
-    //    {
-    //        GUIPostProcessTab();
-    //        ImGui::EndTabItem();
-    //    }
-    //    ImGui::EndTabBar();
-    //}
-    //ImGui::End();
+        if (ImGui::BeginTabItem("Post-Process & FX"))
+        {
+            GUIPostProcessTab();
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
+    ImGui::End();
 }
 
 void SceneTitle::ImGuiEditPanel(PanelLayout& layout)
 {
-    //if (ImGui::TreeNode(layout.name))
-    //{
-    //    ImGui::DragFloat("Pos X", &layout.x, 1.0f, 0.0f, 1920.0f);
-    //    ImGui::DragFloat("Pos Y", &layout.y, 1.0f, 0.0f, 1080.0f);
-    //    ImGui::DragFloat("Scale", &layout.scale, 0.01f, 0.1f, 5.0f);
-    //    ImGui::ColorEdit4("Color", layout.color);
-    //    ImGui::TreePop();
-    //}
+    if (ImGui::TreeNode(layout.name))
+    {
+        ImGui::DragFloat("Pos X", &layout.x, 1.0f, 0.0f, 1920.0f);
+        ImGui::DragFloat("Pos Y", &layout.y, 1.0f, 0.0f, 1080.0f);
+        ImGui::DragFloat("Scale", &layout.scale, 0.01f, 0.1f, 5.0f);
+        ImGui::ColorEdit4("Color", layout.color);
+        ImGui::TreePop();
+    }
 }
 
 void SceneTitle::GUIPostProcessTab()
 {
-    //ImGui::Spacing();
+    ImGui::Spacing();
 
-    //// Master Switch
-    //const char* label = m_fxState.MasterEnabled ? "Turn Off Filter" : "Turn On Filter";
-    //ImVec4 color = m_fxState.MasterEnabled ? ImVec4(0.6f, 0.2f, 0.2f, 1.0f) : ImVec4(0.2f, 0.6f, 0.2f, 1.0f);
+    // Master Switch
+    const char* label = m_fxState.MasterEnabled ? "Turn Off Filter" : "Turn On Filter";
+    ImVec4 color = m_fxState.MasterEnabled ? ImVec4(0.6f, 0.2f, 0.2f, 1.0f) : ImVec4(0.2f, 0.6f, 0.2f, 1.0f);
 
-    //ImGui::PushStyleColor(ImGuiCol_Button, color);
-    //if (ImGui::Button(label, ImVec2(-1, 40))) m_fxState.MasterEnabled = !m_fxState.MasterEnabled;
-    //ImGui::PopStyleColor();
+    ImGui::PushStyleColor(ImGuiCol_Button, color);
+    if (ImGui::Button(label, ImVec2(-1, 40))) m_fxState.MasterEnabled = !m_fxState.MasterEnabled;
+    ImGui::PopStyleColor();
 
-    //if (!m_fxState.MasterEnabled) return;
+    if (!m_fxState.MasterEnabled) return;
 
-    //ImGui::Separator();
+    ImGui::Separator();
 
-    //auto CheckboxLayer = [&](const char* label, bool& val) {
-    //    ImGui::Checkbox(label, &val);
-    //    if (!val) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
-    //    };
+    auto CheckboxLayer = [&](const char* label, bool& val) {
+        ImGui::Checkbox(label, &val);
+        if (!val) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
+        };
 
-    //// Vignette
-    //if (ImGui::CollapsingHeader("Vignette & Color", ImGuiTreeNodeFlags_DefaultOpen))
-    //{
-    //    CheckboxLayer("ACTIVATE: Vignette", m_fxState.EnableVignette);
-    //    ImGui::ColorEdit3("Tint", &uberParams.color.x);
-    //    ImGui::SliderFloat("Intensity", &uberParams.intensity, 0.0f, 3.0f);
-    //    ImGui::SliderFloat("Smoothness", &uberParams.smoothness, 0.01f, 1.0f);
-    //    ImGui::Checkbox("Rounded", &uberParams.rounded);
-    //    if (!m_fxState.EnableVignette) ImGui::PopStyleVar();
-    //}
+    // Vignette
+    if (ImGui::CollapsingHeader("Vignette & Color", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        CheckboxLayer("ACTIVATE: Vignette", m_fxState.EnableVignette);
+        ImGui::ColorEdit3("Tint", &uberParams.color.x);
+        ImGui::SliderFloat("Intensity", &uberParams.intensity, 0.0f, 3.0f);
+        ImGui::SliderFloat("Smoothness", &uberParams.smoothness, 0.01f, 1.0f);
+        ImGui::Checkbox("Rounded", &uberParams.rounded);
+        if (!m_fxState.EnableVignette) ImGui::PopStyleVar();
+    }
 
-    //// Lens
-    //if (ImGui::CollapsingHeader("Lens Distortion"))
-    //{
-    //    CheckboxLayer("ACTIVATE: Lens", m_fxState.EnableLens);
-    //    ImGui::SliderFloat("Fisheye", &uberParams.distortion, -0.5f, 0.5f);
-    //    ImGui::SliderFloat("Chroma", &uberParams.blurStrength, 0.0f, 0.05f);
-    //    ImGui::SliderFloat("Glitch", &uberParams.glitchStrength, 0.0f, 1.0f);
-    //    if (!m_fxState.EnableLens) ImGui::PopStyleVar();
-    //}
+    // Lens
+    if (ImGui::CollapsingHeader("Lens Distortion"))
+    {
+        CheckboxLayer("ACTIVATE: Lens", m_fxState.EnableLens);
+        ImGui::SliderFloat("Fisheye", &uberParams.distortion, -0.5f, 0.5f);
+        ImGui::SliderFloat("Chroma", &uberParams.blurStrength, 0.0f, 0.05f);
+        ImGui::SliderFloat("Glitch", &uberParams.glitchStrength, 0.0f, 1.0f);
+        if (!m_fxState.EnableLens) ImGui::PopStyleVar();
+    }
 
-    //// CRT
-    //if (ImGui::CollapsingHeader("CRT Monitor"))
-    //{
-    //    CheckboxLayer("ACTIVATE: CRT", m_fxState.EnableCRT);
-    //    ImGui::SliderFloat("Density", &uberParams.fineDensity, 10.0f, 500.0f);
-    //    ImGui::SliderFloat("Opacity", &uberParams.fineOpacity, 0.0f, 1.0f);
-    //    ImGui::SliderFloat("Speed", &uberParams.scanlineSpeed, -10.0f, 10.0f);
-    //    ImGui::SliderFloat("Scan Opacity", &uberParams.scanlineStrength, 0.0f, 1.0f);
-    //    if (!m_fxState.EnableCRT) ImGui::PopStyleVar();
-    //}
+    // CRT
+    if (ImGui::CollapsingHeader("CRT Monitor"))
+    {
+        CheckboxLayer("ACTIVATE: CRT", m_fxState.EnableCRT);
+        ImGui::SliderFloat("Density", &uberParams.fineDensity, 10.0f, 500.0f);
+        ImGui::SliderFloat("Opacity", &uberParams.fineOpacity, 0.0f, 1.0f);
+        ImGui::SliderFloat("Speed", &uberParams.scanlineSpeed, -10.0f, 10.0f);
+        ImGui::SliderFloat("Scan Opacity", &uberParams.scanlineStrength, 0.0f, 1.0f);
+        if (!m_fxState.EnableCRT) ImGui::PopStyleVar();
+    }
 }

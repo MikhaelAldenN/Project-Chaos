@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
     std::thread safetyThread(EmergencyWatchdog);
     safetyThread.detach();
 
-    // 2. Init SDL
+    // Init SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
     {
         MessageBoxA(NULL, SDL_GetError(), "SDL Init Failed", MB_OK | MB_ICONERROR);

@@ -11,15 +11,14 @@
 #include "CameraController.h"
 #include "Player.h" 
 #include "Boss.h"
-#include "BlockManager.h"
 #include "BitmapFont.h"
 #include "ResourceManager.h"
 #include "WindowShatter.h"
 #include "Primitive.h"
 #include "WindowTrackingSystem.h"
 #include "EnemyManager.h" 
-#include "System/CollisionManager.h" // [BARU]
-#include "ItemManager.h"      // [BARU]
+#include "System/CollisionManager.h"
+#include "ItemManager.h"      
 
 // =========================================================
 // SCENE GAME BEYOND - NO ImGui VERSION
@@ -32,7 +31,7 @@ public:
 
     void Update(float elapsedTime) override;
     void Render(float elapsedTime, Camera* camera = nullptr) override;
-    void DrawGUI() override; // Empty implementation - no ImGui
+    void DrawGUI() override;
     void OnResize(int width, int height) override;
 
     [[nodiscard]] Camera* GetMainCamera() const { return m_mainCamera.get(); }
@@ -55,12 +54,12 @@ private:
     // Game Objects
     std::unique_ptr<Player> m_player;
     std::unique_ptr<Boss> m_boss;
-    std::unique_ptr<BlockManager> m_blockManager;
+    std::unique_ptr<EnemyManager> m_enemyManager;
+    std::unique_ptr<ItemManager> m_itemManager;
 
     // Window System
     std::unique_ptr<WindowTrackingSystem> m_windowSystem;
-
-    std::unique_ptr<EnemyManager> m_enemyManager;
+    std::unique_ptr<CollisionManager> m_collisionManager;
 
     // States
     bool m_isWindowsInitialized = false;
@@ -81,6 +80,7 @@ private:
 
     DirectX::XMFLOAT3 m_enemyTrackOffset = { 0.0f, 0.0f, 0.0f };
     DirectX::XMFLOAT2 m_enemySizeOffset = { 0.0f, 0.0f };
+
     void UpdateEnemyWindows();
     void UpdateItemWindows();
 
@@ -91,7 +91,4 @@ private:
 
     DirectX::XMFLOAT3 m_antennaTrackOffset = { -1.5f, 0.0f, 1.1f };
     DirectX::XMFLOAT2 m_antennaSizeOffset = { 101.0f, -181.0f };
-
-    std::unique_ptr<ItemManager> m_itemManager;
-    std::unique_ptr<CollisionManager> m_collisionManager;
 };

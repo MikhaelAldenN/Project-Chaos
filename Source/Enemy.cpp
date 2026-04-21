@@ -11,16 +11,8 @@ Enemy::Enemy(ID3D11Device* device, const char* filePath, XMFLOAT3 startPos, XMFL
     m_type = type;
     m_attackType = attackType;
 
-    if (m_type == EnemyType::Pentagon)
-    {
-        // Pentagon agak besar (misal 2x lipat)
-        m_scale = { 150.0f, 150.0f, 150.0f };
-    }
-    else
-    {
-        // Default normal
-        m_scale = { 1.0f, 1.0f, 1.0f };
-    }
+    if (m_type == EnemyType::Pentagon) m_scale = { 150.0f, 150.0f, 150.0f };
+    else m_scale = { 1.0f, 1.0f, 1.0f };
 
     movement->SetGravityEnabled(false);
     movement->SetPosition(startPos);
@@ -51,17 +43,12 @@ Enemy::~Enemy() {}
 
 void Enemy::Update(float elapsedTime, Camera* camera)
 {
-    // =========================================================
-    // [BARU] LOGIKA ROTASI PENTAGON
-    // =========================================================
     if (m_type == EnemyType::Pentagon)
     {
-        // Putar musuh secara terus menerus pada sumbu Y
         XMFLOAT3 rot = movement->GetRotation();
-        rot.y += 10.0f * elapsedTime; // Kecepatan putar (makin besar makin cepat)
+        rot.y += 10.0f * elapsedTime;
         movement->SetRotation(rot);
     }
-    // =========================================================
 
     if (m_attackType == AttackType::TrackingHorizontal)
     {
@@ -73,16 +60,13 @@ void Enemy::Update(float elapsedTime, Camera* camera)
             pos.x = m_patrolMaxX;
             m_currentSpeed = -std::abs(m_baseMoveSpeed);
         }
-
         else if (pos.x <= m_patrolMinX)
         {
             pos.x = m_patrolMinX;
             m_currentSpeed = std::abs(m_baseMoveSpeed);
         }
-
         movement->SetPosition(pos);
     }
-
     else if (m_attackType == AttackType::TrackingRandom)
     {
         XMFLOAT3 pos = movement->GetPosition();
@@ -120,34 +104,21 @@ void Enemy::Update(float elapsedTime, Camera* camera)
     }
 
     if (movement) movement->Update(elapsedTime);
-    //SyncData();
-
-    // =========================================================
-    // [BARU] APPLY SCALE & TRANSFORM MANUAL
-    // =========================================================
-    // Kita harus hitung ulang matriks dunia (World Matrix) agar scale-nya masuk.
 
     XMFLOAT3 pos = movement->GetPosition();
     XMFLOAT3 rot = movement->GetRotation();
 
-    // 2. Buat Matrix Scale (INILAH KUNCINYA)
     XMMATRIX S = XMMatrixScaling(m_scale.x, m_scale.y, m_scale.z);
-
-    // 3. Buat Matrix Rotasi
     XMMATRIX R = XMMatrixRotationRollPitchYaw(
         XMConvertToRadians(rot.x),
         XMConvertToRadians(rot.y),
         XMConvertToRadians(rot.z)
     );
-
-    // 4. Buat Matrix Posisi
     XMMATRIX T = XMMatrixTranslation(pos.x, pos.y, pos.z);
 
-    // 5. Gabungkan: Scale -> Rotate -> Translate
     XMFLOAT4X4 worldMatrix;
     XMStoreFloat4x4(&worldMatrix, S * R * T);
 
-    // 6. Terapkan ke Model
     if (m_model) m_model->UpdateTransform(worldMatrix);
 }
 
@@ -166,32 +137,24 @@ void Enemy::UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::
     if (!camera) return;
 
     XMFLOAT3 myPos = movement->GetPosition();
-    XMFLOAT3 targetPos = playerPos; // Default target
+    XMFLOAT3 targetPos = playerPos;
 
-    // Jarak ke player (untuk aktivasi)
     float dx = std::abs(targetPos.x - myPos.x);
     float dz = std::abs(targetPos.z - myPos.z);
     float distSq = dx * dx + dz * dz;
 
-    // Cek apakah player cukup dekat untuk mulai menyerang
     if (distSq < (m_activationDistance * m_activationDistance))
     {
         bool isTrackingType = (m_attackType == AttackType::Tracking ||
             m_attackType == AttackType::TrackingHorizontal ||
             m_attackType == AttackType::TrackingRandom);
 
-        // Jika tipe Tracking, putar badan menghadap player
         if (isTrackingType)
         {
             float diffX = targetPos.x - myPos.x;
             float diffZ = targetPos.z - myPos.z;
-
-            // atan2f mengembalikan RADIANS (-3.14 s/d 3.14)
             float targetYawRad = atan2f(diffX, diffZ);
-
-            // [FIX] Konversi ke DEGREES agar sesuai dengan sistem render
             float targetYawDeg = XMConvertToDegrees(targetYawRad);
-
             movement->SetRotation({ 0.0f, targetYawDeg, 0.0f });
         }
 
@@ -201,41 +164,27 @@ void Enemy::UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::
         {
             m_attackTimer = 0.0f;
 
-            // =========================================================
-            // [BARU] LOGIKA SERANGAN RADIAL BURST (PENTAGON)
-            // =========================================================
             if (m_attackType == AttackType::RadialBurst)
             {
-                int projectileCount = 8; // Jumlah peluru (8 penjuru mata angin)
-                float angleStep = DirectX::XM_2PI / projectileCount; // 360 derajat / 8
+                int projectileCount = 8;
+                float angleStep = DirectX::XM_2PI / projectileCount;
 
                 for (int i = 0; i < projectileCount; ++i)
                 {
-                    // Hitung arah peluru berdasarkan sudut lingkaran
                     float currentAngle = i * angleStep;
                     float dirX = sinf(currentAngle);
                     float dirZ = cosf(currentAngle);
-
                     XMFLOAT3 burstDir = { dirX, 0.0f, dirZ };
 
-                    // Spawn Projectile
-                    auto newBall = std::make_unique<Ball>();
-
-                    // Offset spawn sedikit biar gak numpuk di tengah badan musuh
+                    auto newBullet = std::make_unique<Bullet>();
                     XMFLOAT3 spawnPos = myPos;
                     spawnPos.x += dirX * 1.0f;
                     spawnPos.z += dirZ * 1.0f;
 
-                    newBall->Fire(spawnPos, burstDir, m_projectileSpeed);
-                    newBall->SetBoundariesEnabled(false); // Biar peluru bisa tembus tembok layar
-
-                    // Masukkan ke list peluru
-                    m_projectiles.push_back(std::move(newBall));
+                    newBullet->Fire(spawnPos, burstDir, m_projectileSpeed);
+                    m_projectiles.push_back(std::move(newBullet));
                 }
             }
-            // =========================================================
-            // LOGIKA SERANGAN NORMAL (TRACKING / STATIC)
-            // =========================================================
             else
             {
                 if (m_projectiles.size() >= MAX_PROJECTILES) m_projectiles.pop_front();
@@ -254,31 +203,25 @@ void Enemy::UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::
                     fwd = GetForwardVector();
                 }
 
-                auto newBall = std::make_unique<Ball>();
+                auto newBullet = std::make_unique<Bullet>();
                 XMFLOAT3 spawnPos = myPos;
                 spawnPos.x += fwd.x * SPAWN_OFFSET_FWD;
                 spawnPos.z += fwd.z * SPAWN_OFFSET_FWD;
                 spawnPos.y += SPAWN_OFFSET_Y;
 
-                newBall->Fire(spawnPos, fwd, m_projectileSpeed);
-                newBall->SetBoundariesEnabled(false);
-
-                m_projectiles.push_back(std::move(newBall));
+                newBullet->Fire(spawnPos, fwd, m_projectileSpeed);
+                m_projectiles.push_back(std::move(newBullet));
             }
         }
     }
 
-    // Update Projectiles (Hapus jika terlalu jauh)
     auto it = m_projectiles.begin();
     while (it != m_projectiles.end())
     {
-        auto& ball = *it;
+        auto& bullet = *it;
+        bullet->Update(elapsedTime, camera);
 
-        ball->Update(elapsedTime, camera);
-
-        XMFLOAT3 bPos = ball->GetMovement()->GetPosition();
-
-        // Gunakan myPos (posisi musuh) sebagai titik tengah despawn distance
+        XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
         float bDx = myPos.x - bPos.x;
         float bDz = myPos.z - bPos.z;
 
@@ -290,40 +233,34 @@ void Enemy::UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::
 DirectX::XMFLOAT3 Enemy::GetForwardVector() const
 {
     XMFLOAT3 rot = movement->GetRotation();
-
-    // [FIX] Konversi Derajat ke Radian sebelum masuk sin/cos!
     float yawRad = XMConvertToRadians(rot.y);
     float pitchRad = XMConvertToRadians(rot.x);
-
-    // Gunakan nilai Radian untuk menghitung vektor
     float x = sinf(yawRad) * cosf(pitchRad);
     float y = -sinf(pitchRad);
     float z = cosf(yawRad) * cosf(pitchRad);
-
     return { x, y, z };
 }
 
 void Enemy::RenderProjectiles(ModelRenderer* renderer)
 {
-    for (auto& ball : m_projectiles)
+    for (auto& bullet : m_projectiles)
     {
-        if (ball->IsActive()) renderer->Draw(ShaderId::Phong, ball->GetModel(), m_projectileColor);
+        if (bullet->IsActive()) renderer->Draw(ShaderId::Phong, bullet->GetModel(), m_projectileColor);
     }
 }
 
 void Enemy::RenderDebugProjectiles(ShapeRenderer* renderer)
 {
-    for (const auto& ball : m_projectiles)
+    for (const auto& bullet : m_projectiles)
     {
-        if (ball && ball->IsActive())
+        if (bullet && bullet->IsActive())
         {
-            DirectX::XMFLOAT3 pos = ball->GetMovement()->GetPosition();
-            float radius = ball->GetRadius();
+            DirectX::XMFLOAT3 pos = bullet->GetMovement()->GetPosition();
+            float radius = bullet->GetRadius();
             renderer->DrawSphere(pos, radius, { 1.0f, 0.0f, 0.0f, 1.0f });
         }
     }
 
-    // Highlight for GUI
     if (m_isHighlighted)
     {
         DirectX::XMFLOAT3 pos = movement->GetPosition();

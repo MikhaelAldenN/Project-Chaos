@@ -44,24 +44,18 @@ std::string GenerateEnemyCopyString(Enemy* e, int index, const char* commentName
 {
     char buffer[512];
 
-    // [FIX] Use the passed 'currentPos' (which comes from GUI slider)
     XMFLOAT3 pos = currentPos;
     XMFLOAT3 rot = e->GetOriginalRotation();
 
-    // Determine Rotation String
     std::string rotStr = "{ " + FloatToString(rot.x) + ", " + FloatToString(rot.y) + ", " + FloatToString(rot.z) + " }";
     if (abs(rot.y - 0.0f) < 0.01f) rotStr = "Rot::Backward";
     else if (abs(rot.y - DirectX::XM_PI) < 0.01f) rotStr = "Rot::Forward";
     else if (abs(rot.y - DirectX::XM_PIDIV2) < 0.01f) rotStr = "Rot::Left";
     else if (abs(rot.y + DirectX::XM_PIDIV2) < 0.01f) rotStr = "Rot::Right";
 
-    // Determine Type & Color
     std::string typeStr = (e->GetType() == EnemyType::Paddle) ? "EnemyType::Paddle" : "EnemyType::Ball";
-
-    // [CHANGE] Updated to PaleYellow
     std::string colorStr = (e->GetType() == EnemyType::Paddle) ? "Blue" : "PaleYellow";
 
-    // Determine Attack & Params
     std::string attackStr = "AttackType::None";
     std::string extraParams = "";
 
@@ -93,45 +87,32 @@ std::string GenerateEnemyCopyString(Enemy* e, int index, const char* commentName
 
 void GameBreakerGUI::Draw(SceneGameBreaker* scene)
 {
-    // 1. Debug Controller (Window Terpisah milik CameraController)
     CameraController::Instance().DrawDebugGUI();
 
-    // 2. Window Utama "Scene Inspector"
     ImGui::SetNextWindowSize(ImVec2(400, 600), ImGuiCond_FirstUseEver);
 
     if (ImGui::Begin("Scene Inspector", nullptr))
     {
         if (ImGui::BeginTabBar("InspectorTabs"))
         {
-            // --- TAB 1: CAMERA ---
             if (ImGui::BeginTabItem("Camera Info"))
             {
                 DrawCameraTab(scene);
                 ImGui::EndTabItem();
             }
 
-            // --- TAB 2: UI LAYOUT ---
-            if (ImGui::BeginTabItem("UI Layout"))
-            {
-                DrawUI_LayoutTab(scene);
-                ImGui::EndTabItem();
-            }
-
-            // --- TAB 3: POST PROCESS ---
             if (ImGui::BeginTabItem("Post-Process & FX"))
             {
                 DrawPostProcessTab(scene);
                 ImGui::EndTabItem();
             }
 
-            // --- TAB 4: OBJECT COLOR ---
             if (ImGui::BeginTabItem("Object Color"))
             {
                 DrawObjectColorTab(scene);
                 ImGui::EndTabItem();
             }
 
-            // --- TAB 5: OBJECT TRANSFORM ---
             if (ImGui::BeginTabItem("Object Transform"))
             {
                 DrawObjectTransformTab(scene);
@@ -142,9 +123,6 @@ void GameBreakerGUI::Draw(SceneGameBreaker* scene)
         }
     }
     ImGui::End();
-
-    // 3. Window Sprite (Window Terpisah)
-    DrawSpriteTab(scene);
 }
 
 void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
@@ -342,21 +320,6 @@ void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
     }
 }
 
-void GameBreakerGUI::DrawUI_LayoutTab(SceneGameBreaker* scene)
-{
-    ImGui::Spacing();
-    ImGui::Text("Adjust In-Game UI Elements:");
-    ImGui::Separator();
-
-    ImGuiEditPanel("Tutorial Panel",
-        scene->tutorialLayout.x,
-        scene->tutorialLayout.y,
-        scene->tutorialLayout.scale,
-        scene->tutorialLayout.lineSpacing,
-        scene->tutorialLayout.color
-    );
-}
-
 void GameBreakerGUI::DrawPostProcessTab(SceneGameBreaker* scene)
 {
     ImGui::Spacing();
@@ -446,9 +409,6 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
 {
     ImGui::Spacing();
 
-    // ===========================
-    // SECTION: STAGE
-    // ===========================
     if (scene->m_stage)
     {
         ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "STAGE");
@@ -463,49 +423,21 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
         ImGui::Spacing();
     }
 
-    // ===========================
-    // SECTION: CHARACTER
-    // ===========================
     ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "CHARACTER");
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Paddle
-    if (scene->paddle)
-    {
-        if (ImGui::CollapsingHeader("Paddle", ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            ImGui::Indent();
-            ImGui::ColorEdit4("Base Color##Paddle", &scene->paddle->color.x);
-            ImGui::Unindent();
-        }
-    }
-
-    // Blocks
-    if (scene->blockManager)
-    {
-        if (ImGui::CollapsingHeader("Blocks"))
-        {
-            ImGui::Indent();
-            ImGui::ColorEdit4("Base Color##Blocks", &scene->blockManager->globalBlockColor.x);
-            ImGui::Unindent();
-        }
-    }
-
-    // Player
     if (scene->player)
     {
-        if (ImGui::CollapsingHeader("Player"))
+        if (ImGui::CollapsingHeader("Player", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Indent();
             ImGui::ColorEdit4("Base Color##Player", &scene->player->color.x);
             ImGui::Unindent();
         }
+        ImGui::Spacing();
     }
 
-    // ===========================
-    // SECTION: ENEMIES
-    // ===========================
     if (scene->m_enemyManager)
     {
         if (ImGui::CollapsingHeader("Enemies"))
@@ -551,9 +483,6 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
         ImGui::Spacing();
     }
 
-    // ===========================
-    // SECTION: ITEMS
-    // ===========================
     ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "Items");
     ImGui::Separator();
     ImGui::Spacing();
@@ -581,43 +510,6 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
             }
             ImGui::Unindent();
         }
-    }
-}
-
-void GameBreakerGUI::DrawSpriteTab(SceneGameBreaker* scene)
-{
-    ImGui::Begin("Sprite Inspector");
-    if (ImGui::CollapsingHeader("World Decoration (Sprite 3D)", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::Indent();
-        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), "TRANSFORM");
-        ImGui::DragFloat3("Position", &scene->m_spritePos.x, 0.1f);
-
-        ImGui::Spacing();
-        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SIZE");
-        ImGui::DragFloat("Master Scale", &scene->m_spriteScale, 0.01f);
-        ImGui::DragFloat2("Base Size W:H", &scene->m_spriteSize.x, 0.1f);
-
-        ImGui::Spacing();
-        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), "ROTATION");
-        ImGui::SliderFloat("Pitch", &scene->m_spritePitch, -180.0f, 180.0f);
-        ImGui::SliderFloat("Yaw", &scene->m_spriteYaw, -180.0f, 180.0f);
-        ImGui::SliderFloat("Roll", &scene->m_spriteRoll, -180.0f, 180.0f);
-        ImGui::Unindent();
-    }
-    ImGui::End();
-}
-
-void GameBreakerGUI::ImGuiEditPanel(const char* label, float& x, float& y, float& scale, float& spacing, float* color)
-{
-    if (ImGui::TreeNode(label))
-    {
-        ImGui::DragFloat("Pos X", &x, 1.0f, 0.0f, 1920.0f);
-        ImGui::DragFloat("Pos Y", &y, 1.0f, 0.0f, 1080.0f);
-        ImGui::DragFloat("Scale", &scale, 0.01f, 0.1f, 5.0f);
-        ImGui::DragFloat("Line Spacing", &spacing, 1.0f, 0.0f, 200.0f);
-        ImGui::ColorEdit4("Color", color);
-        ImGui::TreePop();
     }
 }
 
@@ -665,7 +557,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
             ImGui::Indent();
             ImGui::TextDisabled("Edit debug boxes for collision setup.");
 
-            // Iterate through the walls
             for (int i = 0; i < scene->m_stage->m_debugWalls.size(); ++i)
             {
                 auto& wall = scene->m_stage->m_debugWalls[i];
@@ -682,7 +573,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
                     if (ImGui::Button("Reset This Wall"))
                     {
-                        // Check if there is a config default for this index
                         if (i < StageConfig::DEBUG_WALLS.size()) {
                             wall = StageConfig::DEBUG_WALLS[i];
                         }
@@ -693,12 +583,10 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                         }
                     }
 
-                    // --- NEW: Copy Value Button ---
                     ImGui::SameLine();
                     if (ImGui::Button("Copy Value"))
                     {
                         char buffer[256];
-                        // Using %.6g to ensure exact value without trailing zeros or 'f'
                         snprintf(buffer, sizeof(buffer),
                             "// Wall %d\n{ {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g} },",
                             i + 1,
@@ -708,7 +596,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                         );
                         ImGui::SetClipboardText(buffer);
                     }
-                    // ------------------------------
 
                     ImGui::TreePop();
                 }
@@ -718,7 +605,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
             ImGui::Spacing();
             ImGui::Separator();
 
-            // === NEW: ADD WALL BUTTON ===
             if (ImGui::Button("+ Add Wall Debug", ImVec2(-1, 30)))
             {
                 scene->m_stage->AddDebugWall();
@@ -836,7 +722,7 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
             static EnemySpawnConfig lastSpawnConfig;
             static bool firstRun = true;
 
-            if (firstRun) 
+            if (firstRun)
             {
                 lastSpawnConfig.Position = { 0,0,-50 };
                 lastSpawnConfig.Rotation = EnemyLevelData::Rot::Backward;
@@ -848,7 +734,7 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                     if (e && e->GetType() == EnemyType::Paddle) {
                         lastSpawnConfig.Position = e->GetOriginalPosition();
                         lastSpawnConfig.Rotation = e->GetOriginalRotation();
-                        break; 
+                        break;
                     }
                 }
                 firstRun = false;
@@ -856,9 +742,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
 
             for (auto& e : enemies) e->SetHighlight(false);
 
-            // =========================================================
-            // SUB-HEADER: ENEMY PADDLES
-            // =========================================================
             if (ImGui::TreeNode("Enemy Paddles"))
             {
                 for (size_t i = 0; i < enemies.size(); ++i)
@@ -866,7 +749,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                     Enemy* e = enemies[i].get();
                     if (e->GetType() != EnemyType::Paddle) continue;
 
-                    // [FIX] Assign or Retrieve Persistent ID
                     if (paddleIDs.find(e) == paddleIDs.end()) {
                         paddleIDs[e] = nextPaddleID++;
                     }
@@ -882,14 +764,12 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                     {
                         e->SetHighlight(true);
 
-                        // [FIX] Use Original Position to prevent jumping 0,0,0
                         XMFLOAT3 pos = e->GetOriginalPosition();
                         XMFLOAT3 rot = e->GetOriginalRotation();
 
                         ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "TRANSFORM");
                         if (ImGui::DragFloat3("Pos", &pos.x, 0.1f)) {
                             e->SetPosition(pos);
-                            // [FIX] Force update even if active, so copy matches edit
                             e->UpdateOriginalTransform(pos, rot);
                         }
 
@@ -958,7 +838,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                         }
 
                         ImGui::Spacing();
-                        // [FIX] Pass 'pos' to Copy Function
                         if (ImGui::Button("Copy Value")) {
                             std::string copyStr = GenerateEnemyCopyString(e, displayID, "Paddle", pos);
                             ImGui::SetClipboardText(copyStr.c_str());
@@ -987,9 +866,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                 ImGui::TreePop();
             }
 
-            // =========================================================
-            // SUB-HEADER: ENEMY BALLS
-            // =========================================================
             if (ImGui::TreeNode("Enemy Balls"))
             {
                 for (size_t i = 0; i < enemies.size(); ++i)
@@ -1009,7 +885,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                     {
                         e->SetHighlight(true);
 
-                        // [FIX] Use Original Position to prevent jumping 0,0,0
                         XMFLOAT3 pos = e->GetOriginalPosition();
                         XMFLOAT3 rot = e->GetOriginalRotation();
                         XMFLOAT3 scl = e->scale;
@@ -1022,10 +897,8 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                         e->SetRotation(rot);
                         e->scale = scl;
 
-                        // [FIX] Always update original transform so dragging works
                         e->UpdateOriginalTransform(pos, rot);
 
-                        // [FIX] Pass 'pos' to Copy Function
                         if (ImGui::Button("Copy Value")) {
                             std::string copyStr = GenerateEnemyCopyString(e, displayID, "Ball", pos);
                             ImGui::SetClipboardText(copyStr.c_str());
@@ -1057,7 +930,7 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                         }
                     }
 
-                    if (!foundLastBall) 
+                    if (!foundLastBall)
                     {
                         cfg.Position = { 0,0,0 };
                         cfg.Rotation = { 0,0,0 };
@@ -1080,7 +953,7 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
         if (ImGui::CollapsingHeader("Item Transform", ImGuiTreeNodeFlags_None))
         {
             ImGui::Indent();
-            scene->m_itemManager->SetHighlight(-1); // Clear highlight
+            scene->m_itemManager->SetHighlight(-1);
             auto& items = scene->m_itemManager->GetItems();
             static std::unordered_map<Item*, int> healIDs;
             static int nextHealID = 1;
@@ -1092,14 +965,13 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                     char label[64];
                     snprintf(label, 64, "%s #%d", namePrefix, displayIndex);
 
-                    ImGui::PushID(index); // Use actual memory index for stable ID
+                    ImGui::PushID(index);
                     bool deleted = false;
 
                     if (ImGui::TreeNode(label))
                     {
-                        scene->m_itemManager->SetHighlight(index); // Highlight active item
+                        scene->m_itemManager->SetHighlight(index);
 
-                        // --- Type Dropdown ---
                         const char* typeNames[] = { "Heal", "Invincible" };
                         int currentTypeIdx = (item->GetType() == ItemType::Heal) ? 0 : 1;
 
@@ -1108,7 +980,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                             item->SetType((currentTypeIdx == 0) ? ItemType::Heal : ItemType::Invincible);
                         }
 
-                        // --- Transform Editing ---
                         XMFLOAT3 pos = item->GetBasePosition();
                         XMFLOAT3 rot = item->GetRotation();
                         XMFLOAT3 scl = item->scale;
@@ -1121,7 +992,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                         item->SetRotation(rot);
                         item->scale = scl;
 
-                        // --- Smart Copy Value ---
                         if (ImGui::Button("Copy Value"))
                         {
                             char buffer[512];
@@ -1150,33 +1020,28 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
                     return deleted;
                 };
 
-            // --- PASS 1: HEAL ITEMS (Top) ---
             ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.4f, 1.0f), "--- HEAL ITEMS ---");
             for (int i = 0; i < items.size(); ++i)
             {
                 if (items[i]->GetType() == ItemType::Heal)
                 {
-                    // [FIX] Persistent ID Logic
                     Item* ptr = items[i].get();
                     if (healIDs.find(ptr) == healIDs.end()) {
                         healIDs[ptr] = nextHealID++;
                     }
                     int displayID = healIDs[ptr];
 
-                    // Pass displayID instead of a local counter
                     if (DrawSingleItemNode(i, items[i].get(), displayID, "Item Heal")) break;
                 }
             }
 
             ImGui::Spacing();
 
-            // --- PASS 2: INVINCIBLE ITEMS (Bottom) ---
             ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "--- INVINCIBLE ITEMS ---");
             for (int i = 0; i < items.size(); ++i)
             {
                 if (items[i]->GetType() == ItemType::Invincible)
                 {
-                    // [FIX] Persistent ID Logic
                     Item* ptr = items[i].get();
                     if (invIDs.find(ptr) == invIDs.end()) {
                         invIDs[ptr] = nextInvID++;
@@ -1190,7 +1055,6 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
             ImGui::Spacing();
             ImGui::Separator();
 
-            // --- SPAWN CONTROLS ---
             static int spawnItemType = 0;
             const char* itemTypeNames[] = { "Heal", "Invincible" };
 

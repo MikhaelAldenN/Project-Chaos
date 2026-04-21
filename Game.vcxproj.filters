@@ -60,25 +60,16 @@
     <ClCompile Include="Source\Character.cpp">
       <Filter>Source\Character</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Block.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Enemy.cpp">
       <Filter>Source\Character</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Ball.cpp">
+    <ClCompile Include="Source\Bullet.cpp">
       <Filter>Source\Character</Filter>
     </ClCompile>
     <ClCompile Include="Source\Player.cpp">
       <Filter>Source\Character</Filter>
     </ClCompile>
-    <ClCompile Include="Source\BlockManager.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
     <ClCompile Include="Source\CharacterMovement.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Paddle.cpp">
       <Filter>Source\Character</Filter>
     </ClCompile>
     <ClCompile Include="Source\Framework.cpp">
@@ -96,10 +87,7 @@
     <ClCompile Include="Source\SceneGameBreaker.cpp">
       <Filter>Source\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="Source\SceneIntroBios.cpp">
-      <Filter>Source\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\SceneIntroOS.cpp">
+    <ClCompile Include="Source\SceneIntro.cpp">
       <Filter>Source\Scene</Filter>
     </ClCompile>
     <ClCompile Include="Source\SceneTitle.cpp">
@@ -114,16 +102,10 @@
     <ClCompile Include="Source\Stage.cpp">
       <Filter>Source\Stage</Filter>
     </ClCompile>
-    <ClCompile Include="Source\LogConsole.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
     <ClCompile Include="Source\TextDatabase.cpp">
       <Filter>Source\UI</Filter>
     </ClCompile>
     <ClCompile Include="Source\TUIBuilder.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Typewriter.cpp">
       <Filter>Source\UI</Filter>
     </ClCompile>
     <ClCompile Include="Source\UIComponents.cpp">
@@ -246,9 +228,6 @@
     <ClCompile Include="Source\EnemyManager.cpp">
       <Filter>Source\Character</Filter>
     </ClCompile>
-    <ClCompile Include="Source\CursorBlock.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
     <ClCompile Include="Source\WindowShatter.cpp">
       <Filter>Source\Window</Filter>
     </ClCompile>
@@ -285,6 +264,9 @@
     <ClCompile Include="Source\System\AudioManager.cpp">
       <Filter>System</Filter>
     </ClCompile>
+    <ClCompile Include="Source\CursorBlock.cpp">
+      <Filter>Source\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\AnimationController.h">
@@ -302,25 +284,16 @@
     <ClInclude Include="Source\Character.h">
       <Filter>Source\Character</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Block.h">
-      <Filter>Source\Character</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Enemy.h">
       <Filter>Source\Character</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Ball.h">
+    <ClInclude Include="Source\Bullet.h">
       <Filter>Source\Character</Filter>
     </ClInclude>
     <ClInclude Include="Source\Player.h">
       <Filter>Source\Character</Filter>
     </ClInclude>
-    <ClInclude Include="Source\BlockManager.h">
-      <Filter>Source\Character</Filter>
-    </ClInclude>
     <ClInclude Include="Source\CharacterMovement.h">
-      <Filter>Source\Character</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Paddle.h">
       <Filter>Source\Character</Filter>
     </ClInclude>
     <ClInclude Include="Source\Framework.h">
@@ -338,10 +311,7 @@
     <ClInclude Include="Source\SceneGameBreaker.h">
       <Filter>Source\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="Source\SceneIntroBios.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\SceneIntroOS.h">
+    <ClInclude Include="Source\SceneIntro.h">
       <Filter>Source\Scene</Filter>
     </ClInclude>
     <ClInclude Include="Source\SceneTitle.h">
@@ -368,16 +338,10 @@
     <ClInclude Include="Source\ButtonManager.h">
       <Filter>Source\UI</Filter>
     </ClInclude>
-    <ClInclude Include="Source\LogConsole.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
     <ClInclude Include="Source\TextDatabase.h">
       <Filter>Source\UI</Filter>
     </ClInclude>
     <ClInclude Include="Source\TUIBuilder.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Typewriter.h">
       <Filter>Source\UI</Filter>
     </ClInclude>
     <ClInclude Include="Source\UIButton.h">
@@ -545,9 +509,6 @@
     <ClInclude Include="Source\System\CollisionManager.h">
       <Filter>System</Filter>
     </ClInclude>
-    <ClInclude Include="Source\CursorBlock.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
     <ClInclude Include="Source\WindowShatter.h">
       <Filter>Source\Window</Filter>
     </ClInclude>
@@ -577,6 +538,9 @@
     </ClInclude>
     <ClInclude Include="Source\System\AudioManager.h">
       <Filter>System</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\CursorBlock.h">
+      <Filter>Source\UI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

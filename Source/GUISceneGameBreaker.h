@@ -12,12 +12,7 @@ public:
 private:
     // Fungsi-fungsi internal per Tab
     static void DrawCameraTab(SceneGameBreaker* scene);
-    static void DrawUI_LayoutTab(SceneGameBreaker* scene); // Tab baru untuk Tutorial UI
     static void DrawPostProcessTab(SceneGameBreaker* scene);
-    static void DrawObjectColorTab(SceneGameBreaker* scene); // Tab baru untuk Color
-	static void DrawObjectTransformTab(SceneGameBreaker* scene); // Tab baru untuk Transform
-    static void DrawSpriteTab(SceneGameBreaker* scene);
-
-    // Helper untuk edit layout UI
-    static void ImGuiEditPanel(const char* label, float& x, float& y, float& scale, float& spacing, float* color);
+    static void DrawObjectColorTab(SceneGameBreaker* scene);
+    static void DrawObjectTransformTab(SceneGameBreaker* scene);
 };

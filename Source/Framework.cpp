@@ -1,21 +1,5 @@
-﻿#include <memory>
-#include <sstream>
-#include <iostream> 
-#include <imgui.h>
-#include <SDL3/SDL.h>
+﻿#include "Framework.h"
 
-#include "Framework.h"
-#include "System/Graphics.h"
-#include "System/ImGuiRenderer.h"
-#include "System/Input.h"
-#include "System/AudioManager.h"
-#include "WindowManager.h"
-#include "SceneGame.h"
-#include "SceneTitle.h"
-#include "SceneIntroBios.h"
-#include "SceneGameBreaker.h"
-#include "SceneIntroOS.h"
-#include "SceneGameBeyond.h"
 
 Framework* Framework::pInstance = nullptr;
 
@@ -26,7 +10,7 @@ Framework::Framework()
 
     if (!AudioManager::Instance().Initialize()) {  }
 
-    // 1. Buat Main Window (Fullscreen Borderless)
+    // Buat Main Window (Fullscreen Borderless)
     auto mainWin = WindowManager::Instance().CreateGameWindow("Main Game Window", 1920, 1080);
     mainWin->SetPriority(0);
 
@@ -38,27 +22,15 @@ Framework::Framework()
     Input::Instance().Initialize(mainWin->GetHWND());
 
     // ------------------------------------------------------------
-    // [HAPUS] BAGIAN PEMBUATAN WINDOW DEBUG DIHAPUS
-    // ------------------------------------------------------------
-    /* int debugW = 400;
-    int debugH = 600;
-    auto debugWin = WindowManager::Instance().CreateGameWindow("DEBUG CONSOLE", debugW, debugH);
-    debugWin->SetPriority(0);
-    WindowManager::Instance().SetDebugWindow(debugWin);
-    SDL_SetWindowPosition(debugWin->GetSDLWindow(), 50, 50);
-    */
-
-    // ------------------------------------------------------------
     // [UBAH] INIT IMGUI MENGGUNAKAN MAIN WINDOW!
     // ------------------------------------------------------------
-    // Sekarang ImGui akan menempel pada Main Window, bukan Debug Window.
     ImGuiRenderer::Initialize(mainWin->GetHWND(), Graphics::Instance().GetDevice(), Graphics::Instance().GetDeviceContext());
 
     // Load Resources
     ResourceManager::Instance().LoadFont("VGA_FONT", "Data/Font/IBM_VGA_32px_0.png", "Data/Font/IBM_VGA_32px.fnt");
 
     // Init Scene
-    scene = std::make_unique<SceneIntroBios>();
+    scene = std::make_unique<SceneIntro>();
 }
 
 Framework::~Framework()
@@ -90,7 +62,6 @@ void Framework::Update(float elapsedTime)
         GameWindow* mainWin = GetMainWindow();
         if (mainWin && scene)
         {
-            // Logic transition...
         }
     }
 

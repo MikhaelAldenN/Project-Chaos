@@ -1,9 +1,9 @@
+// Player.h の中身を以下に差し替え
 #pragma once
 #include "Character.h"
 #include <memory>
 #include <DirectXMath.h>
 
-// Forward Declaration
 class StateMachine;
 class AnimationController;
 class Camera;
@@ -16,156 +16,42 @@ public:
 
     void Update(float elapsedTime, Camera* camera) override;
 
-    // --- Public Helpers untuk State ---
     StateMachine* GetStateMachine() const { return stateMachine; }
     CharacterMovement* GetMovement() const { return movement; }
     AnimationController* GetAnimator() const { return animator; }
     std::shared_ptr<Model> GetModel() const { return model; }
 
-    // --- Input & Control ---
-    void HandleMovementInput();
+    // 引数 dt を追加（PlayerStates.h で使われているため）
+    void HandleMovementInput(float dt);
     void UpdateHorizontalMovement(float elapsedTime);
-    void HandleMovementInput(float elpasedTime);
 
-    //bool CheckJumpInput();
     void SetInputEnabled(bool enable) { isInputEnabled = enable; }
     void SetCamera(Camera* cam) { activeCamera = cam; }
-
-    // Falling State Logic
-    void SetFalling(bool state)
-    {
-        isFalling = state;
-        if (state) movement->SetGravityEnabled(true); 
-    }
-    bool IsFalling() const { return isFalling; }
 
     void SetPosition(float x, float y, float z);
     void SetPosition(const DirectX::XMFLOAT3& pos);
 
-    // --- Breakout / Mashing System ---
-    void SetBreakoutMode(bool enable);
-
-    // Get current energy 
-    float GetShakeEnergy() const { return shakeEnergy; }
-
-    // Checkpoint Stages: 0 = Normal, 1 = Yellow (Formation), 2 = Max (Destruction)
-    void SetGameStage(int stage) 
-    { 
-        gameStage = stage; 
-        if (stage >= 3) 
-        {
-            m_canUseShield = true;
-            m_canShoot = true;
-        }
-    }
-    int GetGameStage() const { return gameStage; }
-
-    // --- ESCAPE LOGIC ---
-    void TriggerEscape();
-    bool IsEscaping() const { return isEscaping; }
-
-    // --- Invicible Logic ---
-    void ActivateInvincibility(float duration)
-    {
-        m_isInvincible = true;
-        m_invincibleTimer = duration;
-    }
-    bool IsInvincible() const { return m_isInvincible; }
-
-    // --- Ability Logic ---
-    void SetAbilityShield(bool enable) { m_canUseShield = enable; }
-    void SetAbilityShoot(bool enable) { m_canShoot = enable; }
-
-    bool CanUseShield() const { return m_canUseShield; }
-    bool CanShoot() const { return m_canShoot; }
-
-    // --- SETTINGS ---
-    struct BreakoutSettings
-    {
-        // [VISUAL] Screen Shake Effects
-        float visualShakeGain = 0.1f;           // Shake intensity added per click
-        float visualShakeDecay = 1.2f;          // How fast shake stops
-        float visualMaxShake = 0.8f;            // Max displacement
-
-        // [GAMEPLAY] Energy / Mashing Logic    
-        float energyGain = 7.2f;                // Energy added per click
-        float energyDecay = 40.0f;              // Energy lost per second 
-        float energyMax = 100.0f;               // Max bar value
-
-        // [THRESHOLDS] When things happen
-        float thresholdFormation = 60.0f;       // Phase 1 (Pale Yellow)
-        float thresholdDestruction = 100.0f;    // Phase 2 (White/Destroy)
-
-        // [COLORS] 
-        DirectX::XMFLOAT4 colorYellow = { 0.96f, 0.80f, 0.23f, 1.0f };  // Start Color
-        DirectX::XMFLOAT4 colorPale = { 1.0f, 0.89f, 0.58f, 1.0f };     // Phase 1 Target
-        DirectX::XMFLOAT4 colorWhite = { 1.0f, 1.0f, 1.0f, 1.0f };      // Phase 2 Target
+    struct MovementSettings {
+        static constexpr float DefaultSpeed = 10.0f;
     };
-    BreakoutSettings breakoutSettings;
 
-    struct InvincibleSettings
-    {
-        static constexpr float Duration = 10.0f;
-        static constexpr float BlinkSpeed = 10.0f;
-
-        static DirectX::XMFLOAT4 GetColor() { return { 0.275f, 0.275f, 0.275f, 1.0f }; }
-    };
-    void SetInvertControls(bool enable) { invertControls = enable; }
-
-    struct MovementSettings
-    {
-        static constexpr float DefaultSpeed = 3.0f;     // Speed for SceneGameBeyond
-        static constexpr float BreakerSpeed = 1.4f;     // Speed for SceneGameBreaker
-        static constexpr float KillPlaneY   = -88.0f;
-        static constexpr float Checkpoint1_Z = -27.0f;
-    };
     void SetMoveSpeed(float speed) { moveSpeed = speed; }
-
-    // Color Setting
-    DirectX::XMFLOAT4 color = { 0.96f, 0.80f, 0.23f, 1.0f };
+    void SetInvertControls(bool invert) { invertControls = invert; }
 
     void DrawDebugGUI();
 
-    void SetMovementLock(bool locked) { m_isMovementLocked = locked; }
-    bool IsMovementLocked() const { return m_isMovementLocked; }
+    // 他のファイルから参照されているため復活
+    DirectX::XMFLOAT4 color;
 
 private:
-    void UpdateBreakoutLogic(float elapsedTime);
-    void UpdateEscapeLogic(float elapsedTime);
-
-    // --- CONFIGURATION ---
-    DirectX::XMFLOAT3 defaultScale = { 3.0f, 3.0f, 3.0f }; // Player Model Scale
-
-    // --- INTERNAL STATE ---
+    DirectX::XMFLOAT3 defaultScale = { 3.0f, 3.0f, 3.0f };
     StateMachine* stateMachine;
     AnimationController* animator;
     Camera* activeCamera = nullptr;
     bool isInputEnabled = true;
-
-    // --- Breakout State ---
-    bool isBreakoutActive = false;
-    bool isEscaping = false;
-    bool isFalling = false;
-    bool m_canUseShield = false;
-    bool m_canShoot = false;
-    bool m_isInvincible = false;
-    bool wasSpacePressed = false;                               
-    float currentShakeIntensity = 0.0f;
-    float escapeTargetZ = -27.0f;
-    float m_invincibleTimer = 0.0f;
-    float shakeEnergy = 0.0f; 
-    int gameStage = 0;
-    DirectX::XMFLOAT3 originalPosition = { 0.0f, 0.0f, 0.0f }; 
-
-	bool invertControls = false;
-
-    // --- MOVEMENT SETTINGS ---
+    bool invertControls = false;
     float moveSpeed = MovementSettings::DefaultSpeed;
-    float acceleration = 8.0f;      // Seberapa cepat mencapai top speed (Smoothing Start)
-    float deceleration = 10.0f;      // Seberapa cepat berhenti (Smoothing Stop)
-
-    // Menyimpan input yang sudah di-smooth (Current Velocity dalam konteks Input)
+    float acceleration = 8.0f;
+    float deceleration = 12.0f;
     DirectX::XMFLOAT2 currentSmoothInput = { 0.0f, 0.0f };
-
-    bool m_isMovementLocked = false;
 };

@@ -4,6 +4,21 @@
 #include "System/HighResolutionTimer.h"
 #include "GameWindow.h"
 #include "Scene.h"
+#include "System/Graphics.h"
+#include "System/ImGuiRenderer.h"
+#include "System/Input.h"
+#include "System/AudioManager.h"
+#include "WindowManager.h"
+#include "SceneGame.h"
+#include "SceneTitle.h"
+#include "SceneIntro.h"
+#include "SceneGameBreaker.h"
+#include "SceneGameBeyond.h"
+#include <memory>
+#include <sstream>
+#include <iostream> 
+#include <imgui.h>
+#include <SDL3/SDL.h>
 
 class Framework
 {
@@ -21,18 +36,13 @@ public:
     // Helper untuk mengambil Main Window (Window index 0)
     GameWindow* GetMainWindow() const;
 
-    // [PERBAIKAN 1] Tambahkan deklarasi HandleMessage agar bisa diakses Main.cpp
     LRESULT CALLBACK HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
-    // [PERBAIKAN 2] Tambahkan deklarasi CalculateFrameStats
     void CalculateFrameStats(float dt);
 
     static Framework* pInstance;
     HighResolutionTimer timer;
-
-    // Variabel mainWindow SUDAH DIHAPUS, jadi jangan tambahkan lagi.
-    // Kita akan gunakan GetMainWindow() di cpp.
 
     std::unique_ptr<Scene> scene;
     std::unique_ptr<Scene> nextScene;

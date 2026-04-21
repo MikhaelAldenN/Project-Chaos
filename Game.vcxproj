@@ -127,10 +127,8 @@
     <ClInclude Include="External\ImGuizmo\ImSequencer.h" />
     <ClInclude Include="External\SphereCast\Include\SphereCast.h" />
     <ClInclude Include="Source\AnimationController.h" />
-    <ClInclude Include="Source\Ball.h" />
+    <ClInclude Include="Source\Bullet.h" />
     <ClInclude Include="Source\BitmapFont.h" />
-    <ClInclude Include="Source\Block.h" />
-    <ClInclude Include="Source\BlockManager.h" />
     <ClInclude Include="Source\Boss.h" />
     <ClInclude Include="Source\BossTerminal.h" />
     <ClInclude Include="Source\CinematicDirector.h" />
@@ -140,7 +138,6 @@
     <ClInclude Include="Source\Item.h" />
     <ClInclude Include="Source\ItemManager.h" />
     <ClInclude Include="Source\JuiceEngine.h" />
-    <ClInclude Include="Source\LogConsole.h" />
     <ClInclude Include="Source\PostProcessManager.h" />
     <ClInclude Include="Source\Stage.h" />
     <ClInclude Include="Source\StateBoss.h" />
@@ -162,7 +159,6 @@
     <ClInclude Include="Source\FreeCameraController.h" />
     <ClInclude Include="Source\GameWindow.h" />
     <ClInclude Include="Source\MathUtils.h" />
-    <ClInclude Include="Source\Paddle.h" />
     <ClInclude Include="Source\Player.h" />
     <ClInclude Include="Source\PlayerState.h" />
     <ClInclude Include="Source\PlayerStates.h" />
@@ -172,8 +168,7 @@
     <ClInclude Include="Source\SceneGame.h" />
     <ClInclude Include="Source\SceneGameBeyond.h" />
     <ClInclude Include="Source\SceneGameBreaker.h" />
-    <ClInclude Include="Source\SceneIntroBios.h" />
-    <ClInclude Include="Source\SceneIntroOS.h" />
+    <ClInclude Include="Source\SceneIntro.h" />
     <ClInclude Include="Source\SceneTitle.h" />
     <ClInclude Include="Source\StateMachine.h" />
     <ClInclude Include="Source\System\BasicShader.h" />
@@ -200,7 +195,6 @@
     <ClInclude Include="Source\System\ShapeRenderer.h" />
     <ClInclude Include="Source\System\Sprite.h" />
     <ClInclude Include="Source\System\TransformUtils.h" />
-    <ClInclude Include="Source\Typewriter.h" />
     <ClInclude Include="Source\UIButtonPrimitive.h" />
     <ClInclude Include="Source\UIButtonSprite.h" />
     <ClInclude Include="Source\UIComponents.h" />
@@ -223,10 +217,8 @@
     <ClCompile Include="External\ImGuizmo\ImGuizmo.cpp" />
     <ClCompile Include="External\ImGuizmo\ImSequencer.cpp" />
     <ClCompile Include="Source\AnimationController.cpp" />
-    <ClCompile Include="Source\Ball.cpp" />
+    <ClCompile Include="Source\Bullet.cpp" />
     <ClCompile Include="Source\BitmapFont.cpp" />
-    <ClCompile Include="Source\Block.cpp" />
-    <ClCompile Include="Source\BlockManager.cpp" />
     <ClCompile Include="Source\Boss.cpp" />
     <ClCompile Include="Source\BossTerminal.cpp" />
     <ClCompile Include="Source\Camera.cpp" />
@@ -244,9 +236,7 @@
     <ClCompile Include="Source\Item.cpp" />
     <ClCompile Include="Source\ItemManager.cpp" />
     <ClCompile Include="Source\JuiceEngine.cpp" />
-    <ClCompile Include="Source\LogConsole.cpp" />
     <ClCompile Include="Source\Main.cpp" />
-    <ClCompile Include="Source\Paddle.cpp" />
     <ClCompile Include="Source\Player.cpp" />
     <ClCompile Include="Source\PostProcessManager.cpp" />
     <ClCompile Include="Source\Primitive.cpp" />
@@ -254,8 +244,7 @@
     <ClCompile Include="Source\SceneGame.cpp" />
     <ClCompile Include="Source\SceneGameBeyond.cpp" />
     <ClCompile Include="Source\SceneGameBreaker.cpp" />
-    <ClCompile Include="Source\SceneIntroBios.cpp" />
-    <ClCompile Include="Source\SceneIntroOS.cpp" />
+    <ClCompile Include="Source\SceneIntro.cpp" />
     <ClCompile Include="Source\SceneTitle.cpp" />
     <ClCompile Include="Source\Stage.cpp" />
     <ClCompile Include="Source\StateBoss.cpp" />
@@ -284,7 +273,6 @@
     <ClCompile Include="Source\TerminalMonitor1.cpp" />
     <ClCompile Include="Source\TextDatabase.cpp" />
     <ClCompile Include="Source\TUIBuilder.cpp" />
-    <ClCompile Include="Source\Typewriter.cpp" />
     <ClCompile Include="Source\UberShader.cpp" />
     <ClCompile Include="Source\UIComponents.cpp" />
     <ClCompile Include="Source\UIImpactDisplay.cpp" />
