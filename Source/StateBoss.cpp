@@ -387,7 +387,7 @@ void BossLockPlayerState::Update(Boss* boss, float dt)
         // Phase 1: Magnetic Pull (4.0s - 4.4s)
         if (m_timer >= 4.0f && m_timer < m_introDuration)
         {
-            player->SetMovementLock(true);
+            player->SetInputEnabled(false);
 
             // Interpolate player to center
             XMFLOAT3 cur = player->GetPosition();
@@ -402,7 +402,7 @@ void BossLockPlayerState::Update(Boss* boss, float dt)
         // Phase 2: Hard Lock (4.4s+)
         else if (m_timer >= m_introDuration)
         {
-            player->SetMovementLock(true);
+            player->SetInputEnabled(false);
             player->SetPosition(m_lockPosition.x, 0.0f, m_lockPosition.z);
         }
     }
@@ -418,7 +418,7 @@ void BossLockPlayerState::Exit(Boss* boss)
 {
     if (auto* p = boss->GetPlayer())
     {
-        p->SetMovementLock(false);
+        p->SetInputEnabled(true);
         boss->AddTerminalLog("MOBILITY SYSTEMS: RESTORED");
     }
     boss->GetMonitor1()->ResetToIdle();
