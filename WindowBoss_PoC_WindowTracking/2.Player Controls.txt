@@ -1,0 +1,5 @@
+Player Control
+
+Movement: W/A/S/D
+Sprint: Shift(hold)
+Dash: Shift(tap)

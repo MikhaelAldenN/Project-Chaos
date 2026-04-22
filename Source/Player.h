@@ -54,4 +54,27 @@ private:
     float acceleration = 8.0f;
     float deceleration = 12.0f;
     DirectX::XMFLOAT2 currentSmoothInput = { 0.0f, 0.0f };
+
+public:
+    // Accessors untuk State Machine
+    float GetBaseSpeed() const { return baseSpeed; }
+    float GetSprintSpeed() const { return sprintSpeed; }
+    float GetDashSpeed() const { return dashSpeed; }
+    float GetDashDuration() const { return dashDuration; }
+    DirectX::XMFLOAT2 GetLastValidInput() const { return lastValidInput; }
+
+    // Dash Status
+    bool canDash = true;
+    float dashCooldownTimer = 0.0f;
+    float dashInputTimer = 0.0f;
+
+private:
+    float baseSpeed = 10.0f;      // Kecepatan jalan normal
+    float sprintSpeed = 20.0f;    // Kecepatan lari
+    float dashSpeed = 60.0f;      // Daya dorong instan dash
+    float dashDuration = 0.15f;   // Berapa lama dash berlangsung (detik)
+    float dashCooldown = 0.5f;    // Jeda sebelum bisa dash lagi
+
+    // Menyimpan arah terakhir ditekan agar bisa dash meski diam
+    DirectX::XMFLOAT2 lastValidInput = { 0.0f, 1.0f };
 };
