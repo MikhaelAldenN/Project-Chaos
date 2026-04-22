@@ -3,7 +3,7 @@
 #include <algorithm>
 #include "System/ImGuiRenderer.h" 
 #include "System/Graphics.h"
-#include "SceneGameBeyond.h"
+#include "SceneBoss.h"
 #include <mutex>
 #include <Framework.h>
 
@@ -77,7 +77,7 @@ void WindowManager::RenderAll(float dt, Scene* scene)
     // 1. UPDATE DATA IMGUI (Cukup sekali per frame)
     scene->DrawGUI();
 
-    bool isBeyondScene = (dynamic_cast<SceneGameBeyond*>(scene) != nullptr);
+    bool isBeyondScene = (dynamic_cast<SceneBoss*>(scene) != nullptr);
     auto context = Graphics::Instance().GetDeviceContext();
     auto mainWindow = Framework::Instance()->GetMainWindow();
 
