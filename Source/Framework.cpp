@@ -100,14 +100,19 @@ void Framework::CalculateFrameStats(float dt)
         std::ostringstream outs;
         outs.precision(6);
 
-        // [UBAH] Set text ke Main Window karena Debug Window sudah tidak ada
-        // (Meskipun fullscreen borderless biasanya tidak punya title bar, tapi tetap aman dipanggil)
-        outs << "BEYOND BREAKER | FPS: " << fps << " (" << (1000.0f / fps) << " ms)";
+        // Menggunakan judul resmi game barumu
+        outs << "FPS: " << fps << " (" << (1000.0f / fps) << " ms)";
 
-        GameWindow* mainWin = GetMainWindow();
-        if (mainWin)
+        // Loop melalui semua window yang ada di WindowManager
+        size_t index = 0;
+        while (GameWindow* win = WindowManager::Instance().GetWindowByIndex(index))
         {
-            SetWindowTextA(mainWin->GetHWND(), outs.str().c_str());
+            // Hanya update title pada window yang tidak disembunyikan (visible)
+            if (win->IsVisible() && win->GetSDLWindow())
+            {
+                SDL_SetWindowTitle(win->GetSDLWindow(), outs.str().c_str());
+            }
+            index++;
         }
 
         frames = 0;
