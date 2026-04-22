@@ -92,8 +92,7 @@ public:
 
 private:
     void UpdateSingleWindow(float dt, TrackedWindow& tracked);
-    void UpdateOffCenterProjection(Camera* targetCam, GameWindow* targetWin, float camHeight);
-    void GetScreenDimensions(int& outWidth, int& outHeight);
+    void UpdateOffCenterProjection(Camera* targetCam, int winX, int winY, int winW, int winH, float camHeight);    void GetScreenDimensions(int& outWidth, int& outHeight);
 
 private:
     std::vector<std::unique_ptr<TrackedWindow>> m_trackedWindows;

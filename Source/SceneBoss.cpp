@@ -93,6 +93,12 @@ void SceneBoss::InitializeSubWindows()
         }
     );
 
+    GameWindow* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
+    if (mainWindow && mainWindow->GetSDLWindow())
+    {
+        SDL_HideWindow(mainWindow->GetSDLWindow());
+    }
+
     WindowManager::Instance().EnforceWindowPriorities();
 }
 

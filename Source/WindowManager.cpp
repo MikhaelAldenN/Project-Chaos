@@ -74,53 +74,42 @@ void WindowManager::RenderAll(float dt, Scene* scene)
 {
     if (!scene) return;
 
-    // 1. UPDATE DATA IMGUI (Cukup sekali per frame)
+    // 1. UPDATE DATA IMGUI
     scene->DrawGUI();
 
     bool isBeyondScene = (dynamic_cast<SceneBoss*>(scene) != nullptr);
     auto context = Graphics::Instance().GetDeviceContext();
     auto mainWindow = Framework::Instance()->GetMainWindow();
 
+    // Flag VSync: Akan memastikan hanya SATU window per frame yang mengunci FPS
+    bool vsyncApplied = false;
+
     // 2. RENDER WINDOW
     for (auto& win : windows)
     {
         if (!win->IsVisible()) continue;
+        if (win.get() != mainWindow && !win->ShouldRender(dt)) continue;
 
-        if (win.get() != mainWindow && !win->ShouldRender(dt))
-        {
-            continue;
-        }
-
-        // [OPTIMISASI KECIL] Warna background hitam murni lebih cepat diproses
-        if (isBeyondScene) {
-            win->BeginRender(0.1f, 0.1f, 0.15f);
-        }
-        else {
-            win->BeginRender(0.0f, 0.0f, 0.0f);
-        }
+        if (isBeyondScene) win->BeginRender(0.1f, 0.1f, 0.15f);
+        else win->BeginRender(0.0f, 0.0f, 0.0f);
 
         scene->OnResize(win->GetWidth(), win->GetHeight());
-
-        // Render Scene 
-        // Note: Pastikan Scene::Render melakukan Frustum Culling! 
-        // Jika kamera window melihat tembok kosong, jangan draw Boss-nya.
         scene->Render(dt, win->GetCamera());
 
-        // Render ImGui HANYA di Main Window
-        if (win.get() == mainWindow)
-        {
-            ImGuiRenderer::Render(context);
-        }
+        if (win.get() == mainWindow) ImGuiRenderer::Render(context);
 
-        // [OPTIMISASI 2 - KRUSIAL]
-        // Hanya Main Window yang boleh Sync Interval 1 (VSync).
-        // Window pecahan (anak) harus 0 (Immediate) agar tidak saling menunggu.
+        // [THE FIX] Terapkan VSync (1) HANYA pada window pertama yang dirender.
+        // Ini mengunci kecepatan update seluruh game (CPU & GPU) ke kecepatan monitor (60Hz).
         int syncInterval = 0;
+        if (!vsyncApplied)
+        {
+            syncInterval = 1;
+            vsyncApplied = true;
+        }
 
         win->EndRender(syncInterval);
     }
 }
-
 void WindowManager::HandleResize(HWND hWnd, int width, int height)
 {
     for (auto& win : windows)

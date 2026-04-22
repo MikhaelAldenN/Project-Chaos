@@ -33,8 +33,14 @@ void Graphics::Initialize()
 
     // 2. Retrieve DXGI Factory (We need this to create SwapChains later)
     {
-        Microsoft::WRL::ComPtr<IDXGIDevice> dxgiDevice;
+        // Pastikan menggunakan IDXGIDevice1 (ada angka 1)
+        Microsoft::WRL::ComPtr<IDXGIDevice1> dxgiDevice;
         hr = device.As(&dxgiDevice);
+
+        if (SUCCEEDED(hr)) {
+            // Sekarang fungsi ini akan dikenali oleh compiler
+            dxgiDevice->SetMaximumFrameLatency(1);
+        }
 
         Microsoft::WRL::ComPtr<IDXGIAdapter> adapter;
         hr = dxgiDevice->GetAdapter(adapter.GetAddressOf());
