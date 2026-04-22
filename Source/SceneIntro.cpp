@@ -10,7 +10,7 @@ SceneIntro::SceneIntro()
     uberShader = std::make_unique<UberShader>(Graphics::Instance().GetDevice());
     CreateRenderTarget();     
 
-    AudioManager::Instance().PlayMusic("Data/Sound/BGM_Intro.wav", true, 6.0f);
+    //AudioManager::Instance().PlayMusic("Data/Sound/BGM_Intro.wav", true, 0.0f);
 }
 
 void SceneIntro::Update(float elapsedTime)

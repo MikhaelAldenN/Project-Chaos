@@ -252,7 +252,7 @@ void SceneTitle::Update(float elapsedTime)
         if (selectedFileName.find("BEYONDBREAKER.exe") != std::string::npos)
         {
             ShowCursor(TRUE);
-            Framework::Instance()->ChangeScene(std::make_unique<SceneGameBeyond>());
+            Framework::Instance()->ChangeScene(std::make_unique<SceneBoss>());
         }
     }
 }

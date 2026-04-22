@@ -81,7 +81,7 @@
     <ClCompile Include="Source\SceneGame.cpp">
       <Filter>Source\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="Source\SceneGameBeyond.cpp">
+    <ClCompile Include="Source\SceneBoss.cpp">
       <Filter>Source\Scene</Filter>
     </ClCompile>
     <ClCompile Include="Source\SceneGameBreaker.cpp">
@@ -305,7 +305,7 @@
     <ClInclude Include="Source\SceneGame.h">
       <Filter>Source\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="Source\SceneGameBeyond.h">
+    <ClInclude Include="Source\SceneBoss.h">
       <Filter>Source\Scene</Filter>
     </ClInclude>
     <ClInclude Include="Source\SceneGameBreaker.h">

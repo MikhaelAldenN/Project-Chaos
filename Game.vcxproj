@@ -166,7 +166,7 @@
     <ClInclude Include="Source\ResourceManager.h" />
     <ClInclude Include="Source\Scene.h" />
     <ClInclude Include="Source\SceneGame.h" />
-    <ClInclude Include="Source\SceneGameBeyond.h" />
+    <ClInclude Include="Source\SceneBoss.h" />
     <ClInclude Include="Source\SceneGameBreaker.h" />
     <ClInclude Include="Source\SceneIntro.h" />
     <ClInclude Include="Source\SceneTitle.h" />
@@ -242,7 +242,7 @@
     <ClCompile Include="Source\Primitive.cpp" />
     <ClCompile Include="Source\ResourceManager.cpp" />
     <ClCompile Include="Source\SceneGame.cpp" />
-    <ClCompile Include="Source\SceneGameBeyond.cpp" />
+    <ClCompile Include="Source\SceneBoss.cpp" />
     <ClCompile Include="Source\SceneGameBreaker.cpp" />
     <ClCompile Include="Source\SceneIntro.cpp" />
     <ClCompile Include="Source\SceneTitle.cpp" />
