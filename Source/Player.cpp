@@ -40,6 +40,13 @@ Player::~Player()
 
 void Player::Update(float elapsedTime, Camera* camera)
 {
+    if (!canDash) {
+        dashCooldownTimer -= elapsedTime;
+        if (dashCooldownTimer <= 0.0f) {
+            canDash = true;
+        }
+    }
+
     SetCamera(camera);
     if (isInputEnabled) HandleMovementInput(elapsedTime);
     else currentSmoothInput = { 0.0f, 0.0f };
@@ -98,6 +105,11 @@ void Player::HandleMovementInput(float dt)
         currentSmoothInput.x += (targetX - currentSmoothInput.x) * acceleration * dt;
     else
         currentSmoothInput.x += (0.0f - currentSmoothInput.x) * deceleration * dt;
+
+    // [TAMBAHKAN INI] Simpan input terakhir yang valid (Bukan 0) untuk arah Dash
+    if (targetX != 0.0f || targetZ != 0.0f) {
+        lastValidInput = { targetX, targetZ };
+    }
 
     // Z Axis Smoothing (Stored in Y of currentSmoothInput)
     if (targetZ != 0.0f)

@@ -1,0 +1,28 @@
+v0.0.3 ADVANCED MOVEMENT & WINDOW STRESS TEST
+Tambahkan mekanik pergerakan baru buat test sejauh mana window bisa ikuti player.
+
+Key Features:
+- Hold Shift to sprint
+- Tap Shift to dash
+
+Known Issue:
+-Stutter yang sangatjelas(window ketinggalan sjenak) saat dash.
+
+=======================================================================
+
+v0.0.2 FIX CAMERA JITTERING ON WINDOW TRACKING ATTEMPT
+Jitter window tracking sudah hilang TAPI berubah jadi afterimage. Yang dimana menurut saya lebih baik daripada jitter. Sepertinya emang keterbatasan teknologi/hardware. Won't fix.
+
+Key Features:
+- Window tracking presisi
+- Added fps counter
+
+Known Issue:
+-Tracking afterimage (Won't fix)
+
+=======================================================================
+v0.0.1 PROJECT BASE MIGRATION & CLEANUP
+Selesai migrasi awal dari codebase Beyond Breaker untuk persiapan Project Chaos. Fokus utama pastikan struktur scene lebih fleksibel untuk development boss fight.
+
+Known Issue:
+- Window tracking player kelihatan jittering/stuttering pas playerjalan

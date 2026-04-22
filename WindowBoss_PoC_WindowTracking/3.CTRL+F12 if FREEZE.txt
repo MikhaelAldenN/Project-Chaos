@@ -1,0 +1,3 @@
+Known Issue:
+Game might go freezing and the process can't be forcefully terminated from task manager.
+When this happen press CTRL + F12 to terminate the process.
