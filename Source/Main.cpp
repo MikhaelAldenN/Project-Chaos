@@ -45,8 +45,18 @@ int main(int argc, char* argv[])
         Uint64 lastTime = SDL_GetPerformanceCounter();
         Uint64 frequency = SDL_GetPerformanceFrequency();
 
+        // ==========================================
+        // KONFIGURASI FPS CAP
+        // ==========================================
+        const double targetFPS = 60.0; // Silakan ganti ke 30, 90, atau 120
+        const Uint64 targetTicksPerFrame = frequency / targetFPS;
+        const Uint64 yieldThreshold = frequency / 500; // Batas aman 2ms untuk CPU napas
+
         while (running)
         {
+            // 1. Catat waktu persis saat frame dimulai
+            Uint64 frameStart = SDL_GetPerformanceCounter();
+
             SDL_Event event;
             while (SDL_PollEvent(&event))
             {
@@ -71,8 +81,30 @@ int main(int argc, char* argv[])
             {
                 running = false;
             }
+
+            // ==========================================
+            // 2. LOGIKA PEMBATAS FPS (HYBRID SPIN-WAIT)
+            // ==========================================
+            while (true)
+            {
+                Uint64 now = SDL_GetPerformanceCounter();
+                Uint64 ticksPassed = now - frameStart;
+
+                // Jika waktu frame sudah mencapai batas (misal 16.66ms), lanjut ke frame berikutnya!
+                if (ticksPassed >= targetTicksPerFrame)
+                {
+                    break;
+                }
+
+                // Jika sisa waktu masih > 2ms, suruh thread CPU mengalah sebentar
+                if (targetTicksPerFrame - ticksPassed > yieldThreshold)
+                {
+                    std::this_thread::yield();
+                }
+            }
         }
     }
+
     catch (const std::exception& e)
     {
         std::string errorMessage = "Runtime Error Occurred:\n";
