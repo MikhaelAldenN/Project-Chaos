@@ -14,7 +14,7 @@ Player::Player()
 {
     // Init Model
     ID3D11Device* device = Graphics::Instance().GetDevice();
-    model = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_mdl_Block.glb");
+    model = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_player.glb");
     scale = defaultScale;
 
     // Init Animation Controller
@@ -130,7 +130,24 @@ void Player::UpdateHorizontalMovement(float elapsedTime)
         currentSmoothInput.y * moveSpeed
     ));
 
-    movement->SetRotationY(DirectX::XM_PI);
+    //movement->SetRotationY(DirectX::XM_PI);
+}
+
+void Player::RotateModelToPoint(const DirectX::XMFLOAT3& targetPos)
+{
+    DirectX::XMFLOAT3 currentPos = GetPosition();
+
+    float dx = targetPos.x - currentPos.x;
+    float dz = targetPos.z - currentPos.z;
+
+    // 1. Dapatkan hasil dalam Radian
+    float angleRadians = atan2f(dx, dz);
+
+    // 2. [THE FIX] Ubah Radian ke Derajat (Degrees)!
+    float angleDegrees = DirectX::XMConvertToDegrees(angleRadians);
+
+    // 3. Set rotasi
+    movement->SetRotationY(angleDegrees);
 }
 
 void Player::DrawDebugGUI()

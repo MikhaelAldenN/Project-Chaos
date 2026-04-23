@@ -3,11 +3,10 @@
 #include "Player.h"
 #include "StateMachine.h"
 #include "AnimationController.h" 
-#include "System/Input.h" // [WAJIB] Untuk membaca IsTriggered
+#include "System/Input.h"
 
 class PlayerIdle;
 class PlayerRun;
-class PlayerSprint;
 class PlayerDash;
 
 // ==========================================
@@ -26,13 +25,6 @@ public:
     void Enter(Player* player) override;
     void Update(Player* player, float dt) override;
     void Exit(Player* player) override {}
-};
-
-class PlayerSprint : public PlayerState {
-public:
-    void Enter(Player* player) override;
-    void Update(Player* player, float dt) override;
-    void Exit(Player* player) override;
 };
 
 class PlayerDash : public PlayerState {
@@ -55,24 +47,15 @@ inline void PlayerIdle::Enter(Player* player) {
     player->GetAnimator()->Play("Idle", true, 0.1f);
 }
 
-// --- IDLE ---
 inline void PlayerIdle::Update(Player* player, float dt) {
-    if (player->GetMovement()->IsMoving()) {
-        player->GetStateMachine()->ChangeState(player, new PlayerRun());
+    // Dash Instan (Sangat responsif)
+    if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && player->canDash) {
+        player->GetStateMachine()->ChangeState(player, new PlayerDash());
         return;
     }
 
-    // [LOGIKA TAP vs HOLD]
-    if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
-        player->dashInputTimer += dt;
-    } else {
-        // Tombol dilepas cepat (Tap) -> DASH
-        if (player->dashInputTimer > 0.0f && player->dashInputTimer <= 0.2f && player->canDash) {
-            player->dashInputTimer = 0.0f;
-            player->GetStateMachine()->ChangeState(player, new PlayerDash());
-            return;
-        }
-        player->dashInputTimer = 0.0f;
+    if (player->GetMovement()->IsMoving()) {
+        player->GetStateMachine()->ChangeState(player, new PlayerRun());
     }
 }
 
@@ -81,89 +64,40 @@ inline void PlayerRun::Enter(Player* player) {
     player->GetAnimator()->Play("RunForwardInPlace", true);
 }
 
-// --- RUN (Jalan Biasa) ---
 inline void PlayerRun::Update(Player* player, float dt) {
-    if (!player->GetMovement()->IsMoving()) {
-        player->GetStateMachine()->ChangeState(player, new PlayerIdle());
-        return;
-    }
-
-    // [LOGIKA TAP vs HOLD]
-    if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
-        player->dashInputTimer += dt;
-
-        // Tombol ditahan lama (Hold) -> SPRINT
-        if (player->dashInputTimer > 0.2f) {
-            player->dashInputTimer = 0.0f; // Reset timer saat masuk sprint
-            player->GetStateMachine()->ChangeState(player, new PlayerSprint());
-            return;
-        }
-    }
-    else {
-        // Tombol dilepas cepat (Tap) -> DASH
-        if (player->dashInputTimer > 0.0f && player->dashInputTimer <= 0.2f && player->canDash) {
-            player->dashInputTimer = 0.0f;
-            player->GetStateMachine()->ChangeState(player, new PlayerDash());
-            return;
-        }
-        player->dashInputTimer = 0.0f;
-    }
-}
-
-// --- SPRINT (Lari Cepat) ---
-inline void PlayerSprint::Enter(Player* player) {
-    player->SetMoveSpeed(player->GetSprintSpeed());
-    // player->GetAnimator()->Play("SprintAnim", true); // Opsional
-}
-
-// --- SPRINT (Lari Cepat) ---
-inline void PlayerSprint::Update(Player* player, float dt) {
-    // Jika tombol Shift dilepas, kembali lari normal (Run)
-    if (!(GetAsyncKeyState(VK_SHIFT) & 0x8000)) {
-        player->dashInputTimer = 0.0f; // Pastikan bersih
-        player->GetStateMachine()->ChangeState(player, new PlayerRun());
+    // Dash Instan dari posisi lari
+    if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && player->canDash) {
+        player->GetStateMachine()->ChangeState(player, new PlayerDash());
         return;
     }
 
     if (!player->GetMovement()->IsMoving()) {
         player->GetStateMachine()->ChangeState(player, new PlayerIdle());
-        return;
     }
-}
-
-inline void PlayerSprint::Exit(Player* player) {
-    // Kembalikan ke speed normal
-    player->SetMoveSpeed(player->GetBaseSpeed());
 }
 
 // --- DASH (Dorongan Instan) ---
 inline void PlayerDash::Enter(Player* player) {
     timer = player->GetDashDuration();
-    dashDir = player->GetLastValidInput(); // Dash mengikuti arah terakhir menghadap
+    dashDir = player->GetLastValidInput();
 
     player->canDash = false;
-    player->dashCooldownTimer = 0.5f; // Set durasi cooldown
-
-    // player->GetAnimator()->Play("DashAnim", false); // Opsional
+    player->dashCooldownTimer = 0.5f;
 }
 
 inline void PlayerDash::Update(Player* player, float dt) {
     timer -= dt;
 
-    // Paksa (Override) Velocity menabrak kalkulasi normal
+    // Paksa Velocity untuk Dash
     player->GetMovement()->SetVelocity(DirectX::XMFLOAT3(
         dashDir.x * player->GetDashSpeed(),
         0.0f,
         dashDir.y * player->GetDashSpeed()
     ));
 
-    // Durasi dash habis
+    // Durasi dash habis, kembali ke State sebelumnya
     if (timer <= 0.0f) {
-        // Flow Control: Lanjut lari, lari santai, atau diam?
-        if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
-            player->GetStateMachine()->ChangeState(player, new PlayerSprint());
-        }
-        else if (player->GetMovement()->IsMoving()) {
+        if (player->GetMovement()->IsMoving()) {
             player->GetStateMachine()->ChangeState(player, new PlayerRun());
         }
         else {
@@ -173,6 +107,6 @@ inline void PlayerDash::Update(Player* player, float dt) {
 }
 
 inline void PlayerDash::Exit(Player* player) {
-    // Matikan sisa momentum agar tidak licin setelah dash selesai
+    // Matikan momentum agar presisi (tidak meluncur)
     player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
 }

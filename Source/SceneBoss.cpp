@@ -46,7 +46,6 @@ SceneBoss::SceneBoss()
     m_player = std::make_unique<Player>();
     m_player->SetInvertControls(false);
     m_player->SetPosition(0.0f, 0.0f, -8.0f);
-    m_player->SetMoveSpeed(20.0f);
 
     // 4. Setup Primitive Renderer
     auto device = Graphics::Instance().GetDevice();
@@ -122,6 +121,33 @@ void SceneBoss::Update(float elapsedTime)
         pos.y = max(pos.y, 0.0f);
 
         m_player->SetPosition(pos.x, pos.y, pos.z);
+    }
+
+    if (m_player && m_mainCamera)
+    {
+        // 1. Ambil resolusi monitor asli dari sistem Mouse
+        float screenW = (float)Input::Instance().GetMouse().GetScreenWidth();
+        float screenH = (float)Input::Instance().GetMouse().GetScreenHeight();
+
+        // 2. Buat matriks proyeksi FULL SCREEN standar yang belum di-crop (FOV 60)
+        DirectX::XMMATRIX standardProj = DirectX::XMMatrixPerspectiveFovLH(
+            DirectX::XMConvertToRadians(60.0f),
+            screenW / screenH,
+            0.1f,
+            1000.0f
+        );
+
+        DirectX::XMFLOAT4X4 cleanProjFloat;
+        DirectX::XMStoreFloat4x4(&cleanProjFloat, standardProj);
+
+        // 3. Gunakan matriks standar ini untuk mencari posisi mouse di 3D!
+        DirectX::XMFLOAT3 targetPos = Input::Instance().GetMouse().GetWorldPosition(
+            m_mainCamera->GetView(),
+            cleanProjFloat
+        );
+
+        m_player->RotateModelToPoint(targetPos);
+        m_player->Update(elapsedTime, m_mainCamera.get());
     }
 
     // 2. Update Window Tracking

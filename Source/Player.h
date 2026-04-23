@@ -38,6 +38,8 @@ public:
     void SetMoveSpeed(float speed) { moveSpeed = speed; }
     void SetInvertControls(bool invert) { invertControls = invert; }
 
+    void RotateModelToPoint(const DirectX::XMFLOAT3& targetPos);
+
     void DrawDebugGUI();
 
     // 他のファイルから参照されているため復活
@@ -58,7 +60,6 @@ private:
 public:
     // Accessors untuk State Machine
     float GetBaseSpeed() const { return baseSpeed; }
-    float GetSprintSpeed() const { return sprintSpeed; }
     float GetDashSpeed() const { return dashSpeed; }
     float GetDashDuration() const { return dashDuration; }
     DirectX::XMFLOAT2 GetLastValidInput() const { return lastValidInput; }
@@ -66,11 +67,9 @@ public:
     // Dash Status
     bool canDash = true;
     float dashCooldownTimer = 0.0f;
-    float dashInputTimer = 0.0f;
 
 private:
-    float baseSpeed = 10.0f;      // Kecepatan jalan normal
-    float sprintSpeed = 20.0f;    // Kecepatan lari
+    float baseSpeed = 5.0f;      // Kecepatan jalan normal
     float dashSpeed = 60.0f;      // Daya dorong instan dash
     float dashDuration = 0.15f;   // Berapa lama dash berlangsung (detik)
     float dashCooldown = 0.5f;    // Jeda sebelum bisa dash lagi
