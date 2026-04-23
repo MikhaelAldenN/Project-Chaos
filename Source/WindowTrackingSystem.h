@@ -12,6 +12,12 @@
 // =========================================================
 // DATA STRUCTURES
 // =========================================================
+enum class WindowRole {
+    MAIN_VIEWPORT,
+    TRACKED_ENTITY,
+    SUB_VIEWPORT
+};
+
 struct WindowState
 {
     int actualX = 0;
@@ -34,6 +40,8 @@ struct TrackedWindowConfig
     int priority = 0;
     DirectX::XMFLOAT3 trackingOffset = { 0.0f, 0.0f, 0.0f };
     float fpsLimit = 0.0f;
+
+    WindowRole role = WindowRole::TRACKED_ENTITY;
 };
 
 struct TrackedWindow
@@ -45,6 +53,8 @@ struct TrackedWindow
     DirectX::XMFLOAT3 trackingOffset = { 0.0f, 0.0f, 0.0f };
     std::function<DirectX::XMFLOAT3()> getTargetPositionFunc;
     std::function<DirectX::XMFLOAT2()> getTargetSizeFunc = nullptr;
+
+    WindowRole role = WindowRole::TRACKED_ENTITY;
 };
 
 // =========================================================
@@ -58,6 +68,10 @@ public:
 
     // Core Logic
     void Update(float dt);
+
+    // Management
+    void RegisterWindow(GameWindow* window, WindowRole role, std::shared_ptr<Camera> camera = nullptr); // <-- BARU
+    void UpdateWindowBounds(int windowIndex, int width, int height);
 
     // Management
     bool AddTrackedWindow(

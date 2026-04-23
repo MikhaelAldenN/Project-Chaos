@@ -60,6 +60,7 @@ public:
 
 private:
     void CreateBuffers(int w, int h);
+    class Camera* m_camera = nullptr;
 
 private:
     SDL_Window* sdlWindow = nullptr;

@@ -1,6 +1,9 @@
 #pragma once
 
 #include <memory>
+#include <vector>
+#include <string>
+#include <imgui.h> // [FIX] Untuk ImVec2 dan fungsionalitas GUI
 #include "Scene.h"
 #include "GameWindow.h"
 #include "Camera.h"
@@ -27,9 +30,16 @@ public:
     [[nodiscard]] Camera* GetMainCamera() const { return m_mainCamera.get(); }
     [[nodiscard]] Player* GetPlayer() const { return m_player.get(); }
 
+    void CloseSubWindowBySDLID(Uint32 sdlWindowID);
+
 private:
     void RenderScene(float elapsedTime, Camera* camera);
     void InitializeSubWindows();
+
+    // --- FITUR DEBUG & SYSTEM ---
+    void ResetEverything();
+    void SpawnDebugWindow();
+    void AddLog(const std::string& message);
 
 private:
     // Core Components
@@ -47,7 +57,13 @@ private:
     float m_screenLimitX = 23.0f;
     float m_screenLimitZ = 12.5f;
 
-    // GUI Helpers
-    void DrawTabGeneral();
-    void DrawTabCamera();
+    // --- GUI DEBUG VARIABLES ---
+    bool m_showGrid = true;
+    float m_timeScale = 1.0f;
+    int m_spawnCount = 0;
+    bool m_autoSyncMainWindow = true;
+    ImVec2 m_debugPanelSize = { 450, 750 }; // Ukuran default panel
+
+    // Terminal Log System
+    std::vector<std::string> m_debugLogs;
 };

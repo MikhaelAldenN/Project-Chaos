@@ -11,13 +11,18 @@ Framework::Framework()
     if (!AudioManager::Instance().Initialize()) {  }
 
     // Buat Main Window (Fullscreen Borderless)
-    auto mainWin = WindowManager::Instance().CreateGameWindow("Main Game Window", 1920, 1080);
+    auto mainWin = WindowManager::Instance().CreateGameWindow("Main Window (close here)", 1600, 900);
     mainWin->SetPriority(0);
 
-    SDL_SetWindowBordered(mainWin->GetSDLWindow(), false);
-    SDL_SetWindowPosition(mainWin->GetSDLWindow(), 0, 0);
-    SDL_SetWindowSize(mainWin->GetSDLWindow(), GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
     mainWin->SetVisible(true);
+    // Tambahkan flag Resizable agar bisa di-drag ujungnya
+    SDL_SetWindowResizable(mainWin->GetSDLWindow(), true);
+    SDL_SetWindowBordered(mainWin->GetSDLWindow(), true);
+    //SDL_SetWindowPosition(mainWin->GetSDLWindow(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    SDL_SetWindowPosition(mainWin->GetSDLWindow(), 5, 35);
+
+    // Posisikan di tengah saat awal
+
 
     Input::Instance().Initialize(mainWin->GetHWND());
 
@@ -96,24 +101,24 @@ void Framework::CalculateFrameStats(float dt)
 
     if (timeAccumulator >= 1.0f)
     {
-        float fps = static_cast<float>(frames);
-        std::ostringstream outs;
-        outs.precision(6);
+        //float fps = static_cast<float>(frames);
+        //std::ostringstream outs;
+        //outs.precision(6);
 
-        // Menggunakan judul resmi game barumu
-        outs << "FPS: " << fps << " (" << (1000.0f / fps) << " ms)";
+        //// Menggunakan judul resmi game barumu
+        //outs << "FPS: " << fps << " (" << (1000.0f / fps) << " ms)";
 
         // Loop melalui semua window yang ada di WindowManager
-        size_t index = 0;
-        while (GameWindow* win = WindowManager::Instance().GetWindowByIndex(index))
-        {
-            // Hanya update title pada window yang tidak disembunyikan (visible)
-            if (win->IsVisible() && win->GetSDLWindow())
-            {
-                SDL_SetWindowTitle(win->GetSDLWindow(), outs.str().c_str());
-            }
-            index++;
-        }
+        //size_t index = 0;
+        //while (GameWindow* win = WindowManager::Instance().GetWindowByIndex(index))
+        //{
+        //    // Hanya update title pada window yang tidak disembunyikan (visible)
+        //    if (win->IsVisible() && win->GetSDLWindow())
+        //    {
+        //        SDL_SetWindowTitle(win->GetSDLWindow(), outs.str().c_str());
+        //    }
+        //    index++;
+        //}
 
         frames = 0;
         timeAccumulator -= 1.0f;
@@ -137,4 +142,12 @@ LRESULT CALLBACK Framework::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LP
         if (ImGuiRenderer::HandleMessage(hWnd, msg, wParam, lParam)) return true;
     }
     return 0;
+}
+void Framework::OnSubWindowClosed(Uint32 sdlWindowID)
+{
+    // Casting ke SceneBoss untuk mengakses fungsi spesifiknya
+    SceneBoss* boss = dynamic_cast<SceneBoss*>(scene.get());
+    if (boss) {
+        boss->CloseSubWindowBySDLID(sdlWindowID);
+    }
 }

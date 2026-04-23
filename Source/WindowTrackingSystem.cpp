@@ -17,16 +17,23 @@ WindowTrackingSystem::~WindowTrackingSystem()
 
 void WindowTrackingSystem::ClearAll()
 {
-    // Clean up windows via WindowManager
-    for (auto& tracked : m_trackedWindows)
+    // Gunakan iterator untuk menghapus dengan aman
+    for (auto it = m_trackedWindows.begin(); it != m_trackedWindows.end(); )
     {
-        if (tracked->window)
+        // PENTING: Jangan pernah hancurkan MAIN_VIEWPORT!
+        if ((*it)->role != WindowRole::MAIN_VIEWPORT)
         {
-            WindowManager::Instance().DestroyWindow(tracked->window);
+            if ((*it)->window) {
+                WindowManager::Instance().DestroyWindow((*it)->window);
+            }
+            m_windowLookup.erase((*it)->name);
+            it = m_trackedWindows.erase(it);
+        }
+        else
+        {
+            ++it; // Lewati Main Window
         }
     }
-    m_trackedWindows.clear();
-    m_windowLookup.clear();
 }
 
 bool WindowTrackingSystem::AddTrackedWindow(
@@ -64,6 +71,7 @@ bool WindowTrackingSystem::AddTrackedWindow(
     auto tracked = std::make_unique<TrackedWindow>();
     tracked->name = config.name;
     tracked->window = window;
+    tracked->role = config.role;
     tracked->camera = camera;
     tracked->trackingOffset = config.trackingOffset;
     tracked->getTargetPositionFunc = getTargetPos;
@@ -131,13 +139,12 @@ void WindowTrackingSystem::UpdateSingleWindow(float dt, TrackedWindow& tracked)
     SDL_GetWindowSize(tracked.window->GetSDLWindow(), &osW, &osH);
 
     bool isBeingDragged = false;
-    if (abs(osX - tracked.state.actualX) > 2 || abs(osY - tracked.state.actualY) > 2)
+    if (osW != tracked.state.actualW || osH != tracked.state.actualH)
     {
-        isBeingDragged = true;
-        tracked.state.targetX = (float)osX;
-        tracked.state.targetY = (float)osY;
-        tracked.state.actualX = osX;
-        tracked.state.actualY = osY;
+        tracked.state.actualW = osW;
+        tracked.state.actualH = osH;
+        tracked.state.targetW = (float)osW; // Update target juga agar tidak snap balik
+        tracked.state.targetH = (float)osH;
     }
 
     // 2. UPDATE SIZE
@@ -160,8 +167,9 @@ void WindowTrackingSystem::UpdateSingleWindow(float dt, TrackedWindow& tracked)
     }
 
     // 3. UPDATE POSITION LOGIC
-    if (!isBeingDragged)
+    if (!isBeingDragged && tracked.role == WindowRole::TRACKED_ENTITY)
     {
+        
         DirectX::XMFLOAT3 targetWorldPos = tracked.getTargetPositionFunc();
         targetWorldPos.x += tracked.trackingOffset.x;
         targetWorldPos.y += tracked.trackingOffset.y;
@@ -352,5 +360,51 @@ void WindowTrackingSystem::ReleasePooledWindow(const std::string& name)
         // 5. Hapus dari daftar aktif
         m_trackedWindows.erase(vecIt);
         m_windowLookup.erase(it);
+    }
+}
+
+void WindowTrackingSystem::RegisterWindow(GameWindow* window, WindowRole role, std::shared_ptr<Camera> camera)
+{
+    if (!window) return;
+
+    auto tracked = std::make_unique<TrackedWindow>();
+    tracked->name = "main_window"; // ID statis agar mudah dicari
+    tracked->window = window;
+    tracked->role = role;
+    tracked->camera = camera;
+
+    // Berikan fungsi dummy (kosong) agar tidak crash saat di-update
+    tracked->getTargetPositionFunc = []() { return DirectX::XMFLOAT3(0, 0, 0); };
+
+    // Ambil data posisi & ukuran awal dari OS Windows
+    int osX, osY, osW, osH;
+    SDL_GetWindowPosition(window->GetSDLWindow(), &osX, &osY);
+    SDL_GetWindowSize(window->GetSDLWindow(), &osW, &osH);
+
+    tracked->state.actualX = osX;
+    tracked->state.actualY = osY;
+    tracked->state.actualW = osW;
+    tracked->state.actualH = osH;
+    tracked->state.targetX = (float)osX;
+    tracked->state.targetY = (float)osY;
+    tracked->state.targetW = (float)osW;
+    tracked->state.targetH = (float)osH;
+
+    m_windowLookup[tracked->name] = tracked.get();
+    m_trackedWindows.push_back(std::move(tracked));
+}
+
+void WindowTrackingSystem::UpdateWindowBounds(int windowIndex, int width, int height)
+{
+    if (windowIndex == 0) // Index 0 adalah Main Window
+    {
+        TrackedWindow* tracked = GetTrackedWindow("main_window");
+        if (tracked)
+        {
+            tracked->state.actualW = width;
+            tracked->state.actualH = height;
+            tracked->state.targetW = (float)width;
+            tracked->state.targetH = (float)height;
+        }
     }
 }

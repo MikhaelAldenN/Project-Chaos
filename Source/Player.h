@@ -32,7 +32,7 @@ public:
     void SetPosition(const DirectX::XMFLOAT3& pos);
 
     struct MovementSettings {
-        static constexpr float DefaultSpeed = 10.0f;
+        static constexpr float DefaultSpeed = 20.0f;
     };
 
     void SetMoveSpeed(float speed) { moveSpeed = speed; }

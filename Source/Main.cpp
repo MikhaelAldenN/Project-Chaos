@@ -62,7 +62,21 @@ int main(int argc, char* argv[])
             {
                 if (event.type == SDL_EVENT_QUIT) running = false;
                 if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE) running = false;
-                if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) running = false;
+                if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
+                {
+                    // Cek window mana yang barusan diklik tombol silangnya
+                    SDL_Window* closedWin = SDL_GetWindowFromID(event.window.windowID);
+                    GameWindow* mainWin = framework ? framework->GetMainWindow() : nullptr;
+
+                    if (mainWin && closedWin == mainWin->GetSDLWindow()) {
+                        // Yang disilang adalah MAIN WINDOW -> Matikan game!
+                        running = false;
+                    }
+                    else {
+                        // Yang disilang adalah SUB-WINDOW (Dummy) -> Suruh Framework hapus!
+                        if (framework) framework->OnSubWindowClosed(event.window.windowID);
+                    }
+                }
             }
 
             Uint64 currentTime = SDL_GetPerformanceCounter();
