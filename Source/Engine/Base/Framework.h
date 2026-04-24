@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <memory>
 #include "System/HighResolutionTimer.h"
-#include "Window.h"
+#include "BeyondWindow.h"
 #include "Scene.h"
 #include "System/Graphics.h"
 #include "System/ImGuiRenderer.h"

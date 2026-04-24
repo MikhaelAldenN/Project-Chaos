@@ -261,11 +261,14 @@
     <ClCompile Include="Source\Engine\Legacy\TextDatabase.cpp">
       <Filter>Source\Engine\Legacy</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Windowing\Window.cpp">
+    <ClCompile Include="Source\Engine\Windowing\BeyondWindow.cpp">
       <Filter>Source\Engine\Windowing</Filter>
     </ClCompile>
     <ClCompile Include="Source\Engine\Windowing\WindowPool.cpp">
       <Filter>Source\Engine\Windowing</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Helpers\InputHelper.cpp">
+      <Filter>Source\Engine\Helpers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -536,11 +539,17 @@
     <ClInclude Include="Source\Engine\Legacy\TextDatabase.h">
       <Filter>Source\Engine\Legacy</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Windowing\Window.h">
+    <ClInclude Include="Source\Engine\Windowing\BeyondWindow.h">
       <Filter>Source\Engine\Windowing</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Windowing\WindowPool.h">
       <Filter>Source\Engine\Windowing</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Common\Constants.h">
+      <Filter>Source\Engine\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Helpers\InputHelper.h">
+      <Filter>Source\Engine\Helpers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -623,6 +632,12 @@
     </Filter>
     <Filter Include="Source\Engine\Legacy">
       <UniqueIdentifier>{70925a7c-d738-4f9d-94d3-89ca8bdc709e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Engine\Common">
+      <UniqueIdentifier>{7e02c20d-2013-43d5-a05b-a00113f62a39}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Engine\Helpers">
+      <UniqueIdentifier>{237542ae-86b6-4087-9fef-77b83e15a8bb}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

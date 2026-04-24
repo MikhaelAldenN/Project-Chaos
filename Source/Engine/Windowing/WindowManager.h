@@ -4,7 +4,7 @@
 #include <memory>
 #include <algorithm>
 #include <windows.h>
-#include "Window.h"
+#include "BeyondWindow.h"
 
 // Forward Declaration
 class Scene;

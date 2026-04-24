@@ -6,6 +6,8 @@
 #include <wrl/client.h> 
 #include <PxPhysicsAPI.h> 
 
+#include <vector>
+#include "BeyondWindow.h"
 #include "Scene.h"
 #include "System/Light.h"
 #include "UberShader.h"
