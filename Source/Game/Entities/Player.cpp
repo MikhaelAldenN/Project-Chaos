@@ -111,20 +111,33 @@ void Player::HandleMovementInput(float dt)
 
 void Player::UpdateHorizontalMovement(float elapsedTime)
 {
-    if (!m_physxController) return;
-
+    // 1. Kalkulasi vektor perpindahan dasar
     float displacementX = currentSmoothInput.x * moveSpeed * elapsedTime;
     float displacementZ = currentSmoothInput.y * moveSpeed * elapsedTime;
 
-    // Constant Gravity
-    float gravityY = -9.81f * elapsedTime;
+    // 2. Cabang Logika: Pakai PhysX (punya temanmu) ATAU Kinematic murni (punyamu)
+    if (m_physxController)
+    {
+        // --- MODE PHYSX (SceneGameBreaker) ---
+        float gravityY = -9.81f * elapsedTime;
+        physx::PxVec3 displacement(displacementX, gravityY, displacementZ);
 
-    physx::PxVec3 displacement(displacementX, gravityY, displacementZ);
+        m_physxController->move(displacement, 0.001f, elapsedTime, physx::PxControllerFilters());
 
-    m_physxController->move(displacement, 0.001f, elapsedTime, physx::PxControllerFilters());
+        physx::PxExtendedVec3 pxPos = m_physxController->getPosition();
+        movement->SetPosition({ (float)pxPos.x, (float)pxPos.y - 1.5f, (float)pxPos.z });
+    }
+    else
+    {
+        // --- MODE KINEMATIC (SceneBoss) ---
+        // Jika PhysX tidak diinisialisasi, gerakkan koordinat secara manual
+        DirectX::XMFLOAT3 currentPos = movement->GetPosition();
+        currentPos.x += displacementX;
+        currentPos.z += displacementZ;
 
-    physx::PxExtendedVec3 pxPos = m_physxController->getPosition();
-    movement->SetPosition({ (float)pxPos.x, (float)pxPos.y - 1.5f, (float)pxPos.z });
+        // (Asumsi di SceneBoss gravitasi diurus terpisah atau tidak ada)
+        movement->SetPosition(currentPos);
+    }
 }
 
 void Player::RotateModelToPoint(const DirectX::XMFLOAT3& targetPos)
