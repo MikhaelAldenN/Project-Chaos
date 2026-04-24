@@ -267,6 +267,9 @@
     <ClCompile Include="Source\Engine\Windowing\Window.cpp">
       <Filter>Source\Engine\Windowing</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Engine\Windowing\WindowPool.cpp">
+      <Filter>Source\Engine\Windowing</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -540,6 +543,9 @@
       <Filter>Source\Engine\Legacy</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Windowing\Window.h">
+      <Filter>Source\Engine\Windowing</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Windowing\WindowPool.h">
       <Filter>Source\Engine\Windowing</Filter>
     </ClInclude>
   </ItemGroup>

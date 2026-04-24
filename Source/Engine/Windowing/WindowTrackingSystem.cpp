@@ -290,79 +290,6 @@ void WindowTrackingSystem::RemoveTrackedWindow(const std::string& name)
         m_trackedWindows.end());
 }
 
-bool WindowTrackingSystem::AddPooledTrackedWindow(
-    const TrackedWindowConfig& config,
-    std::function<DirectX::XMFLOAT3()> getTargetPos,
-    std::function<DirectX::XMFLOAT2()> getTargetSize
-)
-{
-    // 1. CEK POOL: Apakah ada window bekas yang bisa dipakai?
-    if (!m_windowPool.empty())
-    {
-        // AMBIL SATU DARI GUDANG
-        auto recycled = std::move(m_windowPool.back());
-        m_windowPool.pop_back();
-
-        // RESET DATANYA
-        recycled->name = config.name; // Update nama (misal dari "file_5" jadi "file_9")
-        recycled->trackingOffset = config.trackingOffset;
-        recycled->getTargetPositionFunc = getTargetPos;
-        recycled->getTargetSizeFunc = getTargetSize;
-
-        // Reset Camera & Title
-        recycled->window->SetTitle(config.title.c_str());
-
-        // PENTING: Update FPS Limit (jika projectile baru punya setting beda)
-        if (config.fpsLimit > 0.0f) recycled->window->SetTargetFPS(config.fpsLimit);
-
-        // TAMPILKAN KEMBALI WINDOW (Unhide)
-        SDL_ShowWindow(recycled->window->GetSDLWindow());
-
-        // Force update posisi frame ini juga biar nggak "teleport" visualnya
-        if (getTargetPos) {
-            // (Opsional) Reset posisi window ke target langsung biar smooth
-             // ... logic reset posisi ...
-        }
-
-        // Masukkan kembali ke daftar AKTIF
-        m_windowLookup[config.name] = recycled.get();
-        m_trackedWindows.push_back(std::move(recycled));
-
-        return true;
-    }
-
-    // 2. JIKA POOL KOSONG: Buat Baru (Standard Logic)
-    return AddTrackedWindow(config, getTargetPos, getTargetSize);
-}
-
-void WindowTrackingSystem::ReleasePooledWindow(const std::string& name)
-{
-    // 1. Cari window di daftar aktif
-    auto it = m_windowLookup.find(name);
-    if (it == m_windowLookup.end()) return;
-
-    TrackedWindow* ptr = it->second;
-
-    // 2. Cari unique_ptr-nya di vector m_trackedWindows
-    auto vecIt = std::find_if(m_trackedWindows.begin(), m_trackedWindows.end(),
-        [&name](const std::unique_ptr<TrackedWindow>& p) {
-            return p->name == name;
-        });
-
-    if (vecIt != m_trackedWindows.end())
-    {
-        // 3. SEMBUNYIKAN WINDOW (Jangan Destroy!)
-        SDL_HideWindow(ptr->window->GetSDLWindow());
-
-        // 4. PINDAHKAN KE POOL (Gudang)
-        m_windowPool.push_back(std::move(*vecIt));
-
-        // 5. Hapus dari daftar aktif
-        m_trackedWindows.erase(vecIt);
-        m_windowLookup.erase(it);
-    }
-}
-
 void WindowTrackingSystem::RegisterWindow(Beyond::Window* window, WindowRole role, std::shared_ptr<Camera> camera)
 {
     if (!window) return;
@@ -407,4 +334,31 @@ void WindowTrackingSystem::UpdateWindowBounds(int windowIndex, int width, int he
             tracked->state.targetH = (float)height;
         }
     }
+}
+
+std::unique_ptr<TrackedWindow> WindowTrackingSystem::ExtractForPool(const std::string& name)
+{
+    auto it = m_windowLookup.find(name);
+    if (it == m_windowLookup.end()) return nullptr;
+
+    auto vecIt = std::find_if(m_trackedWindows.begin(), m_trackedWindows.end(),
+        [&name](const std::unique_ptr<TrackedWindow>& p) {
+            return p->name == name;
+        });
+
+    if (vecIt != m_trackedWindows.end())
+    {
+        std::unique_ptr<TrackedWindow> extracted = std::move(*vecIt);
+        m_trackedWindows.erase(vecIt);
+        m_windowLookup.erase(it);
+        return extracted;
+    }
+    return nullptr;
+}
+
+void WindowTrackingSystem::RestoreFromPool(std::unique_ptr<TrackedWindow> window)
+{
+    if (!window) return;
+    m_windowLookup[window->name] = window.get();
+    m_trackedWindows.push_back(std::move(window));
 }

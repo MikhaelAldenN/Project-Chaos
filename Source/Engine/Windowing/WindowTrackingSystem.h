@@ -95,14 +95,9 @@ public:
     void WorldToScreenPos(const DirectX::XMFLOAT3& worldPos, float& outScreenX, float& outScreenY);
     float GetUnifiedCameraHeight();
 
-    bool AddPooledTrackedWindow(
-        const TrackedWindowConfig& config,
-        std::function<DirectX::XMFLOAT3()> getTargetPos,
-        std::function<DirectX::XMFLOAT2()> getTargetSize = nullptr
-    );
-
-    // [BARU] Pengganti RemoveTrackedWindow untuk projectile
-    void ReleasePooledWindow(const std::string& name);
+    // Jembatan untuk Pool System
+    std::unique_ptr<TrackedWindow> ExtractForPool(const std::string& name);
+    void RestoreFromPool(std::unique_ptr<TrackedWindow> window);
 
 private:
     void UpdateSingleWindow(float dt, TrackedWindow& tracked);
@@ -121,10 +116,4 @@ private:
     float m_followSpeed = 100.0f;
     float m_pixelToUnitRatio = 40.0f;
     float m_fov = 60.0f;
-    std::vector<std::unique_ptr<TrackedWindow>> m_windowPool;
-
-    // Helper internal
-    void MoveToPool(const std::string& name);
-    TrackedWindow* GetFromPool();
-
 };

@@ -4,7 +4,6 @@
 #include <memory>
 #include <algorithm>
 #include <windows.h>
-#include <mutex>
 #include "Window.h"
 
 // Forward Declaration
@@ -65,5 +64,4 @@ private:
     Beyond::Window* debugWindow = nullptr;
 
     bool m_dirtyPriority = false;
-    mutable std::mutex m_windowsMutex;
 };

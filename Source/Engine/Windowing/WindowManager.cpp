@@ -116,8 +116,6 @@ void WindowManager::HandleResize(HWND hWnd, int width, int height)
 
 Beyond::Window* WindowManager::CreateGameWindow(const char* title, int width, int height)
 {
-    std::lock_guard<std::mutex> lock(m_windowsMutex);
-
     // 1. Buat objek Window menggunakan konstruktor kosong (tanpa parameter)
     auto newWindow = std::make_unique<Beyond::Window>();
 
@@ -145,8 +143,6 @@ Beyond::Window* WindowManager::CreateGameWindow(const char* title, int width, in
 
 void WindowManager::DestroyWindow(Beyond::Window* targetWindow)
 {
-    std::lock_guard<std::mutex> lock(m_windowsMutex);
-
     windows.erase(
         std::remove_if(windows.begin(), windows.end(),
             [targetWindow](const std::unique_ptr<Beyond::Window>& p) {
@@ -160,6 +156,5 @@ void WindowManager::DestroyWindow(Beyond::Window* targetWindow)
 
 void WindowManager::ClearAll()
 {
-    std::lock_guard<std::mutex> lock(m_windowsMutex);
     windows.clear();
 }
