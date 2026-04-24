@@ -2,6 +2,7 @@
 
 // Game Systems
 #include <algorithm>
+#include <cassert>
 #include <DirectXMath.h>
 #include <imgui.h>
 #include <memory>
@@ -9,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <wrl/client.h> 
+#include <PxPhysicsAPI.h> 
 #include "BitmapFont.h"     
 #include "CameraController.h"
 #include "CinematicDirector.h" 
@@ -36,7 +38,6 @@
 
 class SceneGameBreaker : public Scene
 {
-    // Memberi akses ke class GUI untuk edit variabel private
     friend class GameBreakerGUI;
 
 public:
@@ -51,31 +52,19 @@ public:
     Camera* GetMainCamera() const { return mainCamera.get(); }
 
 private:
-    // =========================================================
-    // CONFIGURATION CONSTANTS
-    // =========================================================
     struct Config {
-        // Camera
         static constexpr float CAM_FOV = 45.0f;
         static constexpr float CAM_NEAR = 0.1f;
         static constexpr float CAM_FAR = 1000.0f;
         static constexpr float CAM_START_HEIGHT = 20.0f;
-
-        // Post Process / CRT Effect
         static constexpr float FX_CRT_BASE_STRENGTH = 0.2f;
         static constexpr float FX_CRT_ROTATION_TARGET = 0.45f;
         static constexpr float FX_TRANSITION_WINDOW = 0.2f;
         static constexpr float FX_GLITCH_FACTOR = 0.7f;
     };
 
-    // =========================================================
-    // INTERNAL HELPER FUNCTIONS
-    // =========================================================
     void RenderScene(float elapsedTime, Camera* camera);
 
-    // =========================================================
-    // RUNTIME STATE
-    // =========================================================
     struct PostProcessState {
         bool MasterEnabled = true;
         bool EnableVignette = true;
@@ -91,25 +80,26 @@ private:
     std::unique_ptr<Stage> m_stage;
     std::shared_ptr<Camera> mainCamera;
 
-    // Camera Settings
     DirectX::XMFLOAT3 cameraPosition = { 0.0f, 18.0f, 0.0f };
     DirectX::XMFLOAT3 cameraTarget = { 0.0f, 0.0f, 0.0f };
-
-    // Light
     LightManager m_lightManager;
-
-    // Graphics
     std::unique_ptr<PostProcessManager> m_postProcess;
     UberShader::UberData uberParams;
     PostProcessState m_fxState;
-
-    // Visual Config
     DirectX::XMFLOAT4 bgSpriteColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-
-    // State Variables
     float m_globalTime = 0.0f;
     float m_configFineDensity = 30.0f;
     float m_configZoomDensity = 0.0f;
 
     std::unique_ptr<CinematicDirector> m_director;
+
+    physx::PxDefaultAllocator m_allocator;
+    physx::PxDefaultErrorCallback m_errorCallback;
+    physx::PxFoundation* m_foundation = nullptr;
+    physx::PxPhysics* m_physics = nullptr;
+    physx::PxDefaultCpuDispatcher* m_dispatcher = nullptr;
+    physx::PxScene* m_scene = nullptr;
+    physx::PxControllerManager* m_controllerManager = nullptr;
+    physx::PxMaterial* m_defaultMaterial = nullptr;
+    physx::PxRigidStatic* m_groundPlane = nullptr;
 };
