@@ -1,52 +1,62 @@
-#include "SceneGameBreaker.h"
+#include "SceneGameBreaker.h" 
 
 using namespace DirectX;
 
 SceneGameBreaker::SceneGameBreaker()
 {
-    float screenW = 1920;
-    float screenH = 1080;
-    if (auto window = Framework::Instance()->GetMainWindow())
-    {
+    float screenW = 1920; float screenH = 1080;
+    if (auto window = Framework::Instance()->GetMainWindow()) {
         screenW = static_cast<float>(window->GetWidth());
         screenH = static_cast<float>(window->GetHeight());
     }
 
-    // ------------------------------------------------------------
-    // [STEP 1] RESET SINGLETONS
-    // ------------------------------------------------------------
     auto& camCtrl = CameraController::Instance();
     camCtrl.ClearCamera();
     camCtrl.StopSequence();
-
     camCtrl.SetTargetOffset({ 0.0f, 0.0f, 0.0f });
     camCtrl.SetFixedYawOffset(0.0f);
     camCtrl.SetFixedRollOffset(0.0f);
     camCtrl.SetSplineTension(1.0f);
 
-    // ------------------------------------------------------------
-    // [STEP 2] SETUP NEW CAMERA
-    // ------------------------------------------------------------
     mainCamera = std::make_shared<Camera>();
     mainCamera->SetPerspectiveFov(XMConvertToRadians(Config::CAM_FOV), screenW / screenH, Config::CAM_NEAR, Config::CAM_FAR);
-
     XMFLOAT3 startPos = cameraPosition;
     startPos.x = 0.0f; startPos.z = 0.0f; startPos.y = Config::CAM_START_HEIGHT;
-
     mainCamera->SetPosition(startPos);
     mainCamera->LookAt(cameraTarget);
-
     camCtrl.SetActiveCamera(mainCamera);
     camCtrl.SetControlMode(CameraControlMode::FixedStatic);
     camCtrl.SetFixedSetting(startPos);
     camCtrl.SetTarget(cameraTarget);
 
-    // ------------------------------------------------------------
-    // [STEP 3] INITIALIZE SYSTEMS & OBJECTS
-    // ------------------------------------------------------------
     m_stage = std::make_unique<Stage>(Graphics::Instance().GetDevice());
 
+    m_foundation = PxCreateFoundation(PX_PHYSICS_VERSION, m_allocator, m_errorCallback);
+    assert(m_foundation != nullptr && "CRITICAL ERROR: PxCreateFoundation failed!");
+
+    m_physics = PxCreatePhysics(PX_PHYSICS_VERSION, *m_foundation, physx::PxTolerancesScale(), true, nullptr);
+    assert(m_physics != nullptr && "CRITICAL ERROR: PxCreatePhysics failed!");
+
+    physx::PxSceneDesc sceneDesc(m_physics->getTolerancesScale());
+    sceneDesc.gravity = physx::PxVec3(0.0f, -9.81f, 0.0f);
+    m_dispatcher = physx::PxDefaultCpuDispatcherCreate(2);
+    sceneDesc.cpuDispatcher = m_dispatcher;
+    sceneDesc.filterShader = physx::PxDefaultSimulationFilterShader;
+
+    m_scene = m_physics->createScene(sceneDesc);
+    assert(m_scene != nullptr && "CRITICAL ERROR: createScene failed!");
+
+    m_controllerManager = PxCreateControllerManager(*m_scene);
+    assert(m_controllerManager != nullptr && "CRITICAL ERROR: PxCreateControllerManager failed!");
+
+    m_defaultMaterial = m_physics->createMaterial(0.5f, 0.5f, 0.1f);
+    assert(m_defaultMaterial != nullptr && "CRITICAL ERROR: createMaterial failed!");
+
+    m_groundPlane = physx::PxCreatePlane(*m_physics, physx::PxPlane(0, 1, 0, 0), *m_defaultMaterial);
+    m_scene->addActor(*m_groundPlane);
+
     player = new Player();
+    player->InitPhysics(m_controllerManager, m_defaultMaterial); 
     player->SetMoveSpeed(15.0f);
     player->SetInputEnabled(true);
     player->GetMovement()->SetRotationY(DirectX::XM_PI);
@@ -70,6 +80,12 @@ SceneGameBreaker::~SceneGameBreaker()
 {
     CameraController::Instance().ClearCamera();
     if (player) delete player;
+
+    if (m_controllerManager) m_controllerManager->release();
+    if (m_scene) m_scene->release();
+    if (m_dispatcher) m_dispatcher->release();
+    if (m_physics) m_physics->release();
+    if (m_foundation) m_foundation->release();
 }
 
 void SceneGameBreaker::Update(float elapsedTime)
@@ -77,53 +93,41 @@ void SceneGameBreaker::Update(float elapsedTime)
     m_globalTime += elapsedTime;
     if (m_globalTime > 1000.0f) m_globalTime -= 1000.0f;
 
+    // [PHYSX ADDED] Step the simulation
+    if (m_scene) {
+        m_scene->simulate(elapsedTime);
+        m_scene->fetchResults(true);
+    }
+
     Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
 
-    // ------------------------------------------------------------
-    // ENTITY UPDATES
-    // ------------------------------------------------------------
-    if (player)
-    {
+    if (player) {
         player->Update(elapsedTime, activeCam);
         CameraController::Instance().SetTarget(player->GetPosition());
         m_director->Update(elapsedTime, player->GetMovement()->GetPosition());
     }
 
-    if (m_enemyManager)
-    {
+    if (m_enemyManager) {
         XMFLOAT3 targetPos = { 0,0,0 };
         if (player) { targetPos = player->GetPosition(); }
-        // For now, hardcode canAttack to true or false depending on your new design
         bool canAttack = true;
         m_enemyManager->Update(elapsedTime, activeCam, targetPos, canAttack);
     }
 
     if (m_itemManager) m_itemManager->Update(elapsedTime, activeCam);
+    if (m_collisionManager) m_collisionManager->Update(elapsedTime);
 
-    if (m_collisionManager)
-    {
-        m_collisionManager->Update(elapsedTime);
-    }
-
-    // ------------------------------------------------------------
-    // SYSTEM UPDATES
-    // ------------------------------------------------------------
     CameraController::Instance().Update(elapsedTime);
 
-    // ------------------------------------------------------------
-    // POST-PROCESS/SHADER UPDATES (Cleaned up state)
-    // ------------------------------------------------------------
     uberParams.fineOpacity = 1.0f;
     uberParams.fineDensity = m_configFineDensity;
     uberParams.fineRotation = 0.0f;
     uberParams.scanlineStrength = Config::FX_CRT_BASE_STRENGTH;
-
     uberParams.glitchStrength = 0.0f;
     uberParams.distortion = 0.0f;
     uberParams.chromaticAberration = 0.0f;
-
-    uberParams.smoothness = 0.2f; // Base default
-    uberParams.intensity = 0.38f; // Base default
+    uberParams.smoothness = 0.2f;
+    uberParams.intensity = 0.38f;
 }
 
 void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
@@ -132,7 +136,6 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
     auto dc = Graphics::Instance().GetDeviceContext();
     auto rs = Graphics::Instance().GetRenderState();
 
-    // --- STEP 1: Post-Process Capture ---
     m_postProcess->SetEnabled(m_fxState.MasterEnabled);
 
     if (m_fxState.MasterEnabled) {
@@ -153,14 +156,12 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
         }
     }
 
-    // --- STEP 2: Render Scene Objects ---
     dc->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), nullptr, 0xFFFFFFFF);
     dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestAndWrite), 0);
     dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullBack));
 
     RenderScene(elapsedTime, targetCam);
 
-    // DEBUG RENDERING
     if (targetCam == mainCamera.get()) {
         auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
         auto primRenderer = Graphics::Instance().GetPrimitiveRenderer();
@@ -175,9 +176,7 @@ void SceneGameBreaker::Render(float elapsedTime, Camera* camera)
         primRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection(), D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
     }
 
-    // Apply Post-Processing 
-    if (m_fxState.MasterEnabled)
-    {
+    if (m_fxState.MasterEnabled) {
         UberShader::UberData& activeData = m_postProcess->GetData();
         activeData = this->uberParams;
 
@@ -208,27 +207,13 @@ void SceneGameBreaker::RenderScene(float elapsedTime, Camera* camera)
     modelRenderer->Render(rc);
 }
 
-void SceneGameBreaker::DrawGUI()
-{
-    GameBreakerGUI::Draw(this);
-}
+void SceneGameBreaker::DrawGUI() { GameBreakerGUI::Draw(this); }
 
 void SceneGameBreaker::OnResize(int width, int height)
 {
     if (height <= 0) height = 1;
-
-    if (mainCamera)
-    {
-        mainCamera->SetPerspectiveFov(
-            DirectX::XMConvertToRadians(Config::CAM_FOV),
-            (float)width / (float)height,
-            Config::CAM_NEAR,
-            Config::CAM_FAR
-        );
+    if (mainCamera) {
+        mainCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(Config::CAM_FOV), (float)width / (float)height, Config::CAM_NEAR, Config::CAM_FAR);
     }
-
-    if (m_postProcess)
-    {
-        m_postProcess->OnResize(width, height);
-    }
+    if (m_postProcess) m_postProcess->OnResize(width, height);
 }
