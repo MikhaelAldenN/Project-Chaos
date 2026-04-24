@@ -24,12 +24,12 @@ Framework::Framework()
     // Posisikan di tengah saat awal
 
 
-    Input::Instance().Initialize(mainWin->GetHWND());
+    Input::Instance().Initialize(mainWin->GetNativeHandle());
 
     // ------------------------------------------------------------
     // [UBAH] INIT IMGUI MENGGUNAKAN MAIN WINDOW!
     // ------------------------------------------------------------
-    ImGuiRenderer::Initialize(mainWin->GetHWND(), Graphics::Instance().GetDevice(), Graphics::Instance().GetDeviceContext());
+    ImGuiRenderer::Initialize(mainWin->GetNativeHandle(), Graphics::Instance().GetDevice(), Graphics::Instance().GetDeviceContext());
 
     // Load Resources
     ResourceManager::Instance().LoadFont("VGA_FONT", "Data/Font/IBM_VGA_32px_0.png", "Data/Font/IBM_VGA_32px.fnt");
@@ -49,7 +49,7 @@ Framework::~Framework()
 Framework* Framework::Instance() { return pInstance; }
 void Framework::ChangeScene(std::unique_ptr<Scene> newScene) { nextScene = std::move(newScene); }
 
-GameWindow* Framework::GetMainWindow() const
+Beyond::Window* Framework::GetMainWindow() const
 {
     return WindowManager::Instance().GetWindowByIndex(0);
 }
@@ -64,7 +64,7 @@ void Framework::Update(float elapsedTime)
     if (nextScene)
     {
         scene = std::move(nextScene);
-        GameWindow* mainWin = GetMainWindow();
+        Beyond::Window* mainWin = GetMainWindow();
         if (mainWin && scene)
         {
         }
@@ -110,7 +110,7 @@ void Framework::CalculateFrameStats(float dt)
 
         // Loop melalui semua window yang ada di WindowManager
         //size_t index = 0;
-        //while (GameWindow* win = WindowManager::Instance().GetWindowByIndex(index))
+        //while (Beyond::Window* win = WindowManager::Instance().GetWindowByIndex(index))
         //{
         //    // Hanya update title pada window yang tidak disembunyikan (visible)
         //    if (win->IsVisible() && win->GetSDLWindow())
@@ -136,8 +136,8 @@ void Framework::Quit()
 
 LRESULT CALLBACK Framework::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    GameWindow* mainWin = GetMainWindow();
-    if (mainWin && hWnd == mainWin->GetHWND())
+    Beyond::Window* mainWin = GetMainWindow();
+    if (mainWin && hWnd == mainWin->GetNativeHandle())
     {
         if (ImGuiRenderer::HandleMessage(hWnd, msg, wParam, lParam)) return true;
     }

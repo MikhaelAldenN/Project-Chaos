@@ -123,7 +123,7 @@ void WindowShatter::TransitionToNativeWindow()
     if (m_window)
     {
         m_window->SetPriority(-1);
-        SetWindowPos(m_window->GetHWND(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        SetWindowPos(m_window->GetNativeHandle(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
         // Border Aktif
         SDL_SetWindowBordered(m_window->GetSDLWindow(), true);

@@ -6,7 +6,7 @@
 #include <functional>
 #include <unordered_map>
 #include <DirectXMath.h>
-#include "GameWindow.h"
+#include "Window.h"
 #include "Camera.h"
 
 // =========================================================
@@ -47,7 +47,7 @@ struct TrackedWindowConfig
 struct TrackedWindow
 {
     std::string name;
-    GameWindow* window = nullptr;
+    Beyond::Window* window = nullptr;
     std::shared_ptr<Camera> camera;
     WindowState state;
     DirectX::XMFLOAT3 trackingOffset = { 0.0f, 0.0f, 0.0f };
@@ -70,7 +70,7 @@ public:
     void Update(float dt);
 
     // Management
-    void RegisterWindow(GameWindow* window, WindowRole role, std::shared_ptr<Camera> camera = nullptr); // <-- BARU
+    void RegisterWindow(Beyond::Window* window, WindowRole role, std::shared_ptr<Camera> camera = nullptr); // <-- BARU
     void UpdateWindowBounds(int windowIndex, int width, int height);
 
     // Management
@@ -95,14 +95,9 @@ public:
     void WorldToScreenPos(const DirectX::XMFLOAT3& worldPos, float& outScreenX, float& outScreenY);
     float GetUnifiedCameraHeight();
 
-    bool AddPooledTrackedWindow(
-        const TrackedWindowConfig& config,
-        std::function<DirectX::XMFLOAT3()> getTargetPos,
-        std::function<DirectX::XMFLOAT2()> getTargetSize = nullptr
-    );
-
-    // [BARU] Pengganti RemoveTrackedWindow untuk projectile
-    void ReleasePooledWindow(const std::string& name);
+    // Jembatan untuk Pool System
+    std::unique_ptr<TrackedWindow> ExtractForPool(const std::string& name);
+    void RestoreFromPool(std::unique_ptr<TrackedWindow> window);
 
 private:
     void UpdateSingleWindow(float dt, TrackedWindow& tracked);
@@ -121,10 +116,4 @@ private:
     float m_followSpeed = 100.0f;
     float m_pixelToUnitRatio = 40.0f;
     float m_fov = 60.0f;
-    std::vector<std::unique_ptr<TrackedWindow>> m_windowPool;
-
-    // Helper internal
-    void MoveToPool(const std::string& name);
-    TrackedWindow* GetFromPool();
-
 };
