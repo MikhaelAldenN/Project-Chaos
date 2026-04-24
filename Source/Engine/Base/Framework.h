@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <memory>
 #include "System/HighResolutionTimer.h"
-#include "GameWindow.h"
+#include "Window.h"
 #include "Scene.h"
 #include "System/Graphics.h"
 #include "System/ImGuiRenderer.h"
@@ -34,7 +34,7 @@ public:
     void Quit();
 
     // Helper untuk mengambil Main Window (Window index 0)
-    GameWindow* GetMainWindow() const;
+    Beyond::Window* GetMainWindow() const;
 
     LRESULT CALLBACK HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
     void OnSubWindowClosed(Uint32 sdlWindowID);

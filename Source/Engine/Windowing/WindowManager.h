@@ -4,8 +4,7 @@
 #include <memory>
 #include <algorithm>
 #include <windows.h>
-#include <mutex>
-#include "GameWindow.h"
+#include "Window.h"
 
 // Forward Declaration
 class Scene;
@@ -27,13 +26,13 @@ public:
     void ClearAll();
 
     // --- USER FUNCTIONS ---
-    GameWindow* CreateGameWindow(const char* title, int width, int height);
-    void DestroyWindow(GameWindow* targetWindow);
+    Beyond::Window* CreateGameWindow(const char* title, int width, int height);
+    void DestroyWindow(Beyond::Window* targetWindow);
     void EnforceWindowPriorities();
     void MarkPriorityDirty() { m_dirtyPriority = true; }
 
-    void SetDebugWindow(GameWindow* win) { debugWindow = win; }
-    GameWindow* GetDebugWindow() const { return debugWindow; }
+    void SetDebugWindow(Beyond::Window* win) { debugWindow = win; }
+    Beyond::Window* GetDebugWindow() const { return debugWindow; }
 
     // --------------------------------------------------------
     // [BARU] Tambahkan Helper Functions ini:
@@ -43,7 +42,7 @@ public:
     bool HasWindows() const { return !windows.empty(); }
 
     // 2. Ambil window berdasarkan index (Dipakai di Framework.cpp untuk ambil Main Window)
-    GameWindow* GetWindowByIndex(size_t index)
+    Beyond::Window* GetWindowByIndex(size_t index)
     {
         if (index < windows.size()) return windows[index].get();
         return nullptr;
@@ -60,10 +59,9 @@ private:
 
     bool m_topmostEnabled = false;
 private:
-    std::vector<std::unique_ptr<GameWindow>> windows;
+    std::vector<std::unique_ptr<Beyond::Window>> windows;
 
-    GameWindow* debugWindow = nullptr;
+    Beyond::Window* debugWindow = nullptr;
 
     bool m_dirtyPriority = false;
-    mutable std::mutex m_windowsMutex;
 };

@@ -204,7 +204,7 @@ void SceneGame::HandleDebugInput()
 {
     if (Input::Instance().GetKeyboard().IsTriggered('N'))
     {
-        GameWindow* addWin = WindowManager::Instance().CreateGameWindow("AdditionalWin", 300, 300);
+        Beyond::Window* addWin = WindowManager::Instance().CreateGameWindow("AdditionalWin", 300, 300);
         Camera* addCam = new Camera();
 
         addCam->SetPerspectiveFov(DirectX::XMConvertToRadians(60), 1.0f, 0.1f, 1000.0f);

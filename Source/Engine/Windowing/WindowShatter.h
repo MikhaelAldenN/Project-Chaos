@@ -4,7 +4,7 @@
 #include <vector>
 #include <string> // Tambahkan string
 #include <DirectXMath.h>
-#include "GameWindow.h"
+#include "Window.h"
 #include "Camera.h"
 
 // Physics parameters for the shatter effect
@@ -36,7 +36,7 @@ public:
 
     [[nodiscard]] DirectX::XMFLOAT3 GetVirtualWorldPos() const { return m_virtualWorldPos; }
     [[nodiscard]] DirectX::XMFLOAT2 GetSize() const { return { m_width, m_height }; }
-    [[nodiscard]] GameWindow* GetWindow() const { return m_window; }
+    [[nodiscard]] Beyond::Window* GetWindow() const { return m_window; }
     [[nodiscard]] Camera* GetCamera() const { return m_camera.get(); }
 
     // [TAMBAH] Flag untuk safe destruction
@@ -56,7 +56,7 @@ private:
     void ConvertWorldToScreen(const DirectX::XMFLOAT3& worldPos, float& outX, float& outY) const;
 
 private:
-    GameWindow* m_window = nullptr;
+    Beyond::Window* m_window = nullptr;
     std::shared_ptr<Camera> m_camera;
     ShatterPhysics m_physics;
 

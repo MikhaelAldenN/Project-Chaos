@@ -153,8 +153,9 @@
     <ClInclude Include="Source\Engine\VFX\AnimationController.h" />
     <ClInclude Include="Source\Engine\VFX\CinematicDirector.h" />
     <ClInclude Include="Source\Engine\VFX\JuiceEngine.h" />
-    <ClInclude Include="Source\Engine\Windowing\GameWindow.h" />
+    <ClInclude Include="Source\Engine\Windowing\Window.h" />
     <ClInclude Include="Source\Engine\Windowing\WindowManager.h" />
+    <ClInclude Include="Source\Engine\Windowing\WindowPool.h" />
     <ClInclude Include="Source\Engine\Windowing\WindowShatter.h" />
     <ClInclude Include="Source\Engine\Windowing\WindowTrackingSystem.h" />
     <ClInclude Include="Source\Game\Entities\Boss.h" />
@@ -238,8 +239,9 @@
     <ClCompile Include="Source\Engine\VFX\AnimationController.cpp" />
     <ClCompile Include="Source\Engine\VFX\CinematicDirector.cpp" />
     <ClCompile Include="Source\Engine\VFX\JuiceEngine.cpp" />
-    <ClCompile Include="Source\Engine\Windowing\GameWindow.cpp" />
+    <ClCompile Include="Source\Engine\Windowing\Window.cpp" />
     <ClCompile Include="Source\Engine\Windowing\WindowManager.cpp" />
+    <ClCompile Include="Source\Engine\Windowing\WindowPool.cpp" />
     <ClCompile Include="Source\Engine\Windowing\WindowShatter.cpp" />
     <ClCompile Include="Source\Engine\Windowing\WindowTrackingSystem.cpp" />
     <ClCompile Include="Source\Game\Entities\Boss.cpp" />
