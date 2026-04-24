@@ -5,6 +5,7 @@
 #include "Framework.h"
 #include <algorithm> // For std::clamp
 #include <imgui.h>
+#include "InputHelper.h"
 
 using namespace DirectX;
 
@@ -13,23 +14,6 @@ using namespace DirectX;
 // =========================================================
 constexpr float FIELD_OF_VIEW = 60.0f;
 constexpr float PIXEL_TO_UNIT_RATIO = 40.0f;
-
-DirectX::XMFLOAT3 GetMouseWorldPosWindowkill()
-{
-    POINT cursorPos;
-    GetCursorPos(&cursorPos);
-
-    float monitorCenterX = GetSystemMetrics(SM_CXSCREEN) / 2.0f;
-    float monitorCenterY = GetSystemMetrics(SM_CYSCREEN) / 2.0f;
-
-    float pixelOffsetX = static_cast<float>(cursorPos.x) - monitorCenterX;
-    float pixelOffsetY = static_cast<float>(cursorPos.y) - monitorCenterY;
-
-    float worldX = pixelOffsetX / PIXEL_TO_UNIT_RATIO;
-    float worldZ = -pixelOffsetY / PIXEL_TO_UNIT_RATIO;
-
-    return DirectX::XMFLOAT3(worldX, 0.0f, worldZ);
-}
 
 // =========================================================
 // CONSTRUCTOR
@@ -226,8 +210,8 @@ void SceneBoss::Update(float elapsedTime)
 
         if (m_mainCamera)
         {
-            DirectX::XMFLOAT3 targetPos = GetMouseWorldPosWindowkill();
-            m_player->RotateModelToPoint(targetPos);
+            DirectX::XMFLOAT3 mousePos = Beyond::InputHelper::GetMouseWorldPos(m_mainCamera->GetPosition());
+            m_player->RotateModelToPoint(mousePos);
         }
     }
 

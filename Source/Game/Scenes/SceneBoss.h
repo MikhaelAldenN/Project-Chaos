@@ -5,13 +5,13 @@
 #include <string>
 #include <imgui.h> // [FIX] Untuk ImVec2 dan fungsionalitas GUI
 #include "Scene.h"
-#include "Window.h"
 #include "Camera.h"
 #include "CameraController.h"
 #include "Player.h"
 #include "Primitive.h"
 #include "WindowTrackingSystem.h"
 #include "System/PrimitiveRenderer.h"
+#include "BeyondWindow.h"
 
 // =========================================================
 // SCENE GAME BEYOND - BASE CODE (WINDOWKILL MODE)

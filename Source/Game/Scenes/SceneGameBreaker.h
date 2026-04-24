@@ -15,7 +15,7 @@
 #include "CameraController.h"
 #include "CinematicDirector.h" 
 #include "Framework.h"
-#include "Window.h"
+#include "BeyondWindow.h"
 #include "GUISceneGameBreaker.h" 
 #include "PostProcessManager.h"
 #include "ResourceManager.h"

@@ -2,7 +2,7 @@
 
 #include <memory>
 #include <vector>
-#include "Window.h"
+#include "BeyondWindow.h"
 #include "Scene.h"
 #include "Camera.h"
 #include "CameraController.h"

@@ -6,8 +6,8 @@
 #include <functional>
 #include <unordered_map>
 #include <DirectXMath.h>
-#include "Window.h"
 #include "Camera.h"
+#include "BeyondWindow.h"
 
 // =========================================================
 // DATA STRUCTURES
