@@ -30,7 +30,7 @@ Player::~Player()
 {
     if (stateMachine) delete stateMachine;
     if (animator) delete animator;
-    if (m_physxController) m_physxController->release(); // [PHYSX ADDED] Cleanup
+    if (m_physxController) m_physxController->release(); 
 }
 
 // [PHYSX ADDED] Initialize the capsule

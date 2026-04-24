@@ -17,7 +17,7 @@
 #include "TextDatabase.h"
 #include "PostProcessManager.h"
 #include "UIPanel.h"
-#include "SceneGameBreaker.h"
+#include "SceneGame.h"
 #include "Framework.h"
 #include "ResourceManager.h"
 #include "System/Input.h"
