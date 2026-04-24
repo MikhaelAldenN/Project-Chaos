@@ -264,7 +264,7 @@
     <ClCompile Include="Source\Engine\Legacy\TextDatabase.cpp">
       <Filter>Source\Engine\Legacy</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Windowing\Window.cpp">
+    <ClCompile Include="Source\Engine\Windowing\BeyondWindow.cpp">
       <Filter>Source\Engine\Windowing</Filter>
     </ClCompile>
     <ClCompile Include="Source\Engine\Windowing\WindowPool.cpp">
@@ -545,7 +545,7 @@
     <ClInclude Include="Source\Engine\Legacy\TextDatabase.h">
       <Filter>Source\Engine\Legacy</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Windowing\Window.h">
+    <ClInclude Include="Source\Engine\Windowing\BeyondWindow.h">
       <Filter>Source\Engine\Windowing</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Windowing\WindowPool.h">

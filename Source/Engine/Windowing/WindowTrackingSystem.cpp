@@ -1,7 +1,5 @@
 #include "WindowTrackingSystem.h"
 #include "WindowManager.h"
-#include <SDL3/SDL.h>
-#include <windows.h> // Untuk GetSystemMetrics
 #include <cmath>
 
 using namespace DirectX;
@@ -235,10 +233,15 @@ void WindowTrackingSystem::GetScreenDimensions(int& outWidth, int& outHeight)
     if (m_cachedScreenWidth > 0) {
         outWidth = m_cachedScreenWidth;
         outHeight = m_cachedScreenHeight;
+        return;
     }
-    else {
-        outWidth = GetSystemMetrics(SM_CXSCREEN);
-        outHeight = GetSystemMetrics(SM_CYSCREEN);
+
+    // SDL3: Pengganti GetSystemMetrics(SM_CXSCREEN)
+    SDL_Rect bounds;
+    if (SDL_GetDisplayBounds(SDL_GetPrimaryDisplay(), &bounds)) {
+        outWidth = bounds.w;
+        outHeight = bounds.h;
+
         m_cachedScreenWidth = outWidth;
         m_cachedScreenHeight = outHeight;
     }

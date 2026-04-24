@@ -11,6 +11,7 @@
 #include "Primitive.h"
 #include "WindowTrackingSystem.h"
 #include "System/PrimitiveRenderer.h"
+#include "BeyondWindow.h"
 
 // =========================================================
 // SCENE GAME BEYOND - BASE CODE (WINDOWKILL MODE)
