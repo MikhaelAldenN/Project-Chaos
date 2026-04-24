@@ -101,7 +101,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>d3d11.lib;dxgi.lib;xinput.lib;xaudio2.lib;winmm.lib;SphereCast.lib;SDL3.lib;PhysX_64.lib;PhysXCommon_64.lib;PhysXFoundation_64.lib;PhysXExtensions_static_64.lib;PhysXCharacterKinematic_static_64.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>.\External\SDL3-3.4.0\lib\x64;.\External\SphereCast\lib\vs2022\$(PlatformTarget)\MT\$(Configuration);.\External\PhysX\physx\bin\win.x86_64.vc143.mt\debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>.\External\SDL3-3.4.0\lib\x64;.\External\SphereCast\lib\vs2022\$(PlatformTarget)\MT\$(Configuration);.\External\PhysX\physx\bin\win.x86_64.vc143.mt\checked;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <FxCompile>
