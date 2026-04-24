@@ -1,18 +1,16 @@
 #pragma once
 
-// Forward Declaration agar tidak terjadi circular dependency
-class SceneGameBreaker;
+class SceneGame;
 
 class GameBreakerGUI
 {
 public:
-    // Fungsi utama yang dipanggil di SceneGameBreaker::DrawGUI()
-    static void Draw(SceneGameBreaker* scene);
+    static void Draw(SceneGame* scene);
 
 private:
     // Fungsi-fungsi internal per Tab
-    static void DrawCameraTab(SceneGameBreaker* scene);
-    static void DrawPostProcessTab(SceneGameBreaker* scene);
-    static void DrawObjectColorTab(SceneGameBreaker* scene);
-    static void DrawObjectTransformTab(SceneGameBreaker* scene);
+    static void DrawCameraTab(SceneGame* scene);
+    static void DrawPostProcessTab(SceneGame* scene);
+    static void DrawObjectColorTab(SceneGame* scene);
+    static void DrawObjectTransformTab(SceneGame* scene);
 };

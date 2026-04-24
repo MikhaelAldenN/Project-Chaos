@@ -9,10 +9,9 @@
 #include "System/Input.h"
 #include "System/AudioManager.h"
 #include "WindowManager.h"
-#include "SceneGame.h"
 #include "SceneTitle.h"
 #include "SceneIntro.h"
-#include "SceneGameBreaker.h"
+#include "SceneGame.h"
 #include "SceneBoss.h"
 #include <memory>
 #include <sstream>
