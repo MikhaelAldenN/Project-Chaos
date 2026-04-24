@@ -102,7 +102,7 @@ void SceneBoss::SpawnDebugWindow()
     config.name = "debug_win_" + std::to_string(m_spawnCount);
     config.title = "D" + std::to_string(m_spawnCount) + " (drag/stretch me!)";
     config.width = 300;
-    config.height = 300;awd
+    config.height = 300;
     config.role = WindowRole::SUB_VIEWPORT;
 
     // AddTrackedWindow otomatis akan membuatkan Kamera indepawdaenden yang tertaut sempurna!
