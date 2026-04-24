@@ -2,7 +2,11 @@
 #include "CameraController.h"
 #include "CinematicDirector.h"
 #include "GUISceneGameBreaker.h"
-#include "SceneGameBreaker.h" 
+#include "SceneGame.h" 
+#include "Player.h"
+#include "Stage.h"
+#include "EnemyManager.h"
+#include "ItemManager.h"
 #include <imgui.h>
 #include <vector>
 #include <string>
@@ -85,7 +89,8 @@ std::string GenerateEnemyCopyString(Enemy* e, int index, const char* commentName
     return std::string(buffer);
 }
 
-void GameBreakerGUI::Draw(SceneGameBreaker* scene)
+// Renamed parameter to SceneGame*
+void GameBreakerGUI::Draw(SceneGame* scene)
 {
     CameraController::Instance().DrawDebugGUI();
 
@@ -125,7 +130,8 @@ void GameBreakerGUI::Draw(SceneGameBreaker* scene)
     ImGui::End();
 }
 
-void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
+// Renamed parameter to SceneGame*
+void GameBreakerGUI::DrawCameraTab(SceneGame* scene)
 {
     auto& camCtrl = CameraController::Instance();
     auto mainCam = scene->GetMainCamera();
@@ -138,10 +144,10 @@ void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
 
     auto& scenarios = scene->m_director->GetScenarios();
     static bool isSequencePlaying = false;
-    bool ctrlIsSequencing = camCtrl.IsSequencing();
+    const bool ctrlIsSequencing = camCtrl.IsSequencing();
     if (!ctrlIsSequencing) isSequencePlaying = false;
 
-    float availWidth = ImGui::GetContentRegionAvail().x;
+    const float availWidth = ImGui::GetContentRegionAvail().x;
     if (isSequencePlaying)
     {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
@@ -320,7 +326,8 @@ void GameBreakerGUI::DrawCameraTab(SceneGameBreaker* scene)
     }
 }
 
-void GameBreakerGUI::DrawPostProcessTab(SceneGameBreaker* scene)
+// Renamed parameter to SceneGame*
+void GameBreakerGUI::DrawPostProcessTab(SceneGame* scene)
 {
     ImGui::Spacing();
 
@@ -341,7 +348,8 @@ void GameBreakerGUI::DrawPostProcessTab(SceneGameBreaker* scene)
         return;
     }
 
-    auto& uber = scene->uberParams;
+    // Fixed variable name: m_uberParams
+    auto& uber = scene->m_uberParams;
 
     if (ImGui::CollapsingHeader("Vignette & Color", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -395,17 +403,18 @@ void GameBreakerGUI::DrawPostProcessTab(SceneGameBreaker* scene)
 
         if (!scene->m_fxState.EnableChromatic) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
 
-        ImGui::SliderFloat("Intensity", &scene->uberParams.chromaticAberration, -0.02f, 0.02f, "%.5f");
+        // Fixed variable name: m_uberParams
+        ImGui::SliderFloat("Intensity", &scene->m_uberParams.chromaticAberration, -0.02f, 0.02f, "%.5f");
 
-        if (ImGui::Button("Reset CA")) scene->uberParams.chromaticAberration = 0.0f;
+        if (ImGui::Button("Reset CA")) scene->m_uberParams.chromaticAberration = 0.0f;
 
         if (!scene->m_fxState.EnableChromatic) ImGui::PopStyleVar();
         ImGui::Unindent();
     }
 }
 
-
-void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
+// Renamed parameter to SceneGame*
+void GameBreakerGUI::DrawObjectColorTab(SceneGame* scene)
 {
     ImGui::Spacing();
 
@@ -427,12 +436,13 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
     ImGui::Separator();
     ImGui::Spacing();
 
-    if (scene->player)
+    // Fixed variable name: m_player
+    if (scene->m_player)
     {
         if (ImGui::CollapsingHeader("Player", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Indent();
-            ImGui::ColorEdit4("Base Color##Player", &scene->player->color.x);
+            ImGui::ColorEdit4("Base Color##Player", &scene->m_player->color.x);
             ImGui::Unindent();
         }
         ImGui::Spacing();
@@ -513,7 +523,8 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGameBreaker* scene)
     }
 }
 
-void GameBreakerGUI::DrawObjectTransformTab(SceneGameBreaker* scene)
+// Renamed parameter to SceneGame*
+void GameBreakerGUI::DrawObjectTransformTab(SceneGame* scene)
 {
     ImGui::Spacing();
     ImGui::Text("Adjust 3D Object Transforms:");

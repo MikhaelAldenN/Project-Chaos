@@ -1,91 +1,177 @@
-﻿#include <imgui.h>
-#include <SDL3/SDL.h>
+#include "SceneGame.h" 
+
+#include "CameraController.h"
+#include "CinematicDirector.h" 
+#include "Framework.h"
+#include "GUISceneGameBreaker.h" 
+#include "PostProcessManager.h"
+#include "System/CollisionManager.h"
 #include "System/Graphics.h"
-#include "System/Input.h"
-#include "SceneGame.h"
-#include "WindowManager.h"
+
+// Game Objects
+#include "EnemyManager.h"
+#include "ItemManager.h"
+#include "Player.h"
+#include "Stage.h"
+
+using namespace DirectX;
 
 SceneGame::SceneGame()
 {
-    float screenW = 1280.0f;
-    float screenH = 720.0f;
+    float screenW{ Config::DEFAULT_SCREEN_W };
+    float screenH{ Config::DEFAULT_SCREEN_H };
+    if (auto window{ Framework::Instance()->GetMainWindow() }) {
+        screenW = static_cast<float>(window->GetWidth());
+        screenH = static_cast<float>(window->GetHeight());
+    }
 
-    // 1. Initialize Main Assets
-    mainCamera = std::make_shared<Camera>();
-    mainCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(45), screenW / screenH, 0.1f, 1000.0f);
-    mainCamera->SetPosition(0, 5, -5);
-    mainCamera->LookAt({ 0, 0, 0 });
+    auto& camCtrl{ CameraController::Instance() };
+    camCtrl.ClearCamera();
+    camCtrl.StopSequence();
+    camCtrl.SetTargetOffset({ 0.0f, 0.0f, 0.0f });
+    camCtrl.SetFixedYawOffset(0.0f);
+    camCtrl.SetFixedRollOffset(0.0f);
+    camCtrl.SetSplineTension(1.0f);
 
-    CameraController::Instance().SetActiveCamera(mainCamera);
-    CameraController::Instance().SetControlMode(CameraControlMode::GamePad);
+    m_mainCamera = std::make_shared<Camera>();
+    m_mainCamera->SetPerspectiveFov(XMConvertToRadians(Config::CAM_FOV), screenW / screenH, Config::CAM_NEAR, Config::CAM_FAR);
 
-    player = new Player();
+    XMFLOAT3 startPos{ m_cameraPosition };
+    startPos.x = 0.0f;
+    startPos.z = 0.0f;
+    startPos.y = Config::CAM_START_HEIGHT;
 
-    // 2. Initialize Secondary Camera (CCTV)
-    subCamera = new Camera();
-    subCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(60), 400.0f / 300.0f, 0.1f, 1000.0f);
-    subCamera->SetPosition(5, 5, 5);
-    subCamera->LookAt({ 0, 0, 0 });
+    m_mainCamera->SetPosition(startPos);
+    m_mainCamera->LookAt(m_cameraTarget);
+    camCtrl.SetActiveCamera(m_mainCamera);
+    camCtrl.SetControlMode(CameraControlMode::FixedStatic);
+    camCtrl.SetFixedSetting(startPos);
+    camCtrl.SetTarget(m_cameraTarget);
 
-    // 3. Initialize Windows
-    trackingWindow = WindowManager::Instance().CreateGameWindow("Tracking View", 300, 300);
-    trackingCamera = new Camera();
-    trackingCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(60), 1.0f, 0.1f, 1000.0f);
-    trackingWindow->SetCamera(trackingCamera);
+    m_stage = std::make_unique<Stage>(Graphics::Instance().GetDevice());
 
-    lensWindow = WindowManager::Instance().CreateGameWindow("Lens View (Drag Me!)", 300, 300);
-    lensCamera = new Camera();
-    lensCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(60), 1.0f, 0.1f, 1000.0f);
-    lensCamera->SetRotation(90.0f, 0.0f, 0.0f); // Top-down
-    lensWindow->SetCamera(lensCamera);
+    m_foundation.reset(PxCreateFoundation(PX_PHYSICS_VERSION, m_allocator, m_errorCallback));
+    assert(m_foundation != nullptr && "CRITICAL ERROR: PxCreateFoundation failed!");
+
+    m_physics.reset(PxCreatePhysics(PX_PHYSICS_VERSION, *m_foundation, physx::PxTolerancesScale(), true, nullptr));
+    assert(m_physics != nullptr && "CRITICAL ERROR: PxCreatePhysics failed!");
+
+    physx::PxSceneDesc sceneDesc(m_physics->getTolerancesScale());
+    sceneDesc.gravity = physx::PxVec3(0.0f, Config::GRAVITY, 0.0f);
+
+    m_dispatcher.reset(physx::PxDefaultCpuDispatcherCreate(2));
+    sceneDesc.cpuDispatcher = m_dispatcher.get(); 
+    sceneDesc.filterShader = physx::PxDefaultSimulationFilterShader;
+
+    m_scene.reset(m_physics->createScene(sceneDesc));
+    assert(m_scene != nullptr && "CRITICAL ERROR: createScene failed!");
+
+    m_controllerManager.reset(PxCreateControllerManager(*m_scene));
+    assert(m_controllerManager != nullptr && "CRITICAL ERROR: PxCreateControllerManager failed!");
+
+    m_defaultMaterial.reset(m_physics->createMaterial(0.5f, 0.5f, 0.1f));
+    assert(m_defaultMaterial != nullptr && "CRITICAL ERROR: createMaterial failed!");
+
+    m_groundPlane.reset(physx::PxCreatePlane(*m_physics, physx::PxPlane(0, 1, 0, 0), *m_defaultMaterial));
+    m_scene->addActor(*m_groundPlane);
+    
+    m_player = std::make_unique<Player>();
+
+    m_player->InitPhysics(m_controllerManager.get(), m_defaultMaterial.get());
+
+    m_player->SetMoveSpeed(15.0f);
+    m_player->SetInputEnabled(true);
+    m_player->GetMovement()->SetRotationY(DirectX::XM_PI);
+
+    m_enemyManager = std::make_unique<EnemyManager>();
+    m_enemyManager->Initialize(Graphics::Instance().GetDevice());
+
+    m_itemManager = std::make_unique<ItemManager>();
+    m_itemManager->Initialize(Graphics::Instance().GetDevice());
+
+    m_collisionManager = std::make_unique<CollisionManager>();
+    m_collisionManager->Initialize(m_player.get(), m_stage.get(), m_enemyManager.get(), m_itemManager.get());
+
+    m_director = std::make_unique<CinematicDirector>();
+
+    m_postProcess = std::make_unique<PostProcessManager>();
+    m_postProcess->Initialize(static_cast<int>(screenW), static_cast<int>(screenH));
 }
 
 SceneGame::~SceneGame()
 {
     CameraController::Instance().ClearCamera();
-    if (subCamera) delete subCamera;
-    if (player) delete player;
-
-    for (Camera* cam : additionalCameras) delete cam;
-
-    WindowManager::Instance().DestroyWindow(trackingWindow);
-    if (trackingCamera) delete trackingCamera;
-
-    WindowManager::Instance().DestroyWindow(lensWindow);
-    if (lensCamera) delete lensCamera;
+    m_player.reset();
 }
 
-void SceneGame::Update(float elapsedTime)
+void SceneGame::Update(const float elapsedTime)
 {
-    // Update Player & Camera Controller
-    Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
-    if (player)
-    {
-        player->Update(elapsedTime, activeCam);
-        CameraController::Instance().SetTarget(player->GetPosition());
+    m_globalTime += elapsedTime;
+    if (m_globalTime > Config::TIME_LOOP_MAX) m_globalTime -= Config::TIME_LOOP_MAX;
 
-        // Update CCTV Camera
-        if (subCamera)
-        {
-            subCamera->SetPosition(5, 5.0f, 5);
-            subCamera->LookAt(player->GetPosition());
-        }
+    if (m_scene) {
+        m_scene->simulate(elapsedTime);
+        m_scene->fetchResults(true);
     }
 
-    UpdateTrackingWindow();
-    UpdateLensWindow();
-    HandleDebugInput();
+    Camera* activeCam{ CameraController::Instance().GetActiveCamera().get() };
+
+    if (m_player) {
+        m_player->Update(elapsedTime, activeCam);
+        CameraController::Instance().SetTarget(m_player->GetPosition());
+        m_director->Update(elapsedTime, m_player->GetMovement()->GetPosition());
+    }
+
+    if (m_enemyManager) {
+        XMFLOAT3 targetPos{ 0.0f, 0.0f, 0.0f };
+        if (m_player) {
+            targetPos = m_player->GetPosition();
+        }
+        bool canAttack{ true };
+        m_enemyManager->Update(elapsedTime, activeCam, targetPos, canAttack);
+    }
+
+    if (m_itemManager) m_itemManager->Update(elapsedTime, activeCam);
+    if (m_collisionManager) m_collisionManager->Update(elapsedTime);
 
     CameraController::Instance().Update(elapsedTime);
+
+    m_uberParams.fineOpacity = 1.0f;
+    m_uberParams.fineDensity = m_configFineDensity;
+    m_uberParams.fineRotation = 0.0f;
+    m_uberParams.scanlineStrength = Config::FX_CRT_BASE_STRENGTH;
+    m_uberParams.glitchStrength = 0.0f;
+    m_uberParams.distortion = 0.0f;
+    m_uberParams.chromaticAberration = 0.0f;
+    m_uberParams.smoothness = 0.2f;
+    m_uberParams.intensity = 0.38f;
 }
 
 void SceneGame::Render(float elapsedTime, Camera* camera)
 {
-    Camera* targetCam = CameraController::Instance().GetActiveCamera().get();
+    Camera* targetCam{ camera ? camera : m_mainCamera.get() };
+    auto dc{ Graphics::Instance().GetDeviceContext() };
+    auto rs{ Graphics::Instance().GetRenderState() };
 
-    // Setup Render State
-    auto dc = Graphics::Instance().GetDeviceContext();
-    auto rs = Graphics::Instance().GetRenderState();
+    m_postProcess->SetEnabled(m_fxState.MasterEnabled);
+
+    if (m_fxState.MasterEnabled) {
+        m_postProcess->BeginCapture();
+    }
+    else {
+        ID3D11RenderTargetView* originalRTV{ nullptr };
+        ID3D11DepthStencilView* originalDSV{ nullptr };
+        dc->OMGetRenderTargets(1, &originalRTV, &originalDSV);
+        if (originalRTV) {
+            float clearColor[4]{ 0.0f, 0.0f, 0.0f, 1.0f };
+            dc->ClearRenderTargetView(originalRTV, clearColor);
+            originalRTV->Release();
+        }
+        if (originalDSV) {
+            dc->ClearDepthStencilView(originalDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+            originalDSV->Release();
+        }
+    }
 
     dc->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), nullptr, 0xFFFFFFFF);
     dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestAndWrite), 0);
@@ -93,157 +179,58 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
 
     RenderScene(elapsedTime, targetCam);
 
-    // Render Debug Shapes (Main Camera Only)
-    if (targetCam == mainCamera.get())
-    {
-        Graphics::Instance().GetShapeRenderer()->Render(dc, targetCam->GetView(), targetCam->GetProjection());
+    if (targetCam == m_mainCamera.get()) {
+        auto shapeRenderer{ Graphics::Instance().GetShapeRenderer() };
+        auto primRenderer{ Graphics::Instance().GetPrimitiveRenderer() };
+
+        primRenderer->DrawGrid(50, 1.0f);
+
+        if (m_itemManager) m_itemManager->RenderDebug(shapeRenderer);
+        if (m_stage) m_stage->RenderDebug(shapeRenderer, primRenderer);
+        if (m_enemyManager) m_enemyManager->RenderDebug(shapeRenderer);
+
+        shapeRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection());
+        primRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection(), D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+    }
+
+    if (m_fxState.MasterEnabled) {
+        UberShader::UberData& activeData{ m_postProcess->GetData() };
+        activeData = this->m_uberParams;
+
+        if (!m_fxState.EnableVignette) activeData.intensity = 0.0f;
+        if (!m_fxState.EnableLens) { activeData.glitchStrength = 0.0f; activeData.distortion = 0.0f; }
+        if (!m_fxState.EnableChromatic) { activeData.chromaticAberration = 0.0f; }
+        if (!m_fxState.EnableCRT) { activeData.scanlineStrength = 0.0f; activeData.fineOpacity = 0.0f; }
+
+        m_postProcess->EndCapture(elapsedTime);
     }
 }
 
-void SceneGame::RenderScene(float elapsedTime, Camera* camera)
+void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
 {
     if (!camera) return;
+    auto dc{ Graphics::Instance().GetDeviceContext() };
+    auto modelRenderer{ Graphics::Instance().GetModelRenderer() };
+    RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, &m_lightManager };
 
-    auto dc = Graphics::Instance().GetDeviceContext();
-    auto primRenderer = Graphics::Instance().GetPrimitiveRenderer();
-    auto modelRenderer = Graphics::Instance().GetModelRenderer();
-
-    // Draw Grid
-    primRenderer->DrawGrid(20, 1);
-    primRenderer->Render(dc, camera->GetView(), camera->GetProjection(), D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-
-    // Draw Player
-    if (player)
-    {
-        RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
-        player->Render(modelRenderer);
-        modelRenderer->Render(rc);
-    }
-}
-
-// --- Helper Functions ---
-
-void SceneGame::UpdateTrackingWindow()
-{
-    if (!player || !trackingWindow || !trackingCamera) return;
-
-    static float currentPixelRatio = 40.0f;
-    DirectX::XMFLOAT3 pPos = player->GetPosition();
-
-    int screenW = GetSystemMetrics(SM_CXSCREEN);
-    int screenH = GetSystemMetrics(SM_CYSCREEN);
-
-    // Calculate Window Position
-    float centerX = screenW / 2.0f;
-    float centerY = screenH / 2.0f;
-    float targetX = centerX + (pPos.x * currentPixelRatio);
-    float targetY = centerY - (pPos.z * currentPixelRatio);
-
-    float winW = (float)trackingWindow->GetWidth();
-    float winH = (float)trackingWindow->GetHeight();
-
-    // Snap to Integer pixels to prevent jitter
-    int finalWinX = (int)(targetX - (winW / 2.0f) + 0.5f);
-    int finalWinY = (int)(targetY - (winH / 2.0f) + 0.5f);
-
-    SDL_SetWindowPosition(trackingWindow->GetSDLWindow(), finalWinX, finalWinY);
-
-    // Calculate Off-Center Projection
-    float fovY = DirectX::XM_PI / 3.0f;
-    float halfFovTan = tanf(fovY / 2.0f);
-    float camHeight = centerY / (currentPixelRatio * halfFovTan);
-
-    trackingCamera->SetPosition(0.0f, camHeight, 0.0f);
-    trackingCamera->LookAt({ 0.0f, 0.0f, 0.0f });
-
-    float nearZ = 0.1f, farZ = 1000.0f;
-    float halfHeight = nearZ * halfFovTan;
-    float halfWidth = halfHeight * ((float)screenW / screenH);
-
-    float l = ((float)finalWinX / screenW) * 2.0f - 1.0f;
-    float r = (((float)finalWinX + winW) / screenW) * 2.0f - 1.0f;
-    float t = 1.0f - ((float)finalWinY / screenH) * 2.0f;
-    float b = 1.0f - (((float)finalWinY + winH) / screenH) * 2.0f;
-
-    trackingCamera->SetOffCenterProjection(l * halfWidth, r * halfWidth, b * halfHeight, t * halfHeight, nearZ, farZ);
-}
-
-void SceneGame::UpdateLensWindow()
-{
-    if (!lensWindow || !lensCamera) return;
-
-    float fixedPixelRatio = 40.0f;
-    int screenW = GetSystemMetrics(SM_CXSCREEN);
-    int screenH = GetSystemMetrics(SM_CYSCREEN);
-
-    float fovY = DirectX::XM_PI / 3.0f;
-    float halfFovTan = tanf(fovY / 2.0f);
-    float camHeight = (screenH / 2.0f) / (fixedPixelRatio * halfFovTan);
-
-    lensCamera->SetPosition(0.0f, camHeight, 0.0f);
-    lensCamera->LookAt({ 0.0f, 0.0f, 0.0f });
-
-    int winX, winY;
-    SDL_GetWindowPosition(lensWindow->GetSDLWindow(), &winX, &winY);
-    int winW = lensWindow->GetWidth();
-    int winH = lensWindow->GetHeight();
-
-    float nearZ = 0.1f, farZ = 1000.0f;
-    float halfHeight = nearZ * halfFovTan;
-    float halfWidth = halfHeight * ((float)screenW / screenH);
-
-    float l = ((float)winX / screenW) * 2.0f - 1.0f;
-    float r = (((float)winX + winW) / screenW) * 2.0f - 1.0f;
-    float t = 1.0f - ((float)winY / screenH) * 2.0f;
-    float b = 1.0f - (((float)winY + winH) / screenH) * 2.0f;
-
-    lensCamera->SetOffCenterProjection(l * halfWidth, r * halfWidth, b * halfHeight, t * halfHeight, nearZ, farZ);
-}
-
-void SceneGame::HandleDebugInput()
-{
-    if (Input::Instance().GetKeyboard().IsTriggered('N'))
-    {
-        Beyond::Window* addWin = WindowManager::Instance().CreateGameWindow("AdditionalWin", 300, 300);
-        Camera* addCam = new Camera();
-
-        addCam->SetPerspectiveFov(DirectX::XMConvertToRadians(60), 1.0f, 0.1f, 1000.0f);
-        if (player)
-        {
-            auto pPos = player->GetPosition();
-            addCam->SetPosition(pPos.x + 5.0f, pPos.y + 5.0f, pPos.z - 5.0f);
-            addCam->LookAt(pPos);
-        }
-
-        addWin->SetCamera(addCam);
-        additionalCameras.push_back(addCam);
+    if (m_player) modelRenderer->Draw(ShaderId::Phong, m_player->GetModel(), m_player->color);
+    if (m_enemyManager) m_enemyManager->Render(modelRenderer);
+    if (m_itemManager) m_itemManager->Render(modelRenderer);
+    if (m_stage) {
+        m_stage->UpdateTransform();
+        m_stage->Render(modelRenderer);
     }
 
-    // Sync additional cameras with player
-    if (player)
-    {
-        auto pPos = player->GetPosition();
-        for (Camera* cam : additionalCameras)
-        {
-            cam->SetPosition(pPos.x + 5.0f, pPos.y + 5.0f, pPos.z - 5.0f);
-            cam->LookAt(pPos);
-        }
-    }
+    modelRenderer->Render(rc);
 }
 
-void SceneGame::DrawGUI()
-{
-    CameraController::Instance().DrawDebugGUI();
-    ImGui::Begin("Scene Info");
-    ImGui::Text("WASD to Move");
-    ImGui::End();
-}
+void SceneGame::DrawGUI() { GameBreakerGUI::Draw(this); }
 
 void SceneGame::OnResize(int width, int height)
 {
-    if (height == 0) height = 1;
-    if (mainCamera)
-    {
-        mainCamera->SetAspectRatio((float)width / (float)height);
+    if (height <= 0) height = 1;
+    if (m_mainCamera) {
+        m_mainCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(Config::CAM_FOV), static_cast<float>(width) / static_cast<float>(height), Config::CAM_NEAR, Config::CAM_FAR);
     }
+    if (m_postProcess) m_postProcess->OnResize(width, height);
 }
