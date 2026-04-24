@@ -60,7 +60,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>.\External\SDL3-3.4.0\include;.\Source;.\External\imgui-docking;.\External\ImGuizmo;.\External\cereal\include;.\External\tinygltf;.\External\SphereCast\Include;.\External\DirectXTex;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\Source;.\Source\Engine\Base;.\Source\Engine\Windowing;.\Source\Engine\Graphics;.\Source\Engine\UI;.\Source\Engine\VFX;.\Source\Game\Entities;.\Source\Game\States;.\Source\Game\Scenes;.\Source\Engine\Legacy;.\External\SDL3-3.4.0\include;.\External\imgui-docking;.\External\ImGuizmo;.\External\cereal\include;.\External\tinygltf;.\External\SphereCast\Include;.\External\DirectXTex;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -90,7 +90,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>.\External\SDL3-3.4.0\include;.\Source;.\External\imgui-docking;.\External\ImGuizmo;.\External\cereal\include;.\External\tinygltf;.\External\SphereCast\Include;.\External\DirectXTex;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\Source;.\Source\Engine\Base;.\Source\Engine\Windowing;.\Source\Engine\Graphics;.\Source\Engine\UI;.\Source\Engine\VFX;.\Source\Game\Entities;.\Source\Game\States;.\Source\Game\Scenes;.\Source\Engine\Legacy;.\External\SDL3-3.4.0\include;.\External\imgui-docking;.\External\ImGuizmo;.\External\cereal\include;.\External\tinygltf;.\External\SphereCast\Include;.\External\DirectXTex;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -126,51 +126,60 @@
     <ClInclude Include="External\ImGuizmo\ImGuizmo.h" />
     <ClInclude Include="External\ImGuizmo\ImSequencer.h" />
     <ClInclude Include="External\SphereCast\Include\SphereCast.h" />
-    <ClInclude Include="Source\AnimationController.h" />
-    <ClInclude Include="Source\Bullet.h" />
-    <ClInclude Include="Source\BitmapFont.h" />
-    <ClInclude Include="Source\Boss.h" />
-    <ClInclude Include="Source\BossTerminal.h" />
-    <ClInclude Include="Source\CinematicDirector.h" />
-    <ClInclude Include="Source\CursorBlock.h" />
-    <ClInclude Include="Source\EnemyManager.h" />
-    <ClInclude Include="Source\GameWindow.h" />
-    <ClInclude Include="Source\GUISceneGameBreaker.h" />
-    <ClInclude Include="Source\Item.h" />
-    <ClInclude Include="Source\ItemManager.h" />
-    <ClInclude Include="Source\JuiceEngine.h" />
-    <ClInclude Include="Source\PostProcessManager.h" />
-    <ClInclude Include="Source\Stage.h" />
-    <ClInclude Include="Source\StateBoss.h" />
+    <ClInclude Include="Source\Engine\Base\Framework.h" />
+    <ClInclude Include="Source\Engine\Base\MathUtils.h" />
+    <ClInclude Include="Source\Engine\Base\ResourceManager.h" />
+    <ClInclude Include="Source\Engine\Graphics\BitmapFont.h" />
+    <ClInclude Include="Source\Engine\Graphics\Camera.h" />
+    <ClInclude Include="Source\Engine\Graphics\CameraController.h" />
+    <ClInclude Include="Source\Engine\Graphics\FreeCameraController.h" />
+    <ClInclude Include="Source\Engine\Graphics\PostProcessManager.h" />
+    <ClInclude Include="Source\Engine\Graphics\Primitive.h" />
+    <ClInclude Include="Source\Engine\Graphics\UberShader.h" />
+    <ClInclude Include="Source\Engine\Legacy\BossTerminal.h" />
+    <ClInclude Include="Source\Engine\Legacy\GUISceneGameBreaker.h" />
+    <ClInclude Include="Source\Engine\Legacy\TerminalMonitor1.h" />
+    <ClInclude Include="Source\Engine\Legacy\TextDatabase.h" />
+    <ClInclude Include="Source\Engine\UI\ButtonManager.h" />
+    <ClInclude Include="Source\Engine\UI\CursorBlock.h" />
+    <ClInclude Include="Source\Engine\UI\TUIBuilder.h" />
+    <ClInclude Include="Source\Engine\UI\UIButton.h" />
+    <ClInclude Include="Source\Engine\UI\UIButtonPrimitive.h" />
+    <ClInclude Include="Source\Engine\UI\UIButtonSprite.h" />
+    <ClInclude Include="Source\Engine\UI\UIComponents.h" />
+    <ClInclude Include="Source\Engine\UI\UIImpactDisplay.h" />
+    <ClInclude Include="Source\Engine\UI\UILabel.h" />
+    <ClInclude Include="Source\Engine\UI\UIPanel.h" />
+    <ClInclude Include="Source\Engine\VFX\AnimationController.h" />
+    <ClInclude Include="Source\Engine\VFX\CinematicDirector.h" />
+    <ClInclude Include="Source\Engine\VFX\JuiceEngine.h" />
+    <ClInclude Include="Source\Engine\Windowing\GameWindow.h" />
+    <ClInclude Include="Source\Engine\Windowing\WindowManager.h" />
+    <ClInclude Include="Source\Engine\Windowing\WindowShatter.h" />
+    <ClInclude Include="Source\Engine\Windowing\WindowTrackingSystem.h" />
+    <ClInclude Include="Source\Game\Entities\Boss.h" />
+    <ClInclude Include="Source\Game\Entities\Bullet.h" />
+    <ClInclude Include="Source\Game\Entities\Character.h" />
+    <ClInclude Include="Source\Game\Entities\CharacterMovement.h" />
+    <ClInclude Include="Source\Game\Entities\Enemy.h" />
+    <ClInclude Include="Source\Game\Entities\EnemyManager.h" />
+    <ClInclude Include="Source\Game\Entities\Item.h" />
+    <ClInclude Include="Source\Game\Entities\ItemManager.h" />
+    <ClInclude Include="Source\Game\Entities\Player.h" />
+    <ClInclude Include="Source\Game\Scenes\Scene.h" />
+    <ClInclude Include="Source\Game\Scenes\SceneBoss.h" />
+    <ClInclude Include="Source\Game\Scenes\SceneGame.h" />
+    <ClInclude Include="Source\Game\Scenes\SceneGameBreaker.h" />
+    <ClInclude Include="Source\Game\Scenes\SceneIntro.h" />
+    <ClInclude Include="Source\Game\Scenes\SceneTitle.h" />
+    <ClInclude Include="Source\Game\Scenes\Stage.h" />
+    <ClInclude Include="Source\Game\States\PlayerState.h" />
+    <ClInclude Include="Source\Game\States\PlayerStates.h" />
+    <ClInclude Include="Source\Game\States\StateBoss.h" />
+    <ClInclude Include="Source\Game\States\StateMachine.h" />
     <ClInclude Include="Source\System\AudioManager.h" />
     <ClInclude Include="Source\System\Collision.h" />
     <ClInclude Include="Source\System\CollisionManager.h" />
-    <ClInclude Include="Source\TerminalMonitor1.h" />
-    <ClInclude Include="Source\TextDatabase.h" />
-    <ClInclude Include="Source\TUIBuilder.h" />
-    <ClInclude Include="Source\UberShader.h" />
-    <ClInclude Include="Source\UIButton.h" />
-    <ClInclude Include="Source\ButtonManager.h" />
-    <ClInclude Include="Source\Camera.h" />
-    <ClInclude Include="Source\CameraController.h" />
-    <ClInclude Include="Source\Character.h" />
-    <ClInclude Include="Source\CharacterMovement.h" />
-    <ClInclude Include="Source\Enemy.h" />
-    <ClInclude Include="Source\Framework.h" />
-    <ClInclude Include="Source\FreeCameraController.h" />
-    <ClInclude Include="Source\MathUtils.h" />
-    <ClInclude Include="Source\Player.h" />
-    <ClInclude Include="Source\PlayerState.h" />
-    <ClInclude Include="Source\PlayerStates.h" />
-    <ClInclude Include="Source\Primitive.h" />
-    <ClInclude Include="Source\ResourceManager.h" />
-    <ClInclude Include="Source\Scene.h" />
-    <ClInclude Include="Source\SceneGame.h" />
-    <ClInclude Include="Source\SceneBoss.h" />
-    <ClInclude Include="Source\SceneGameBreaker.h" />
-    <ClInclude Include="Source\SceneIntro.h" />
-    <ClInclude Include="Source\SceneTitle.h" />
-    <ClInclude Include="Source\StateMachine.h" />
     <ClInclude Include="Source\System\BasicShader.h" />
     <ClInclude Include="Source\System\Dialog.h" />
     <ClInclude Include="Source\System\GamePad.h" />
@@ -195,15 +204,6 @@
     <ClInclude Include="Source\System\ShapeRenderer.h" />
     <ClInclude Include="Source\System\Sprite.h" />
     <ClInclude Include="Source\System\TransformUtils.h" />
-    <ClInclude Include="Source\UIButtonPrimitive.h" />
-    <ClInclude Include="Source\UIButtonSprite.h" />
-    <ClInclude Include="Source\UIComponents.h" />
-    <ClInclude Include="Source\UIImpactDisplay.h" />
-    <ClInclude Include="Source\UILabel.h" />
-    <ClInclude Include="Source\UIPanel.h" />
-    <ClInclude Include="Source\WindowManager.h" />
-    <ClInclude Include="Source\WindowShatter.h" />
-    <ClInclude Include="Source\WindowTrackingSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="External\imgui-docking\imgui.cpp" />
@@ -216,38 +216,48 @@
     <ClCompile Include="External\ImGuizmo\ImGradient.cpp" />
     <ClCompile Include="External\ImGuizmo\ImGuizmo.cpp" />
     <ClCompile Include="External\ImGuizmo\ImSequencer.cpp" />
-    <ClCompile Include="Source\AnimationController.cpp" />
-    <ClCompile Include="Source\Bullet.cpp" />
-    <ClCompile Include="Source\BitmapFont.cpp" />
-    <ClCompile Include="Source\Boss.cpp" />
-    <ClCompile Include="Source\BossTerminal.cpp" />
-    <ClCompile Include="Source\Camera.cpp" />
-    <ClCompile Include="Source\CameraController.cpp" />
-    <ClCompile Include="Source\Character.cpp" />
-    <ClCompile Include="Source\CharacterMovement.cpp" />
-    <ClCompile Include="Source\CinematicDirector.cpp" />
-    <ClCompile Include="Source\CursorBlock.cpp" />
-    <ClCompile Include="Source\Enemy.cpp" />
-    <ClCompile Include="Source\EnemyManager.cpp" />
-    <ClCompile Include="Source\Framework.cpp" />
-    <ClCompile Include="Source\FreeCameraController.cpp" />
-    <ClCompile Include="Source\GameWindow.cpp" />
-    <ClCompile Include="Source\GUISceneGameBreaker.cpp" />
-    <ClCompile Include="Source\Item.cpp" />
-    <ClCompile Include="Source\ItemManager.cpp" />
-    <ClCompile Include="Source\JuiceEngine.cpp" />
-    <ClCompile Include="Source\Main.cpp" />
-    <ClCompile Include="Source\Player.cpp" />
-    <ClCompile Include="Source\PostProcessManager.cpp" />
-    <ClCompile Include="Source\Primitive.cpp" />
-    <ClCompile Include="Source\ResourceManager.cpp" />
-    <ClCompile Include="Source\SceneGame.cpp" />
-    <ClCompile Include="Source\SceneBoss.cpp" />
-    <ClCompile Include="Source\SceneGameBreaker.cpp" />
-    <ClCompile Include="Source\SceneIntro.cpp" />
-    <ClCompile Include="Source\SceneTitle.cpp" />
-    <ClCompile Include="Source\Stage.cpp" />
-    <ClCompile Include="Source\StateBoss.cpp" />
+    <ClCompile Include="Source\Engine\Base\Framework.cpp" />
+    <ClCompile Include="Source\Engine\Base\Main.cpp" />
+    <ClCompile Include="Source\Engine\Base\ResourceManager.cpp" />
+    <ClCompile Include="Source\Engine\Graphics\BitmapFont.cpp" />
+    <ClCompile Include="Source\Engine\Graphics\Camera.cpp" />
+    <ClCompile Include="Source\Engine\Graphics\CameraController.cpp" />
+    <ClCompile Include="Source\Engine\Graphics\FreeCameraController.cpp" />
+    <ClCompile Include="Source\Engine\Graphics\PostProcessManager.cpp" />
+    <ClCompile Include="Source\Engine\Graphics\Primitive.cpp" />
+    <ClCompile Include="Source\Engine\Graphics\UberShader.cpp" />
+    <ClCompile Include="Source\Engine\Legacy\BossTerminal.cpp" />
+    <ClCompile Include="Source\Engine\Legacy\GUISceneGameBreaker.cpp" />
+    <ClCompile Include="Source\Engine\Legacy\TerminalMonitor1.cpp" />
+    <ClCompile Include="Source\Engine\Legacy\TextDatabase.cpp" />
+    <ClCompile Include="Source\Engine\UI\CursorBlock.cpp" />
+    <ClCompile Include="Source\Engine\UI\TUIBuilder.cpp" />
+    <ClCompile Include="Source\Engine\UI\UIComponents.cpp" />
+    <ClCompile Include="Source\Engine\UI\UIImpactDisplay.cpp" />
+    <ClCompile Include="Source\Engine\UI\UIPanel.cpp" />
+    <ClCompile Include="Source\Engine\VFX\AnimationController.cpp" />
+    <ClCompile Include="Source\Engine\VFX\CinematicDirector.cpp" />
+    <ClCompile Include="Source\Engine\VFX\JuiceEngine.cpp" />
+    <ClCompile Include="Source\Engine\Windowing\GameWindow.cpp" />
+    <ClCompile Include="Source\Engine\Windowing\WindowManager.cpp" />
+    <ClCompile Include="Source\Engine\Windowing\WindowShatter.cpp" />
+    <ClCompile Include="Source\Engine\Windowing\WindowTrackingSystem.cpp" />
+    <ClCompile Include="Source\Game\Entities\Boss.cpp" />
+    <ClCompile Include="Source\Game\Entities\Bullet.cpp" />
+    <ClCompile Include="Source\Game\Entities\Character.cpp" />
+    <ClCompile Include="Source\Game\Entities\CharacterMovement.cpp" />
+    <ClCompile Include="Source\Game\Entities\Enemy.cpp" />
+    <ClCompile Include="Source\Game\Entities\EnemyManager.cpp" />
+    <ClCompile Include="Source\Game\Entities\Item.cpp" />
+    <ClCompile Include="Source\Game\Entities\ItemManager.cpp" />
+    <ClCompile Include="Source\Game\Entities\Player.cpp" />
+    <ClCompile Include="Source\Game\Scenes\SceneBoss.cpp" />
+    <ClCompile Include="Source\Game\Scenes\SceneGame.cpp" />
+    <ClCompile Include="Source\Game\Scenes\SceneGameBreaker.cpp" />
+    <ClCompile Include="Source\Game\Scenes\SceneIntro.cpp" />
+    <ClCompile Include="Source\Game\Scenes\SceneTitle.cpp" />
+    <ClCompile Include="Source\Game\Scenes\Stage.cpp" />
+    <ClCompile Include="Source\Game\States\StateBoss.cpp" />
     <ClCompile Include="Source\System\AudioManager.cpp" />
     <ClCompile Include="Source\System\BasicShader.cpp" />
     <ClCompile Include="Source\System\Collision.cpp" />
@@ -270,16 +280,6 @@
     <ClCompile Include="Source\System\ShapeRenderer.cpp" />
     <ClCompile Include="Source\System\Sprite.cpp" />
     <ClCompile Include="Source\System\TransformUtils.cpp" />
-    <ClCompile Include="Source\TerminalMonitor1.cpp" />
-    <ClCompile Include="Source\TextDatabase.cpp" />
-    <ClCompile Include="Source\TUIBuilder.cpp" />
-    <ClCompile Include="Source\UberShader.cpp" />
-    <ClCompile Include="Source\UIComponents.cpp" />
-    <ClCompile Include="Source\UIImpactDisplay.cpp" />
-    <ClCompile Include="Source\UIPanel.cpp" />
-    <ClCompile Include="Source\WindowManager.cpp" />
-    <ClCompile Include="Source\WindowShatter.cpp" />
-    <ClCompile Include="Source\WindowTrackingSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Basic.hlsli" />

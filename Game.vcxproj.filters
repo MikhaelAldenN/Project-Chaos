@@ -45,82 +45,7 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Source\AnimationController.cpp">
-      <Filter>Source\Animation</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Camera.cpp">
-      <Filter>Source\Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\CameraController.cpp">
-      <Filter>Source\Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\FreeCameraController.cpp">
-      <Filter>Source\Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Character.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Enemy.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Bullet.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Player.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\CharacterMovement.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Framework.cpp">
-      <Filter>Source\Framework</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Main.cpp">
-      <Filter>Source\Framework</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\SceneGame.cpp">
-      <Filter>Source\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\SceneBoss.cpp">
-      <Filter>Source\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\SceneGameBreaker.cpp">
-      <Filter>Source\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\SceneIntro.cpp">
-      <Filter>Source\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\SceneTitle.cpp">
-      <Filter>Source\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\PostProcessManager.cpp">
-      <Filter>Source\Shaders</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\UberShader.cpp">
-      <Filter>Source\Shaders</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Stage.cpp">
-      <Filter>Source\Stage</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\TextDatabase.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\TUIBuilder.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\UIComponents.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\UIPanel.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\WindowManager.cpp">
-      <Filter>Source\Window</Filter>
-    </ClCompile>
     <ClCompile Include="Source\System\BasicShader.cpp">
-      <Filter>System</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\BitmapFont.cpp">
       <Filter>System</Filter>
     </ClCompile>
     <ClCompile Include="Source\System\Dialog.cpp">
@@ -162,16 +87,10 @@
     <ClCompile Include="Source\System\PhongShader.cpp">
       <Filter>System</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Primitive.cpp">
-      <Filter>System</Filter>
-    </ClCompile>
     <ClCompile Include="Source\System\PrimitiveRenderer.cpp">
       <Filter>System</Filter>
     </ClCompile>
     <ClCompile Include="Source\System\RenderState.cpp">
-      <Filter>System</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\ResourceManager.cpp">
       <Filter>System</Filter>
     </ClCompile>
     <ClCompile Include="Source\System\ShapeRenderer.cpp">
@@ -213,162 +132,144 @@
     <ClCompile Include="External\ImGuizmo\ImSequencer.cpp">
       <Filter>External\ImGuizmo</Filter>
     </ClCompile>
-    <ClCompile Include="Source\CinematicDirector.cpp">
-      <Filter>Source\Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\GUISceneGameBreaker.cpp">
-      <Filter>Source\DebugGUI</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\JuiceEngine.cpp">
-      <Filter>Source\JuiceEngine</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\EnemyManager.cpp">
-      <Filter>Source\Character</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\WindowShatter.cpp">
-      <Filter>Source\Window</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Boss.cpp">
-      <Filter>Source\Character\Boss</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\BossTerminal.cpp">
-      <Filter>Source\Character\Boss</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\WindowTrackingSystem.cpp">
-      <Filter>Source\Window</Filter>
-    </ClCompile>
     <ClCompile Include="Source\System\Collision.cpp">
       <Filter>System</Filter>
     </ClCompile>
     <ClCompile Include="Source\System\CollisionManager.cpp">
       <Filter>System</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Item.cpp">
-      <Filter>Source\Item</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\ItemManager.cpp">
-      <Filter>Source\Item</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\StateBoss.cpp">
-      <Filter>Source\State</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\TerminalMonitor1.cpp">
-      <Filter>Source\Character\Boss</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\UIImpactDisplay.cpp">
-      <Filter>Source\UI</Filter>
-    </ClCompile>
     <ClCompile Include="Source\System\AudioManager.cpp">
       <Filter>System</Filter>
     </ClCompile>
-    <ClCompile Include="Source\CursorBlock.cpp">
-      <Filter>Source\UI</Filter>
+    <ClCompile Include="Source\Engine\Base\Framework.cpp">
+      <Filter>Source\Engine\Base</Filter>
     </ClCompile>
-    <ClCompile Include="Source\GameWindow.cpp">
-      <Filter>Source\Window</Filter>
+    <ClCompile Include="Source\Engine\Base\Main.cpp">
+      <Filter>Source\Engine\Base</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Base\ResourceManager.cpp">
+      <Filter>Source\Engine\Base</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Windowing\GameWindow.cpp">
+      <Filter>Source\Engine\Windowing</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Windowing\WindowManager.cpp">
+      <Filter>Source\Engine\Windowing</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Windowing\WindowShatter.cpp">
+      <Filter>Source\Engine\Windowing</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Windowing\WindowTrackingSystem.cpp">
+      <Filter>Source\Engine\Windowing</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Graphics\BitmapFont.cpp">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Graphics\Camera.cpp">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Graphics\CameraController.cpp">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Graphics\FreeCameraController.cpp">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Graphics\PostProcessManager.cpp">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Graphics\Primitive.cpp">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Graphics\UberShader.cpp">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\UI\TUIBuilder.cpp">
+      <Filter>Source\Engine\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\UI\UIComponents.cpp">
+      <Filter>Source\Engine\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\UI\UIImpactDisplay.cpp">
+      <Filter>Source\Engine\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\UI\UIPanel.cpp">
+      <Filter>Source\Engine\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss.cpp">
+      <Filter>Source\Game\Entities</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Bullet.cpp">
+      <Filter>Source\Game\Entities</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Character.cpp">
+      <Filter>Source\Game\Entities</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\CharacterMovement.cpp">
+      <Filter>Source\Game\Entities</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Enemy.cpp">
+      <Filter>Source\Game\Entities</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\EnemyManager.cpp">
+      <Filter>Source\Game\Entities</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Item.cpp">
+      <Filter>Source\Game\Entities</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\ItemManager.cpp">
+      <Filter>Source\Game\Entities</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Player.cpp">
+      <Filter>Source\Game\Entities</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\States\StateBoss.cpp">
+      <Filter>Source\Game\States</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Scenes\SceneBoss.cpp">
+      <Filter>Source\Game\Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Scenes\SceneGame.cpp">
+      <Filter>Source\Game\Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Scenes\SceneGameBreaker.cpp">
+      <Filter>Source\Game\Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Scenes\SceneIntro.cpp">
+      <Filter>Source\Game\Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Scenes\SceneTitle.cpp">
+      <Filter>Source\Game\Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\VFX\AnimationController.cpp">
+      <Filter>Source\Engine\VFX</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\VFX\CinematicDirector.cpp">
+      <Filter>Source\Engine\VFX</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\VFX\JuiceEngine.cpp">
+      <Filter>Source\Engine\VFX</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Scenes\Stage.cpp">
+      <Filter>Source\Game\Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\UI\CursorBlock.cpp">
+      <Filter>Source\Engine\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Legacy\BossTerminal.cpp">
+      <Filter>Source\Engine\Legacy</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Legacy\GUISceneGameBreaker.cpp">
+      <Filter>Source\Engine\Legacy</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Legacy\TerminalMonitor1.cpp">
+      <Filter>Source\Engine\Legacy</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Legacy\TextDatabase.cpp">
+      <Filter>Source\Engine\Legacy</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Source\AnimationController.h">
-      <Filter>Source\Animation</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Camera.h">
-      <Filter>Source\Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\CameraController.h">
-      <Filter>Source\Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\FreeCameraController.h">
-      <Filter>Source\Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Character.h">
-      <Filter>Source\Character</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Enemy.h">
-      <Filter>Source\Character</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Bullet.h">
-      <Filter>Source\Character</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Player.h">
-      <Filter>Source\Character</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\CharacterMovement.h">
-      <Filter>Source\Character</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Framework.h">
-      <Filter>Source\Framework</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Scene.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\SceneGame.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\SceneBoss.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\SceneGameBreaker.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\SceneIntro.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\SceneTitle.h">
-      <Filter>Source\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\PostProcessManager.h">
-      <Filter>Source\Shaders</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UberShader.h">
-      <Filter>Source\Shaders</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Stage.h">
-      <Filter>Source\Stage</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\StateMachine.h">
-      <Filter>Source\State</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\PlayerState.h">
-      <Filter>Source\State</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\PlayerStates.h">
-      <Filter>Source\State</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\ButtonManager.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\TextDatabase.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\TUIBuilder.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UIButton.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UIButtonPrimitive.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UIButtonSprite.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UIComponents.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UILabel.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UIPanel.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\WindowManager.h">
-      <Filter>Source\Window</Filter>
-    </ClInclude>
     <ClInclude Include="Source\System\BasicShader.h">
-      <Filter>System</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\BitmapFont.h">
       <Filter>System</Filter>
     </ClInclude>
     <ClInclude Include="Source\System\Dialog.h">
@@ -404,9 +305,6 @@
     <ClInclude Include="Source\System\Light.h">
       <Filter>System</Filter>
     </ClInclude>
-    <ClInclude Include="Source\MathUtils.h">
-      <Filter>System</Filter>
-    </ClInclude>
     <ClInclude Include="Source\System\Misc.h">
       <Filter>System</Filter>
     </ClInclude>
@@ -422,9 +320,6 @@
     <ClInclude Include="Source\System\PhongShader.h">
       <Filter>System</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Primitive.h">
-      <Filter>System</Filter>
-    </ClInclude>
     <ClInclude Include="Source\System\PrimitiveRenderer.h">
       <Filter>System</Filter>
     </ClInclude>
@@ -432,9 +327,6 @@
       <Filter>System</Filter>
     </ClInclude>
     <ClInclude Include="Source\System\RenderState.h">
-      <Filter>System</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\ResourceManager.h">
       <Filter>System</Filter>
     </ClInclude>
     <ClInclude Include="Source\System\Shader.h">
@@ -488,59 +380,167 @@
     <ClInclude Include="External\ImGuizmo\ImSequencer.h">
       <Filter>External\ImGuizmo</Filter>
     </ClInclude>
-    <ClInclude Include="Source\CinematicDirector.h">
-      <Filter>Source\Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\GUISceneGameBreaker.h">
-      <Filter>Source\DebugGUI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\JuiceEngine.h">
-      <Filter>Source\JuiceEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\EnemyManager.h">
-      <Filter>Source\Character</Filter>
-    </ClInclude>
     <ClInclude Include="Source\System\Collision.h">
       <Filter>System</Filter>
     </ClInclude>
     <ClInclude Include="Source\System\CollisionManager.h">
       <Filter>System</Filter>
     </ClInclude>
-    <ClInclude Include="Source\WindowShatter.h">
-      <Filter>Source\Window</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Boss.h">
-      <Filter>Source\Character\Boss</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\BossTerminal.h">
-      <Filter>Source\Character\Boss</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\WindowTrackingSystem.h">
-      <Filter>Source\Window</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Item.h">
-      <Filter>Source\Item</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\ItemManager.h">
-      <Filter>Source\Item</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\StateBoss.h">
-      <Filter>Source\State</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\TerminalMonitor1.h">
-      <Filter>Source\Character\Boss</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\UIImpactDisplay.h">
-      <Filter>Source\UI</Filter>
-    </ClInclude>
     <ClInclude Include="Source\System\AudioManager.h">
       <Filter>System</Filter>
     </ClInclude>
-    <ClInclude Include="Source\CursorBlock.h">
-      <Filter>Source\UI</Filter>
+    <ClInclude Include="Source\Engine\Base\Framework.h">
+      <Filter>Source\Engine\Base</Filter>
     </ClInclude>
-    <ClInclude Include="Source\GameWindow.h">
-      <Filter>Source\Window</Filter>
+    <ClInclude Include="Source\Engine\Base\MathUtils.h">
+      <Filter>Source\Engine\Base</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Base\ResourceManager.h">
+      <Filter>Source\Engine\Base</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Windowing\GameWindow.h">
+      <Filter>Source\Engine\Windowing</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Windowing\WindowManager.h">
+      <Filter>Source\Engine\Windowing</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Windowing\WindowShatter.h">
+      <Filter>Source\Engine\Windowing</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Windowing\WindowTrackingSystem.h">
+      <Filter>Source\Engine\Windowing</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Graphics\BitmapFont.h">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Graphics\Camera.h">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Graphics\CameraController.h">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Graphics\FreeCameraController.h">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Graphics\PostProcessManager.h">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Graphics\Primitive.h">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Graphics\UberShader.h">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\UI\ButtonManager.h">
+      <Filter>Source\Engine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\UI\TUIBuilder.h">
+      <Filter>Source\Engine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\UI\UIButton.h">
+      <Filter>Source\Engine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\UI\UIButtonPrimitive.h">
+      <Filter>Source\Engine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\UI\UIButtonSprite.h">
+      <Filter>Source\Engine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\UI\UIComponents.h">
+      <Filter>Source\Engine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\UI\UIImpactDisplay.h">
+      <Filter>Source\Engine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\UI\UILabel.h">
+      <Filter>Source\Engine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\UI\UIPanel.h">
+      <Filter>Source\Engine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Bullet.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Character.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\CharacterMovement.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Enemy.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\EnemyManager.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Item.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\ItemManager.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Player.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\States\PlayerState.h">
+      <Filter>Source\Game\States</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\States\PlayerStates.h">
+      <Filter>Source\Game\States</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\States\StateBoss.h">
+      <Filter>Source\Game\States</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\States\StateMachine.h">
+      <Filter>Source\Game\States</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Scenes\Scene.h">
+      <Filter>Source\Game\Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Scenes\SceneBoss.h">
+      <Filter>Source\Game\Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Scenes\SceneGame.h">
+      <Filter>Source\Game\Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Scenes\SceneGameBreaker.h">
+      <Filter>Source\Game\Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Scenes\SceneIntro.h">
+      <Filter>Source\Game\Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Scenes\SceneTitle.h">
+      <Filter>Source\Game\Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\VFX\AnimationController.h">
+      <Filter>Source\Engine\VFX</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\VFX\CinematicDirector.h">
+      <Filter>Source\Engine\VFX</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\VFX\JuiceEngine.h">
+      <Filter>Source\Engine\VFX</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Scenes\Stage.h">
+      <Filter>Source\Game\Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\UI\CursorBlock.h">
+      <Filter>Source\Engine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Legacy\BossTerminal.h">
+      <Filter>Source\Engine\Legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Legacy\GUISceneGameBreaker.h">
+      <Filter>Source\Engine\Legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Legacy\TerminalMonitor1.h">
+      <Filter>Source\Engine\Legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Legacy\TextDatabase.h">
+      <Filter>Source\Engine\Legacy</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -573,36 +573,6 @@
     <Filter Include="Source">
       <UniqueIdentifier>{2b3e2022-ddc2-41c7-87c3-12667fdded60}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source\Animation">
-      <UniqueIdentifier>{891cb4e5-4e9c-4aa9-ae3f-a8cebedadb57}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Camera">
-      <UniqueIdentifier>{461e1e2a-0e2b-4def-8558-8ae8b02e7a29}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Character">
-      <UniqueIdentifier>{b787c2fd-c2b2-4ca0-91d9-61f955c3d49a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Framework">
-      <UniqueIdentifier>{e1087b50-356c-4b06-9144-c7fbee63a43c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Scene">
-      <UniqueIdentifier>{dd669dd4-6119-477a-9799-78d280c8e03e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Shaders">
-      <UniqueIdentifier>{9b37db2a-d994-4a71-a339-fe6e35f61f22}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Stage">
-      <UniqueIdentifier>{b6f39b3d-159b-4e52-9b0f-937747d689ea}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\State">
-      <UniqueIdentifier>{a567a437-9e81-43d7-be93-81293e2da273}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\UI">
-      <UniqueIdentifier>{789c50eb-f8e5-4630-81fb-b18fb4017582}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Window">
-      <UniqueIdentifier>{6397cb64-fa80-49ce-8d72-e2ae3f5c6a37}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Shader">
       <UniqueIdentifier>{b5e7fa88-71ba-4d8c-a565-ac27dcec1137}</UniqueIdentifier>
     </Filter>
@@ -618,20 +588,41 @@
     <Filter Include="External\ImGuizmo">
       <UniqueIdentifier>{e3803378-04d7-4a3f-bddf-4278fb783329}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source\DebugGUI">
-      <UniqueIdentifier>{c3446281-fbb3-4c45-b3e8-518c302576cc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\JuiceEngine">
-      <UniqueIdentifier>{579371db-9d8e-4fa5-b1c0-e8a7a31d2d54}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Character\Boss">
-      <UniqueIdentifier>{992ad691-0f98-4707-973e-3448667c4943}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Item">
-      <UniqueIdentifier>{53f85d7a-51db-4e9e-9f4e-9401e52b27ec}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source\Icon">
       <UniqueIdentifier>{7bd705e7-0625-4051-be3a-e8803d3aae3d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Game">
+      <UniqueIdentifier>{1d5302bc-1004-4b77-b0a1-acff22be51c2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Game\Entities">
+      <UniqueIdentifier>{cdecc1d4-b863-4960-9709-131b62e21639}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Game\States">
+      <UniqueIdentifier>{e201139c-163f-44bc-84c9-2b1a6dee31cf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Game\Scenes">
+      <UniqueIdentifier>{d70063a2-c212-4c70-8395-21094795827b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Engine">
+      <UniqueIdentifier>{84d82495-37e6-4f22-9a06-973e331961f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Engine\Base">
+      <UniqueIdentifier>{e1087b50-356c-4b06-9144-c7fbee63a43c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Engine\Windowing">
+      <UniqueIdentifier>{bfd8da63-6dce-4d15-9568-2510f0b1f733}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Engine\Graphics">
+      <UniqueIdentifier>{b02e984f-b1e5-4aa6-bd3f-a3a6a991ac63}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Engine\UI">
+      <UniqueIdentifier>{4169565e-b6e0-4c46-b20c-d8df55a424c1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Engine\VFX">
+      <UniqueIdentifier>{d635e537-d2b2-4346-be02-ce124be0ed2c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Engine\Legacy">
+      <UniqueIdentifier>{70925a7c-d738-4f9d-94d3-89ca8bdc709e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
