@@ -1,8 +1,10 @@
-// Player.h の中身を以下に差し替え
 #pragma once
 #include "Character.h"
 #include <memory>
 #include <DirectXMath.h>
+#include <characterkinematic/PxController.h> 
+#include <characterkinematic/PxCapsuleController.h>
+#include <characterkinematic/PxControllerManager.h>
 
 class StateMachine;
 class AnimationController;
@@ -21,7 +23,6 @@ public:
     AnimationController* GetAnimator() const { return animator; }
     std::shared_ptr<Model> GetModel() const { return model; }
 
-    // 引数 dt を追加（PlayerStates.h で使われているため）
     void HandleMovementInput(float dt);
     void UpdateHorizontalMovement(float elapsedTime);
 
@@ -42,7 +43,8 @@ public:
 
     void DrawDebugGUI();
 
-    // 他のファイルから参照されているため復活
+    void InitPhysics(physx::PxControllerManager* manager, physx::PxMaterial* material);
+
     DirectX::XMFLOAT4 color;
 
 private:
@@ -56,6 +58,7 @@ private:
     float acceleration = 8.0f;
     float deceleration = 12.0f;
     DirectX::XMFLOAT2 currentSmoothInput = { 0.0f, 0.0f };
+    physx::PxController* m_physxController = nullptr;
 
 public:
     // Accessors untuk State Machine
