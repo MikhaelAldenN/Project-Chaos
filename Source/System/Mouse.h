@@ -1,6 +1,8 @@
 #pragma once
 
 #include <Windows.h>
+#include <DirectXMath.h>
+#include <cmath>
 
 using MouseButton = unsigned int;
 
@@ -64,6 +66,11 @@ public:
 
 	// CURSOR LOCK FUNCTION
 	void LockCursor(bool lock);
+
+	DirectX::XMFLOAT3 GetWorldPosition(
+		const DirectX::XMFLOAT4X4& viewMatrix,
+		const DirectX::XMFLOAT4X4& projMatrix
+	) const;
 
 private:
 	MouseButton		buttonState[2] = { 0 };

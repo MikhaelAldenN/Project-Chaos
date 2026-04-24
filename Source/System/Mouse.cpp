@@ -107,3 +107,45 @@ void Mouse::LockCursor(bool lock)
 		ShowCursor(!isCursorLocked);
 	}
 }
+
+DirectX::XMFLOAT3 Mouse::GetWorldPosition(const DirectX::XMFLOAT4X4& viewMatrix, const DirectX::XMFLOAT4X4& projMatrix) const
+{
+	// 1. Ambil posisi yang sudah disesuaikan dengan viewport (menggunakan variabel internal Mouse)
+	float mouseX = static_cast<float>(positionX[0]);
+	float mouseY = static_cast<float>(positionY[0]);
+
+	// 2. Setup vektor awal
+	DirectX::XMVECTOR mouseNear = DirectX::XMVectorSet(mouseX, mouseY, 0.0f, 1.0f);
+	DirectX::XMVECTOR mouseFar = DirectX::XMVectorSet(mouseX, mouseY, 1.0f, 1.0f);
+
+	// 3. Load matriks
+	DirectX::XMMATRIX view = DirectX::XMLoadFloat4x4(&viewMatrix);
+	DirectX::XMMATRIX proj = DirectX::XMLoadFloat4x4(&projMatrix);
+	DirectX::XMMATRIX world = DirectX::XMMatrixIdentity();
+
+	// 4. Unproject (Gunakan screenWidth dan screenHeight yang tersimpan di class Mouse)
+	DirectX::XMVECTOR pNear = DirectX::XMVector3Unproject(
+		mouseNear, 0, 0, static_cast<float>(screenWidth), static_cast<float>(screenHeight),
+		0.0f, 1.0f, proj, view, world
+	);
+	DirectX::XMVECTOR pFar = DirectX::XMVector3Unproject(
+		mouseFar, 0, 0, static_cast<float>(screenWidth), static_cast<float>(screenHeight),
+		0.0f, 1.0f, proj, view, world
+	);
+
+	// 5. Kalkulasi Raycast ke lantai (Y = 0)
+	DirectX::XMVECTOR rayDir = DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(pFar, pNear));
+
+	// Cegah division by zero jika kamera menatap lurus sejajar lantai (jarang terjadi di top-down)
+	float dirY = DirectX::XMVectorGetY(rayDir);
+	if (std::abs(dirY) < 0.0001f) {
+		return { 0.0f, 0.0f, 0.0f };
+	}
+
+	float t = -DirectX::XMVectorGetY(pNear) / dirY;
+	DirectX::XMVECTOR groundPoint = DirectX::XMVectorAdd(pNear, DirectX::XMVectorScale(rayDir, t));
+
+	DirectX::XMFLOAT3 result;
+	DirectX::XMStoreFloat3(&result, groundPoint);
+	return result;
+}
