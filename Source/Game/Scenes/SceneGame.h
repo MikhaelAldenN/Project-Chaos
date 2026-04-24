@@ -2,7 +2,7 @@
 
 #include <memory>
 #include <vector>
-#include "GameWindow.h"
+#include "Window.h"
 #include "Scene.h"
 #include "Camera.h"
 #include "CameraController.h"
@@ -37,10 +37,10 @@ private:
     std::vector<Camera*> additionalCameras;
 
     // --- Tracking Window (Auto-follows player) ---
-    GameWindow* trackingWindow = nullptr;
+    Beyond::Window* trackingWindow = nullptr;
     Camera* trackingCamera = nullptr;
 
     // --- Lens Window (Draggable by user) ---
-    GameWindow* lensWindow = nullptr;
+    Beyond::Window* lensWindow = nullptr;
     Camera* lensCamera = nullptr;
 };

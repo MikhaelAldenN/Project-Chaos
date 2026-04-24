@@ -150,9 +150,6 @@
     <ClCompile Include="Source\Engine\Base\ResourceManager.cpp">
       <Filter>Source\Engine\Base</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Windowing\GameWindow.cpp">
-      <Filter>Source\Engine\Windowing</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Engine\Windowing\WindowManager.cpp">
       <Filter>Source\Engine\Windowing</Filter>
     </ClCompile>
@@ -266,6 +263,9 @@
     </ClCompile>
     <ClCompile Include="Source\Engine\Legacy\TextDatabase.cpp">
       <Filter>Source\Engine\Legacy</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Windowing\Window.cpp">
+      <Filter>Source\Engine\Windowing</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -397,9 +397,6 @@
     </ClInclude>
     <ClInclude Include="Source\Engine\Base\ResourceManager.h">
       <Filter>Source\Engine\Base</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Engine\Windowing\GameWindow.h">
-      <Filter>Source\Engine\Windowing</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Windowing\WindowManager.h">
       <Filter>Source\Engine\Windowing</Filter>
@@ -541,6 +538,9 @@
     </ClInclude>
     <ClInclude Include="Source\Engine\Legacy\TextDatabase.h">
       <Filter>Source\Engine\Legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Windowing\Window.h">
+      <Filter>Source\Engine\Windowing</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

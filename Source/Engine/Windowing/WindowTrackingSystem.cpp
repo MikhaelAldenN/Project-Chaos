@@ -43,7 +43,7 @@ bool WindowTrackingSystem::AddTrackedWindow(
 ) 
 {
     // 1. Create Window via Singleton Manager
-    GameWindow* window = WindowManager::Instance().CreateGameWindow(
+    Beyond::Window* window = WindowManager::Instance().CreateGameWindow(
         config.title.c_str(),
         config.width,
         config.height
@@ -363,7 +363,7 @@ void WindowTrackingSystem::ReleasePooledWindow(const std::string& name)
     }
 }
 
-void WindowTrackingSystem::RegisterWindow(GameWindow* window, WindowRole role, std::shared_ptr<Camera> camera)
+void WindowTrackingSystem::RegisterWindow(Beyond::Window* window, WindowRole role, std::shared_ptr<Camera> camera)
 {
     if (!window) return;
 

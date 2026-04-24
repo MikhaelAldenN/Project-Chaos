@@ -6,7 +6,7 @@
 #include <functional>
 #include <unordered_map>
 #include <DirectXMath.h>
-#include "GameWindow.h"
+#include "Window.h"
 #include "Camera.h"
 
 // =========================================================
@@ -47,7 +47,7 @@ struct TrackedWindowConfig
 struct TrackedWindow
 {
     std::string name;
-    GameWindow* window = nullptr;
+    Beyond::Window* window = nullptr;
     std::shared_ptr<Camera> camera;
     WindowState state;
     DirectX::XMFLOAT3 trackingOffset = { 0.0f, 0.0f, 0.0f };
@@ -70,7 +70,7 @@ public:
     void Update(float dt);
 
     // Management
-    void RegisterWindow(GameWindow* window, WindowRole role, std::shared_ptr<Camera> camera = nullptr); // <-- BARU
+    void RegisterWindow(Beyond::Window* window, WindowRole role, std::shared_ptr<Camera> camera = nullptr); // <-- BARU
     void UpdateWindowBounds(int windowIndex, int width, int height);
 
     // Management

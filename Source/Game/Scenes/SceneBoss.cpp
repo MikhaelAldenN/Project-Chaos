@@ -160,7 +160,7 @@ void SceneBoss::InitializeSubWindows()
         // playerWin->window->SetDraggable(true); 
     }
 
-    GameWindow* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
+    Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
     if (mainWindow && mainWindow->GetSDLWindow())
     {
         SDL_ShowWindow(mainWindow->GetSDLWindow());
@@ -185,12 +185,12 @@ void SceneBoss::Update(float elapsedTime)
     Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
 
     // 1. SINKRONISASI MAIN WINDOW KE PANEL IMGUI
-    GameWindow* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
+    Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
     if (mainWindow)
     {
         if (m_autoSyncMainWindow)
         {
-            GameWindow* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
+            Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
             if (mainWindow)
             {
                 // HAPUS baris SDL_SetWindowPosition agar kita bisa drag manual
@@ -361,7 +361,7 @@ void SceneBoss::DrawGUI()
     // ---------------------------------------------------------
     if (ImGui::CollapsingHeader("Window Tracking Config", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (ImGui::Checkbox("Window Topmost (RESET)", &m_topmostEnabled))
+        if (ImGui::Checkbox("WindowTopmost(RESET)", &m_topmostEnabled))
         {
             WindowManager::Instance().SetTopmost(m_topmostEnabled);
             ResetEverything();

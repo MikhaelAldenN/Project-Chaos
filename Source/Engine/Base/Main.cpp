@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
                 {
                     // Cek window mana yang barusan diklik tombol silangnya
                     SDL_Window* closedWin = SDL_GetWindowFromID(event.window.windowID);
-                    GameWindow* mainWin = framework ? framework->GetMainWindow() : nullptr;
+                    Beyond::Window* mainWin = framework ? framework->GetMainWindow() : nullptr;
 
                     if (mainWin && closedWin == mainWin->GetSDLWindow()) {
                         // Yang disilang adalah MAIN WINDOW -> Matikan game!

@@ -21,7 +21,7 @@ void WindowManager::Update(float dt)
 void WindowManager::EnforceWindowPriorities()
 {
     // 1. Filter valid game windows
-    std::vector<GameWindow*> sortedWindows;
+    std::vector<Beyond::Window*> sortedWindows;
     sortedWindows.reserve(windows.size());
 
     for (auto& win : windows)
@@ -35,7 +35,7 @@ void WindowManager::EnforceWindowPriorities()
     // 2. Sort by priority (Ascending: Priority 0 paling atas, makin besar makin di belakang)
     // Note: Logika sort kamu sebelumnya Ascending, pastikan ini sesuai keinginanmu.
     std::sort(sortedWindows.begin(), sortedWindows.end(),
-        [](GameWindow* a, GameWindow* b) {
+        [](Beyond::Window* a, Beyond::Window* b) {
             return a->GetPriority() < b->GetPriority();
         });
 
@@ -48,17 +48,17 @@ void WindowManager::EnforceWindowPriorities()
     // Gunakan flag SWP_NOACTIVATE agar tidak mencuri fokus keyboard
     UINT uFlags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOREDRAW;
 
-    for (GameWindow* win : sortedWindows)
+    for (Beyond::Window* win : sortedWindows)
     {
-        SetWindowPos(win->GetHWND(), hInsertAfter, 0, 0, 0, 0, uFlags);
+        SetWindowPos(win->GetNativeHandle(), hInsertAfter, 0, 0, 0, 0, uFlags);
 
         // Chain Z-Order: Window berikutnya diletakkan DI BAWAH window ini.
-        hInsertAfter = win->GetHWND();
+        hInsertAfter = win->GetNativeHandle();
     }
 
     if (debugWindow && debugWindow->IsVisible())
     {
-        SetWindowPos(debugWindow->GetHWND(), HWND_TOPMOST, 0, 0, 0, 0, uFlags);
+        SetWindowPos(debugWindow->GetNativeHandle(), HWND_TOPMOST, 0, 0, 0, 0, uFlags);
     }
 }
 
@@ -106,7 +106,7 @@ void WindowManager::HandleResize(HWND hWnd, int width, int height)
 {
     for (auto& win : windows)
     {
-        if (win->GetHWND() == hWnd)
+        if (win->GetNativeHandle() == hWnd)
         {
             win->Resize(width, height);
             return;
@@ -114,23 +114,42 @@ void WindowManager::HandleResize(HWND hWnd, int width, int height)
     }
 }
 
-GameWindow* WindowManager::CreateGameWindow(const char* title, int width, int height)
+Beyond::Window* WindowManager::CreateGameWindow(const char* title, int width, int height)
 {
     std::lock_guard<std::mutex> lock(m_windowsMutex);
 
-    auto newWindow = std::make_unique<GameWindow>(title, width, height);
-    GameWindow* ptr = newWindow.get();
+    // 1. Buat objek Window menggunakan konstruktor kosong (tanpa parameter)
+    auto newWindow = std::make_unique<Beyond::Window>();
+
+    // 2. Panggil fungsi Initialize untuk menyiapkan window (ini tempat 3 parameter tadi)
+    if (!newWindow->Initialize(title, width, height))
+    {
+        // Handle jika gagal membuat window
+        return nullptr;
+    }
+
+    newWindow->SetTickCallback([]() {
+        // Gunakan angka statis 0.016f (1/60 detik) BUKAN variabel elapsedTime
+        Framework::Instance()->Update(0.016f);
+        Framework::Instance()->Render(0.016f);
+        });
+
+    Beyond::Window* ptr = newWindow.get();
     windows.push_back(std::move(newWindow));
+
+    // Trigger agar urutan window diperbarui
+    MarkPriorityDirty();
+
     return ptr;
 }
 
-void WindowManager::DestroyWindow(GameWindow* targetWindow)
+void WindowManager::DestroyWindow(Beyond::Window* targetWindow)
 {
     std::lock_guard<std::mutex> lock(m_windowsMutex);
 
     windows.erase(
         std::remove_if(windows.begin(), windows.end(),
-            [targetWindow](const std::unique_ptr<GameWindow>& p) {
+            [targetWindow](const std::unique_ptr<Beyond::Window>& p) {
                 return p.get() == targetWindow;
             }),
         windows.end());
