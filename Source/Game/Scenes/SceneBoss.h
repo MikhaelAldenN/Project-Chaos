@@ -5,7 +5,6 @@
 #include <string>
 #include <imgui.h> // [FIX] Untuk ImVec2 dan fungsionalitas GUI
 #include "Scene.h"
-#include "Window.h"
 #include "Camera.h"
 #include "CameraController.h"
 #include "Player.h"
