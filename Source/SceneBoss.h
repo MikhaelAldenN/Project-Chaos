@@ -63,6 +63,7 @@ private:
     int m_spawnCount = 0;
     bool m_autoSyncMainWindow = true;
     ImVec2 m_debugPanelSize = { 450, 750 }; // Ukuran default panel
+    bool m_topmostEnabled = false;
 
     // Terminal Log System
     std::vector<std::string> m_debugLogs;

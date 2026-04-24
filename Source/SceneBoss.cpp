@@ -102,10 +102,10 @@ void SceneBoss::SpawnDebugWindow()
     config.name = "debug_win_" + std::to_string(m_spawnCount);
     config.title = "D" + std::to_string(m_spawnCount) + " (drag/stretch me!)";
     config.width = 300;
-    config.height = 300;
+    config.height = 300;awd
     config.role = WindowRole::SUB_VIEWPORT;
 
-    // AddTrackedWindow otomatis akan membuatkan Kamera independen yang tertaut sempurna!
+    // AddTrackedWindow otomatis akan membuatkan Kamera indepawdaenden yang tertaut sempurna!
     m_windowSystem->AddTrackedWindow(config, []() {
         return DirectX::XMFLOAT3(0, 0, 0);
         });
@@ -123,6 +123,7 @@ void SceneBoss::SpawnDebugWindow()
     }
 
     AddLog("Spawned stable portal: " + config.name);
+    WindowManager::Instance().EnforceWindowPriorities();
 }
 
 // =========================================================
@@ -341,7 +342,7 @@ void SceneBoss::DrawGUI()
         else if (fps < 50.0f) {
             fpsColor = ImVec4(1.0f, 1.0f, 0.0f, 1.0f); // Kuning
         }
-        ImGui::TextColored(fpsColor , "FPS: %.1f (%.2f ms) (capped on 60 fps)", fps, 1000.0f / fps);
+        ImGui::TextColored(fpsColor, "FPS: %.1f (%.2f ms) (capped on 60 fps)", fps, 1000.0f / fps);
 
         static float values[90] = { 0 };
         static int values_offset = 0;
@@ -360,6 +361,11 @@ void SceneBoss::DrawGUI()
     // ---------------------------------------------------------
     if (ImGui::CollapsingHeader("Window Tracking Config", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        if (ImGui::Checkbox("Window Topmost (RESET)", &m_topmostEnabled))
+        {
+            WindowManager::Instance().SetTopmost(m_topmostEnabled);
+            ResetEverything();
+        }
         ImGui::Checkbox("Sync Main Window to This Panel", &m_autoSyncMainWindow);
 
         size_t activeCount = m_windowSystem->GetWindows().size();

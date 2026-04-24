@@ -49,12 +49,16 @@ public:
         return nullptr;
     }
 
+    void SetTopmost(bool enabled) { m_topmostEnabled = enabled; MarkPriorityDirty(); }
+    bool IsTopmost() const { return m_topmostEnabled; }
+
 private:
     WindowManager() = default;
     ~WindowManager() = default;
     WindowManager(const WindowManager&) = delete;
     void operator=(const WindowManager&) = delete;
 
+    bool m_topmostEnabled = false;
 private:
     std::vector<std::unique_ptr<GameWindow>> windows;
 

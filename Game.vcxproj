@@ -134,6 +134,7 @@
     <ClInclude Include="Source\CinematicDirector.h" />
     <ClInclude Include="Source\CursorBlock.h" />
     <ClInclude Include="Source\EnemyManager.h" />
+    <ClInclude Include="Source\GameWindow.h" />
     <ClInclude Include="Source\GUISceneGameBreaker.h" />
     <ClInclude Include="Source\Item.h" />
     <ClInclude Include="Source\ItemManager.h" />
@@ -157,7 +158,6 @@
     <ClInclude Include="Source\Enemy.h" />
     <ClInclude Include="Source\Framework.h" />
     <ClInclude Include="Source\FreeCameraController.h" />
-    <ClInclude Include="Source\GameWindow.h" />
     <ClInclude Include="Source\MathUtils.h" />
     <ClInclude Include="Source\Player.h" />
     <ClInclude Include="Source\PlayerState.h" />

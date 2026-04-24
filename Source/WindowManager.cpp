@@ -42,15 +42,7 @@ void WindowManager::EnforceWindowPriorities()
     // =========================================================
     // [MODIFIKASI] SMART TOPMOST
     // =========================================================
-#ifdef _DEBUG
-    // MODE DEBUG: Matikan TopMost agar tidak menghalangi debugging
-    // Window akan berperilaku normal (bisa ditumpuk window lain)
-    HWND hInsertAfter = HWND_NOTOPMOST;
-#else
-    // MODE RELEASE: Nyalakan TopMost (Sesuai desain game)
-    // Window akan selalu di atas aplikasi lain
-    HWND hInsertAfter = HWND_TOPMOST;
-#endif
+    HWND hInsertAfter = m_topmostEnabled ? HWND_TOPMOST : HWND_NOTOPMOST;
     // =========================================================
 
     // Gunakan flag SWP_NOACTIVATE agar tidak mencuri fokus keyboard

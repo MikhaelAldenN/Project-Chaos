@@ -114,9 +114,6 @@
     <ClCompile Include="Source\UIPanel.cpp">
       <Filter>Source\UI</Filter>
     </ClCompile>
-    <ClCompile Include="Source\GameWindow.cpp">
-      <Filter>Source\Window</Filter>
-    </ClCompile>
     <ClCompile Include="Source\WindowManager.cpp">
       <Filter>Source\Window</Filter>
     </ClCompile>
@@ -267,6 +264,9 @@
     <ClCompile Include="Source\CursorBlock.cpp">
       <Filter>Source\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Source\GameWindow.cpp">
+      <Filter>Source\Window</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\AnimationController.h">
@@ -361,9 +361,6 @@
     </ClInclude>
     <ClInclude Include="Source\UIPanel.h">
       <Filter>Source\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\GameWindow.h">
-      <Filter>Source\Window</Filter>
     </ClInclude>
     <ClInclude Include="Source\WindowManager.h">
       <Filter>Source\Window</Filter>
@@ -541,6 +538,9 @@
     </ClInclude>
     <ClInclude Include="Source\CursorBlock.h">
       <Filter>Source\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\GameWindow.h">
+      <Filter>Source\Window</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
