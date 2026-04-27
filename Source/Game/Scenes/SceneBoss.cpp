@@ -119,17 +119,23 @@ void SceneBoss::InitializeSubWindows()
     if (!m_windowSystem || !m_player) return;
 
     m_windowSystem->AddTrackedWindow(
-        { "player", "Player", 300, 300, 1, { 0.0f, 0.0f, 0.0f } },
+        { "player", "Player", 300, 300, 1 },
         [this]() -> DirectX::XMFLOAT3 {
             if (!m_player) return DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
             auto pPos = m_player->GetPosition();
-            return DirectX::XMFLOAT3(pPos.x, 0.0f, pPos.z);
+
+            // [FIX] Tambahkan offset dunia agar window bergeser ke belakang saat melar
+            return DirectX::XMFLOAT3(
+                pPos.x + m_stretchOffset.x,
+                0.0f,
+                pPos.z + m_stretchOffset.y // Memakai Y dari XMFLOAT2 untuk sumbu Z dunia
+            );
         },
         [this]() -> DirectX::XMFLOAT2 {
-            float safeMarginPixel = 150.0f;
-            float extraPadding = 0.0f;
-            float size = (safeMarginPixel * 2.0f) + extraPadding;
-            return DirectX::XMFLOAT2(size, size);
+            return DirectX::XMFLOAT2(
+                m_defaultWinSize + m_currentStretch.x,
+                m_defaultWinSize + m_currentStretch.y
+            );
         }
     );
 
@@ -214,6 +220,54 @@ void SceneBoss::Update(float elapsedTime)
             DirectX::XMFLOAT3 mousePos = Beyond::InputHelper::GetMouseWorldPos(m_mainCamera->GetPosition());
             //m_player->RotateModelToPoint(mousePos);
         }
+    }
+
+    // --- EFEK ELASTIC WINDOW (SINGLE-AXIS PROPORTIONAL) ---
+    if (m_player) {
+        DirectX::XMFLOAT3 vel = m_player->GetMovement()->GetVelocity();
+        float currentSpeedSq = vel.x * vel.x + vel.z * vel.z;
+
+        // 1. Tentukan Nilai Target (Default: 0 alias ukuran normal)
+        DirectX::XMFLOAT2 targetStretch = { 0.0f, 0.0f };
+        DirectX::XMFLOAT2 targetOffset = { 0.0f, 0.0f };
+
+        // Default Release Speed (kecepatan membal ke ukuran semula)
+        float currentLerpSpeed = 10.0f;
+
+        // 2. Kalkulasi Target Jika Sedang Dash
+        if (currentSpeedSq > 40.0f * 40.0f) {
+            float stretchPowerX = 200.0f;
+            float stretchPowerZ = 90.0f;
+
+            // [FIX] Attack Speed: Lebih cepat dari Release, tapi TIDAK instan!
+            // Angka 25.0f membuat window butuh ~0.05 detik untuk melar penuh,
+            // sehingga terlihat "ditarik" oleh kecepatan player, bukan "mendorong".
+            currentLerpSpeed = 10.0f;
+
+            if (std::abs(vel.x) > std::abs(vel.z)) {
+                // DASH HORIZONTAL
+                targetStretch.x = (std::abs(vel.x) / m_player->GetDashSpeed()) * stretchPowerX;
+
+                float signX = (vel.x > 0.0f) ? 1.0f : -1.0f;
+                targetOffset.x = -signX * (targetStretch.x * 0.5f) / PIXEL_TO_UNIT_RATIO;
+            }
+            else {
+                // DASH VERTIKAL
+                targetStretch.y = (std::abs(vel.z) / m_player->GetDashSpeed()) * stretchPowerZ;
+
+                float signZ = (vel.z > 0.0f) ? 1.0f : -1.0f;
+                targetOffset.y = -signZ * (targetStretch.y * 0.5f) / PIXEL_TO_UNIT_RATIO;
+            }
+        }
+
+        // 3. THE MAGIC (Satu Rumus untuk Semua State)
+        // Lerp ukuran dan lerp offset dieksekusi bersamaan dengan kecepatan yang sama.
+        // Ini memastikan ujung depan window terkunci mati, sementara ekornya melar dengan mulus!
+        m_currentStretch.x += (targetStretch.x - m_currentStretch.x) * currentLerpSpeed * scaledDt;
+        m_currentStretch.y += (targetStretch.y - m_currentStretch.y) * currentLerpSpeed * scaledDt;
+
+        m_stretchOffset.x += (targetOffset.x - m_stretchOffset.x) * currentLerpSpeed * scaledDt;
+        m_stretchOffset.y += (targetOffset.y - m_stretchOffset.y) * currentLerpSpeed * scaledDt;
     }
 
     // 3. Update Systems
