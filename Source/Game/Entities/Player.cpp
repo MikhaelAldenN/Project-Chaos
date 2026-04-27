@@ -74,16 +74,94 @@ void Player::Update(float elapsedTime, Camera* camera)
     if (animator) animator->Update(elapsedTime);
     if (movement) movement->Update(elapsedTime);
 
-    // 1. Putar Keseluruhan Karakter (Kaki) Menuju Arah Input Terakhir
+    // ==========================================
+        // 1. KALKULASI ARAH KAKI (DENGAN SMOOTHING)
+        // ==========================================
+    float rotationSmoothSpeed = 15.0f; // Bisa kamu pindah ke Player.h nanti untuk tuning
     DirectX::XMFLOAT2 moveInput = GetLastValidInput();
+
+    // Ambil rotasi kaki SAAT INI dari memori (dalam Radian)
+    float currentBaseYaw = XMConvertToRadians(movement->GetRotation().y);
+    float targetBaseYaw = currentBaseYaw;
+
+    // Jika sedang menekan tombol jalan, ubah target arah
     if (moveInput.x != 0.0f || moveInput.y != 0.0f) {
-        // Atan2 untuk mencari sudut dari sumbu pergerakan (Z-forward)
-        float moveAngle = atan2(moveInput.x, moveInput.y);
-        movement->SetRotationY(DirectX::XMConvertToDegrees(moveAngle));
+        targetBaseYaw = atan2(moveInput.x, moveInput.y);
     }
 
+    // Hitung jarak sudut yang harus ditempuh
+    float angleDiff = targetBaseYaw - currentBaseYaw;
+
+    // Normalisasi selisih sudut agar mencari jalur terpendek (-PI sampai PI)
+    // (Mencegah karakter muter balik 300 derajat untuk belok sedikit)
+    while (angleDiff > XM_PI)  angleDiff -= XM_2PI;
+    while (angleDiff < -XM_PI) angleDiff += XM_2PI;
+
+    // Terapkan Smoothing (Lerp)
+    float lerpFactor = rotationSmoothSpeed * elapsedTime;
+    if (lerpFactor > 1.0f) lerpFactor = 1.0f; // Mencegah overshoot
+
+    // INI ADALAH ROTASI BARU UNTUK FRAME INI
+    float smoothedYaw = currentBaseYaw + (angleDiff * lerpFactor);
+
+    // ==========================================
+    // 2. LIMITASI AIM & TARIK KAKI (AIM PULLING)
+    // ==========================================
+    bool shouldAim = false;
+    float finalRelativeAngle = 0.0f;
+
+    if (model && activeCamera)
+    {
+        DirectX::XMFLOAT3 pos = movement->GetPosition();
+        DirectX::XMFLOAT3 mousePos = Beyond::InputHelper::GetMouseWorldPos(activeCamera->GetPosition());
+
+        float dx = mousePos.x - pos.x;
+        float dz = mousePos.z - pos.z;
+        float distanceSq = (dx * dx) + (dz * dz);
+
+        // Deadzone: Hanya jalankan jika kursor tidak terlalu dekat dengan karakter
+        if (distanceSq > 0.1f)
+        {
+            shouldAim = true;
+
+            float absoluteAngleToMouse = atan2(dx, dz);
+
+            // [KUNCI NYA DI SINI]: Kita membandingkan kursor dengan kaki yang SUDAH HALUS
+            float relativeAngle = absoluteAngleToMouse - smoothedYaw;
+
+            // Normalisasi sudut torso
+            while (relativeAngle > XM_PI) relativeAngle -= XM_2PI;
+            while (relativeAngle < -XM_PI) relativeAngle += XM_2PI;
+
+            // Batas maksimal putaran tulang belakang (90 derajat Kiri/Kanan)
+            float maxTorsoAngle = XM_PIDIV2;
+
+            if (relativeAngle > maxTorsoAngle)
+            {
+                relativeAngle = maxTorsoAngle;
+                // Aim Pulling: Jika torso mentok, paksa tarik kakinya
+                smoothedYaw = absoluteAngleToMouse - relativeAngle;
+            }
+            else if (relativeAngle < -maxTorsoAngle)
+            {
+                relativeAngle = -maxTorsoAngle;
+                // Aim Pulling: Jika torso mentok, paksa tarik kakinya
+                smoothedYaw = absoluteAngleToMouse - relativeAngle;
+            }
+
+            finalRelativeAngle = relativeAngle;
+        }
+    }
+
+    // ==========================================
+    // 3. TERAPKAN ROTASI KE KAKI (BASE) DAN MATRIX
+    // ==========================================
+
+    // Set rotasi komponen menggunakan hasil akhir yang sangat halus
+    movement->SetRotationY(DirectX::XMConvertToDegrees(smoothedYaw));
+
     XMFLOAT3 pos = movement->GetPosition();
-    XMFLOAT3 rot = movement->GetRotation(); // Ini mengambil sudut lari yang baru diset
+    XMFLOAT3 rot = movement->GetRotation();
 
     XMMATRIX S = XMMatrixScaling(scale.x, scale.y, scale.z);
     XMMATRIX R = XMMatrixRotationRollPitchYaw(XMConvertToRadians(rot.x), XMConvertToRadians(rot.y), XMConvertToRadians(rot.z));
@@ -93,42 +171,24 @@ void Player::Update(float elapsedTime, Camera* camera)
     XMStoreFloat4x4(&worldMatrix, S * R * T);
 
     // ==========================================
-    // 2. INJEKSI ROTASI AIMING PROCEDURAL BADAN ATAS
+    // 4. INJEKSI ROTASI BADAN ATAS (TORSO)
     // ==========================================
-    if (model && activeCamera)
+    if (shouldAim && model)
     {
         int bodyIndex = model->GetNodeIndex("body");
-
         if (bodyIndex != -1)
         {
             Model::Node& bodyNode = model->GetNodes()[bodyIndex];
 
-            // Posisi mouse di dunia 3D
-            DirectX::XMFLOAT3 mousePos = Beyond::InputHelper::GetMouseWorldPos(activeCamera->GetPosition());
-
-            // Hitung sudut absolut menuju mouse
-            float dx = mousePos.x - pos.x;
-            float dz = mousePos.z - pos.z;
-            float absoluteAngleToMouse = atan2(dx, dz);
-
-            // Hitung sudut relatif! (Sudut Mouse DIKURANGI Sudut Kaki saat ini)
-            float currentBaseYaw = XMConvertToRadians(rot.y);
-            float relativeAngle = absoluteAngleToMouse - currentBaseYaw;
-
-            // Buat Quaternion dari rotasi Y (karena kita game top-down)
-            XMVECTOR aimRot = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), relativeAngle);
-
-            // Ambil rotasi lokal dari animasi (jika animasi bawaannya juga memutar badan)
+            // Putar torso secara lokal
+            XMVECTOR aimRot = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), finalRelativeAngle);
             XMVECTOR currentLocalRot = XMLoadFloat4(&bodyNode.rotation);
-
-            // Gabungkan rotasi: Terapkan aimRot di atas currentLocalRot
             XMVECTOR finalRot = XMQuaternionMultiply(currentLocalRot, aimRot);
-
-            // Timpa dan simpan ke dalam node
             XMStoreFloat4(&bodyNode.rotation, finalRot);
         }
     }
-    // ==========================================
+
+    // Update hirarki Model
     if (model) model->UpdateTransform(worldMatrix);
 }
 

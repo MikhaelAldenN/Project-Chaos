@@ -64,6 +64,8 @@ private:
     DirectX::XMFLOAT2 currentSmoothInput = { 0.0f, 0.0f };
     physx::PxController* m_physxController = nullptr;
 
+    float rotationSmoothSpeed = 100.0f;
+
 public:
     // Accessors untuk State Machine
     float GetBaseSpeed() const { return baseSpeed; }
