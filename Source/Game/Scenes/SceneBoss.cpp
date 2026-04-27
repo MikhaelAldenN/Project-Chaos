@@ -43,6 +43,7 @@ SceneBoss::SceneBoss()
     m_player = std::make_unique<Player>();
     m_player->SetInvertControls(false);
     m_player->SetPosition(0.0f, 0.0f, -8.0f);
+	m_player->SetMoveSpeed(10.0f);
 
     auto device = Graphics::Instance().GetDevice();
     m_primitive2D = std::make_unique<Primitive>(device);
@@ -211,7 +212,7 @@ void SceneBoss::Update(float elapsedTime)
         if (m_mainCamera)
         {
             DirectX::XMFLOAT3 mousePos = Beyond::InputHelper::GetMouseWorldPos(m_mainCamera->GetPosition());
-            m_player->RotateModelToPoint(mousePos);
+            //m_player->RotateModelToPoint(mousePos);
         }
     }
 

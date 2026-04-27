@@ -47,6 +47,10 @@ public:
 
     DirectX::XMFLOAT4 color;
 
+    bool IsMoving() const {
+        return (std::abs(currentSmoothInput.x) > 0.01f || std::abs(currentSmoothInput.y) > 0.01f);
+    }
+
 private:
     DirectX::XMFLOAT3 defaultScale = { 3.0f, 3.0f, 3.0f };
     StateMachine* stateMachine;

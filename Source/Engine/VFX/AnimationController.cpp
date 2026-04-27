@@ -1,4 +1,5 @@
 #include "AnimationController.h"
+#include <functional>
 
 using namespace DirectX; // Untuk mempermudah penulisan XMVECTOR, dll
 
@@ -111,6 +112,31 @@ void AnimationController::Update(float dt)
     }
 
     // 4. Upload ke Model (Visual)
+    if (upperAnimIndex != -1 && !upperBodyMask.empty())
+    {
+        // Update timer animasi atas
+        upperTimer += dt;
+        float upperDuration = anims.at(upperAnimIndex).secondsLength;
+        upperTimer = fmod(upperTimer, upperDuration); // Looping paksa untuk contoh
+
+        // Hitung pose animasi atas ke buffer 'upperNodePoses'
+        if (upperNodePoses.size() != ownerModel->GetNodes().size()) {
+            upperNodePoses.resize(ownerModel->GetNodes().size());
+        }
+        ownerModel->ComputeAnimation(upperAnimIndex, upperTimer, upperNodePoses);
+
+        // --- BONE MASKING BLEND ---
+        for (size_t i = 0; i < nodePoses.size(); ++i)
+        {
+            if (upperBodyMask[i])
+            {
+                // Timpa data dari Base Layer dengan Upper Layer
+                nodePoses[i] = upperNodePoses[i];
+            }
+        }
+    }
+
+    // 4. Upload ke Model (Visual)
     ownerModel->SetNodePoses(nodePoses);
 }
 
@@ -118,4 +144,32 @@ bool AnimationController::IsPlaying(const std::string& name) const
 {
     if (!ownerModel) return false;
     return currentAnimIndex == ownerModel->GetAnimationIndex(name.c_str());
+}
+
+void AnimationController::SetUpperBodyMaskRoot(const std::string& rootNodeName)
+{
+    if (!ownerModel) return;
+
+    upperBodyMask.assign(ownerModel->GetNodes().size(), false);
+    int splitIndex = ownerModel->GetNodeIndex(rootNodeName.c_str());
+    if (splitIndex == -1) return;
+
+    // Gunakan lambda rekursif untuk menandai node 'body' dan SEMUA anaknya
+    std::function<void(Model::Node*)> markNode = [&](Model::Node* node) {
+        int idx = ownerModel->GetNodeIndex(node->name.c_str());
+        if (idx != -1) upperBodyMask[idx] = true;
+
+        for (Model::Node* child : node->children) {
+            markNode(child);
+        }
+        };
+
+    markNode(&ownerModel->GetNodes()[splitIndex]);
+}
+
+void AnimationController::PlayUpper(const std::string& name)
+{
+    if (!ownerModel) return;
+    upperAnimIndex = ownerModel->GetAnimationIndex(name.c_str());
+    upperTimer = 0.0f; // Reset timer saat animasi baru dipanggil
 }

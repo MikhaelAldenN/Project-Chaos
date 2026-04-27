@@ -7,20 +7,29 @@
 #include "StateMachine.h"
 #include <cmath>
 #include <imgui.h>
+#include "InputHelper.h"
 
 using namespace DirectX;
 
 Player::Player()
 {
     ID3D11Device* device = Graphics::Instance().GetDevice();
-    model = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_player.glb");
-    scale = defaultScale;
+    model = std::make_shared<Model>(device, "Data/Model/Character/TEST_mdl_Player.glb");
+    //scale = defaultScale;
+    scale = {1.0f, 1.0f, 1.0f};
 
     animator = new AnimationController();
     animator->Initialize(model);
-
     stateMachine = new StateMachine();
     stateMachine->Initialize(new PlayerIdle(), this);
+
+    OutputDebugStringA("\n=== ANIMATIONS LOADED ===\n");
+    const auto& anims = model->GetAnimations();
+    for (size_t i = 0; i < anims.size(); ++i) {
+        std::string msg = "[" + std::to_string(i) + "] " + anims[i].name + "\n";
+        OutputDebugStringA(msg.c_str());
+    }
+    OutputDebugStringA("=========================\n\n");
 
     movement->SetGravityEnabled(false);
     color = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -65,8 +74,16 @@ void Player::Update(float elapsedTime, Camera* camera)
     if (animator) animator->Update(elapsedTime);
     if (movement) movement->Update(elapsedTime);
 
+    // 1. Putar Keseluruhan Karakter (Kaki) Menuju Arah Input Terakhir
+    DirectX::XMFLOAT2 moveInput = GetLastValidInput();
+    if (moveInput.x != 0.0f || moveInput.y != 0.0f) {
+        // Atan2 untuk mencari sudut dari sumbu pergerakan (Z-forward)
+        float moveAngle = atan2(moveInput.x, moveInput.y);
+        movement->SetRotationY(DirectX::XMConvertToDegrees(moveAngle));
+    }
+
     XMFLOAT3 pos = movement->GetPosition();
-    XMFLOAT3 rot = movement->GetRotation();
+    XMFLOAT3 rot = movement->GetRotation(); // Ini mengambil sudut lari yang baru diset
 
     XMMATRIX S = XMMatrixScaling(scale.x, scale.y, scale.z);
     XMMATRIX R = XMMatrixRotationRollPitchYaw(XMConvertToRadians(rot.x), XMConvertToRadians(rot.y), XMConvertToRadians(rot.z));
@@ -75,6 +92,43 @@ void Player::Update(float elapsedTime, Camera* camera)
     XMFLOAT4X4 worldMatrix;
     XMStoreFloat4x4(&worldMatrix, S * R * T);
 
+    // ==========================================
+    // 2. INJEKSI ROTASI AIMING PROCEDURAL BADAN ATAS
+    // ==========================================
+    if (model && activeCamera)
+    {
+        int bodyIndex = model->GetNodeIndex("body");
+
+        if (bodyIndex != -1)
+        {
+            Model::Node& bodyNode = model->GetNodes()[bodyIndex];
+
+            // Posisi mouse di dunia 3D
+            DirectX::XMFLOAT3 mousePos = Beyond::InputHelper::GetMouseWorldPos(activeCamera->GetPosition());
+
+            // Hitung sudut absolut menuju mouse
+            float dx = mousePos.x - pos.x;
+            float dz = mousePos.z - pos.z;
+            float absoluteAngleToMouse = atan2(dx, dz);
+
+            // Hitung sudut relatif! (Sudut Mouse DIKURANGI Sudut Kaki saat ini)
+            float currentBaseYaw = XMConvertToRadians(rot.y);
+            float relativeAngle = absoluteAngleToMouse - currentBaseYaw;
+
+            // Buat Quaternion dari rotasi Y (karena kita game top-down)
+            XMVECTOR aimRot = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), relativeAngle);
+
+            // Ambil rotasi lokal dari animasi (jika animasi bawaannya juga memutar badan)
+            XMVECTOR currentLocalRot = XMLoadFloat4(&bodyNode.rotation);
+
+            // Gabungkan rotasi: Terapkan aimRot di atas currentLocalRot
+            XMVECTOR finalRot = XMQuaternionMultiply(currentLocalRot, aimRot);
+
+            // Timpa dan simpan ke dalam node
+            XMStoreFloat4(&bodyNode.rotation, finalRot);
+        }
+    }
+    // ==========================================
     if (model) model->UpdateTransform(worldMatrix);
 }
 
@@ -137,6 +191,14 @@ void Player::UpdateHorizontalMovement(float elapsedTime)
 
         // (Asumsi di SceneBoss gravitasi diurus terpisah atau tidak ada)
         movement->SetPosition(currentPos);
+
+        if (elapsedTime > 0.0f) {
+            movement->SetVelocity(DirectX::XMFLOAT3(
+                displacementX / elapsedTime, 
+                0.0f, 
+                displacementZ / elapsedTime
+            ));
+        }
     }
 }
 
