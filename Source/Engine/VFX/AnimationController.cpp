@@ -114,28 +114,39 @@ void AnimationController::Update(float dt)
     // 4. Upload ke Model (Visual)
     if (upperAnimIndex != -1 && !upperBodyMask.empty())
     {
-        // Update timer animasi atas
         upperTimer += dt;
         float upperDuration = anims.at(upperAnimIndex).secondsLength;
-        upperTimer = fmod(upperTimer, upperDuration); // Looping paksa untuk contoh
 
-        // Hitung pose animasi atas ke buffer 'upperNodePoses'
-        if (upperNodePoses.size() != ownerModel->GetNodes().size()) {
-            upperNodePoses.resize(ownerModel->GetNodes().size());
-        }
-        ownerModel->ComputeAnimation(upperAnimIndex, upperTimer, upperNodePoses);
-
-        // --- BONE MASKING BLEND ---
-        for (size_t i = 0; i < nodePoses.size(); ++i)
+        // Cek apakah animasi sudah selesai
+        if (upperTimer >= upperDuration)
         {
-            if (upperBodyMask[i])
+            if (upperIsLooping) {
+                upperTimer = fmod(upperTimer, upperDuration); // Ulangi
+            }
+            else {
+                upperAnimIndex = -1; // Matikan animasi upper body
+            }
+        }
+
+        // Jika animasi masih berjalan (belum dimatikan)
+        if (upperAnimIndex != -1)
+        {
+            if (upperNodePoses.size() != ownerModel->GetNodes().size()) {
+                upperNodePoses.resize(ownerModel->GetNodes().size());
+            }
+            ownerModel->ComputeAnimation(upperAnimIndex, upperTimer, upperNodePoses);
+
+            // --- BONE MASKING BLEND ---
+            for (size_t i = 0; i < nodePoses.size(); ++i)
             {
-                // Timpa data dari Base Layer dengan Upper Layer
-                nodePoses[i] = upperNodePoses[i];
+                if (upperBodyMask[i])
+                {
+                    // Timpa data dari Base Layer dengan Upper Layer
+                    nodePoses[i] = upperNodePoses[i];
+                }
             }
         }
     }
-
     // 4. Upload ke Model (Visual)
     ownerModel->SetNodePoses(nodePoses);
 }
@@ -167,9 +178,11 @@ void AnimationController::SetUpperBodyMaskRoot(const std::string& rootNodeName)
     markNode(&ownerModel->GetNodes()[splitIndex]);
 }
 
-void AnimationController::PlayUpper(const std::string& name)
+// 1. Ubah implementasi PlayUpper:
+void AnimationController::PlayUpper(const std::string& name, bool loop)
 {
     if (!ownerModel) return;
     upperAnimIndex = ownerModel->GetAnimationIndex(name.c_str());
-    upperTimer = 0.0f; // Reset timer saat animasi baru dipanggil
+    upperTimer = 0.0f;
+    upperIsLooping = loop; // Simpan status looping
 }

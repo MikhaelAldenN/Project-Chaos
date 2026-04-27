@@ -60,7 +60,7 @@ public:
 // --- IDLE ---
 inline void PlayerIdle::Enter(Player* player) {
     // Pastikan nama "Idle" sudah sesuai dengan yang di-export dari Blender
-    player->GetAnimator()->Play("Rig|Idle", true, 0.2f);
+    player->GetAnimator()->Play("Idle", true, 0.2f);
 }
 
 inline void PlayerIdle::Update(Player* player, float dt) {
@@ -78,7 +78,7 @@ inline void PlayerIdle::Update(Player* player, float dt) {
 // --- MOVING ---
 inline void PlayerMoving::Enter(Player* player) {
     // Pastikan nama "RunPistol" sudah sesuai dengan yang di-export dari Blender
-    player->GetAnimator()->Play("Rig|RunPistol", true, 0.2f);
+    player->GetAnimator()->Play("RunPistol", true, 0.2f);
 }
 
 inline void PlayerMoving::Update(Player* player, float dt) {

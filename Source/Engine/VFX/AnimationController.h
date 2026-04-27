@@ -21,7 +21,13 @@ public:
     void SetUpperBodyMaskRoot(const std::string& rootNodeName);
 
     // Fungsi untuk memutar animasi atas
-    void PlayUpper(const std::string& name);
+    void PlayUpper(const std::string& name, bool loop = false);
+
+    // Tambahkan fungsi pengecekan ini di bawah GetCurrentTime():
+    bool IsUpperPlaying() const { return upperAnimIndex != -1; }
+
+    // Tambahkan variabel ini di bagian private (di bawah upperTimer):
+    bool upperIsLooping = false;
 
 private:
     std::shared_ptr<Model> ownerModel;

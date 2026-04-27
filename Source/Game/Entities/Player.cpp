@@ -14,12 +14,13 @@ using namespace DirectX;
 Player::Player()
 {
     ID3D11Device* device = Graphics::Instance().GetDevice();
-    model = std::make_shared<Model>(device, "Data/Model/Character/TEST_mdl_Player.glb");
+    model = std::make_shared<Model>(device, "Data/Model/Character/TEST_mdl_Player3.glb");
     //scale = defaultScale;
     scale = {1.0f, 1.0f, 1.0f};
 
     animator = new AnimationController();
     animator->Initialize(model);
+    animator->SetUpperBodyMaskRoot("body");
     stateMachine = new StateMachine();
     stateMachine->Initialize(new PlayerIdle(), this);
 
@@ -61,6 +62,19 @@ void Player::Update(float elapsedTime, Camera* camera)
         dashCooldownTimer -= elapsedTime;
         if (dashCooldownTimer <= 0.0f) {
             canDash = true;
+        }
+    }
+
+    // ==========================================
+    // TRIGGER PARRY (UPPER BODY ONLY)
+    // ==========================================
+    if (isInputEnabled && Input::Instance().GetKeyboard().IsTriggered(VK_SPACE))
+    {
+        // Cegah spam spasi dengan mengecek apakah animasi masih berjalan
+        if (animator && !animator->IsUpperPlaying())
+        {
+            // Panggil nama animasimu (pastikan namanya sama persis dengan yang di Blender)
+            animator->PlayUpper("Parry", false);
         }
     }
 
@@ -154,16 +168,16 @@ void Player::Update(float elapsedTime, Camera* camera)
     }
 
     // ==========================================
-    // 3. TERAPKAN ROTASI KE KAKI (BASE) DAN MATRIX
-    // ==========================================
-
-    // Set rotasi komponen menggunakan hasil akhir yang sangat halus
+        // 3. TERAPKAN ROTASI KE KAKI (BASE) DAN MATRIX
+        // ==========================================
     movement->SetRotationY(DirectX::XMConvertToDegrees(smoothedYaw));
 
     XMFLOAT3 pos = movement->GetPosition();
     XMFLOAT3 rot = movement->GetRotation();
 
     XMMATRIX S = XMMatrixScaling(scale.x, scale.y, scale.z);
+
+    // Gunakan rot.y murni tanpa hack
     XMMATRIX R = XMMatrixRotationRollPitchYaw(XMConvertToRadians(rot.x), XMConvertToRadians(rot.y), XMConvertToRadians(rot.z));
     XMMATRIX T = XMMatrixTranslation(pos.x, pos.y, pos.z);
 
@@ -180,7 +194,8 @@ void Player::Update(float elapsedTime, Camera* camera)
         {
             Model::Node& bodyNode = model->GetNodes()[bodyIndex];
 
-            // Putar torso secara lokal
+            // KITA HAPUS HACK XM_PI DI SINI! Cukup gunakan finalRelativeAngle murni.
+            // Karena kakinya sudah kita putar ke arah yang benar di step 3, torsonya otomatis sembuh!
             XMVECTOR aimRot = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), finalRelativeAngle);
             XMVECTOR currentLocalRot = XMLoadFloat4(&bodyNode.rotation);
             XMVECTOR finalRot = XMQuaternionMultiply(currentLocalRot, aimRot);
