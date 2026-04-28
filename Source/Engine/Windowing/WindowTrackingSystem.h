@@ -40,6 +40,7 @@ struct TrackedWindowConfig
     int priority = 0;
     DirectX::XMFLOAT3 trackingOffset = { 0.0f, 0.0f, 0.0f };
     float fpsLimit = 0.0f;
+    bool isTransparent = false;
 
     WindowRole role = WindowRole::TRACKED_ENTITY;
 };

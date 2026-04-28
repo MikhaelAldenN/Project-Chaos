@@ -1,6 +1,7 @@
 #pragma once
 
 #include <d3d11.h>
+#include <dxgi1_2.h>
 #include <wrl.h>
 #include <memory>
 #include "RenderState.h"
@@ -28,7 +29,7 @@ public:
     static Graphics& Instance() { static Graphics i; return i; }
 
     void Initialize();
-    void CreateSwapChain(HWND hWnd, int width, int height, IDXGISwapChain** outSwapChain);
+    void CreateSwapChain(HWND hWnd, int width, int height, bool isTransparent, IDXGISwapChain1** outSwapChain);
 
     ID3D11Device* GetDevice() { return device.Get(); }
     ID3D11DeviceContext* GetDeviceContext() { return immediateContext.Get(); }
@@ -42,7 +43,7 @@ public:
 private:
     Microsoft::WRL::ComPtr<ID3D11Device>        device;
     Microsoft::WRL::ComPtr<ID3D11DeviceContext> immediateContext;
-    Microsoft::WRL::ComPtr<IDXGIFactory>        dxgiFactory;
+    Microsoft::WRL::ComPtr<IDXGIFactory2>        dxgiFactory;
     Microsoft::WRL::ComPtr<ID3D11BlendState>    alphaBlendState;
 
     std::unique_ptr<RenderState>       renderState;

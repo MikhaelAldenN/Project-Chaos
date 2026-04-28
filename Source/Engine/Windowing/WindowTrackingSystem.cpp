@@ -44,7 +44,8 @@ bool WindowTrackingSystem::AddTrackedWindow(
     Beyond::Window* window = WindowManager::Instance().CreateGameWindow(
         config.title.c_str(),
         config.width,
-        config.height
+        config.height,
+        config.isTransparent
     );
 
     if (!window) return false;

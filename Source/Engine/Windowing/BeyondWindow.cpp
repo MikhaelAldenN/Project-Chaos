@@ -78,19 +78,31 @@ namespace Beyond
         if (m_sdlWindow) SDL_DestroyWindow(m_sdlWindow);
     }
 
-    bool Window::Initialize(const char* title, int width, int height)
+    bool Window::Initialize(const char* title, int width, int height, bool isTransparent) // <-- Tambahkan parameter
     {
         m_width = width;
         m_height = height;
+        m_isTransparent = isTransparent; // <-- Simpan state-nya
 
-        m_sdlWindow = SDL_CreateWindow(title, width, height, SDL_WINDOW_RESIZABLE);
+        SDL_PropertiesID props = SDL_CreateProperties();
+        SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, title);
+        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, width);
+        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, height);
+        SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
+
+        // [THE FIX] Beri tahu SDL apakah window ini transparan atau tidak
+        SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN, isTransparent);
+
+        m_sdlWindow = SDL_CreateWindowWithProperties(props);
+        SDL_DestroyProperties(props);
+
         if (!m_sdlWindow) return false;
 
         m_hWnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(m_sdlWindow), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
-
         SetWindowLongPtr(m_hWnd, GWLP_USERDATA, (LONG_PTR)this);
 
-        Graphics::Instance().CreateSwapChain(m_hWnd, m_width, m_height, m_swapChain.GetAddressOf());
+        // [THE FIX] Lempar statusnya ke Graphics
+        Graphics::Instance().CreateSwapChain(m_hWnd, m_width, m_height, isTransparent, m_swapChain.GetAddressOf());
         CreateBuffers(m_width, m_height);
 
         WNDPROC oldProc = (WNDPROC)SetWindowLongPtr(m_hWnd, GWLP_WNDPROC, (LONG_PTR)UnifiedWindowProc);
@@ -101,6 +113,13 @@ namespace Beyond
 
     void Window::CreateBuffers(int w, int h)
     {
+
+        // Safety Check
+        if (!m_swapChain) {
+            OutputDebugStringA("Error: SwapChain is nullptr! Cannot create buffers.\n");
+            return;
+        }
+
         ID3D11Device* device = Graphics::Instance().GetDevice();
         m_renderTargetView.Reset();
         m_depthStencilView.Reset();
@@ -125,10 +144,10 @@ namespace Beyond
         m_viewport.TopLeftX = 0; m_viewport.TopLeftY = 0;
     }
 
-    void Window::BeginRender(float r, float g, float b)
+    void Window::BeginRender(float r, float g, float b, float a)
     {
-        auto context = Graphics::Instance().GetDeviceContext();
         float color[] = { r, g, b, 1.0f };
+        auto context = Graphics::Instance().GetDeviceContext();
         context->ClearRenderTargetView(m_renderTargetView.Get(), color);
         context->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
         context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), m_depthStencilView.Get());
@@ -144,6 +163,9 @@ namespace Beyond
     {
         if (w <= 0 || h <= 0) return;
         if (w == m_width && h == m_height) return;
+
+        // SAFETY CHECK
+        if (!m_swapChain) return;
 
         m_width = w; m_height = h;
 

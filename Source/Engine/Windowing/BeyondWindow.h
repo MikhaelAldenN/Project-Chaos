@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <SDL3/SDL.h>
 #include <d3d11.h>
+#include <dxgi1_2.h>
 #include <wrl.h>
 #include <functional>
 
@@ -21,10 +22,11 @@ namespace Beyond
         ~Window();
 
         // Mengembalikan true jika berhasil, false jika gagal
-        bool Initialize(const char* title, int width, int height);
+        bool Initialize(const char* title, int width, int height, bool isTransparent = false);
+        bool IsTransparent() const { return m_isTransparent; } // <-- Tambahkan Getter ini
 
         // Window Management
-        void BeginRender(float r = 0.0f, float g = 0.0f, float b = 0.0f);
+        void BeginRender(float r = 0.0f, float g = 0.0f, float b = 0.0f, float a = 1.0f);        
         void EndRender(int syncInterval = 1);
         void Resize(int width, int height);
 
@@ -70,6 +72,7 @@ namespace Beyond
         int m_priority = 100;
         bool m_isVisible = true;
         bool m_isDraggable = true;
+        bool m_isTransparent = false; 
 
         float m_renderInterval = 0.0f;
         float m_renderTimer = 0.0f;
@@ -77,7 +80,7 @@ namespace Beyond
         Camera* m_targetCamera = nullptr;
 
         // DirectX Resources
-        Microsoft::WRL::ComPtr<IDXGISwapChain>          m_swapChain;
+        Microsoft::WRL::ComPtr<IDXGISwapChain1>         m_swapChain;
         Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  m_renderTargetView;
         Microsoft::WRL::ComPtr<ID3D11DepthStencilView>  m_depthStencilView;
         D3D11_VIEWPORT                                  m_viewport = {};
