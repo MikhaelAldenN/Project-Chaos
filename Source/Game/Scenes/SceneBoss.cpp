@@ -310,19 +310,53 @@ void SceneBoss::Update(float elapsedTime)
 // =========================================================
 // CORE RENDER
 // =========================================================
+// =========================================================
+// HANYA BAGIAN Render() yang perlu diganti di SceneBoss.cpp
+// Ganti fungsi Render() yang lama dengan ini:
+// =========================================================
+
+// =========================================================
+// Ganti KEDUA fungsi ini di SceneBoss.cpp
+// =========================================================
+
 void SceneBoss::Render(float elapsedTime, Camera* camera)
 {
     Camera* targetCam = camera ? camera : m_mainCamera.get();
     auto dc = Graphics::Instance().GetDeviceContext();
     auto rs = Graphics::Instance().GetRenderState();
 
-    dc->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), nullptr, 0xFFFFFFFF);
+    // Cek apakah window yang sedang dirender adalah transparent
+    bool isTransparentWindow = false;
+    if (m_windowSystem)
+    {
+        for (auto& tracked : m_windowSystem->GetWindows())
+        {
+            if (tracked->camera.get() == camera && tracked->window && tracked->window->IsTransparent())
+            {
+                isTransparentWindow = true;
+                break;
+            }
+        }
+    }
+
+    // [FIX] Transparent window butuh TransparentWindow blend state agar alpha
+    // channel di render target terisi penuh untuk CPU readback → UpdateLayeredWindow.
+    // Window biasa pakai Transparency (alpha blending normal).
+    if (isTransparentWindow)
+    {
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::TransparentWindow), nullptr, 0xFFFFFFFF);
+    }
+    else
+    {
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+    }
+
     dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestAndWrite), 0);
     dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullBack));
 
-    RenderScene(elapsedTime, targetCam);
+    // [FIX] Teruskan flag isTransparentWindow ke RenderScene
+    RenderScene(elapsedTime, targetCam, isTransparentWindow);
 
-    // TOGGLE GRID: Hanya gambar grid jika dicentang di GUI
     if (m_showGrid && m_primitive3D)
     {
         m_primitive3D->DrawGrid(25, 1.0f);
@@ -332,13 +366,17 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
     Graphics::Instance().GetShapeRenderer()->Render(dc, targetCam->GetView(), targetCam->GetProjection());
 }
 
-void SceneBoss::RenderScene(float elapsedTime, Camera* camera)
+void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparentWindow)
 {
     if (!camera) return;
 
     auto dc = Graphics::Instance().GetDeviceContext();
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
+
+    // [FIX] Set flag isTransparentWindow di RenderContext agar ModelRenderer
+    // tidak meng-override blend state yang sudah kita set di Render() di atas.
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
+    rc.isTransparentWindow = isTransparentWindow;
 
     if (m_player)
     {
@@ -412,6 +450,10 @@ void SceneBoss::DrawGUI()
 
         if (ImGui::Button("Spawn Dummy Window", ImVec2(-1, 30))) {
             SpawnDebugWindow();
+        }
+
+        if (ImGui::Button("Spawn Transparent Window", ImVec2(-1, 30))) {
+            SpawnTransparentWindow();
         }
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
@@ -495,4 +537,42 @@ void SceneBoss::CloseSubWindowBySDLID(Uint32 sdlWindowID)
         m_windowSystem->RemoveTrackedWindow(targetName);
         AddLog("Dummy Window Closed Manually: " + targetName);
     }
+}
+
+void SceneBoss::SpawnTransparentWindow()
+{
+    m_spawnCount++;
+
+    TrackedWindowConfig config;
+    config.name = "transparent_win_" + std::to_string(m_spawnCount);
+    config.title = "T" + std::to_string(m_spawnCount) + " (Transparent)";
+    config.width = 300;
+    config.height = 300;
+    config.role = WindowRole::SUB_VIEWPORT;
+    config.isTransparent = true; // <-- Kunci untuk DXGI_ALPHA_MODE_PREMULTIPLIED
+
+    // AddTrackedWindow otomatis membuatkan kamera dan window fisik
+    m_windowSystem->AddTrackedWindow(config, []() {
+        return DirectX::XMFLOAT3(0, 0, 0); // Posisi default di tengah (0,0,0)
+        });
+
+    // Modifikasi sifat OS Window agar sesuai spesifikasi (Bordered, Resizable, Draggable)
+    for (auto& tracked : m_windowSystem->GetWindows())
+    {
+        if (tracked->name == config.name)
+        {
+            SDL_Window* sdlWin = tracked->window->GetSDLWindow();
+
+            // Mengaktifkan border dan fitur resize dari OS
+            SDL_SetWindowResizable(sdlWin, true);
+            SDL_SetWindowBordered(sdlWin, true);
+
+            // Override sistem internal BeyondWindow agar titlebar bisa di-drag
+            tracked->window->SetDraggable(true);
+            break;
+        }
+    }
+
+    AddLog("Spawned transparent window: " + config.name);
+    WindowManager::Instance().EnforceWindowPriorities();
 }

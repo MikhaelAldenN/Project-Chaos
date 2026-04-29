@@ -1,6 +1,5 @@
 #pragma once
 
-// Lean and mean untuk mengurangi beban kompilasi dari Windows API
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <SDL3/SDL.h>
@@ -9,7 +8,6 @@
 #include <wrl.h>
 #include <functional>
 
-// Forward declaration (Lebih profesional daripada include file header lain jika hanya butuh pointer)
 class Camera;
 
 namespace Beyond
@@ -17,22 +15,18 @@ namespace Beyond
     class Window
     {
     public:
-        // Konstruktor kosong, alokasi dilakukan di Initialize
         Window();
         ~Window();
 
-        // Mengembalikan true jika berhasil, false jika gagal
         bool Initialize(const char* title, int width, int height, bool isTransparent = false);
-        bool IsTransparent() const { return m_isTransparent; } // <-- Tambahkan Getter ini
+        bool IsTransparent() const { return m_isTransparent; }
 
-        // Window Management
-        void BeginRender(float r = 0.0f, float g = 0.0f, float b = 0.0f, float a = 1.0f);        
+        void BeginRender(float r = 0.0f, float g = 0.0f, float b = 0.0f, float a = 1.0f);
         void EndRender(int syncInterval = 1);
         void Resize(int width, int height);
 
-        // Getters
         SDL_Window* GetSDLWindow() const { return m_sdlWindow; }
-        HWND GetNativeHandle() const { return m_hWnd; } // Ganti nama agar lebih universal
+        HWND GetNativeHandle() const { return m_hWnd; }
         int GetWidth() const { return m_width; }
         int GetHeight() const { return m_height; }
 
@@ -53,36 +47,51 @@ namespace Beyond
         bool ShouldRender(float dt);
         using TickCallback = std::function<void()>;
         void SetTickCallback(TickCallback callback) { m_tickCallback = callback; }
-
         void TriggerTick() { if (m_tickCallback) m_tickCallback(); }
 
     private:
-        // Pindahkan fungsi privat ke bawah
         void CreateBuffers(int w, int h);
+        void CreateOffscreenBuffers(int w, int h);
+        void RecreateLayeredSurface(int w, int h);
+        void UpdateLayeredSurface();
 
         TickCallback m_tickCallback = nullptr;
 
     private:
-        // Standar penamaan member class profesional: gunakan awalan 'm_'
         SDL_Window* m_sdlWindow = nullptr;
-        HWND m_hWnd = nullptr;
+        HWND        m_hWnd = nullptr;
 
-        int m_width = 0;
-        int m_height = 0;
-        int m_priority = 100;
+        int  m_width = 0;
+        int  m_height = 0;
+        int  m_priority = 100;
         bool m_isVisible = true;
         bool m_isDraggable = true;
-        bool m_isTransparent = false; 
+        bool m_isTransparent = false;
 
         float m_renderInterval = 0.0f;
         float m_renderTimer = 0.0f;
 
         Camera* m_targetCamera = nullptr;
 
-        // DirectX Resources
-        Microsoft::WRL::ComPtr<IDXGISwapChain1>         m_swapChain;
-        Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  m_renderTargetView;
-        Microsoft::WRL::ComPtr<ID3D11DepthStencilView>  m_depthStencilView;
-        D3D11_VIEWPORT                                  m_viewport = {};
+        // Normal window: swap chain path
+        Microsoft::WRL::ComPtr<IDXGISwapChain1>        m_swapChain;
+
+        // Shared render resources (dipakai kedua path)
+        Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_renderTargetView;
+        Microsoft::WRL::ComPtr<ID3D11DepthStencilView> m_depthStencilView;
+        D3D11_VIEWPORT                                 m_viewport = {};
+
+        // Transparent window: offscreen path
+        // Render ke texture (bukan swap chain backbuffer) Å® tidak konflik dengan WS_EX_LAYERED
+        Microsoft::WRL::ComPtr<ID3D11Texture2D>        m_offscreenTex;  // Render target texture
+        Microsoft::WRL::ComPtr<ID3D11Texture2D>        m_stagingTex;    // CPU readback
+
+        // GDI Layered Window
+        HDC     m_hdcScreen = nullptr;
+        HDC     m_hdcMem = nullptr;
+        HBITMAP m_hBitmap = nullptr;
+        void* m_pBits = nullptr;
+        int     m_layeredW = 0;
+        int     m_layeredH = 0;
     };
 }

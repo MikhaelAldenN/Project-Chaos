@@ -82,10 +82,27 @@ void WindowManager::RenderAll(float dt, Scene* scene)
         if (!win->IsVisible()) continue;
         if (win.get() != mainWindow && !win->ShouldRender(dt)) continue;
 
+        // DEBUG SEMENTARA
+        if (win->IsTransparent())
+        {
+            Camera* cam = win->GetCamera();
+            char dbg[128];
+            sprintf_s(dbg, "[RENDER] TransparentWin camera ptr=%p\n", (void*)cam);
+            OutputDebugStringA(dbg);
+        }
+        // END DEBUG
+
         float clearAlpha = win->IsTransparent() ? 0.0f : 1.0f;
 
-        if (isBeyondScene) win->BeginRender(0.1f, 0.1f, 0.15f, 0.0f);
-        else win->BeginRender(0.0f, 0.0f, 0.0f, 1.0f);
+        if (win->IsTransparent())
+        {
+            win->BeginRender(0.0f, 0.0f, 0.0f, clearAlpha);
+        }
+        else
+        {
+            if (isBeyondScene) win->BeginRender(0.1f, 0.1f, 0.15f, clearAlpha);
+            else win->BeginRender(0.0f, 0.0f, 0.0f, clearAlpha);
+        }
 
         scene->OnResize(win->GetWidth(), win->GetHeight());
         scene->Render(dt, win->GetCamera());

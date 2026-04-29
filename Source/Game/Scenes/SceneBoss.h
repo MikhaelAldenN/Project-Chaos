@@ -33,12 +33,13 @@ public:
     void CloseSubWindowBySDLID(Uint32 sdlWindowID);
 
 private:
-    void RenderScene(float elapsedTime, Camera* camera);
+    void RenderScene(float elapsedTime, Camera* camera, bool isTransparentWindow);
     void InitializeSubWindows();
 
     // --- FITUR DEBUG & SYSTEM ---
     void ResetEverything();
     void SpawnDebugWindow();
+    void SpawnTransparentWindow();
     void AddLog(const std::string& message);
 
 private:

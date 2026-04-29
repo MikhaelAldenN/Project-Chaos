@@ -1,5 +1,7 @@
 ﻿#include "Graphics.h"
 #include "Misc.h" // Assuming HRTrace is here
+#include <dwmapi.h>
+#pragma comment(lib, "dwmapi.lib")
 
 void Graphics::Initialize()
 {
@@ -68,11 +70,11 @@ void Graphics::CreateSwapChain(HWND hWnd, int width, int height, bool isTranspar
     sd1.SampleDesc.Count = 1;
     sd1.SampleDesc.Quality = 0;
     sd1.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+
+    // Kita samaratakan keduanya. DWM yang akan mengurus transparansinya.
     sd1.BufferCount = 2;
     sd1.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-
-    // [THE FIX] Dinamis tergantung permintaan Window!
-    sd1.AlphaMode = isTransparent ? DXGI_ALPHA_MODE_PREMULTIPLIED : DXGI_ALPHA_MODE_IGNORE;
+    sd1.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
     sd1.Flags = 0;
 
     HRESULT hr = dxgiFactory->CreateSwapChainForHwnd(
