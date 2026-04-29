@@ -6,7 +6,7 @@
 #include "System/Input.h"
 
 class PlayerIdle;
-class PlayerRun;
+class PlayerMoving;
 class PlayerDash;
 class PlayerSlash;
 class PlayerParry;
@@ -174,7 +174,7 @@ inline void PlayerSlash::Update(Player* player, float dt) {
 
     if (timer <= 0.0f) {
         if (player->GetMovement()->IsMoving()) {
-            player->GetStateMachine()->ChangeState(player, new PlayerRun());
+            player->GetStateMachine()->ChangeState(player, new PlayerMoving());
         }
         else {
             player->GetStateMachine()->ChangeState(player, new PlayerIdle());
@@ -197,7 +197,7 @@ inline void PlayerParry::Update(Player* player, float dt) {
     timer -= dt;
     if (timer <= 0.0f) {
         if (player->GetMovement()->IsMoving()) {
-            player->GetStateMachine()->ChangeState(player, new PlayerRun());
+            player->GetStateMachine()->ChangeState(player, new PlayerMoving());
         }
         else {
             player->GetStateMachine()->ChangeState(player, new PlayerIdle());
@@ -218,7 +218,7 @@ inline void PlayerShoot::Update(Player* player, float dt) {
     timer -= dt;
     if (timer <= 0.0f) {
         if (player->GetMovement()->IsMoving()) {
-            player->GetStateMachine()->ChangeState(player, new PlayerRun());
+            player->GetStateMachine()->ChangeState(player, new PlayerMoving());
         }
         else {
             player->GetStateMachine()->ChangeState(player, new PlayerIdle());

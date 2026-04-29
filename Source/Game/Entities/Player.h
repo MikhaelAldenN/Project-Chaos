@@ -81,8 +81,8 @@ public:
     float dashCooldownTimer = 0.0f;
 
 private:
-    float baseSpeed = 5.0f;      // Kecepatan jalan normal
-    float dashSpeed = 60.0f;      // Daya dorong instan dash
+    float baseSpeed = 10.0f;      // Kecepatan jalan normal
+    float dashSpeed = 40.0f;      // Daya dorong instan dash
     float dashDuration = 0.15f;   // Berapa lama dash berlangsung (detik)
     float dashCooldown = 0.5f;    // Jeda sebelum bisa dash lagi
 

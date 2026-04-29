@@ -282,15 +282,10 @@ void Player::UpdateHorizontalMovement(float elapsedTime)
         currentPos.x += displacementX;
         currentPos.z += displacementZ;
 
+        // Karakter dipindah manual berdasarkan input (tanpa physics)
         movement->SetPosition(currentPos);
 
-        if (elapsedTime > 0.0f) {
-            movement->SetVelocity(DirectX::XMFLOAT3(
-                displacementX / elapsedTime, 
-                0.0f, 
-                displacementZ / elapsedTime
-            ));
-        }
+        // BAGIAN SET VELOCITY DI BAWAH SINI SUDAH DIHAPUS
     }
 }
 
