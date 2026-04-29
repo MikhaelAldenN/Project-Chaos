@@ -43,11 +43,13 @@ SceneBoss::SceneBoss()
     m_player = std::make_unique<Player>();
     m_player->SetInvertControls(false);
     m_player->SetPosition(0.0f, 0.0f, -8.0f);
-	m_player->SetMoveSpeed(10.0f);
+	m_player->SetMoveSpeed(20.0f);
 
     auto device = Graphics::Instance().GetDevice();
     m_primitive2D = std::make_unique<Primitive>(device);
     m_primitive3D = std::make_unique<PrimitiveRenderer>(device);
+
+    WindowManager::Instance().SetTopmost(m_topmostEnabled);
 
     InitializeSubWindows();
     AddLog("SceneBoss Initialized. Windowkill System Online.");
@@ -222,47 +224,47 @@ void SceneBoss::Update(float elapsedTime)
         }
     }
 
-    // --- EFEK ELASTIC WINDOW (SINGLE-AXIS PROPORTIONAL) ---
+    // --- EFEK ELASTIC WINDOW (SQUASH AND STRETCH) ---
     if (m_player) {
         DirectX::XMFLOAT3 vel = m_player->GetMovement()->GetVelocity();
         float currentSpeedSq = vel.x * vel.x + vel.z * vel.z;
 
-        // 1. Tentukan Nilai Target (Default: 0 alias ukuran normal)
         DirectX::XMFLOAT2 targetStretch = { 0.0f, 0.0f };
         DirectX::XMFLOAT2 targetOffset = { 0.0f, 0.0f };
-
-        // Default Release Speed (kecepatan membal ke ukuran semula)
         float currentLerpSpeed = 10.0f;
 
-        // 2. Kalkulasi Target Jika Sedang Dash
-        if (currentSpeedSq > 40.0f * 40.0f) {
-            float stretchPowerX = 200.0f;
-            float stretchPowerZ = 90.0f;
+        // Gunakan threshold dinamis agar selalu sinkron dengan speed player
+        float dashThreshold = m_player->GetDashSpeed() * 0.8f;
 
-            // [FIX] Attack Speed: Lebih cepat dari Release, tapi TIDAK instan!
-            // Angka 25.0f membuat window butuh ~0.05 detik untuk melar penuh,
-            // sehingga terlihat "ditarik" oleh kecepatan player, bukan "mendorong".
-            currentLerpSpeed = 10.0f;
+        if (currentSpeedSq > (dashThreshold * dashThreshold)) {
+            // Konfigurasi kekuatan stretch & squash
+            float stretchPowerX = 200.0f;
+            float squashPowerY = -40.0f; // Nilai negatif untuk mengecilkan window secara vertikal
+
+            float stretchPowerZ = 120.0f;
+            float squashPowerX = -30.0f; // Nilai negatif untuk mengecilkan window secara horizontal
+
+            float dashRatio = (sqrt(currentSpeedSq) / m_player->GetDashSpeed());
 
             if (std::abs(vel.x) > std::abs(vel.z)) {
-                // DASH HORIZONTAL
-                targetStretch.x = (std::abs(vel.x) / m_player->GetDashSpeed()) * stretchPowerX;
+                // DASH HORIZONTAL (Stretch X, Squash Y)
+                targetStretch.x = dashRatio * stretchPowerX;
+                targetStretch.y = dashRatio * squashPowerY; // Window mengecil vertikal
 
                 float signX = (vel.x > 0.0f) ? 1.0f : -1.0f;
                 targetOffset.x = -signX * (targetStretch.x * 0.5f) / PIXEL_TO_UNIT_RATIO;
             }
             else {
-                // DASH VERTIKAL
-                targetStretch.y = (std::abs(vel.z) / m_player->GetDashSpeed()) * stretchPowerZ;
+                // DASH VERTIKAL (Stretch Y, Squash X)
+                targetStretch.y = dashRatio * stretchPowerZ;
+                targetStretch.x = dashRatio * squashPowerX; // Window mengecil horizontal
 
                 float signZ = (vel.z > 0.0f) ? 1.0f : -1.0f;
                 targetOffset.y = -signZ * (targetStretch.y * 0.5f) / PIXEL_TO_UNIT_RATIO;
             }
         }
 
-        // 3. THE MAGIC (Satu Rumus untuk Semua State)
-        // Lerp ukuran dan lerp offset dieksekusi bersamaan dengan kecepatan yang sama.
-        // Ini memastikan ujung depan window terkunci mati, sementara ekornya melar dengan mulus!
+        // Lerp eksekusi tetap sama, m_currentStretch akan mengikuti nilai negatif tadi
         m_currentStretch.x += (targetStretch.x - m_currentStretch.x) * currentLerpSpeed * scaledDt;
         m_currentStretch.y += (targetStretch.y - m_currentStretch.y) * currentLerpSpeed * scaledDt;
 
@@ -434,16 +436,74 @@ void SceneBoss::DrawGUI()
     }
 
     // ---------------------------------------------------------
-    // TAB 2: WINDOW MANAGEMENT
-    // ---------------------------------------------------------
+        // TAB 2: WINDOW MANAGEMENT
+        // ---------------------------------------------------------
     if (ImGui::CollapsingHeader("Window Tracking Config", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (ImGui::Checkbox("WindowTopmost(RESET)", &m_topmostEnabled))
+        // 1. Checkbox Topmost
+        if (ImGui::Checkbox("[All] Toggle Topmost (RESET)", &m_topmostEnabled))
         {
             WindowManager::Instance().SetTopmost(m_topmostEnabled);
             ResetEverything();
         }
-        ImGui::Checkbox("Sync Main Window to This Panel", &m_autoSyncMainWindow);
+
+        // 2. Checkbox Player Mode
+        if (ImGui::Checkbox("[Player] Toggle Transparent", &m_playerWindowTransparent))
+        {
+            m_windowSystem->RemoveTrackedWindow("player");
+
+            TrackedWindowConfig config;
+            config.name = "player";
+            config.title = "Player";
+            config.width = 300;
+            config.height = 300;
+            config.priority = 1;
+            config.isTransparent = m_playerWindowTransparent;
+
+            m_windowSystem->AddTrackedWindow(
+                config,
+                [this]() -> DirectX::XMFLOAT3 {
+                    if (!m_player) return DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+                    auto pPos = m_player->GetPosition();
+                    return DirectX::XMFLOAT3(
+                        pPos.x + m_stretchOffset.x,
+                        0.0f,
+                        pPos.z + m_stretchOffset.y
+                    );
+                },
+                [this]() -> DirectX::XMFLOAT2 {
+                    return DirectX::XMFLOAT2(
+                        m_defaultWinSize + m_currentStretch.x,
+                        m_defaultWinSize + m_currentStretch.y
+                    );
+                }
+            );
+
+            TrackedWindow* playerWin = m_windowSystem->GetTrackedWindow("player");
+            if (playerWin && playerWin->window)
+            {
+                SDL_Window* sdlWin = playerWin->window->GetSDLWindow();
+                if (m_playerWindowTransparent)
+                {
+                    playerWin->window->SetClickThrough(true);
+                    playerWin->window->SetBorderVisible(false);
+                    playerWin->window->SetDraggable(false);
+                }
+                else
+                {
+                    SDL_SetWindowResizable(sdlWin, true);
+                    SDL_SetWindowBordered(sdlWin, true);
+                    playerWin->window->SetDraggable(false);
+                }
+            }
+            WindowManager::Instance().EnforceWindowPriorities();
+            AddLog(m_playerWindowTransparent ? "Player Window: Stealth Mode Activated" : "Player Window: Normal Mode");
+        }
+
+        // 3. Checkbox Sync ImGui
+        ImGui::Checkbox("[ImGui] Toggle Sync Imgui Size to Main Window", &m_autoSyncMainWindow);
+
+        ImGui::Separator();
 
         size_t activeCount = m_windowSystem->GetWindows().size();
         ImGui::Text("Active Windows: %zu", activeCount);
@@ -452,12 +512,19 @@ void SceneBoss::DrawGUI()
             SpawnDebugWindow();
         }
 
-        if (ImGui::Button("Spawn Transparent Window", ImVec2(-1, 30))) {
+        // 4. Tombol Kuning: Spawn Transparent Window
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.7f, 0.1f, 1.0f));       // Kuning gelap
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.8f, 0.2f, 1.0f));// Kuning cerah pas di-hover
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.7f, 0.6f, 0.0f, 1.0f)); // Kuning tua pas diklik
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));         // Teks Hitam
+        if (ImGui::Button("Spawn Transparent Window (Experimental)", ImVec2(-1, 30))) {
             SpawnTransparentWindow();
         }
+        ImGui::PopStyleColor(4); // Buang 4 warna style kuning & hitam yang baru di-push
 
+        // 5. Tombol Merah: Close Sub Window & Reset
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
-        if (ImGui::Button("Close All Dummy Window", ImVec2(-1, 30))) {
+        if (ImGui::Button("Close All Sub Window", ImVec2(-1, 30))) {
             m_windowSystem->ClearAll();
             InitializeSubWindows();
             m_spawnCount = 0;
@@ -467,7 +534,7 @@ void SceneBoss::DrawGUI()
         if (ImGui::Button("RESET", ImVec2(-1, 40))) {
             ResetEverything();
         }
-        ImGui::PopStyleColor();
+        ImGui::PopStyleColor(); // Buang style merah
     }
 
     // ---------------------------------------------------------
@@ -549,28 +616,30 @@ void SceneBoss::SpawnTransparentWindow()
     config.width = 300;
     config.height = 300;
     config.role = WindowRole::SUB_VIEWPORT;
-    config.isTransparent = true; // <-- Kunci untuk DXGI_ALPHA_MODE_PREMULTIPLIED
+    config.isTransparent = true; // <-- Kunci untuk mode Layered
 
     // AddTrackedWindow otomatis membuatkan kamera dan window fisik
     m_windowSystem->AddTrackedWindow(config, []() {
         return DirectX::XMFLOAT3(0, 0, 0); // Posisi default di tengah (0,0,0)
         });
 
-    // Modifikasi sifat OS Window agar sesuai spesifikasi (Bordered, Resizable, Draggable)
-    for (auto& tracked : m_windowSystem->GetWindows())
+    // =========================================================
+    // [FIX] SETUP SIFAT WINDOW TRANSPARAN
+    // =========================================================
+    TrackedWindow* tracked = m_windowSystem->GetTrackedWindow(config.name);
+    if (tracked && tracked->window)
     {
-        if (tracked->name == config.name)
-        {
-            SDL_Window* sdlWin = tracked->window->GetSDLWindow();
+        // 1. JANGAN panggil SDL_SetWindowBordered(true) karena akan 
+        // merusak mode borderless dan memunculkan titlebar OS standar!
 
-            // Mengaktifkan border dan fitur resize dari OS
-            SDL_SetWindowResizable(sdlWin, true);
-            SDL_SetWindowBordered(sdlWin, true);
+        // 2. Aktifkan fitur drag internal kita (Tengah = Move, Pinggir = Resize)
+        tracked->window->SetDraggable(true);
 
-            // Override sistem internal BeyondWindow agar titlebar bisa di-drag
-            tracked->window->SetDraggable(true);
-            break;
-        }
+        // 3. Pastikan window bisa diklik (tidak tembus pandang terhadap mouse)
+        tracked->window->SetClickThrough(false);
+
+        // 4. Pastikan garis border kustom putih 2px kita menyala
+        tracked->window->SetBorderVisible(true);
     }
 
     AddLog("Spawned transparent window: " + config.name);

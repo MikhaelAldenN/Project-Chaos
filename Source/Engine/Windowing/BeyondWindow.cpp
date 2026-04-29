@@ -2,6 +2,7 @@
 #include "System/Graphics.h"
 #include "WindowManager.h"
 #include <map>
+#include <windowsx.h>
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -11,6 +12,12 @@ namespace Beyond
     {
         std::map<HWND, WNDPROC> g_WindowProcMap;
         const UINT_PTR IDT_RESIZE_TIMER = 101;
+
+        constexpr uint8_t BORDER_B = 255;
+        constexpr uint8_t BORDER_G = 255;
+        constexpr uint8_t BORDER_R = 255;
+        constexpr uint8_t BORDER_A = 160;
+        constexpr int     BORDER_WIDTH = 2;
     }
 
     LRESULT CALLBACK UnifiedWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -20,6 +27,64 @@ namespace Beyond
         if (msg == WM_SYSCOMMAND && (wParam & 0xFFF0) == SC_MOVE)
         {
             if (pWindow && !pWindow->IsDraggable()) return 0;
+        }
+
+        // =========================================================
+                // [FIX] LOGIKA DRAG & RESIZE UNTUK TRANSPARENT WINDOW
+                // =========================================================
+        if (msg == WM_NCHITTEST && pWindow && pWindow->IsTransparent())
+        {
+            // Jika clickthrough aktif, biarkan mouse nembus ke desktop/window bawahnya
+            if (pWindow->IsClickThrough()) return HTTRANSPARENT;
+
+            // Hitung area resize (8 pixel dari tepi agar gampang ditarik)
+            RECT rc;
+            GetWindowRect(hWnd, &rc);
+            int x = GET_X_LPARAM(lParam);
+            int y = GET_Y_LPARAM(lParam);
+
+            const int BORDER_HIT_AREA = 8;
+
+            bool isLeft = (x >= rc.left && x < rc.left + BORDER_HIT_AREA);
+            bool isRight = (x < rc.right && x >= rc.right - BORDER_HIT_AREA);
+            bool isTop = (y >= rc.top && y < rc.top + BORDER_HIT_AREA);
+            bool isBottom = (y < rc.bottom && y >= rc.bottom - BORDER_HIT_AREA);
+
+            // Cek pojokan dulu (Corner resize)
+            if (isTop && isLeft)     return HTTOPLEFT;
+            if (isTop && isRight)    return HTTOPRIGHT;
+            if (isBottom && isLeft)  return HTBOTTOMLEFT;
+            if (isBottom && isRight) return HTBOTTOMRIGHT;
+
+            // Cek sisi (Edge resize)
+            if (isLeft)   return HTLEFT;
+            if (isRight)  return HTRIGHT;
+            if (isTop)    return HTTOP;
+            if (isBottom) return HTBOTTOM;
+
+            // Jika tidak di area border dan window bisa didrag, sisa area tengah jadi titlebar
+            if (pWindow->IsDraggable()) return HTCAPTION;
+
+            return HTCLIENT;
+        }
+
+        // =========================================================
+        // [FIX] KURSOR DRAG UNTUK AREA HTCAPTION
+        // =========================================================
+        if (msg == WM_SETCURSOR)
+        {
+            WORD hitTest = LOWORD(lParam); // Ambil hasil hit-test (HTCAPTION, HTLEFT, dll)
+
+            // Jika kursor ada di area tengah (HTCAPTION) pada window transparan yang draggable
+            if (hitTest == HTCAPTION && pWindow && pWindow->IsTransparent() && pWindow->IsDraggable())
+            {
+                // Ganti kursor jadi panah 4 arah
+                SetCursor(LoadCursor(NULL, IDC_SIZEALL));
+
+                // Return TRUE buat ngasih tau Windows: 
+                // "Kursornya udah gue atur, jangan ditimpa pakai panah default!"
+                return TRUE;
+            }
         }
 
         if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
@@ -61,11 +126,9 @@ namespace Beyond
     Window::~Window()
     {
         if (m_hWnd) g_WindowProcMap.erase(m_hWnd);
-
         if (m_hBitmap) { DeleteObject(m_hBitmap);      m_hBitmap = nullptr; }
         if (m_hdcMem) { DeleteDC(m_hdcMem);           m_hdcMem = nullptr; }
         if (m_hdcScreen) { ReleaseDC(NULL, m_hdcScreen); m_hdcScreen = nullptr; }
-
         if (m_sdlWindow) SDL_DestroyWindow(m_sdlWindow);
     }
 
@@ -80,7 +143,6 @@ namespace Beyond
         SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, width);
         SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, height);
         SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
-        // Jangan pakai SDL transparent ? kita handle sendiri via WS_EX_LAYERED
         SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN, false);
 
         m_sdlWindow = SDL_CreateWindowWithProperties(props);
@@ -94,27 +156,27 @@ namespace Beyond
 
         if (isTransparent)
         {
-            // „Ÿ„Ÿ TRANSPARENT WINDOW PATH „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
-            // Pakai WS_EX_LAYERED + UpdateLayeredWindow.
-            // TIDAK buat swap chain ? swap chain di HWND yang sama dengan
-            // WS_EX_LAYERED akan menimpa area client dan membuat UpdateLayeredWindow
-            // hanya bekerja di area non-client (border).
-            // Render dilakukan ke offscreen texture, lalu readback ke GDI DIB.
+            // Hapus border dan titlebar OS visual sepenuhnya dari bitmap kita
+            LONG style = GetWindowLong(m_hWnd, GWL_STYLE);
+            style &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
+            SetWindowLong(m_hWnd, GWL_STYLE, style);
 
+            // WS_EX_LAYERED untuk UpdateLayeredWindow
+            // WS_EX_TOOLWINDOW agar tidak muncul di taskbar
             LONG exStyle = GetWindowLong(m_hWnd, GWL_EXSTYLE);
-            SetWindowLong(m_hWnd, GWL_EXSTYLE, exStyle | WS_EX_LAYERED);
+            exStyle |= WS_EX_LAYERED | WS_EX_TOOLWINDOW;
+            SetWindowLong(m_hWnd, GWL_EXSTYLE, exStyle);
 
-            // Setup GDI
+            SetWindowPos(m_hWnd, nullptr, 0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
             m_hdcScreen = GetDC(NULL);
             m_hdcMem = CreateCompatibleDC(m_hdcScreen);
             RecreateLayeredSurface(width, height);
-
-            // Buat offscreen render target + staging texture
             CreateOffscreenBuffers(width, height);
         }
         else
         {
-            // „Ÿ„Ÿ NORMAL WINDOW PATH „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
             Graphics::Instance().CreateSwapChain(m_hWnd, width, height, false, m_swapChain.GetAddressOf());
             CreateBuffers(width, height);
         }
@@ -126,89 +188,56 @@ namespace Beyond
         return true;
     }
 
-    // „Ÿ„Ÿ OFFSCREEN BUFFERS (transparent window only) „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
-    // Buat render target texture + depth stencil + staging texture.
-    // Tidak ada swap chain ? render target adalah texture biasa di VRAM.
     void Window::CreateOffscreenBuffers(int w, int h)
     {
         ID3D11Device* device = Graphics::Instance().GetDevice();
-
         m_renderTargetView.Reset();
         m_depthStencilView.Reset();
         m_offscreenTex.Reset();
         m_stagingTex.Reset();
 
-        // 1. Offscreen render target texture (BGRA agar cocok dengan GDI DIB)
         D3D11_TEXTURE2D_DESC rtDesc = {};
-        rtDesc.Width = w;
-        rtDesc.Height = h;
-        rtDesc.MipLevels = 1;
-        rtDesc.ArraySize = 1;
+        rtDesc.Width = w; rtDesc.Height = h;
+        rtDesc.MipLevels = 1; rtDesc.ArraySize = 1;
         rtDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         rtDesc.SampleDesc.Count = 1;
         rtDesc.Usage = D3D11_USAGE_DEFAULT;
         rtDesc.BindFlags = D3D11_BIND_RENDER_TARGET;
-        // Tidak perlu D3D11_BIND_SHADER_RESOURCE karena hanya untuk readback
-        HRESULT hr = device->CreateTexture2D(&rtDesc, nullptr, m_offscreenTex.GetAddressOf());
-        if (FAILED(hr))
+        if (FAILED(device->CreateTexture2D(&rtDesc, nullptr, m_offscreenTex.GetAddressOf())))
         {
-            OutputDebugStringA("ERROR: Failed to create offscreen render target texture!\n");
+            OutputDebugStringA("ERROR: Failed to create offscreen RT!\n");
             return;
         }
+        device->CreateRenderTargetView(m_offscreenTex.Get(), nullptr, m_renderTargetView.GetAddressOf());
 
-        // 2. Render target view dari offscreen texture
-        hr = device->CreateRenderTargetView(m_offscreenTex.Get(), nullptr, m_renderTargetView.GetAddressOf());
-        if (FAILED(hr))
-        {
-            OutputDebugStringA("ERROR: Failed to create offscreen RTV!\n");
-            return;
-        }
-
-        // 3. Depth stencil
         D3D11_TEXTURE2D_DESC depthDesc = {};
-        depthDesc.Width = w;
-        depthDesc.Height = h;
-        depthDesc.MipLevels = 1;
-        depthDesc.ArraySize = 1;
+        depthDesc.Width = w; depthDesc.Height = h;
+        depthDesc.MipLevels = 1; depthDesc.ArraySize = 1;
         depthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
         depthDesc.SampleDesc.Count = 1;
         depthDesc.Usage = D3D11_USAGE_DEFAULT;
         depthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-
         Microsoft::WRL::ComPtr<ID3D11Texture2D> depthTex;
         device->CreateTexture2D(&depthDesc, nullptr, depthTex.GetAddressOf());
         device->CreateDepthStencilView(depthTex.Get(), nullptr, m_depthStencilView.GetAddressOf());
 
-        // 4. Staging texture untuk CPU readback
         D3D11_TEXTURE2D_DESC stagingDesc = {};
-        stagingDesc.Width = w;
-        stagingDesc.Height = h;
-        stagingDesc.MipLevels = 1;
-        stagingDesc.ArraySize = 1;
+        stagingDesc.Width = w; stagingDesc.Height = h;
+        stagingDesc.MipLevels = 1; stagingDesc.ArraySize = 1;
         stagingDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         stagingDesc.SampleDesc.Count = 1;
         stagingDesc.Usage = D3D11_USAGE_STAGING;
         stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
         device->CreateTexture2D(&stagingDesc, nullptr, m_stagingTex.GetAddressOf());
 
-        // 5. Viewport
-        m_viewport.Width = (float)w;
-        m_viewport.Height = (float)h;
-        m_viewport.MinDepth = 0.0f;
-        m_viewport.MaxDepth = 1.0f;
-        m_viewport.TopLeftX = 0;
-        m_viewport.TopLeftY = 0;
+        m_viewport.Width = (float)w; m_viewport.Height = (float)h;
+        m_viewport.MinDepth = 0.0f; m_viewport.MaxDepth = 1.0f;
+        m_viewport.TopLeftX = 0; m_viewport.TopLeftY = 0;
     }
 
-    // „Ÿ„Ÿ NORMAL BUFFERS (swap chain path) „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
     void Window::CreateBuffers(int w, int h)
     {
-        if (!m_swapChain)
-        {
-            OutputDebugStringA("Error: SwapChain is nullptr!\n");
-            return;
-        }
-
+        if (!m_swapChain) { OutputDebugStringA("Error: SwapChain nullptr!\n"); return; }
         ID3D11Device* device = Graphics::Instance().GetDevice();
         m_renderTargetView.Reset();
         m_depthStencilView.Reset();
@@ -218,28 +247,21 @@ namespace Beyond
         device->CreateRenderTargetView(backBuffer.Get(), nullptr, m_renderTargetView.GetAddressOf());
 
         D3D11_TEXTURE2D_DESC depthDesc = {};
-        depthDesc.Width = w;
-        depthDesc.Height = h;
-        depthDesc.MipLevels = 1;
-        depthDesc.ArraySize = 1;
+        depthDesc.Width = w; depthDesc.Height = h;
+        depthDesc.MipLevels = 1; depthDesc.ArraySize = 1;
         depthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
         depthDesc.SampleDesc.Count = 1;
         depthDesc.Usage = D3D11_USAGE_DEFAULT;
         depthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-
         Microsoft::WRL::ComPtr<ID3D11Texture2D> depthTex;
         device->CreateTexture2D(&depthDesc, nullptr, depthTex.GetAddressOf());
         device->CreateDepthStencilView(depthTex.Get(), nullptr, m_depthStencilView.GetAddressOf());
 
-        m_viewport.Width = (float)w;
-        m_viewport.Height = (float)h;
-        m_viewport.MinDepth = 0.0f;
-        m_viewport.MaxDepth = 1.0f;
-        m_viewport.TopLeftX = 0;
-        m_viewport.TopLeftY = 0;
+        m_viewport.Width = (float)w; m_viewport.Height = (float)h;
+        m_viewport.MinDepth = 0.0f; m_viewport.MaxDepth = 1.0f;
+        m_viewport.TopLeftX = 0; m_viewport.TopLeftY = 0;
     }
 
-    // „Ÿ„Ÿ GDI DIB SURFACE „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
     void Window::RecreateLayeredSurface(int w, int h)
     {
         if (m_hBitmap)
@@ -249,58 +271,62 @@ namespace Beyond
             m_hBitmap = nullptr;
             m_pBits = nullptr;
         }
-
         BITMAPINFOHEADER bih = {};
         bih.biSize = sizeof(BITMAPINFOHEADER);
-        bih.biWidth = w;
-        bih.biHeight = -h; // top-down
-        bih.biPlanes = 1;
-        bih.biBitCount = 32;
+        bih.biWidth = w; bih.biHeight = -h;
+        bih.biPlanes = 1; bih.biBitCount = 32;
         bih.biCompression = BI_RGB;
-
-        BITMAPINFO bi = {};
-        bi.bmiHeader = bih;
-
+        BITMAPINFO bi = {}; bi.bmiHeader = bih;
         m_hBitmap = CreateDIBSection(m_hdcMem, &bi, DIB_RGB_COLORS, &m_pBits, NULL, 0);
         SelectObject(m_hdcMem, m_hBitmap);
-
         m_layeredW = w;
         m_layeredH = h;
     }
 
-    // „Ÿ„Ÿ READBACK + UpdateLayeredWindow „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    //void Window::DrawBorderOnBitmap()
+    //{
+    //    if (!m_pBits || m_layeredW <= 0 || m_layeredH <= 0) return;
+    //    uint8_t* dst = (uint8_t*)m_pBits;
+    //    const int stride = m_layeredW * 4;
+    //    for (int y = 0; y < m_layeredH; y++)
+    //    {
+    //        for (int x = 0; x < m_layeredW; x++)
+    //        {
+    //            bool isBorder = (x < BORDER_WIDTH || x >= m_layeredW - BORDER_WIDTH ||
+    //                y < BORDER_WIDTH || y >= m_layeredH - BORDER_WIDTH);
+    //            if (!isBorder) continue;
+    //            uint8_t* px = dst + y * stride + x * 4;
+    //            px[0] = BORDER_B;
+    //            px[1] = BORDER_G;
+    //            px[2] = BORDER_R;
+    //            px[3] = BORDER_A;
+    //        }
+    //    }
+    //}
+
     void Window::UpdateLayeredSurface()
     {
         if (!m_offscreenTex || !m_stagingTex || !m_pBits) return;
-
         auto context = Graphics::Instance().GetDeviceContext();
 
-        // 1. Copy offscreen render target  staging (GPU  CPU-readable)
         context->CopyResource(m_stagingTex.Get(), m_offscreenTex.Get());
 
-        // 2. Map staging  baca pixel dari CPU
         D3D11_MAPPED_SUBRESOURCE mapped;
         if (FAILED(context->Map(m_stagingTex.Get(), 0, D3D11_MAP_READ, 0, &mapped)))
             return;
 
-        // 3. Copy pixel ke GDI DIB
-        //    Format D3D11 BGRA == GDI DIB BGRA  cocok langsung, no swizzle
         uint8_t* src = (uint8_t*)mapped.pData;
         uint8_t* dst = (uint8_t*)m_pBits;
-
         for (int y = 0; y < m_layeredH; y++)
-        {
-            memcpy(dst + y * (m_layeredW * 4),
-                src + y * mapped.RowPitch,
-                m_layeredW * 4);
-        }
+            memcpy(dst + y * (m_layeredW * 4), src + y * mapped.RowPitch, m_layeredW * 4);
 
         context->Unmap(m_stagingTex.Get(), 0);
 
-        // 4. UpdateLayeredWindow  DWM composite per-pixel alpha
+        // Gambar border 2px putih di atas hasil render
+        DrawBorderOnBitmap();
+
         POINT ptSrc = { 0, 0 };
         SIZE  sz = { m_layeredW, m_layeredH };
-
         int winX = 0, winY = 0;
         SDL_GetWindowPosition(m_sdlWindow, &winX, &winY);
         POINT ptDst = { (LONG)winX, (LONG)winY };
@@ -315,7 +341,6 @@ namespace Beyond
             m_hdcMem, &ptSrc, 0, &blend, ULW_ALPHA);
     }
 
-    // „Ÿ„Ÿ BEGIN / END RENDER „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
     void Window::BeginRender(float r, float g, float b, float a)
     {
         float color[] = { r, g, b, a };
@@ -331,25 +356,16 @@ namespace Beyond
     void Window::EndRender(int syncInterval)
     {
         if (m_isTransparent)
-        {
-            // Readback offscreen texture  GDI DIB  UpdateLayeredWindow
-            // Tidak ada Present  tidak ada swap chain
             UpdateLayeredSurface();
-        }
         else
-        {
             if (m_swapChain) m_swapChain->Present(syncInterval, 0);
-        }
     }
 
-    // „Ÿ„Ÿ RESIZE „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
     void Window::Resize(int w, int h)
     {
         if (w <= 0 || h <= 0) return;
         if (w == m_width && h == m_height) return;
-
-        m_width = w;
-        m_height = h;
+        m_width = w; m_height = h;
 
         auto context = Graphics::Instance().GetDeviceContext();
         context->OMSetRenderTargets(0, nullptr, nullptr);
@@ -359,7 +375,6 @@ namespace Beyond
 
         if (m_isTransparent)
         {
-            // Recreate offscreen texture dan GDI surface dengan ukuran baru
             RecreateLayeredSurface(w, h);
             CreateOffscreenBuffers(w, h);
         }
@@ -370,7 +385,6 @@ namespace Beyond
         }
     }
 
-    // „Ÿ„Ÿ UTILITIES „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
     void Window::SetVisible(bool visible)
     {
         m_isVisible = visible;
@@ -399,5 +413,46 @@ namespace Beyond
             return true;
         }
         return false;
+    }
+
+    // =========================================================
+    // [FIX] IMPLEMENTASI SETTER BARU
+    // =========================================================
+    void Window::SetClickThrough(bool enable)
+    {
+        m_isClickThrough = enable;
+        if (m_hWnd)
+        {
+            LONG exStyle = GetWindowLong(m_hWnd, GWL_EXSTYLE);
+            if (enable)
+                exStyle |= WS_EX_TRANSPARENT; // Bikin click tembus
+            else
+                exStyle &= ~WS_EX_TRANSPARENT; // Balikin jadi normal solid
+
+            SetWindowLong(m_hWnd, GWL_EXSTYLE, exStyle);
+        }
+    }
+
+    void Window::DrawBorderOnBitmap()
+    {
+        // [FIX] Cek flag showBorder
+        if (!m_showBorder || !m_pBits || m_layeredW <= 0 || m_layeredH <= 0) return;
+
+        uint8_t* dst = (uint8_t*)m_pBits;
+        const int stride = m_layeredW * 4;
+        for (int y = 0; y < m_layeredH; y++)
+        {
+            for (int x = 0; x < m_layeredW; x++)
+            {
+                bool isBorder = (x < BORDER_WIDTH || x >= m_layeredW - BORDER_WIDTH ||
+                    y < BORDER_WIDTH || y >= m_layeredH - BORDER_WIDTH);
+                if (!isBorder) continue;
+                uint8_t* px = dst + y * stride + x * 4;
+                px[0] = BORDER_B;
+                px[1] = BORDER_G;
+                px[2] = BORDER_R;
+                px[3] = BORDER_A;
+            }
+        }
     }
 }

@@ -49,10 +49,22 @@ namespace Beyond
         void SetTickCallback(TickCallback callback) { m_tickCallback = callback; }
         void TriggerTick() { if (m_tickCallback) m_tickCallback(); }
 
+        // Tambahkan di bagian public:
+        void SetClickThrough(bool enable);
+        bool IsClickThrough() const { return m_isClickThrough; }
+
+        void SetBorderVisible(bool visible) { m_showBorder = visible; }
+        bool IsBorderVisible() const { return m_showBorder; }
+
+        // Tambahkan di bagian private variables (di bawah m_isTransparent):
+        bool m_isClickThrough = false;
+        bool m_showBorder = true;
+
     private:
         void CreateBuffers(int w, int h);
         void CreateOffscreenBuffers(int w, int h);
         void RecreateLayeredSurface(int w, int h);
+        void DrawBorderOnBitmap();
         void UpdateLayeredSurface();
 
         TickCallback m_tickCallback = nullptr;
@@ -73,18 +85,17 @@ namespace Beyond
 
         Camera* m_targetCamera = nullptr;
 
-        // Normal window: swap chain path
+        // Normal window
         Microsoft::WRL::ComPtr<IDXGISwapChain1>        m_swapChain;
 
-        // Shared render resources (dipakai kedua path)
+        // Shared
         Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_renderTargetView;
         Microsoft::WRL::ComPtr<ID3D11DepthStencilView> m_depthStencilView;
         D3D11_VIEWPORT                                 m_viewport = {};
 
         // Transparent window: offscreen path
-        // Render ke texture (bukan swap chain backbuffer) Å® tidak konflik dengan WS_EX_LAYERED
-        Microsoft::WRL::ComPtr<ID3D11Texture2D>        m_offscreenTex;  // Render target texture
-        Microsoft::WRL::ComPtr<ID3D11Texture2D>        m_stagingTex;    // CPU readback
+        Microsoft::WRL::ComPtr<ID3D11Texture2D>        m_offscreenTex;
+        Microsoft::WRL::ComPtr<ID3D11Texture2D>        m_stagingTex;
 
         // GDI Layered Window
         HDC     m_hdcScreen = nullptr;
