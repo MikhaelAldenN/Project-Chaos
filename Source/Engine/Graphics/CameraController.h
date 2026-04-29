@@ -130,7 +130,7 @@ private:
 
     // --- Update Sub-routines ---
     void UpdateSequence(float dt, std::shared_ptr<Camera>& camera);
-    void UpdateFixedFollow(std::shared_ptr<Camera>& camera);
+    void UpdateFixedFollow(float dt, std::shared_ptr<Camera>& camera);
     void UpdateFixedStatic(std::shared_ptr<Camera>& camera);
     void UpdateFreeCamera(float dt, std::shared_ptr<Camera>& camera);
     void UpdateOrbitCamera(float dt, std::shared_ptr<Camera>& camera);

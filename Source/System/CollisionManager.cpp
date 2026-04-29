@@ -165,6 +165,8 @@ void CollisionManager::Update(float elapsedTime)
     {
         CheckPlayerVsItems();
     }
+
+    ProcessPlayerAttackContext();
 }
 
 void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
@@ -556,5 +558,73 @@ void CollisionManager::CheckBossFilesVsPlayer()
             m_player->SetInputEnabled(false);
             m_player->GetMovement()->SetPosition({ 0, -1000, 0 });
         }
+    }
+}
+
+bool CollisionManager::CheckSphereCollision(const DirectX::XMFLOAT3& posA, const DirectX::XMFLOAT3& posB, float threshold)
+{
+    float dx = posA.x - posB.x;
+    float dz = posA.z - posB.z;
+    float distSq = (dx * dx) + (dz * dz);
+    float thresholdSq = threshold * threshold;
+
+    return distSq < thresholdSq;
+}
+
+void CollisionManager::ProcessPlayerAttackContext()
+{
+    if (!m_player || !m_enemyManager) return;
+
+    // Trigger only once per Spacebar press
+    if (Input::Instance().GetKeyboard().IsTriggered(VK_SPACE))
+    {
+        DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
+
+        float slashThreshold = 3.5f; // Melee Range
+        float parryThreshold = 2.5f; // Parry Range
+
+        // 1. CONDITION: Distance(Enemy) < Threshold -> SLASH
+        for (auto& enemy : m_enemyManager->GetEnemies())
+        {
+            if (!enemy->IsActive()) continue;
+
+            if (CheckSphereCollision(pPos, enemy->GetPosition(), slashThreshold))
+            {
+                m_player->GetStateMachine()->ChangeState(m_player, new PlayerSlash());
+
+                // Example: Kill the enemy instantly on slash
+                enemy->SetActive(false);
+                return; // Stop checking, attack is resolved
+            }
+        }
+
+        // 2. CONDITION: Distance(Bullet) < Threshold -> PARRY
+        for (auto& enemy : m_enemyManager->GetEnemies())
+        {
+            for (auto& bullet : enemy->GetProjectiles())
+            {
+                if (!bullet->IsActive()) continue;
+
+                DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+
+                if (CheckSphereCollision(pPos, bPos, parryThreshold))
+                {
+                    m_player->GetStateMachine()->ChangeState(m_player, new PlayerParry());
+
+                    // Reversing the velocity vector
+                    DirectX::XMFLOAT3 currentVel = bullet->GetVelocity();
+                    DirectX::XMFLOAT3 reflectedVel = { -currentVel.x, currentVel.y, -currentVel.z };
+
+                    // Using YOUR specific Bullet function to apply the bounce!
+                    bullet->ApplyMovement(bPos, reflectedVel);
+
+                    return; // Stop checking
+                }
+            }
+        }
+
+        // 3. CONDITION: Else -> SHOOT
+        m_player->GetStateMachine()->ChangeState(m_player, new PlayerShoot());
+        m_player->FireProjectile();
     }
 }

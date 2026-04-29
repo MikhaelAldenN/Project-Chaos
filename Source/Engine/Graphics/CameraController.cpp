@@ -123,7 +123,7 @@ void CameraController::Update(float elapsedTime)
     switch (m_controlMode)
     {
     case CameraControlMode::Sequence:    UpdateSequence(elapsedTime, camera); break;
-    case CameraControlMode::FixedFollow: UpdateFixedFollow(camera); break;
+    case CameraControlMode::FixedFollow: UpdateFixedFollow(elapsedTime, camera); break;
     case CameraControlMode::FixedStatic: UpdateFixedStatic(camera); break;
     case CameraControlMode::Free:        UpdateFreeCamera(elapsedTime, camera); break;
     case CameraControlMode::GamePad:
@@ -287,26 +287,42 @@ void CameraController::UpdateSequence(float dt, std::shared_ptr<Camera>& camera)
     }
 }
 
-void CameraController::UpdateFixedFollow(std::shared_ptr<Camera>& camera)
+void CameraController::UpdateFixedFollow(float dt, std::shared_ptr<Camera>& camera)
 {
-    // 1. Hitung Posisi Kamera (Seperti biasa)
-    XMFLOAT3 finalPos;
-    finalPos.x = m_targetPos.x + m_fixedPos.x;
-    finalPos.y = m_targetPos.y + m_fixedPos.y;
-    finalPos.z = m_targetPos.z + m_fixedPos.z;
+    // DYNAMIC ZOOM (Framing)
+    // Calculate how far the player is from the center of the map (0,0,0)
+    float distFromCenter = std::sqrt(m_targetPos.x * m_targetPos.x + m_targetPos.z * m_targetPos.z);
 
-    camera->SetPosition(finalPos);
+    // (Adjust the 0.15f multiplier to make it zoom faster or slower)
+    float zoomFactor = std::clamp(distFromCenter * 0.15f, 0.0f, 6.0f);
 
-    // 2. [BARU] Hitung Titik Pandang (Look At) dengan Offset
-    // Sebelumnya cuma: camera->LookAt(m_targetPos);
-    // Sekarang kita tambahkan m_targetOffset:
+    XMFLOAT3 dynamicOffset = m_fixedPos;
+    dynamicOffset.y += zoomFactor;
+    dynamicOffset.z -= zoomFactor * 0.5f; // Pull the camera back slightly as it goes up
 
-    XMFLOAT3 finalLookAt;
-    finalLookAt.x = m_targetPos.x + m_targetOffset.x;
-    finalLookAt.y = m_targetPos.y + m_targetOffset.y;
-    finalLookAt.z = m_targetPos.z + m_targetOffset.z;
+    XMFLOAT3 desiredPos;
+    desiredPos.x = m_targetPos.x + dynamicOffset.x;
+    desiredPos.y = m_targetPos.y + dynamicOffset.y;
+    desiredPos.z = m_targetPos.z + dynamicOffset.z;
 
-    camera->LookAt(finalLookAt);
+    // SOFT FOLLOW (Lerp)
+    float followSpeed = 5.0f;
+
+    XMFLOAT3 currentPos = camera->GetPosition();
+    XMFLOAT3 newPos;
+
+    newPos.x = currentPos.x + (desiredPos.x - currentPos.x) * followSpeed * dt;
+    newPos.y = currentPos.y + (desiredPos.y - currentPos.y) * followSpeed * dt;
+    newPos.z = currentPos.z + (desiredPos.z - currentPos.z) * followSpeed * dt;
+
+    camera->SetPosition(newPos);
+
+    XMFLOAT3 desiredLookAt;
+    desiredLookAt.x = m_targetPos.x + m_targetOffset.x;
+    desiredLookAt.y = m_targetPos.y + m_targetOffset.y;
+    desiredLookAt.z = m_targetPos.z + m_targetOffset.z;
+
+    camera->LookAt(desiredLookAt);
 }
 
 void CameraController::UpdateFixedStatic(std::shared_ptr<Camera>& camera)

@@ -7,11 +7,14 @@
 #include <vector>
 #include "System/AudioManager.h"
 #include "System/Collision.h"
+#include "System/Input.h"
 #include "Enemy.h"
 #include "Player.h"
 #include "Stage.h"
 #include "EnemyManager.h"
 #include "ItemManager.h"
+#include "StateMachine.h"
+#include "PlayerStates.h"
 #include "Boss.h"
 
 class ItemManager;
@@ -30,6 +33,7 @@ public:
     void Initialize(Player* p, Stage* s, EnemyManager* em, ItemManager* im, Boss* boss);
 
     void Update(float elapsedTime);
+    void ProcessPlayerAttackContext();
     void SetOnCheckpointReachCallback(std::function<void(DirectX::XMFLOAT3)> callback) { m_onCheckpointReachCallback = callback; }
     void SetOnLevelCompleteCallback(std::function<void()> callback) { m_onLevelCompleteCallback = callback; }
     void SetOnPlayerDeathCallback(std::function<void()> callback) { m_onPlayerDeathCallback = callback; }
@@ -41,6 +45,7 @@ private:
     void CheckPlayerVsItems();
     void CheckPlayerVsTriggerLines();
     void CheckPlayerVsVoidLines();
+    bool CheckSphereCollision(const DirectX::XMFLOAT3& posA, const DirectX::XMFLOAT3& posB, float threshold);
     void CheckStageCollision();
     void CheckEnemyProjectilesFull(float elapsedTime);
     void CheckBossFilesVsPlayer();

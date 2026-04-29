@@ -1,5 +1,8 @@
 #pragma once
+
+#include "Bullet.h"
 #include "Character.h"
+#include <deque>
 #include <memory>
 #include <DirectXMath.h>
 #include <characterkinematic/PxController.h> 
@@ -85,4 +88,12 @@ private:
 
     // Menyimpan arah terakhir ditekan agar bisa dash meski diam
     DirectX::XMFLOAT2 lastValidInput = { 0.0f, 1.0f };
+
+public:
+    void FireProjectile();
+    void RenderProjectiles(ModelRenderer* renderer);
+    std::deque<std::unique_ptr<Bullet>>& GetProjectiles() { return m_projectiles; }
+
+private:
+    std::deque<std::unique_ptr<Bullet>> m_projectiles;
 };
