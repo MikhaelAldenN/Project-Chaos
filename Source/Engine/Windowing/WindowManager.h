@@ -26,7 +26,7 @@ public:
     void ClearAll();
 
     // --- USER FUNCTIONS ---
-    Beyond::Window* CreateGameWindow(const char* title, int width, int height);
+    Beyond::Window* CreateGameWindow(const char* title, int width, int height, bool isTransparent = false);
     void DestroyWindow(Beyond::Window* targetWindow);
     void EnforceWindowPriorities();
     void MarkPriorityDirty() { m_dirtyPriority = true; }

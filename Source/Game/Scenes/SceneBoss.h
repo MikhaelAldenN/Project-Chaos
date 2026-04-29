@@ -33,12 +33,13 @@ public:
     void CloseSubWindowBySDLID(Uint32 sdlWindowID);
 
 private:
-    void RenderScene(float elapsedTime, Camera* camera);
+    void RenderScene(float elapsedTime, Camera* camera, bool isTransparentWindow);
     void InitializeSubWindows();
 
     // --- FITUR DEBUG & SYSTEM ---
     void ResetEverything();
     void SpawnDebugWindow();
+    void SpawnTransparentWindow();
     void AddLog(const std::string& message);
 
 private:
@@ -58,7 +59,7 @@ private:
     float m_screenLimitZ = 12.5f;
 
     // --- GUI DEBUG VARIABLES ---
-    bool m_showGrid = true;
+    bool m_showGrid = false;
     float m_timeScale = 1.0f;
     int m_spawnCount = 0;
     bool m_autoSyncMainWindow = true;
@@ -67,4 +68,8 @@ private:
 
     // Terminal Log System
     std::vector<std::string> m_debugLogs;
+
+    DirectX::XMFLOAT2 m_currentStretch = { 0.0f, 0.0f };
+    DirectX::XMFLOAT2 m_stretchOffset = { 0.0f, 0.0f }; 
+    const float m_defaultWinSize = 200.0f;
 };

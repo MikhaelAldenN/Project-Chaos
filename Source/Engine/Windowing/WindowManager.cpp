@@ -82,8 +82,27 @@ void WindowManager::RenderAll(float dt, Scene* scene)
         if (!win->IsVisible()) continue;
         if (win.get() != mainWindow && !win->ShouldRender(dt)) continue;
 
-        if (isBeyondScene) win->BeginRender(0.1f, 0.1f, 0.15f);
-        else win->BeginRender(0.0f, 0.0f, 0.0f);
+        // DEBUG SEMENTARA
+        if (win->IsTransparent())
+        {
+            Camera* cam = win->GetCamera();
+            char dbg[128];
+            sprintf_s(dbg, "[RENDER] TransparentWin camera ptr=%p\n", (void*)cam);
+            OutputDebugStringA(dbg);
+        }
+        // END DEBUG
+
+        float clearAlpha = win->IsTransparent() ? 0.0f : 1.0f;
+
+        if (win->IsTransparent())
+        {
+            win->BeginRender(0.0f, 0.0f, 0.0f, clearAlpha);
+        }
+        else
+        {
+            if (isBeyondScene) win->BeginRender(0.1f, 0.1f, 0.15f, clearAlpha);
+            else win->BeginRender(0.0f, 0.0f, 0.0f, clearAlpha);
+        }
 
         scene->OnResize(win->GetWidth(), win->GetHeight());
         scene->Render(dt, win->GetCamera());
@@ -114,15 +133,13 @@ void WindowManager::HandleResize(HWND hWnd, int width, int height)
     }
 }
 
-Beyond::Window* WindowManager::CreateGameWindow(const char* title, int width, int height)
+Beyond::Window* WindowManager::CreateGameWindow(const char* title, int width, int height, bool isTransparent)
 {
-    // 1. Buat objek Window menggunakan konstruktor kosong (tanpa parameter)
     auto newWindow = std::make_unique<Beyond::Window>();
 
-    // 2. Panggil fungsi Initialize untuk menyiapkan window (ini tempat 3 parameter tadi)
-    if (!newWindow->Initialize(title, width, height))
+    // Lempar parameternya ke Initialize
+    if (!newWindow->Initialize(title, width, height, isTransparent))
     {
-        // Handle jika gagal membuat window
         return nullptr;
     }
 

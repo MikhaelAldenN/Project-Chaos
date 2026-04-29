@@ -1,3 +1,17 @@
+v0.0.6 BASE ANIMATION IMLEMENTATION
+Update berfokus pada animasi dan beberapa optimisasi di sana sini.
+
+Key Features:
+- Base animation (Idle, Run, Hit)
+- Press SPACE to Hit
+- Window stretch animation on player dash
+
+Known Issue:
+- Kadang freeze pas debug. Dicurigai karena efek stretch on window.
+
+
+=======================================================================
+
 v0.0.3 ADVANCED MOVEMENT & WINDOW STRESS TEST
 Tambahkan mekanik pergerakan baru buat test sejauh mana window bisa ikuti player.
 

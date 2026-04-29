@@ -1,11 +1,14 @@
 ﻿#include "Graphics.h"
 #include "Misc.h" // Assuming HRTrace is here
+#include <dwmapi.h>
+#pragma comment(lib, "dwmapi.lib")
 
 void Graphics::Initialize()
 {
     HRESULT hr = S_OK;
 
-    UINT createDeviceFlags = 0;
+    UINT createDeviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT; 
+
 #if defined(DEBUG) || defined(_DEBUG)
     createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
@@ -45,7 +48,7 @@ void Graphics::Initialize()
         Microsoft::WRL::ComPtr<IDXGIAdapter> adapter;
         hr = dxgiDevice->GetAdapter(adapter.GetAddressOf());
 
-        hr = adapter->GetParent(__uuidof(IDXGIFactory), (void**)dxgiFactory.GetAddressOf());
+        hr = adapter->GetParent(__uuidof(IDXGIFactory2), (void**)dxgiFactory.GetAddressOf());
         _ASSERT_EXPR(SUCCEEDED(hr), HRTrace(hr));
     }
 
@@ -56,26 +59,27 @@ void Graphics::Initialize()
     modelRenderer = std::make_unique<ModelRenderer>(device.Get());
 }
 
-void Graphics::CreateSwapChain(HWND hWnd, int width, int height, IDXGISwapChain** outSwapChain)
+void Graphics::CreateSwapChain(HWND hWnd, int width, int height, bool isTransparent, IDXGISwapChain1** outSwapChain)
 {
     if (!dxgiFactory) return;
 
-    DXGI_SWAP_CHAIN_DESC sd = {};
-    sd.BufferDesc.Width = width;
-    sd.BufferDesc.Height = height;
-    sd.BufferDesc.RefreshRate.Numerator = 60;
-    sd.BufferDesc.RefreshRate.Denominator = 1;
-    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    sd.SampleDesc.Count = 1;
-    sd.SampleDesc.Quality = 0;
-    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.BufferCount = 2; // Double buffering
-    sd.OutputWindow = hWnd;
-    sd.Windowed = TRUE;
-    sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; // Modern standard
-    sd.Flags = 0;
+    DXGI_SWAP_CHAIN_DESC1 sd1 = {};
+    sd1.Width = width;
+    sd1.Height = height;
+    sd1.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    sd1.SampleDesc.Count = 1;
+    sd1.SampleDesc.Quality = 0;
+    sd1.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 
-    dxgiFactory->CreateSwapChain(device.Get(), &sd, outSwapChain);
+    // Kita samaratakan keduanya. DWM yang akan mengurus transparansinya.
+    sd1.BufferCount = 2;
+    sd1.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    sd1.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+    sd1.Flags = 0;
+
+    HRESULT hr = dxgiFactory->CreateSwapChainForHwnd(
+        device.Get(), hWnd, &sd1, nullptr, nullptr, outSwapChain);
+    _ASSERT_EXPR(SUCCEEDED(hr), HRTrace(hr));
 }
 
 ID3D11BlendState* Graphics::GetAlphaBlendState()

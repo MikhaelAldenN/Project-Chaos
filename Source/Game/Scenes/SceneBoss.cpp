@@ -43,6 +43,7 @@ SceneBoss::SceneBoss()
     m_player = std::make_unique<Player>();
     m_player->SetInvertControls(false);
     m_player->SetPosition(0.0f, 0.0f, -8.0f);
+	m_player->SetMoveSpeed(10.0f);
 
     auto device = Graphics::Instance().GetDevice();
     m_primitive2D = std::make_unique<Primitive>(device);
@@ -118,17 +119,23 @@ void SceneBoss::InitializeSubWindows()
     if (!m_windowSystem || !m_player) return;
 
     m_windowSystem->AddTrackedWindow(
-        { "player", "Player", 300, 300, 1, { 0.0f, 0.0f, 0.0f } },
+        { "player", "Player", 300, 300, 1 },
         [this]() -> DirectX::XMFLOAT3 {
             if (!m_player) return DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
             auto pPos = m_player->GetPosition();
-            return DirectX::XMFLOAT3(pPos.x, 0.0f, pPos.z);
+
+            // [FIX] Tambahkan offset dunia agar window bergeser ke belakang saat melar
+            return DirectX::XMFLOAT3(
+                pPos.x + m_stretchOffset.x,
+                0.0f,
+                pPos.z + m_stretchOffset.y // Memakai Y dari XMFLOAT2 untuk sumbu Z dunia
+            );
         },
         [this]() -> DirectX::XMFLOAT2 {
-            float safeMarginPixel = 150.0f;
-            float extraPadding = 0.0f;
-            float size = (safeMarginPixel * 2.0f) + extraPadding;
-            return DirectX::XMFLOAT2(size, size);
+            return DirectX::XMFLOAT2(
+                m_defaultWinSize + m_currentStretch.x,
+                m_defaultWinSize + m_currentStretch.y
+            );
         }
     );
 
@@ -211,8 +218,56 @@ void SceneBoss::Update(float elapsedTime)
         if (m_mainCamera)
         {
             DirectX::XMFLOAT3 mousePos = Beyond::InputHelper::GetMouseWorldPos(m_mainCamera->GetPosition());
-            m_player->RotateModelToPoint(mousePos);
+            //m_player->RotateModelToPoint(mousePos);
         }
+    }
+
+    // --- EFEK ELASTIC WINDOW (SINGLE-AXIS PROPORTIONAL) ---
+    if (m_player) {
+        DirectX::XMFLOAT3 vel = m_player->GetMovement()->GetVelocity();
+        float currentSpeedSq = vel.x * vel.x + vel.z * vel.z;
+
+        // 1. Tentukan Nilai Target (Default: 0 alias ukuran normal)
+        DirectX::XMFLOAT2 targetStretch = { 0.0f, 0.0f };
+        DirectX::XMFLOAT2 targetOffset = { 0.0f, 0.0f };
+
+        // Default Release Speed (kecepatan membal ke ukuran semula)
+        float currentLerpSpeed = 10.0f;
+
+        // 2. Kalkulasi Target Jika Sedang Dash
+        if (currentSpeedSq > 40.0f * 40.0f) {
+            float stretchPowerX = 200.0f;
+            float stretchPowerZ = 90.0f;
+
+            // [FIX] Attack Speed: Lebih cepat dari Release, tapi TIDAK instan!
+            // Angka 25.0f membuat window butuh ~0.05 detik untuk melar penuh,
+            // sehingga terlihat "ditarik" oleh kecepatan player, bukan "mendorong".
+            currentLerpSpeed = 10.0f;
+
+            if (std::abs(vel.x) > std::abs(vel.z)) {
+                // DASH HORIZONTAL
+                targetStretch.x = (std::abs(vel.x) / m_player->GetDashSpeed()) * stretchPowerX;
+
+                float signX = (vel.x > 0.0f) ? 1.0f : -1.0f;
+                targetOffset.x = -signX * (targetStretch.x * 0.5f) / PIXEL_TO_UNIT_RATIO;
+            }
+            else {
+                // DASH VERTIKAL
+                targetStretch.y = (std::abs(vel.z) / m_player->GetDashSpeed()) * stretchPowerZ;
+
+                float signZ = (vel.z > 0.0f) ? 1.0f : -1.0f;
+                targetOffset.y = -signZ * (targetStretch.y * 0.5f) / PIXEL_TO_UNIT_RATIO;
+            }
+        }
+
+        // 3. THE MAGIC (Satu Rumus untuk Semua State)
+        // Lerp ukuran dan lerp offset dieksekusi bersamaan dengan kecepatan yang sama.
+        // Ini memastikan ujung depan window terkunci mati, sementara ekornya melar dengan mulus!
+        m_currentStretch.x += (targetStretch.x - m_currentStretch.x) * currentLerpSpeed * scaledDt;
+        m_currentStretch.y += (targetStretch.y - m_currentStretch.y) * currentLerpSpeed * scaledDt;
+
+        m_stretchOffset.x += (targetOffset.x - m_stretchOffset.x) * currentLerpSpeed * scaledDt;
+        m_stretchOffset.y += (targetOffset.y - m_stretchOffset.y) * currentLerpSpeed * scaledDt;
     }
 
     // 3. Update Systems
@@ -255,19 +310,53 @@ void SceneBoss::Update(float elapsedTime)
 // =========================================================
 // CORE RENDER
 // =========================================================
+// =========================================================
+// HANYA BAGIAN Render() yang perlu diganti di SceneBoss.cpp
+// Ganti fungsi Render() yang lama dengan ini:
+// =========================================================
+
+// =========================================================
+// Ganti KEDUA fungsi ini di SceneBoss.cpp
+// =========================================================
+
 void SceneBoss::Render(float elapsedTime, Camera* camera)
 {
     Camera* targetCam = camera ? camera : m_mainCamera.get();
     auto dc = Graphics::Instance().GetDeviceContext();
     auto rs = Graphics::Instance().GetRenderState();
 
-    dc->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), nullptr, 0xFFFFFFFF);
+    // Cek apakah window yang sedang dirender adalah transparent
+    bool isTransparentWindow = false;
+    if (m_windowSystem)
+    {
+        for (auto& tracked : m_windowSystem->GetWindows())
+        {
+            if (tracked->camera.get() == camera && tracked->window && tracked->window->IsTransparent())
+            {
+                isTransparentWindow = true;
+                break;
+            }
+        }
+    }
+
+    // [FIX] Transparent window butuh TransparentWindow blend state agar alpha
+    // channel di render target terisi penuh untuk CPU readback → UpdateLayeredWindow.
+    // Window biasa pakai Transparency (alpha blending normal).
+    if (isTransparentWindow)
+    {
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::TransparentWindow), nullptr, 0xFFFFFFFF);
+    }
+    else
+    {
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+    }
+
     dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestAndWrite), 0);
     dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullBack));
 
-    RenderScene(elapsedTime, targetCam);
+    // [FIX] Teruskan flag isTransparentWindow ke RenderScene
+    RenderScene(elapsedTime, targetCam, isTransparentWindow);
 
-    // TOGGLE GRID: Hanya gambar grid jika dicentang di GUI
     if (m_showGrid && m_primitive3D)
     {
         m_primitive3D->DrawGrid(25, 1.0f);
@@ -277,13 +366,17 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
     Graphics::Instance().GetShapeRenderer()->Render(dc, targetCam->GetView(), targetCam->GetProjection());
 }
 
-void SceneBoss::RenderScene(float elapsedTime, Camera* camera)
+void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparentWindow)
 {
     if (!camera) return;
 
     auto dc = Graphics::Instance().GetDeviceContext();
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
+
+    // [FIX] Set flag isTransparentWindow di RenderContext agar ModelRenderer
+    // tidak meng-override blend state yang sudah kita set di Render() di atas.
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
+    rc.isTransparentWindow = isTransparentWindow;
 
     if (m_player)
     {
@@ -357,6 +450,10 @@ void SceneBoss::DrawGUI()
 
         if (ImGui::Button("Spawn Dummy Window", ImVec2(-1, 30))) {
             SpawnDebugWindow();
+        }
+
+        if (ImGui::Button("Spawn Transparent Window", ImVec2(-1, 30))) {
+            SpawnTransparentWindow();
         }
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
@@ -440,4 +537,42 @@ void SceneBoss::CloseSubWindowBySDLID(Uint32 sdlWindowID)
         m_windowSystem->RemoveTrackedWindow(targetName);
         AddLog("Dummy Window Closed Manually: " + targetName);
     }
+}
+
+void SceneBoss::SpawnTransparentWindow()
+{
+    m_spawnCount++;
+
+    TrackedWindowConfig config;
+    config.name = "transparent_win_" + std::to_string(m_spawnCount);
+    config.title = "T" + std::to_string(m_spawnCount) + " (Transparent)";
+    config.width = 300;
+    config.height = 300;
+    config.role = WindowRole::SUB_VIEWPORT;
+    config.isTransparent = true; // <-- Kunci untuk DXGI_ALPHA_MODE_PREMULTIPLIED
+
+    // AddTrackedWindow otomatis membuatkan kamera dan window fisik
+    m_windowSystem->AddTrackedWindow(config, []() {
+        return DirectX::XMFLOAT3(0, 0, 0); // Posisi default di tengah (0,0,0)
+        });
+
+    // Modifikasi sifat OS Window agar sesuai spesifikasi (Bordered, Resizable, Draggable)
+    for (auto& tracked : m_windowSystem->GetWindows())
+    {
+        if (tracked->name == config.name)
+        {
+            SDL_Window* sdlWin = tracked->window->GetSDLWindow();
+
+            // Mengaktifkan border dan fitur resize dari OS
+            SDL_SetWindowResizable(sdlWin, true);
+            SDL_SetWindowBordered(sdlWin, true);
+
+            // Override sistem internal BeyondWindow agar titlebar bisa di-drag
+            tracked->window->SetDraggable(true);
+            break;
+        }
+    }
+
+    AddLog("Spawned transparent window: " + config.name);
+    WindowManager::Instance().EnforceWindowPriorities();
 }

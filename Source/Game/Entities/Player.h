@@ -47,6 +47,10 @@ public:
 
     DirectX::XMFLOAT4 color;
 
+    bool IsMoving() const {
+        return (std::abs(currentSmoothInput.x) > 0.01f || std::abs(currentSmoothInput.y) > 0.01f);
+    }
+
 private:
     DirectX::XMFLOAT3 defaultScale = { 3.0f, 3.0f, 3.0f };
     StateMachine* stateMachine;
@@ -59,6 +63,8 @@ private:
     float deceleration = 12.0f;
     DirectX::XMFLOAT2 currentSmoothInput = { 0.0f, 0.0f };
     physx::PxController* m_physxController = nullptr;
+
+    float rotationSmoothSpeed = 100.0f;
 
 public:
     // Accessors untuk State Machine
