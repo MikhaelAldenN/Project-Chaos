@@ -7,6 +7,7 @@
 #include "PostProcessManager.h"
 #include "System/CollisionManager.h"
 #include "System/Graphics.h"
+#include "InputHelper.h"
 
 // Game Objects
 #include "EnemyManager.h"
@@ -38,13 +39,13 @@ SceneGame::SceneGame()
 
     XMFLOAT3 startPos{ m_cameraPosition };
     startPos.x = 0.0f;
-    startPos.z = 0.0f;
+    startPos.z = -14.0f;
     startPos.y = Config::CAM_START_HEIGHT;
 
     m_mainCamera->SetPosition(startPos);
     m_mainCamera->LookAt(m_cameraTarget);
     camCtrl.SetActiveCamera(m_mainCamera);
-    camCtrl.SetControlMode(CameraControlMode::FixedStatic);
+    camCtrl.SetControlMode(CameraControlMode::FixedFollow);
     camCtrl.SetFixedSetting(startPos);
     camCtrl.SetTarget(m_cameraTarget);
 
@@ -120,6 +121,50 @@ void SceneGame::Update(const float elapsedTime)
         m_player->Update(elapsedTime, activeCam);
         CameraController::Instance().SetTarget(m_player->GetPosition());
         m_director->Update(elapsedTime, m_player->GetMovement()->GetPosition());
+
+        if (m_mainCamera)
+        {
+            // 1. Get raw Mouse Screen Coordinates (CHANGED TO FLOAT)
+            float mouseX, mouseY;
+            SDL_GetMouseState(&mouseX, &mouseY);
+
+            // 2. Get Screen Dimensions
+            float screenW = Config::DEFAULT_SCREEN_W;
+            float screenH = Config::DEFAULT_SCREEN_H;
+            if (auto window = Framework::Instance()->GetMainWindow()) {
+                screenW = static_cast<float>(window->GetWidth());
+                screenH = static_cast<float>(window->GetHeight());
+            }
+
+            // 3. Prepare Camera Matrices
+            DirectX::XMMATRIX view = DirectX::XMLoadFloat4x4(&m_mainCamera->GetView());
+            DirectX::XMMATRIX proj = DirectX::XMLoadFloat4x4(&m_mainCamera->GetProjection());
+            DirectX::XMMATRIX world = DirectX::XMMatrixIdentity();
+
+            // 4. Create Near and Far points for the Raycast (REMOVED THE CASTING)
+            DirectX::XMVECTOR nearPoint = DirectX::XMVectorSet(mouseX, mouseY, 0.0f, 0.0f);
+            DirectX::XMVECTOR farPoint = DirectX::XMVectorSet(mouseX, mouseY, 1.0f, 0.0f);
+
+            // 5. Unproject screen space to 3D World Space
+            nearPoint = DirectX::XMVector3Unproject(nearPoint, 0, 0, screenW, screenH, 0.0f, 1.0f, proj, view, world);
+            farPoint = DirectX::XMVector3Unproject(farPoint, 0, 0, screenW, screenH, 0.0f, 1.0f, proj, view, world);
+
+            // 6. Calculate Ray Direction
+            DirectX::XMVECTOR rayDir = DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(farPoint, nearPoint));
+            DirectX::XMFLOAT3 origin, dir;
+            DirectX::XMStoreFloat3(&origin, nearPoint);
+            DirectX::XMStoreFloat3(&dir, rayDir);
+
+            // 7. Intersect Ray with the Floor (Y = 0)
+            if (abs(dir.y) > 0.001f) // Prevent divide by zero
+            {
+                float t = -origin.y / dir.y;
+                DirectX::XMFLOAT3 trueMouseWorldPos = { origin.x + dir.x * t, 0.0f, origin.z + dir.z * t };
+
+                // 8. Rotate Player perfectly!
+                m_player->RotateModelToPoint(trueMouseWorldPos);
+            }
+        }
     }
 
     if (m_enemyManager) {
@@ -213,10 +258,15 @@ void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
     auto modelRenderer{ Graphics::Instance().GetModelRenderer() };
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, &m_lightManager };
 
-    if (m_player) modelRenderer->Draw(ShaderId::Phong, m_player->GetModel(), m_player->color);
+    if (m_player)
+    {
+        modelRenderer->Draw(ShaderId::Phong, m_player->GetModel(), m_player->color);
+        m_player->RenderProjectiles(modelRenderer);
+    }
     if (m_enemyManager) m_enemyManager->Render(modelRenderer);
     if (m_itemManager) m_itemManager->Render(modelRenderer);
-    if (m_stage) {
+    if (m_stage) 
+    {
         m_stage->UpdateTransform();
         m_stage->Render(modelRenderer);
     }

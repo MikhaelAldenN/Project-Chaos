@@ -76,6 +76,10 @@ void Player::Update(float elapsedTime, Camera* camera)
     XMStoreFloat4x4(&worldMatrix, S * R * T);
 
     if (model) model->UpdateTransform(worldMatrix);
+
+    for (auto& bullet : m_projectiles) {
+        if (bullet->IsActive()) bullet->Update(elapsedTime, camera);
+    }
 }
 
 void Player::HandleMovementInput(float dt)
@@ -111,14 +115,29 @@ void Player::HandleMovementInput(float dt)
 
 void Player::UpdateHorizontalMovement(float elapsedTime)
 {
-    // 1. Kalkulasi vektor perpindahan dasar
-    float displacementX = currentSmoothInput.x * moveSpeed * elapsedTime;
-    float displacementZ = currentSmoothInput.y * moveSpeed * elapsedTime;
+    float displacementX = 0.0f;
+    float displacementZ = 0.0f;
 
-    // 2. Cabang Logika: Pakai PhysX (punya temanmu) ATAU Kinematic murni (punyamu)
+    // Grab the velocity set by the State Machine (e.g., Dash)
+    DirectX::XMFLOAT3 stateVelocity = movement->GetVelocity();
+
+    // If the state machine is forcing a velocity (like dashing), use it
+    if (stateVelocity.x != 0.0f || stateVelocity.z != 0.0f)
+    {
+        displacementX = stateVelocity.x * elapsedTime;
+        displacementZ = stateVelocity.z * elapsedTime;
+    }
+    // Otherwise, calculate normal walking movement
+    else
+    {
+        displacementX = currentSmoothInput.x * moveSpeed * elapsedTime;
+        displacementZ = currentSmoothInput.y * moveSpeed * elapsedTime;
+    }
+
+    // 2. Cabang Logika: Pakai PhysX ATAU Kinematic murni
     if (m_physxController)
     {
-        // --- MODE PHYSX (SceneGameBreaker) ---
+        // --- MODE PHYSX (SceneGameBreaker / SceneGame) ---
         float gravityY = -9.81f * elapsedTime;
         physx::PxVec3 displacement(displacementX, gravityY, displacementZ);
 
@@ -130,12 +149,10 @@ void Player::UpdateHorizontalMovement(float elapsedTime)
     else
     {
         // --- MODE KINEMATIC (SceneBoss) ---
-        // Jika PhysX tidak diinisialisasi, gerakkan koordinat secara manual
         DirectX::XMFLOAT3 currentPos = movement->GetPosition();
         currentPos.x += displacementX;
         currentPos.z += displacementZ;
 
-        // (Asumsi di SceneBoss gravitasi diurus terpisah atau tidak ada)
         movement->SetPosition(currentPos);
     }
 }
@@ -148,6 +165,41 @@ void Player::RotateModelToPoint(const DirectX::XMFLOAT3& targetPos)
     float angleRadians = atan2f(dx, dz);
     float angleDegrees = DirectX::XMConvertToDegrees(angleRadians);
     movement->SetRotationY(angleDegrees);
+}
+
+void Player::FireProjectile()
+{
+    auto newBullet = std::make_unique<Bullet>();
+    DirectX::XMFLOAT3 myPos = movement->GetPosition();
+
+    float yawRad = DirectX::XMConvertToRadians(movement->GetRotation().y);
+    DirectX::XMFLOAT3 fwd = { sinf(yawRad), 0.0f, cosf(yawRad) };
+    
+    // Spawn slightly in front of the player
+    myPos.x += fwd.x * 1.5f;
+    myPos.z += fwd.z * 1.5f;
+    myPos.y += 1.0f;
+
+    float bulletSpeed = 25.0f;
+    newBullet->Fire(myPos, fwd, bulletSpeed);
+
+    m_projectiles.push_back(std::move(newBullet));
+
+    // Limit bullet count to prevent memory leaks
+    if (m_projectiles.size() > 5) {
+        m_projectiles.pop_front();
+    }
+}
+
+void Player::RenderProjectiles(ModelRenderer* renderer)
+{
+    for (auto& bullet : m_projectiles)
+    {
+        if (bullet->IsActive())
+        {
+            renderer->Draw(ShaderId::Phong, bullet->GetModel(), { 1.0f, 1.0f, 1.0f, 1.0f });
+        }
+    }
 }
 
 void Player::DrawDebugGUI()

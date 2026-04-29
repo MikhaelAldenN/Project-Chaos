@@ -5,6 +5,7 @@
 #include <DirectXMath.h>
 #include <wrl/client.h> 
 #include <PxPhysicsAPI.h> 
+#include <SDL3/SDL.h>
 
 #include <vector>
 #include "BeyondWindow.h"
