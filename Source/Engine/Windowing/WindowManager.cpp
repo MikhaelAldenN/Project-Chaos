@@ -82,17 +82,8 @@ void WindowManager::RenderAll(float dt, Scene* scene)
         if (!win->IsVisible()) continue;
         if (win.get() != mainWindow && !win->ShouldRender(dt)) continue;
 
-        // DEBUG SEMENTARA
-        if (win->IsTransparent())
-        {
-            Camera* cam = win->GetCamera();
-            char dbg[128];
-            sprintf_s(dbg, "[RENDER] TransparentWin camera ptr=%p\n", (void*)cam);
-            OutputDebugStringA(dbg);
-        }
-        // END DEBUG
-
-        float clearAlpha = win->IsTransparent() ? 0.0f : 1.0f;
+        // [FIX] Gunakan Alpha Background yang sudah diset di window masing-masing
+        float clearAlpha = win->IsTransparent() ? win->GetBackgroundAlpha() : 1.0f;
 
         if (win->IsTransparent())
         {
@@ -100,8 +91,8 @@ void WindowManager::RenderAll(float dt, Scene* scene)
         }
         else
         {
-            if (isBeyondScene) win->BeginRender(0.1f, 0.1f, 0.15f, clearAlpha);
-            else win->BeginRender(0.0f, 0.0f, 0.0f, clearAlpha);
+            // Biru gelap (Dark Blue) untuk window OS biasa
+            win->BeginRender(0.02f, 0.04f, 0.15f, clearAlpha);
         }
 
         scene->OnResize(win->GetWidth(), win->GetHeight());

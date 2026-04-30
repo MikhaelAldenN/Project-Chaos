@@ -1,6 +1,7 @@
 #include "WindowTrackingSystem.h"
 #include "WindowManager.h"
 #include <cmath>
+#include "PerformanceLogger.h"
 
 using namespace DirectX;
 
@@ -40,6 +41,8 @@ bool WindowTrackingSystem::AddTrackedWindow(
     std::function<DirectX::XMFLOAT2()> getTargetSize // Parameter baru
 ) 
 {
+    auto start = std::chrono::high_resolution_clock::now();
+
     // 1. Create Window via Singleton Manager
     Beyond::Window* window = WindowManager::Instance().CreateGameWindow(
         config.title.c_str(),
@@ -98,6 +101,10 @@ bool WindowTrackingSystem::AddTrackedWindow(
 
     m_windowLookup[config.name] = tracked.get();
     m_trackedWindows.push_back(std::move(tracked));
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float, std::milli> duration = end - start;
+    PerformanceLogger::Instance().LogWindowAction("Spawned", config.name, duration.count());
 
     return true;
 }
@@ -190,7 +197,15 @@ void WindowTrackingSystem::UpdateSingleWindow(float dt, TrackedWindow& tracked)
         // HAPUS THRESHOLD >= 2, biarkan window selalu bergerak seiring player!
         if (newX != tracked.state.actualX || newY != tracked.state.actualY)
         {
+            PerformanceLogger::Instance().StartTimer(PerfBucket::WindowOS);
             SDL_SetWindowPosition(tracked.window->GetSDLWindow(), newX, newY);
+            PerformanceLogger::Instance().StopTimer(PerfBucket::WindowOS);
+
+            // Contoh deteksi boundary (opsional, disesuaikan resolusi OS)
+            if (newX < -5000 || newX > 5000) {
+                PerformanceLogger::Instance().LogBoundaryClamp(tracked.name, tracked.state.actualX, tracked.state.actualY, newX, newY);
+            }
+
             tracked.state.actualX = newX;
             tracked.state.actualY = newY;
         }

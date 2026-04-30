@@ -21,6 +21,8 @@ out/
 x64/
 Debug/
 Release/
+Logs/
+WindowBoss_PoC_WindowTracking/Logs/
 
 # File hasil compile C++
 *.obj

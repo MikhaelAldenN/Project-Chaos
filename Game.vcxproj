@@ -138,6 +138,7 @@
     <ClInclude Include="Source\Engine\Graphics\Primitive.h" />
     <ClInclude Include="Source\Engine\Graphics\UberShader.h" />
     <ClInclude Include="Source\Engine\Helpers\InputHelper.h" />
+    <ClInclude Include="Source\Engine\Helpers\PerformanceLogger.h" />
     <ClInclude Include="Source\Engine\Legacy\BossTerminal.h" />
     <ClInclude Include="Source\Engine\Legacy\GUISceneGameBreaker.h" />
     <ClInclude Include="Source\Engine\Legacy\TerminalMonitor1.h" />
@@ -230,6 +231,7 @@
     <ClCompile Include="Source\Engine\Graphics\Primitive.cpp" />
     <ClCompile Include="Source\Engine\Graphics\UberShader.cpp" />
     <ClCompile Include="Source\Engine\Helpers\InputHelper.cpp" />
+    <ClCompile Include="Source\Engine\Helpers\PerformanceLogger.cpp" />
     <ClCompile Include="Source\Engine\Legacy\BossTerminal.cpp" />
     <ClCompile Include="Source\Engine\Legacy\GUISceneGameBreaker.cpp" />
     <ClCompile Include="Source\Engine\Legacy\TerminalMonitor1.cpp" />

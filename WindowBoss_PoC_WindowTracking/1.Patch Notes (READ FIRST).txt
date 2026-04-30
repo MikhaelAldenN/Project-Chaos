@@ -1,3 +1,27 @@
+v0.0.8 TRANSPARENT WINDOW FIX
+Known issue from the older version (v0.0.7) been fixed. Sekarang ada Logsnya. Kalau selesai main **CLOSE DARI MAIN WINDOW** jangan pakai ctrl + F12.
+
+IMPORTANT: JANGAN PAKAI CTRL + F12 KALAU GAK FREEZE/ DARURAT.
+CLOSE DARI TOMBOL SILANG MAIN WINDOW (Window Kiri).
+
+Known Issue:
+- Whack logs writings but that'll do for now
+
+=======================================================================
+
+v0.0.7 TRANSPARENT WINDOW
+Transparent window is hereeeeeeeee. You don't know how much of game changer is this.
+
+Key Features:
+- [NEW] Toggle Player's Transparent Window
+- [NEW] Spawn Transparent Window (Experimental) (Drag & Resize 可能)
+- [ADJ] Set Topmost to Default State
+
+Known Issue:
+- Transparent background not really transparent
+
+=======================================================================
+
 v0.0.6 BASE ANIMATION IMLEMENTATION
 Update berfokus pada animasi dan beberapa optimisasi di sana sini.
 
