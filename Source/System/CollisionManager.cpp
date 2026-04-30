@@ -590,7 +590,7 @@ void CollisionManager::ProcessPlayerAttackContext()
 
             if (CheckSphereCollision(pPos, enemy->GetPosition(), slashThreshold))
             {
-                m_player->GetStateMachine()->ChangeState(m_player, new PlayerSlash());
+                m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerSlash>());
 
                 // Example: Kill the enemy instantly on slash
                 enemy->SetActive(false);
@@ -609,7 +609,7 @@ void CollisionManager::ProcessPlayerAttackContext()
 
                 if (CheckSphereCollision(pPos, bPos, parryThreshold))
                 {
-                    m_player->GetStateMachine()->ChangeState(m_player, new PlayerParry());
+                    m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerParry>());
 
                     // Reversing the velocity vector
                     DirectX::XMFLOAT3 currentVel = bullet->GetVelocity();
@@ -624,7 +624,7 @@ void CollisionManager::ProcessPlayerAttackContext()
         }
 
         // 3. CONDITION: Else -> SHOOT
-        m_player->GetStateMachine()->ChangeState(m_player, new PlayerShoot());
+        m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerShoot>());
         m_player->FireProjectile();
     }
 }

@@ -171,6 +171,7 @@
     <ClInclude Include="Source\Game\Entities\Item.h" />
     <ClInclude Include="Source\Game\Entities\ItemManager.h" />
     <ClInclude Include="Source\Game\Entities\Player.h" />
+    <ClInclude Include="Source\Game\Entities\PlayerConstants.h" />
     <ClInclude Include="Source\Game\Scenes\Scene.h" />
     <ClInclude Include="Source\Game\Scenes\SceneBoss.h" />
     <ClInclude Include="Source\Game\Scenes\SceneGame.h" />
@@ -264,6 +265,7 @@
     <ClCompile Include="Source\Game\Scenes\SceneIntro.cpp" />
     <ClCompile Include="Source\Game\Scenes\SceneTitle.cpp" />
     <ClCompile Include="Source\Game\Scenes\Stage.cpp" />
+    <ClCompile Include="Source\Game\States\PlayerStates.cpp" />
     <ClCompile Include="Source\Game\States\StateBoss.cpp" />
     <ClCompile Include="Source\System\AudioManager.cpp" />
     <ClCompile Include="Source\System\BasicShader.cpp" />

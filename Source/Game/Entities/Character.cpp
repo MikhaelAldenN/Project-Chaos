@@ -1,17 +1,13 @@
-#include "Character.h"
+﻿#include "Character.h"
 
 using namespace DirectX;
 
 Character::Character()
+    : movement(std::make_unique<CharacterMovement>())
 {
-    // Initialize standard movement component
-    movement = new CharacterMovement();
 }
 
-Character::~Character()
-{
-    if (movement) delete movement;
-}
+// ~Character() is compiler-generated — unique_ptr cleans up movement automatically
 
 void Character::Render(ModelRenderer* renderer)
 {
@@ -22,7 +18,6 @@ void Character::RenderDebug(const RenderContext& rc, ShapeRenderer* renderer)
 {
     if (!movement) return;
 
-    // Visualize collision capsule
     XMFLOAT3 pos = movement->GetPosition();
     XMMATRIX T = XMMatrixTranslation(pos.x, pos.y, pos.z);
 
@@ -37,26 +32,20 @@ void Character::RenderDebug(const RenderContext& rc, ShapeRenderer* renderer)
 
 void Character::SyncData()
 {
-    // Ensure model and nodes exist before accessing
-    if (model && !model->GetNodes().empty())
-    {
-        Model::Node& rootNode = model->GetNodes().at(0);
+    if (!model || model->GetNodes().empty()) return;
 
-        // 1. Sync Position
-        rootNode.position = movement->GetPosition();
+    Model::Node& rootNode = model->GetNodes().at(0);
 
-        // 2. Sync Rotation
-        XMFLOAT3 rot = movement->GetRotation();
-        DirectX::XMVECTOR qRot = DirectX::XMQuaternionRotationRollPitchYaw(rot.x, rot.y, rot.z);
-        DirectX::XMStoreFloat4(&rootNode.rotation, qRot);
+    // Sync position, rotation, and scale from movement state to model root node
+    rootNode.position = movement->GetPosition();
 
-        // 3. Sync Scale
-        rootNode.scale = scale;
+    XMFLOAT3 rot = movement->GetRotation();
+    XMVECTOR qRot = XMQuaternionRotationRollPitchYaw(rot.x, rot.y, rot.z);
+    XMStoreFloat4(&rootNode.rotation, qRot);
 
-        // 4. Update World Transform (Identity matrix as parent)
-        DirectX::XMFLOAT4X4 identity;
-        DirectX::XMStoreFloat4x4(&identity, DirectX::XMMatrixIdentity());
+    rootNode.scale = scale;
 
-        model->UpdateTransform(identity);
-    }
+    XMFLOAT4X4 identity;
+    XMStoreFloat4x4(&identity, XMMatrixIdentity());
+    model->UpdateTransform(identity);
 }

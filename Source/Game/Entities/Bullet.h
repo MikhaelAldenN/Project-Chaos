@@ -22,7 +22,7 @@ public:
     void ApplyMovement(const DirectX::XMFLOAT3& newPos, const DirectX::XMFLOAT3& newVel);
 
     // Getters
-    CharacterMovement* GetMovement() const { return movement; }
+    CharacterMovement* GetMovement() const { return movement.get(); }
     DirectX::XMFLOAT3 GetVelocity() const { return velocity; }
     std::shared_ptr<Model> GetModel() const { return model; }
     float GetRadius() const { return radius; }
