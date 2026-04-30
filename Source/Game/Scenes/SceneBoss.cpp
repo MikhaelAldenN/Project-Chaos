@@ -6,6 +6,7 @@
 #include <algorithm> // For std::clamp
 #include <imgui.h>
 #include "InputHelper.h"
+#include "PerformanceLogger.h"
 
 using namespace DirectX;
 
@@ -20,6 +21,9 @@ constexpr float PIXEL_TO_UNIT_RATIO = 40.0f;
 // =========================================================
 SceneBoss::SceneBoss()
 {
+    PerformanceLogger::Instance().Initialize();
+    PerformanceLogger::Instance().LogInfo("[INIT] SceneBoss Initialized.");
+
     ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
 
     float screenW = 1920.0f;
@@ -59,6 +63,8 @@ SceneBoss::~SceneBoss()
 {
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     CameraController::Instance().ClearCamera();
+
+    PerformanceLogger::Instance().Shutdown();
 }
 
 // =========================================================
@@ -72,14 +78,63 @@ void SceneBoss::AddLog(const std::string& message)
 
 void SceneBoss::ResetEverything()
 {
-    m_windowSystem->ClearAll();
-    InitializeSubWindows();
+    // 1. Bersihkan referensi kamera dari controller agar tidak ada dangling pointer
+    CameraController::Instance().ClearCamera();
 
-    if (m_player) m_player->SetPosition(0.0f, 0.0f, -8.0f);
+    // 2. Hancurkan semua window fisik sebelum sistem trackingnya kita reset
+    if (m_windowSystem) {
+        m_windowSystem->ClearAll();
+    }
 
+    // =========================================================
+    // [HARD RESET] RE-CREATE SEMUA CORE COMPONENTS
+    // =========================================================
+
+    // 3. Buat ulang sistem window tracking dari nol
+    m_windowSystem = std::make_unique<WindowTrackingSystem>();
+    m_windowSystem->SetPixelToUnitRatio(PIXEL_TO_UNIT_RATIO);
+    m_windowSystem->SetFOV(FIELD_OF_VIEW);
+
+    float screenW = 1920.0f;
+    float screenH = 1080.0f;
+    float unifiedHeight = m_windowSystem->GetUnifiedCameraHeight();
+
+    // 4. Buat ulang Kamera Utama
+    m_mainCamera = std::make_shared<Camera>();
+    m_mainCamera->SetPerspectiveFov(XMConvertToRadians(FIELD_OF_VIEW), screenW / screenH, 0.1f, 1000.0f);
+    m_mainCamera->SetPosition(0.0f, unifiedHeight, 0.0f);
+    m_mainCamera->LookAt({ 0.0f, 0.0f, 0.0f });
+
+    CameraController::Instance().SetActiveCamera(m_mainCamera);
+    CameraController::Instance().SetControlMode(CameraControlMode::FixedStatic);
+    CameraController::Instance().SetFixedSetting(DirectX::XMFLOAT3(0.0f, unifiedHeight, 0.0f));
+
+    // 5. Buat ulang Player (semua stat mekanik dan posisi otomatis kereset)
+    m_player = std::make_unique<Player>();
+    m_player->SetInvertControls(false);
+    m_player->SetPosition(0.0f, 0.0f, -8.0f);
+    m_player->SetMoveSpeed(20.0f);
+
+    // =========================================================
+    // RESET SEMUA VARIABEL KE DEFAULT
+    // =========================================================
     m_timeScale = 1.0f;
     m_spawnCount = 0;
-    AddLog("SYSTEM RESET: All windows closed and re-initialized.");
+    m_currentStretch = { 0.0f, 0.0f };
+    m_stretchOffset = { 0.0f, 0.0f };
+    m_showGrid = false;
+    m_autoSyncMainWindow = true;
+    m_topmostEnabled = true;
+    m_playerWindowTransparent = false;
+
+    // Bersihkan log terminal
+    m_debugLogs.clear();
+
+    // 6. Jalankan ulang inisialisasi awal
+    WindowManager::Instance().SetTopmost(m_topmostEnabled);
+    InitializeSubWindows();
+
+    AddLog("HARD RESET: Scene completely de-initialized and rebuilt!");
 }
 
 void SceneBoss::SpawnDebugWindow()
@@ -172,6 +227,8 @@ void SceneBoss::InitializeSubWindows()
 // =========================================================
 void SceneBoss::Update(float elapsedTime)
 {
+    PerformanceLogger::Instance().StartTimer(PerfBucket::Logic);
+
     // Aplikasi Time Scale (Slow Motion)
     float scaledDt = elapsedTime * m_timeScale;
 
@@ -307,6 +364,12 @@ void SceneBoss::Update(float elapsedTime)
     }
 
     CameraController::Instance().Update(scaledDt);
+
+    PerformanceLogger::Instance().StopTimer(PerfBucket::Logic);
+
+    // Panggil EndFrameCheck di akhir Update
+    int activeWins = m_windowSystem ? m_windowSystem->GetWindows().size() : 0;
+    PerformanceLogger::Instance().EndFrameCheck(ImGui::GetIO().Framerate, activeWins);
 }
 
 // =========================================================
@@ -370,6 +433,8 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
 
 void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparentWindow)
 {
+    PerformanceLogger::Instance().StartTimer(PerfBucket::Render3D);
+
     if (!camera) return;
 
     auto dc = Graphics::Instance().GetDeviceContext();
@@ -390,6 +455,8 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
     }
 
     modelRenderer->Render(rc);
+
+    PerformanceLogger::Instance().StopTimer(PerfBucket::Render3D);
 }
 
 // =========================================================
@@ -488,12 +555,17 @@ void SceneBoss::DrawGUI()
                     playerWin->window->SetClickThrough(true);
                     playerWin->window->SetBorderVisible(false);
                     playerWin->window->SetDraggable(false);
+
+                    // [FIX] Ini yang bikin window player jadi kotak hitam! 
+                    // Kita harus paksa Alpha-nya jadi 0 agar benar-benar gaib.
+                    playerWin->window->SetBackgroundAlpha(0.0f);
                 }
                 else
                 {
                     SDL_SetWindowResizable(sdlWin, true);
                     SDL_SetWindowBordered(sdlWin, true);
                     playerWin->window->SetDraggable(false);
+                    playerWin->window->SetBackgroundAlpha(1.0f); // Kembalikan normal
                 }
             }
             WindowManager::Instance().EnforceWindowPriorities();
@@ -512,15 +584,20 @@ void SceneBoss::DrawGUI()
             SpawnDebugWindow();
         }
 
-        // 4. Tombol Kuning: Spawn Transparent Window
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.7f, 0.1f, 1.0f));       // Kuning gelap
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.8f, 0.2f, 1.0f));// Kuning cerah pas di-hover
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.7f, 0.6f, 0.0f, 1.0f)); // Kuning tua pas diklik
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));         // Teks Hitam
-        if (ImGui::Button("Spawn Transparent Window (Experimental)", ImVec2(-1, 30))) {
-            SpawnTransparentWindow();
+        // Style Kuning untuk tombol-tombol spawn
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.7f, 0.1f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.8f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
+
+        if (ImGui::Button("Spawn Transparent Window (Hollow)", ImVec2(-1, 30))) {
+            SpawnTransparentWindow(0.0f, "Hollow"); // Mutlak 0, hanya bisa ditarik di atas
         }
-        ImGui::PopStyleColor(4); // Buang 4 warna style kuning & hitam yang baru di-push
+
+        if (ImGui::Button("Spawn Transparent Window (Solid)", ImVec2(-1, 30))) {
+            SpawnTransparentWindow(1.0f / 255.0f, "Solid"); // Trik 1/255, bisa ditarik di tengah
+        }
+
+        ImGui::PopStyleColor(3);
 
         // 5. Tombol Merah: Close Sub Window & Reset
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
@@ -606,42 +683,27 @@ void SceneBoss::CloseSubWindowBySDLID(Uint32 sdlWindowID)
     }
 }
 
-void SceneBoss::SpawnTransparentWindow()
+void SceneBoss::SpawnTransparentWindow(float bgAlpha, const std::string& typeSuffix)
 {
     m_spawnCount++;
 
     TrackedWindowConfig config;
-    config.name = "transparent_win_" + std::to_string(m_spawnCount);
-    config.title = "T" + std::to_string(m_spawnCount) + " (Transparent)";
+    config.name = "trans_" + typeSuffix + "_" + std::to_string(m_spawnCount);
+    config.title = "T-" + typeSuffix + " " + std::to_string(m_spawnCount);
     config.width = 300;
     config.height = 300;
     config.role = WindowRole::SUB_VIEWPORT;
-    config.isTransparent = true; // <-- Kunci untuk mode Layered
+    config.isTransparent = true;
 
-    // AddTrackedWindow otomatis membuatkan kamera dan window fisik
-    m_windowSystem->AddTrackedWindow(config, []() {
-        return DirectX::XMFLOAT3(0, 0, 0); // Posisi default di tengah (0,0,0)
-        });
+    m_windowSystem->AddTrackedWindow(config, []() { return DirectX::XMFLOAT3(0, 0, 0); });
 
-    // =========================================================
-    // [FIX] SETUP SIFAT WINDOW TRANSPARAN
-    // =========================================================
     TrackedWindow* tracked = m_windowSystem->GetTrackedWindow(config.name);
     if (tracked && tracked->window)
     {
-        // 1. JANGAN panggil SDL_SetWindowBordered(true) karena akan 
-        // merusak mode borderless dan memunculkan titlebar OS standar!
-
-        // 2. Aktifkan fitur drag internal kita (Tengah = Move, Pinggir = Resize)
+        tracked->window->SetBackgroundAlpha(bgAlpha); // Set Alpha (0.0f atau 1/255.0f)
         tracked->window->SetDraggable(true);
-
-        // 3. Pastikan window bisa diklik (tidak tembus pandang terhadap mouse)
-        tracked->window->SetClickThrough(false);
-
-        // 4. Pastikan garis border kustom putih 2px kita menyala
         tracked->window->SetBorderVisible(true);
     }
 
-    AddLog("Spawned transparent window: " + config.name);
-    WindowManager::Instance().EnforceWindowPriorities();
+    AddLog("Spawned " + typeSuffix + " Window (Alpha: " + std::to_string(bgAlpha) + ")");
 }

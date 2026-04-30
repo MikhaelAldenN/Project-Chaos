@@ -56,6 +56,9 @@ namespace Beyond
         void SetBorderVisible(bool visible) { m_showBorder = visible; }
         bool IsBorderVisible() const { return m_showBorder; }
 
+        void  SetBackgroundAlpha(float alpha) { m_backgroundAlpha = alpha; }
+        float GetBackgroundAlpha() const { return m_backgroundAlpha; }
+
         // Tambahkan di bagian private variables (di bawah m_isTransparent):
         bool m_isClickThrough = false;
         bool m_showBorder = true;
@@ -68,6 +71,8 @@ namespace Beyond
         void UpdateLayeredSurface();
 
         TickCallback m_tickCallback = nullptr;
+
+        float m_backgroundAlpha = 1.0f;
 
     private:
         SDL_Window* m_sdlWindow = nullptr;

@@ -3,6 +3,7 @@
 #include "WindowManager.h"
 #include <map>
 #include <windowsx.h>
+#include "PerformanceLogger.h"
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -13,10 +14,11 @@ namespace Beyond
         std::map<HWND, WNDPROC> g_WindowProcMap;
         const UINT_PTR IDT_RESIZE_TIMER = 101;
 
-        constexpr uint8_t BORDER_B = 255;
-        constexpr uint8_t BORDER_G = 255;
-        constexpr uint8_t BORDER_R = 255;
-        constexpr uint8_t BORDER_A = 160;
+        // [REFACTOR] Warna Kuning
+        constexpr uint8_t BORDER_B = 0;   // Blue = 0
+        constexpr uint8_t BORDER_G = 255; // Green = 255
+        constexpr uint8_t BORDER_R = 255; // Red = 255
+        constexpr uint8_t BORDER_A = 180; // Opacity border sedikit dinaikkan
         constexpr int     BORDER_WIDTH = 2;
     }
 
@@ -34,10 +36,8 @@ namespace Beyond
                 // =========================================================
         if (msg == WM_NCHITTEST && pWindow && pWindow->IsTransparent())
         {
-            // Jika clickthrough aktif, biarkan mouse nembus ke desktop/window bawahnya
             if (pWindow->IsClickThrough()) return HTTRANSPARENT;
 
-            // Hitung area resize (8 pixel dari tepi agar gampang ditarik)
             RECT rc;
             GetWindowRect(hWnd, &rc);
             int x = GET_X_LPARAM(lParam);
@@ -45,26 +45,36 @@ namespace Beyond
 
             const int BORDER_HIT_AREA = 8;
 
+            // [FIX] Bedakan Hollow vs Solid berdasarkan Alpha!
+            bool isSolidMode = (pWindow->GetBackgroundAlpha() > 0.0f);
+            const int TITLEBAR_HEIGHT = isSolidMode ? 0 : 24;
+
             bool isLeft = (x >= rc.left && x < rc.left + BORDER_HIT_AREA);
             bool isRight = (x < rc.right && x >= rc.right - BORDER_HIT_AREA);
             bool isTop = (y >= rc.top && y < rc.top + BORDER_HIT_AREA);
             bool isBottom = (y < rc.bottom && y >= rc.bottom - BORDER_HIT_AREA);
 
-            // Cek pojokan dulu (Corner resize)
+            // 1. Cek pojokan (Corner resize)
             if (isTop && isLeft)     return HTTOPLEFT;
             if (isTop && isRight)    return HTTOPRIGHT;
             if (isBottom && isLeft)  return HTBOTTOMLEFT;
             if (isBottom && isRight) return HTBOTTOMRIGHT;
 
-            // Cek sisi (Edge resize)
+            // 2. Cek sisi pinggir (Edge resize)
             if (isLeft)   return HTLEFT;
             if (isRight)  return HTRIGHT;
             if (isTop)    return HTTOP;
             if (isBottom) return HTBOTTOM;
 
-            // Jika tidak di area border dan window bisa didrag, sisa area tengah jadi titlebar
-            if (pWindow->IsDraggable()) return HTCAPTION;
+            // 3. Cek area Titlebar (Hanya berlaku untuk Hollow Mode)
+            bool isTitlebarArea = (!isSolidMode && y >= rc.top && y < rc.top + TITLEBAR_HEIGHT);
+            if (isTitlebarArea && pWindow->IsDraggable()) return HTCAPTION;
 
+            // 4. Sisa area tengah
+            // Jika ini Solid Mode (Alpha > 0), sulap area tengahnya jadi drag zone!
+            if (isSolidMode && pWindow->IsDraggable()) return HTCAPTION;
+
+            // Jika Hollow, biarkan tembus
             return HTCLIENT;
         }
 
@@ -306,6 +316,7 @@ namespace Beyond
 
     void Window::UpdateLayeredSurface()
     {
+        PerformanceLogger::Instance().StartTimer(PerfBucket::WindowOS); // START SINI
         if (!m_offscreenTex || !m_stagingTex || !m_pBits) return;
         auto context = Graphics::Instance().GetDeviceContext();
 
@@ -339,6 +350,8 @@ namespace Beyond
 
         UpdateLayeredWindow(m_hWnd, m_hdcScreen, &ptDst, &sz,
             m_hdcMem, &ptSrc, 0, &blend, ULW_ALPHA);
+
+        PerformanceLogger::Instance().StopTimer(PerfBucket::WindowOS); // STOP SINI
     }
 
     void Window::BeginRender(float r, float g, float b, float a)
@@ -435,23 +448,33 @@ namespace Beyond
 
     void Window::DrawBorderOnBitmap()
     {
-        // [FIX] Cek flag showBorder
         if (!m_showBorder || !m_pBits || m_layeredW <= 0 || m_layeredH <= 0) return;
 
         uint8_t* dst = (uint8_t*)m_pBits;
         const int stride = m_layeredW * 4;
+
+        // [FIX] Cek tipe window untuk menentukan titlebar
+        bool isSolidMode = (m_backgroundAlpha > 0.0f);
+        const int TITLEBAR_HEIGHT = isSolidMode ? 0 : 24;
+
         for (int y = 0; y < m_layeredH; y++)
         {
             for (int x = 0; x < m_layeredW; x++)
             {
+                bool isTitlebar = (!isSolidMode && y < TITLEBAR_HEIGHT);
+
+                // [FIX] Kembalikan logika border atas (y < BORDER_WIDTH) agar 
+                // Solid Mode tetap punya garis kuning pembatas di bagian atasnya.
                 bool isBorder = (x < BORDER_WIDTH || x >= m_layeredW - BORDER_WIDTH ||
                     y < BORDER_WIDTH || y >= m_layeredH - BORDER_WIDTH);
-                if (!isBorder) continue;
+
+                if (!isTitlebar && !isBorder) continue;
+
                 uint8_t* px = dst + y * stride + x * 4;
                 px[0] = BORDER_B;
                 px[1] = BORDER_G;
                 px[2] = BORDER_R;
-                px[3] = BORDER_A;
+                px[3] = isTitlebar ? 220 : BORDER_A;
             }
         }
     }

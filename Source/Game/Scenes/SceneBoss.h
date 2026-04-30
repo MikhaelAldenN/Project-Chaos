@@ -39,7 +39,7 @@ private:
     // --- FITUR DEBUG & SYSTEM ---
     void ResetEverything();
     void SpawnDebugWindow();
-    void SpawnTransparentWindow();
+    void SpawnTransparentWindow(float bgAlpha, const std::string& typeSuffix);
     void AddLog(const std::string& message);
 
 private:
