@@ -169,6 +169,43 @@ void SceneGame::Update(const float elapsedTime)
     if (m_itemManager) m_itemManager->Update(elapsedTime, activeCam);
     if (m_collisionManager) m_collisionManager->Update(elapsedTime);
 
+	// Furi style cinematic combat camera 
+    float targetZoom = 0.0f; 
+
+    if (m_enemyManager && m_player)
+    {
+        float closestDistSq = 999999.0f;
+        DirectX::XMFLOAT3 pPos = m_player->GetPosition();
+
+        // Find the closest active enemy
+        for (const auto& enemy : m_enemyManager->GetEnemies())
+        {
+            if (!enemy->IsActive()) continue;
+
+            DirectX::XMFLOAT3 ePos = enemy->GetPosition();
+            float dx = pPos.x - ePos.x;
+            float dz = pPos.z - ePos.z;
+            float distSq = dx * dx + dz * dz;
+
+            if (distSq < closestDistSq) {
+                closestDistSq = distSq;
+            }
+        }
+
+        // Evaluate Combat Tension
+        float combatRadius = 25.0f; // How close the enemy needs to be to trigger zoom
+        float maxZoomIn = -8.0f;    // How much lower the camera drops (-8 units down)
+
+        if (closestDistSq < (combatRadius * combatRadius))
+        {
+            float dist = std::sqrt(closestDistSq);
+            float intensity = 1.0f - (dist / combatRadius);
+
+            targetZoom = maxZoomIn * intensity;
+        }
+    }
+
+    CameraController::Instance().SetDynamicZoomOffset(targetZoom);
     CameraController::Instance().Update(elapsedTime);
 
     m_uberParams.fineOpacity = 1.0f;

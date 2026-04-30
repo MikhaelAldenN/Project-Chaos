@@ -77,6 +77,7 @@ public:
     void SetFixedSetting(const DirectX::XMFLOAT3& position);
     void SetFixedYawOffset(float radians) { m_fixedYawOffset = radians; }
     void SetFixedRollOffset(float radians) { m_fixedRollOffset = radians; }
+    void SetDynamicZoomOffset(float zoomOffset) { m_targetZoomOffset = zoomOffset; }
 
     // Spline Settings
     void SetSplineTension(float tension) { m_splineTension = tension; }
@@ -154,6 +155,9 @@ private:
     float m_fixedYawOffset = 0.0f;
     float m_fixedRollOffset = 0.0f;
     float m_splineTension = 1.0f;
+
+    float m_targetZoomOffset = 0.0f;
+    float m_currentZoomOffset = 0.0f;
 
     // Settings
     float m_moveSpeed = 15.0f;
