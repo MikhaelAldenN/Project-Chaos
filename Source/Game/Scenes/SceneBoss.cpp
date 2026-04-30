@@ -526,7 +526,6 @@ void SceneBoss::DrawGUI()
             config.height = 300;
             config.priority = 1;
             config.isTransparent = m_playerWindowTransparent;
-            config.fpsLimit = 1.0f;
 
             m_windowSystem->AddTrackedWindow(
                 config,
