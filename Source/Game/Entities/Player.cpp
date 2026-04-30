@@ -194,11 +194,11 @@ void Player::Update(float elapsedTime, Camera* camera)
         {
             Model::Node& bodyNode = model->GetNodes()[bodyIndex];
 
-            // KITA HAPUS HACK XM_PI DI SINI! Cukup gunakan finalRelativeAngle murni.
-            // Karena kakinya sudah kita putar ke arah yang benar di step 3, torsonya otomatis sembuh!
-            XMVECTOR aimRot = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), finalRelativeAngle);
             XMVECTOR currentLocalRot = XMLoadFloat4(&bodyNode.rotation);
-            XMVECTOR finalRot = XMQuaternionMultiply(currentLocalRot, aimRot);
+            XMMATRIX localMatrix = XMMatrixRotationQuaternion(currentLocalRot);
+            XMMATRIX twistMatrix = XMMatrixRotationY(finalRelativeAngle);
+            XMMATRIX finalMatrix = twistMatrix * localMatrix;
+            XMVECTOR finalRot = XMQuaternionRotationMatrix(finalMatrix);
             XMStoreFloat4(&bodyNode.rotation, finalRot);
         }
     }
