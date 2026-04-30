@@ -39,7 +39,7 @@ private:
     // --- FITUR DEBUG & SYSTEM ---
     void ResetEverything();
     void SpawnDebugWindow();
-    void SpawnTransparentWindow();
+    void SpawnTransparentWindow(float bgAlpha, const std::string& typeSuffix);
     void AddLog(const std::string& message);
 
 private:
@@ -64,7 +64,8 @@ private:
     int m_spawnCount = 0;
     bool m_autoSyncMainWindow = true;
     ImVec2 m_debugPanelSize = { 450, 750 }; // Ukuran default panel
-    bool m_topmostEnabled = false;
+    bool m_topmostEnabled = true;
+    bool m_playerWindowTransparent = false;
 
     // Terminal Log System
     std::vector<std::string> m_debugLogs;

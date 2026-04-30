@@ -6,6 +6,7 @@
 #include <algorithm> // For std::clamp
 #include <imgui.h>
 #include "InputHelper.h"
+#include "PerformanceLogger.h"
 
 using namespace DirectX;
 
@@ -20,6 +21,9 @@ constexpr float PIXEL_TO_UNIT_RATIO = 40.0f;
 // =========================================================
 SceneBoss::SceneBoss()
 {
+    PerformanceLogger::Instance().Initialize();
+    PerformanceLogger::Instance().LogInfo("[INIT] SceneBoss Initialized.");
+
     ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
 
     float screenW = 1920.0f;
@@ -43,11 +47,13 @@ SceneBoss::SceneBoss()
     m_player = std::make_unique<Player>();
     m_player->SetInvertControls(false);
     m_player->SetPosition(0.0f, 0.0f, -8.0f);
-	m_player->SetMoveSpeed(10.0f);
+	m_player->SetMoveSpeed(20.0f);
 
     auto device = Graphics::Instance().GetDevice();
     m_primitive2D = std::make_unique<Primitive>(device);
     m_primitive3D = std::make_unique<PrimitiveRenderer>(device);
+
+    WindowManager::Instance().SetTopmost(m_topmostEnabled);
 
     InitializeSubWindows();
     AddLog("SceneBoss Initialized. Windowkill System Online.");
@@ -57,6 +63,8 @@ SceneBoss::~SceneBoss()
 {
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     CameraController::Instance().ClearCamera();
+
+    PerformanceLogger::Instance().Shutdown();
 }
 
 // =========================================================
@@ -70,14 +78,63 @@ void SceneBoss::AddLog(const std::string& message)
 
 void SceneBoss::ResetEverything()
 {
-    m_windowSystem->ClearAll();
-    InitializeSubWindows();
+    // 1. Bersihkan referensi kamera dari controller agar tidak ada dangling pointer
+    CameraController::Instance().ClearCamera();
 
-    if (m_player) m_player->SetPosition(0.0f, 0.0f, -8.0f);
+    // 2. Hancurkan semua window fisik sebelum sistem trackingnya kita reset
+    if (m_windowSystem) {
+        m_windowSystem->ClearAll();
+    }
 
+    // =========================================================
+    // [HARD RESET] RE-CREATE SEMUA CORE COMPONENTS
+    // =========================================================
+
+    // 3. Buat ulang sistem window tracking dari nol
+    m_windowSystem = std::make_unique<WindowTrackingSystem>();
+    m_windowSystem->SetPixelToUnitRatio(PIXEL_TO_UNIT_RATIO);
+    m_windowSystem->SetFOV(FIELD_OF_VIEW);
+
+    float screenW = 1920.0f;
+    float screenH = 1080.0f;
+    float unifiedHeight = m_windowSystem->GetUnifiedCameraHeight();
+
+    // 4. Buat ulang Kamera Utama
+    m_mainCamera = std::make_shared<Camera>();
+    m_mainCamera->SetPerspectiveFov(XMConvertToRadians(FIELD_OF_VIEW), screenW / screenH, 0.1f, 1000.0f);
+    m_mainCamera->SetPosition(0.0f, unifiedHeight, 0.0f);
+    m_mainCamera->LookAt({ 0.0f, 0.0f, 0.0f });
+
+    CameraController::Instance().SetActiveCamera(m_mainCamera);
+    CameraController::Instance().SetControlMode(CameraControlMode::FixedStatic);
+    CameraController::Instance().SetFixedSetting(DirectX::XMFLOAT3(0.0f, unifiedHeight, 0.0f));
+
+    // 5. Buat ulang Player (semua stat mekanik dan posisi otomatis kereset)
+    m_player = std::make_unique<Player>();
+    m_player->SetInvertControls(false);
+    m_player->SetPosition(0.0f, 0.0f, -8.0f);
+    m_player->SetMoveSpeed(20.0f);
+
+    // =========================================================
+    // RESET SEMUA VARIABEL KE DEFAULT
+    // =========================================================
     m_timeScale = 1.0f;
     m_spawnCount = 0;
-    AddLog("SYSTEM RESET: All windows closed and re-initialized.");
+    m_currentStretch = { 0.0f, 0.0f };
+    m_stretchOffset = { 0.0f, 0.0f };
+    m_showGrid = false;
+    m_autoSyncMainWindow = true;
+    m_topmostEnabled = true;
+    m_playerWindowTransparent = false;
+
+    // Bersihkan log terminal
+    m_debugLogs.clear();
+
+    // 6. Jalankan ulang inisialisasi awal
+    WindowManager::Instance().SetTopmost(m_topmostEnabled);
+    InitializeSubWindows();
+
+    AddLog("HARD RESET: Scene completely de-initialized and rebuilt!");
 }
 
 void SceneBoss::SpawnDebugWindow()
@@ -170,6 +227,8 @@ void SceneBoss::InitializeSubWindows()
 // =========================================================
 void SceneBoss::Update(float elapsedTime)
 {
+    PerformanceLogger::Instance().StartTimer(PerfBucket::Logic);
+
     // Aplikasi Time Scale (Slow Motion)
     float scaledDt = elapsedTime * m_timeScale;
 
@@ -222,47 +281,47 @@ void SceneBoss::Update(float elapsedTime)
         }
     }
 
-    // --- EFEK ELASTIC WINDOW (SINGLE-AXIS PROPORTIONAL) ---
+    // --- EFEK ELASTIC WINDOW (SQUASH AND STRETCH) ---
     if (m_player) {
         DirectX::XMFLOAT3 vel = m_player->GetMovement()->GetVelocity();
         float currentSpeedSq = vel.x * vel.x + vel.z * vel.z;
 
-        // 1. Tentukan Nilai Target (Default: 0 alias ukuran normal)
         DirectX::XMFLOAT2 targetStretch = { 0.0f, 0.0f };
         DirectX::XMFLOAT2 targetOffset = { 0.0f, 0.0f };
-
-        // Default Release Speed (kecepatan membal ke ukuran semula)
         float currentLerpSpeed = 10.0f;
 
-        // 2. Kalkulasi Target Jika Sedang Dash
-        if (currentSpeedSq > 40.0f * 40.0f) {
-            float stretchPowerX = 200.0f;
-            float stretchPowerZ = 90.0f;
+        // Gunakan threshold dinamis agar selalu sinkron dengan speed player
+        float dashThreshold = m_player->GetDashSpeed() * 0.8f;
 
-            // [FIX] Attack Speed: Lebih cepat dari Release, tapi TIDAK instan!
-            // Angka 25.0f membuat window butuh ~0.05 detik untuk melar penuh,
-            // sehingga terlihat "ditarik" oleh kecepatan player, bukan "mendorong".
-            currentLerpSpeed = 10.0f;
+        if (currentSpeedSq > (dashThreshold * dashThreshold)) {
+            // Konfigurasi kekuatan stretch & squash
+            float stretchPowerX = 200.0f;
+            float squashPowerY = -40.0f; // Nilai negatif untuk mengecilkan window secara vertikal
+
+            float stretchPowerZ = 120.0f;
+            float squashPowerX = -30.0f; // Nilai negatif untuk mengecilkan window secara horizontal
+
+            float dashRatio = (sqrt(currentSpeedSq) / m_player->GetDashSpeed());
 
             if (std::abs(vel.x) > std::abs(vel.z)) {
-                // DASH HORIZONTAL
-                targetStretch.x = (std::abs(vel.x) / m_player->GetDashSpeed()) * stretchPowerX;
+                // DASH HORIZONTAL (Stretch X, Squash Y)
+                targetStretch.x = dashRatio * stretchPowerX;
+                targetStretch.y = dashRatio * squashPowerY; // Window mengecil vertikal
 
                 float signX = (vel.x > 0.0f) ? 1.0f : -1.0f;
                 targetOffset.x = -signX * (targetStretch.x * 0.5f) / PIXEL_TO_UNIT_RATIO;
             }
             else {
-                // DASH VERTIKAL
-                targetStretch.y = (std::abs(vel.z) / m_player->GetDashSpeed()) * stretchPowerZ;
+                // DASH VERTIKAL (Stretch Y, Squash X)
+                targetStretch.y = dashRatio * stretchPowerZ;
+                targetStretch.x = dashRatio * squashPowerX; // Window mengecil horizontal
 
                 float signZ = (vel.z > 0.0f) ? 1.0f : -1.0f;
                 targetOffset.y = -signZ * (targetStretch.y * 0.5f) / PIXEL_TO_UNIT_RATIO;
             }
         }
 
-        // 3. THE MAGIC (Satu Rumus untuk Semua State)
-        // Lerp ukuran dan lerp offset dieksekusi bersamaan dengan kecepatan yang sama.
-        // Ini memastikan ujung depan window terkunci mati, sementara ekornya melar dengan mulus!
+        // Lerp eksekusi tetap sama, m_currentStretch akan mengikuti nilai negatif tadi
         m_currentStretch.x += (targetStretch.x - m_currentStretch.x) * currentLerpSpeed * scaledDt;
         m_currentStretch.y += (targetStretch.y - m_currentStretch.y) * currentLerpSpeed * scaledDt;
 
@@ -305,6 +364,12 @@ void SceneBoss::Update(float elapsedTime)
     }
 
     CameraController::Instance().Update(scaledDt);
+
+    PerformanceLogger::Instance().StopTimer(PerfBucket::Logic);
+
+    // Panggil EndFrameCheck di akhir Update
+    int activeWins = m_windowSystem ? m_windowSystem->GetWindows().size() : 0;
+    PerformanceLogger::Instance().EndFrameCheck(ImGui::GetIO().Framerate, activeWins);
 }
 
 // =========================================================
@@ -368,6 +433,8 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
 
 void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparentWindow)
 {
+    PerformanceLogger::Instance().StartTimer(PerfBucket::Render3D);
+
     if (!camera) return;
 
     auto dc = Graphics::Instance().GetDeviceContext();
@@ -388,6 +455,8 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
     }
 
     modelRenderer->Render(rc);
+
+    PerformanceLogger::Instance().StopTimer(PerfBucket::Render3D);
 }
 
 // =========================================================
@@ -434,16 +503,79 @@ void SceneBoss::DrawGUI()
     }
 
     // ---------------------------------------------------------
-    // TAB 2: WINDOW MANAGEMENT
-    // ---------------------------------------------------------
+        // TAB 2: WINDOW MANAGEMENT
+        // ---------------------------------------------------------
     if (ImGui::CollapsingHeader("Window Tracking Config", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (ImGui::Checkbox("WindowTopmost(RESET)", &m_topmostEnabled))
+        // 1. Checkbox Topmost
+        if (ImGui::Checkbox("[All] Toggle Topmost (RESET)", &m_topmostEnabled))
         {
             WindowManager::Instance().SetTopmost(m_topmostEnabled);
             ResetEverything();
         }
-        ImGui::Checkbox("Sync Main Window to This Panel", &m_autoSyncMainWindow);
+
+        // 2. Checkbox Player Mode
+        if (ImGui::Checkbox("[Player] Toggle Transparent", &m_playerWindowTransparent))
+        {
+            m_windowSystem->RemoveTrackedWindow("player");
+
+            TrackedWindowConfig config;
+            config.name = "player";
+            config.title = "Player";
+            config.width = 300;
+            config.height = 300;
+            config.priority = 1;
+            config.isTransparent = m_playerWindowTransparent;
+
+            m_windowSystem->AddTrackedWindow(
+                config,
+                [this]() -> DirectX::XMFLOAT3 {
+                    if (!m_player) return DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+                    auto pPos = m_player->GetPosition();
+                    return DirectX::XMFLOAT3(
+                        pPos.x + m_stretchOffset.x,
+                        0.0f,
+                        pPos.z + m_stretchOffset.y
+                    );
+                },
+                [this]() -> DirectX::XMFLOAT2 {
+                    return DirectX::XMFLOAT2(
+                        m_defaultWinSize + m_currentStretch.x,
+                        m_defaultWinSize + m_currentStretch.y
+                    );
+                }
+            );
+
+            TrackedWindow* playerWin = m_windowSystem->GetTrackedWindow("player");
+            if (playerWin && playerWin->window)
+            {
+                SDL_Window* sdlWin = playerWin->window->GetSDLWindow();
+                if (m_playerWindowTransparent)
+                {
+                    playerWin->window->SetClickThrough(true);
+                    playerWin->window->SetBorderVisible(false);
+                    playerWin->window->SetDraggable(false);
+
+                    // [FIX] Ini yang bikin window player jadi kotak hitam! 
+                    // Kita harus paksa Alpha-nya jadi 0 agar benar-benar gaib.
+                    playerWin->window->SetBackgroundAlpha(0.0f);
+                }
+                else
+                {
+                    SDL_SetWindowResizable(sdlWin, true);
+                    SDL_SetWindowBordered(sdlWin, true);
+                    playerWin->window->SetDraggable(false);
+                    playerWin->window->SetBackgroundAlpha(1.0f); // Kembalikan normal
+                }
+            }
+            WindowManager::Instance().EnforceWindowPriorities();
+            AddLog(m_playerWindowTransparent ? "Player Window: Stealth Mode Activated" : "Player Window: Normal Mode");
+        }
+
+        // 3. Checkbox Sync ImGui
+        ImGui::Checkbox("[ImGui] Toggle Sync Imgui Size to Main Window", &m_autoSyncMainWindow);
+
+        ImGui::Separator();
 
         size_t activeCount = m_windowSystem->GetWindows().size();
         ImGui::Text("Active Windows: %zu", activeCount);
@@ -452,12 +584,24 @@ void SceneBoss::DrawGUI()
             SpawnDebugWindow();
         }
 
-        if (ImGui::Button("Spawn Transparent Window", ImVec2(-1, 30))) {
-            SpawnTransparentWindow();
+        // Style Kuning untuk tombol-tombol spawn
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.7f, 0.1f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.8f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
+
+        if (ImGui::Button("Spawn Transparent Window (Hollow)", ImVec2(-1, 30))) {
+            SpawnTransparentWindow(0.0f, "Hollow"); // Mutlak 0, hanya bisa ditarik di atas
         }
 
+        if (ImGui::Button("Spawn Transparent Window (Solid)", ImVec2(-1, 30))) {
+            SpawnTransparentWindow(1.0f / 255.0f, "Solid"); // Trik 1/255, bisa ditarik di tengah
+        }
+
+        ImGui::PopStyleColor(3);
+
+        // 5. Tombol Merah: Close Sub Window & Reset
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
-        if (ImGui::Button("Close All Dummy Window", ImVec2(-1, 30))) {
+        if (ImGui::Button("Close All Sub Window", ImVec2(-1, 30))) {
             m_windowSystem->ClearAll();
             InitializeSubWindows();
             m_spawnCount = 0;
@@ -467,7 +611,7 @@ void SceneBoss::DrawGUI()
         if (ImGui::Button("RESET", ImVec2(-1, 40))) {
             ResetEverything();
         }
-        ImGui::PopStyleColor();
+        ImGui::PopStyleColor(); // Buang style merah
     }
 
     // ---------------------------------------------------------
@@ -539,40 +683,27 @@ void SceneBoss::CloseSubWindowBySDLID(Uint32 sdlWindowID)
     }
 }
 
-void SceneBoss::SpawnTransparentWindow()
+void SceneBoss::SpawnTransparentWindow(float bgAlpha, const std::string& typeSuffix)
 {
     m_spawnCount++;
 
     TrackedWindowConfig config;
-    config.name = "transparent_win_" + std::to_string(m_spawnCount);
-    config.title = "T" + std::to_string(m_spawnCount) + " (Transparent)";
+    config.name = "trans_" + typeSuffix + "_" + std::to_string(m_spawnCount);
+    config.title = "T-" + typeSuffix + " " + std::to_string(m_spawnCount);
     config.width = 300;
     config.height = 300;
     config.role = WindowRole::SUB_VIEWPORT;
-    config.isTransparent = true; // <-- Kunci untuk DXGI_ALPHA_MODE_PREMULTIPLIED
+    config.isTransparent = true;
 
-    // AddTrackedWindow otomatis membuatkan kamera dan window fisik
-    m_windowSystem->AddTrackedWindow(config, []() {
-        return DirectX::XMFLOAT3(0, 0, 0); // Posisi default di tengah (0,0,0)
-        });
+    m_windowSystem->AddTrackedWindow(config, []() { return DirectX::XMFLOAT3(0, 0, 0); });
 
-    // Modifikasi sifat OS Window agar sesuai spesifikasi (Bordered, Resizable, Draggable)
-    for (auto& tracked : m_windowSystem->GetWindows())
+    TrackedWindow* tracked = m_windowSystem->GetTrackedWindow(config.name);
+    if (tracked && tracked->window)
     {
-        if (tracked->name == config.name)
-        {
-            SDL_Window* sdlWin = tracked->window->GetSDLWindow();
-
-            // Mengaktifkan border dan fitur resize dari OS
-            SDL_SetWindowResizable(sdlWin, true);
-            SDL_SetWindowBordered(sdlWin, true);
-
-            // Override sistem internal BeyondWindow agar titlebar bisa di-drag
-            tracked->window->SetDraggable(true);
-            break;
-        }
+        tracked->window->SetBackgroundAlpha(bgAlpha); // Set Alpha (0.0f atau 1/255.0f)
+        tracked->window->SetDraggable(true);
+        tracked->window->SetBorderVisible(true);
     }
 
-    AddLog("Spawned transparent window: " + config.name);
-    WindowManager::Instance().EnforceWindowPriorities();
+    AddLog("Spawned " + typeSuffix + " Window (Alpha: " + std::to_string(bgAlpha) + ")");
 }
