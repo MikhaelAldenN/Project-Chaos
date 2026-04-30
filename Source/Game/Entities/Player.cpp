@@ -127,7 +127,7 @@ void Player::Update(float elapsedTime, Camera* camera)
     if (model && activeCamera)
     {
         DirectX::XMFLOAT3 pos = movement->GetPosition();
-        DirectX::XMFLOAT3 mousePos = Beyond::InputHelper::GetMouseWorldPos(activeCamera->GetPosition());
+        DirectX::XMFLOAT3 mousePos = m_aimTarget;
 
         float dx = mousePos.x - pos.x;
         float dz = mousePos.z - pos.z;
@@ -291,12 +291,7 @@ void Player::UpdateHorizontalMovement(float elapsedTime)
 
 void Player::RotateModelToPoint(const DirectX::XMFLOAT3& targetPos)
 {
-    DirectX::XMFLOAT3 currentPos = GetPosition();
-    float dx = targetPos.x - currentPos.x;
-    float dz = targetPos.z - currentPos.z;
-    float angleRadians = atan2f(dx, dz);
-    float angleDegrees = DirectX::XMConvertToDegrees(angleRadians);
-    movement->SetRotationY(angleDegrees);
+    m_aimTarget = targetPos;
 }
 
 void Player::FireProjectile()

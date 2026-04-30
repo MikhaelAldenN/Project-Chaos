@@ -96,4 +96,5 @@ public:
 
 private:
     std::deque<std::unique_ptr<Bullet>> m_projectiles;
+    DirectX::XMFLOAT3 m_aimTarget = { 0.0f, 0.0f, 0.0f };
 };
