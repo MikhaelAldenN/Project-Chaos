@@ -266,6 +266,12 @@ void SceneBoss::Update(float elapsedTime)
     // 2. Update Player
     if (m_player)
     {
+        if (m_mainCamera)
+        {
+            DirectX::XMFLOAT3 mousePos = Beyond::InputHelper::GetMouseWorldPos(m_mainCamera->GetPosition());
+            m_player->RotateModelToPoint(mousePos); 
+        }
+
         m_player->Update(scaledDt, activeCam);
 
         DirectX::XMFLOAT3 pos = m_player->GetPosition();
@@ -273,12 +279,6 @@ void SceneBoss::Update(float elapsedTime)
         pos.z = std::clamp(pos.z, -m_screenLimitZ, m_screenLimitZ);
         pos.y = max(pos.y, 0.0f);
         m_player->SetPosition(pos.x, pos.y, pos.z);
-
-        if (m_mainCamera)
-        {
-            DirectX::XMFLOAT3 mousePos = Beyond::InputHelper::GetMouseWorldPos(m_mainCamera->GetPosition());
-            //m_player->RotateModelToPoint(mousePos);
-        }
     }
 
     // --- EFEK ELASTIC WINDOW (SQUASH AND STRETCH) ---

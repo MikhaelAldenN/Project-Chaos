@@ -118,17 +118,11 @@ void SceneGame::Update(const float elapsedTime)
     Camera* activeCam{ CameraController::Instance().GetActiveCamera().get() };
 
     if (m_player) {
-        m_player->Update(elapsedTime, activeCam);
-        CameraController::Instance().SetTarget(m_player->GetPosition());
-        m_director->Update(elapsedTime, m_player->GetMovement()->GetPosition());
-
         if (m_mainCamera)
         {
-            // 1. Get raw Mouse Screen Coordinates (CHANGED TO FLOAT)
             float mouseX, mouseY;
             SDL_GetMouseState(&mouseX, &mouseY);
 
-            // 2. Get Screen Dimensions
             float screenW = Config::DEFAULT_SCREEN_W;
             float screenH = Config::DEFAULT_SCREEN_H;
             if (auto window = Framework::Instance()->GetMainWindow()) {
@@ -136,35 +130,31 @@ void SceneGame::Update(const float elapsedTime)
                 screenH = static_cast<float>(window->GetHeight());
             }
 
-            // 3. Prepare Camera Matrices
             DirectX::XMMATRIX view = DirectX::XMLoadFloat4x4(&m_mainCamera->GetView());
             DirectX::XMMATRIX proj = DirectX::XMLoadFloat4x4(&m_mainCamera->GetProjection());
             DirectX::XMMATRIX world = DirectX::XMMatrixIdentity();
 
-            // 4. Create Near and Far points for the Raycast (REMOVED THE CASTING)
             DirectX::XMVECTOR nearPoint = DirectX::XMVectorSet(mouseX, mouseY, 0.0f, 0.0f);
             DirectX::XMVECTOR farPoint = DirectX::XMVectorSet(mouseX, mouseY, 1.0f, 0.0f);
 
-            // 5. Unproject screen space to 3D World Space
             nearPoint = DirectX::XMVector3Unproject(nearPoint, 0, 0, screenW, screenH, 0.0f, 1.0f, proj, view, world);
             farPoint = DirectX::XMVector3Unproject(farPoint, 0, 0, screenW, screenH, 0.0f, 1.0f, proj, view, world);
 
-            // 6. Calculate Ray Direction
             DirectX::XMVECTOR rayDir = DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(farPoint, nearPoint));
             DirectX::XMFLOAT3 origin, dir;
             DirectX::XMStoreFloat3(&origin, nearPoint);
             DirectX::XMStoreFloat3(&dir, rayDir);
 
-            // 7. Intersect Ray with the Floor (Y = 0)
-            if (abs(dir.y) > 0.001f) // Prevent divide by zero
-            {
+            if (abs(dir.y) > 0.001f) {
                 float t = -origin.y / dir.y;
                 DirectX::XMFLOAT3 trueMouseWorldPos = { origin.x + dir.x * t, 0.0f, origin.z + dir.z * t };
-
-                // 8. Rotate Player perfectly!
-                m_player->RotateModelToPoint(trueMouseWorldPos);
+                m_player->RotateModelToPoint(trueMouseWorldPos); 
             }
         }
+
+        m_player->Update(elapsedTime, activeCam);
+        CameraController::Instance().SetTarget(m_player->GetPosition());
+        m_director->Update(elapsedTime, m_player->GetMovement()->GetPosition());
     }
 
     if (m_enemyManager) {
@@ -179,6 +169,43 @@ void SceneGame::Update(const float elapsedTime)
     if (m_itemManager) m_itemManager->Update(elapsedTime, activeCam);
     if (m_collisionManager) m_collisionManager->Update(elapsedTime);
 
+	// Furi style cinematic combat camera 
+    float targetZoom = 0.0f; 
+
+    if (m_enemyManager && m_player)
+    {
+        float closestDistSq = 999999.0f;
+        DirectX::XMFLOAT3 pPos = m_player->GetPosition();
+
+        // Find the closest active enemy
+        for (const auto& enemy : m_enemyManager->GetEnemies())
+        {
+            if (!enemy->IsActive()) continue;
+
+            DirectX::XMFLOAT3 ePos = enemy->GetPosition();
+            float dx = pPos.x - ePos.x;
+            float dz = pPos.z - ePos.z;
+            float distSq = dx * dx + dz * dz;
+
+            if (distSq < closestDistSq) {
+                closestDistSq = distSq;
+            }
+        }
+
+        // Evaluate Combat Tension
+        float combatRadius = 25.0f; // How close the enemy needs to be to trigger zoom
+        float maxZoomIn = -8.0f;    // How much lower the camera drops (-8 units down)
+
+        if (closestDistSq < (combatRadius * combatRadius))
+        {
+            float dist = std::sqrt(closestDistSq);
+            float intensity = 1.0f - (dist / combatRadius);
+
+            targetZoom = maxZoomIn * intensity;
+        }
+    }
+
+    CameraController::Instance().SetDynamicZoomOffset(targetZoom);
     CameraController::Instance().Update(elapsedTime);
 
     m_uberParams.fineOpacity = 1.0f;

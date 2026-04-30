@@ -65,19 +65,6 @@ void Player::Update(float elapsedTime, Camera* camera)
         }
     }
 
-    // ==========================================
-    // TRIGGER PARRY (UPPER BODY ONLY)
-    // ==========================================
-    if (isInputEnabled && Input::Instance().GetKeyboard().IsTriggered(VK_SPACE))
-    {
-        // Cegah spam spasi dengan mengecek apakah animasi masih berjalan
-        if (animator && !animator->IsUpperPlaying())
-        {
-            // Panggil nama animasimu (pastikan namanya sama persis dengan yang di Blender)
-            animator->PlayUpper("Parry", false);
-        }
-    }
-
     SetCamera(camera);
     if (isInputEnabled) HandleMovementInput(elapsedTime);
     else currentSmoothInput = { 0.0f, 0.0f };
@@ -127,7 +114,7 @@ void Player::Update(float elapsedTime, Camera* camera)
     if (model && activeCamera)
     {
         DirectX::XMFLOAT3 pos = movement->GetPosition();
-        DirectX::XMFLOAT3 mousePos = Beyond::InputHelper::GetMouseWorldPos(activeCamera->GetPosition());
+        DirectX::XMFLOAT3 mousePos = m_aimTarget;
 
         float dx = mousePos.x - pos.x;
         float dz = mousePos.z - pos.z;
@@ -194,11 +181,11 @@ void Player::Update(float elapsedTime, Camera* camera)
         {
             Model::Node& bodyNode = model->GetNodes()[bodyIndex];
 
-            // KITA HAPUS HACK XM_PI DI SINI! Cukup gunakan finalRelativeAngle murni.
-            // Karena kakinya sudah kita putar ke arah yang benar di step 3, torsonya otomatis sembuh!
-            XMVECTOR aimRot = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), finalRelativeAngle);
             XMVECTOR currentLocalRot = XMLoadFloat4(&bodyNode.rotation);
-            XMVECTOR finalRot = XMQuaternionMultiply(currentLocalRot, aimRot);
+            XMMATRIX localMatrix = XMMatrixRotationQuaternion(currentLocalRot);
+            XMMATRIX twistMatrix = XMMatrixRotationY(finalRelativeAngle);
+            XMMATRIX finalMatrix = twistMatrix * localMatrix;
+            XMVECTOR finalRot = XMQuaternionRotationMatrix(finalMatrix);
             XMStoreFloat4(&bodyNode.rotation, finalRot);
         }
     }
@@ -291,12 +278,7 @@ void Player::UpdateHorizontalMovement(float elapsedTime)
 
 void Player::RotateModelToPoint(const DirectX::XMFLOAT3& targetPos)
 {
-    DirectX::XMFLOAT3 currentPos = GetPosition();
-    float dx = targetPos.x - currentPos.x;
-    float dz = targetPos.z - currentPos.z;
-    float angleRadians = atan2f(dx, dz);
-    float angleDegrees = DirectX::XMConvertToDegrees(angleRadians);
-    movement->SetRotationY(angleDegrees);
+    m_aimTarget = targetPos;
 }
 
 void Player::FireProjectile()
@@ -304,9 +286,15 @@ void Player::FireProjectile()
     auto newBullet = std::make_unique<Bullet>();
     DirectX::XMFLOAT3 myPos = movement->GetPosition();
 
-    float yawRad = DirectX::XMConvertToRadians(movement->GetRotation().y);
-    DirectX::XMFLOAT3 fwd = { sinf(yawRad), 0.0f, cosf(yawRad) };
-    
+    // Calculate the exact direction from the player to the mouse cursor
+    float dx = m_aimTarget.x - myPos.x;
+    float dz = m_aimTarget.z - myPos.z;
+
+    // Get the true angle to the mouse
+    float angleToMouse = atan2f(dx, dz);
+
+    DirectX::XMFLOAT3 fwd = { sinf(angleToMouse), 0.0f, cosf(angleToMouse) };
+
     // Spawn slightly in front of the player
     myPos.x += fwd.x * 1.5f;
     myPos.z += fwd.z * 1.5f;

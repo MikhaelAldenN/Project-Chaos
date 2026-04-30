@@ -289,17 +289,18 @@ void CameraController::UpdateSequence(float dt, std::shared_ptr<Camera>& camera)
 
 void CameraController::UpdateFixedFollow(float dt, std::shared_ptr<Camera>& camera)
 {
-    // DYNAMIC ZOOM (Framing)
-    // Calculate how far the player is from the center of the map (0,0,0)
-    float distFromCenter = std::sqrt(m_targetPos.x * m_targetPos.x + m_targetPos.z * m_targetPos.z);
-
-    // (Adjust the 0.15f multiplier to make it zoom faster or slower)
-    float zoomFactor = std::clamp(distFromCenter * 0.15f, 0.0f, 6.0f);
+    // DYNAMIC COMBAT ZOOM (Smooth Lerp)
+    // How fast the camera zooms in and out during combat
+    float zoomLerpSpeed = 2.5f;
+    m_currentZoomOffset += (m_targetZoomOffset - m_currentZoomOffset) * zoomLerpSpeed * dt;
 
     XMFLOAT3 dynamicOffset = m_fixedPos;
-    dynamicOffset.y += zoomFactor;
-    dynamicOffset.z -= zoomFactor * 0.5f; // Pull the camera back slightly as it goes up
+    // Lower the Y height based on the zoom
+    dynamicOffset.y += m_currentZoomOffset;
+    // Push the Z forward slightly as it zooms in to keep the player centered
+    dynamicOffset.z -= m_currentZoomOffset * 0.5f;
 
+    // CALCULATE DESIRED POSITION
     XMFLOAT3 desiredPos;
     desiredPos.x = m_targetPos.x + dynamicOffset.x;
     desiredPos.y = m_targetPos.y + dynamicOffset.y;
@@ -317,6 +318,7 @@ void CameraController::UpdateFixedFollow(float dt, std::shared_ptr<Camera>& came
 
     camera->SetPosition(newPos);
 
+    // SMOOTH LOOK AT
     XMFLOAT3 desiredLookAt;
     desiredLookAt.x = m_targetPos.x + m_targetOffset.x;
     desiredLookAt.y = m_targetPos.y + m_targetOffset.y;

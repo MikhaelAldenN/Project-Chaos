@@ -35,7 +35,6 @@ void Bullet::Update(float elapsedTime, Camera* camera)
     // Apply velocity
     pos.x += velocity.x * elapsedTime;
     pos.z += velocity.z * elapsedTime;
-    pos.y = 0.0f; // Force to stay on ground
 
     movement->SetPosition(pos);
     SyncData();
