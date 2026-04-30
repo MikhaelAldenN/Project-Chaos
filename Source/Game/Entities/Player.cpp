@@ -65,19 +65,6 @@ void Player::Update(float elapsedTime, Camera* camera)
         }
     }
 
-    // ==========================================
-    // TRIGGER PARRY (UPPER BODY ONLY)
-    // ==========================================
-    if (isInputEnabled && Input::Instance().GetKeyboard().IsTriggered(VK_SPACE))
-    {
-        // Cegah spam spasi dengan mengecek apakah animasi masih berjalan
-        if (animator && !animator->IsUpperPlaying())
-        {
-            // Panggil nama animasimu (pastikan namanya sama persis dengan yang di Blender)
-            animator->PlayUpper("Parry", false);
-        }
-    }
-
     SetCamera(camera);
     if (isInputEnabled) HandleMovementInput(elapsedTime);
     else currentSmoothInput = { 0.0f, 0.0f };

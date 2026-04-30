@@ -191,6 +191,7 @@ inline void PlayerSlash::Exit(Player* player) {
 inline void PlayerParry::Enter(Player* player) {
     player->color = { 0.0f, 0.5f, 1.0f, 1.0f }; // Flash Blue
     player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f }); // Stop moving
+    player->GetAnimator()->PlayUpper("Parry", false);
 }
 
 inline void PlayerParry::Update(Player* player, float dt) {
