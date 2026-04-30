@@ -66,52 +66,45 @@ void WindowManager::RenderAll(float dt, Scene* scene)
 {
     if (!scene) return;
 
-    // 1. UPDATE DATA IMGUI
+    // DrawGUI HANYA SEKALI  sudah benar, tapi OnResize jangan dipanggil tiap window!
     scene->DrawGUI();
 
-    bool isBeyondScene = (dynamic_cast<SceneBoss*>(scene) != nullptr);
+    bool vsyncApplied = false;
     auto context = Graphics::Instance().GetDeviceContext();
     auto mainWindow = Framework::Instance()->GetMainWindow();
 
-    // Flag VSync: Akan memastikan hanya SATU window per frame yang mengunci FPS
-    bool vsyncApplied = false;
-
-    // 2. RENDER WINDOW
     for (auto& win : windows)
     {
         if (!win->IsVisible()) continue;
         if (win.get() != mainWindow && !win->ShouldRender(dt)) continue;
 
-        // [FIX] Gunakan Alpha Background yang sudah diset di window masing-masing
+        // HAPUS: scene->OnResize(win->GetWidth(), win->GetHeight());
+        // Ganti dengan: hanya panggil jika ukuran window berubah dari frame sebelumnya
+        // Simpan ukuran terakhir di Beyond::Window itu sendiri (lihat Fix 3)
+        int w = win->GetWidth(), h = win->GetHeight();
+        if (w != win->m_lastRenderedW || h != win->m_lastRenderedH)
+        {
+            scene->OnResize(w, h);
+            win->m_lastRenderedW = w;
+            win->m_lastRenderedH = h;
+        }
+
         float clearAlpha = win->IsTransparent() ? win->GetBackgroundAlpha() : 1.0f;
-
         if (win->IsTransparent())
-        {
             win->BeginRender(0.0f, 0.0f, 0.0f, clearAlpha);
-        }
         else
-        {
-            // Biru gelap (Dark Blue) untuk window OS biasa
             win->BeginRender(0.02f, 0.04f, 0.15f, clearAlpha);
-        }
 
-        scene->OnResize(win->GetWidth(), win->GetHeight());
         scene->Render(dt, win->GetCamera());
 
         if (win.get() == mainWindow) ImGuiRenderer::Render(context);
 
-        // [THE FIX] Terapkan VSync (1) HANYA pada window pertama yang dirender.
-        // Ini mengunci kecepatan update seluruh game (CPU & GPU) ke kecepatan monitor (60Hz).
-        int syncInterval = 0;
-        if (!vsyncApplied)
-        {
-            syncInterval = 1;
-            vsyncApplied = true;
-        }
-
+        int syncInterval = (!vsyncApplied) ? 1 : 0;
+        if (!vsyncApplied) vsyncApplied = true;
         win->EndRender(syncInterval);
     }
 }
+
 void WindowManager::HandleResize(HWND hWnd, int width, int height)
 {
     for (auto& win : windows)

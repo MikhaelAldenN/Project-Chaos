@@ -45,6 +45,8 @@ void ModelRenderer::Draw(ShaderId shader, std::shared_ptr<Model> model, DirectX:
 
 void ModelRenderer::Render(const RenderContext& rc)
 {
+    if (drawInfos.empty()) return;
+
     ID3D11DeviceContext* dc = rc.deviceContext;
 
     // シーン用定数バッファ更新
