@@ -208,6 +208,7 @@ inline void PlayerParry::Update(Player* player, float dt) {
 
 inline void PlayerParry::Exit(Player* player) {
     player->color = { 1.0f, 1.0f, 1.0f, 1.0f }; // Reset color
+    player->SetAimLocked(false);
 }
 
 // --- SHOOT ---

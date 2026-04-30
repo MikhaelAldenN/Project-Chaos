@@ -92,9 +92,13 @@ private:
 public:
     void FireProjectile();
     void RenderProjectiles(ModelRenderer* renderer);
+    void SetLastValidInput(DirectX::XMFLOAT2 dir) { lastValidInput = dir; }
+    void SetAimLocked(bool locked) { m_aimLocked = locked; }
+    void ForceAimTarget(const DirectX::XMFLOAT3& target) { m_aimTarget = target; }
     std::deque<std::unique_ptr<Bullet>>& GetProjectiles() { return m_projectiles; }
 
 private:
     std::deque<std::unique_ptr<Bullet>> m_projectiles;
     DirectX::XMFLOAT3 m_aimTarget = { 0.0f, 0.0f, 0.0f };
+    bool m_aimLocked = false;
 };

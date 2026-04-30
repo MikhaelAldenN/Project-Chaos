@@ -243,9 +243,34 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
                 continue;
             }
 
+            if (bullet->GetHomingTarget() != nullptr)
+            {
+                DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+
+                // Get the position of the TARGET, not the enemy who shot it!
+                DirectX::XMFLOAT3 targetPos = bullet->GetHomingTarget()->GetPosition();
+
+                float dx = bPos.x - targetPos.x;
+                float dz = bPos.z - targetPos.z;
+                float distSq = dx * dx + dz * dz;
+
+                // If the bullet hits the target's radius (1.5f)
+                if (distSq < (1.5f * 1.5f))
+                {
+                    // Safely cast the Character* back to an Enemy* to kill it
+                    Enemy* targetEnemy = static_cast<Enemy*>(bullet->GetHomingTarget());
+                    if (targetEnemy) {
+                        targetEnemy->SetActive(false);
+                    }
+
+                    it = projectiles.erase(it);
+                    continue;
+                }
+            }
+
             bool hitPlayer = false;
 
-            if (m_player)
+            if (m_player && bullet->GetHomingTarget() == nullptr)
             {
                 DirectX::XMFLOAT3 bulletPos = bullet->GetMovement()->GetPosition();
 
@@ -609,14 +634,79 @@ void CollisionManager::ProcessPlayerAttackContext()
 
                 if (CheckSphereCollision(pPos, bPos, parryThreshold))
                 {
+                    // ---> 1. FORCE THE PLAYER TO FACE THE BULLET <---
+                    float dxToBullet = bPos.x - pPos.x;
+                    float dzToBullet = bPos.z - pPos.z;
+
+                    // Normalize the direction
+                    float distToBullet = std::sqrt((dxToBullet * dxToBullet) + (dzToBullet * dzToBullet));
+                    if (distToBullet > 0.001f)
+                    {
+                        // Overwrite the WASD direction so the legs stay facing the bullet
+                        DirectX::XMFLOAT2 parryDir = { dxToBullet / distToBullet, dzToBullet / distToBullet };
+                        m_player->SetLastValidInput(parryDir);
+
+                        // Instantly snap the 3D model's rotation
+                        float angleDeg = DirectX::XMConvertToDegrees(atan2f(dxToBullet, dzToBullet));
+                        m_player->GetMovement()->SetRotationY(angleDeg);
+
+                        // Force the Torso to look at the bullet and lock it!
+                        m_player->ForceAimTarget(bPos);
+                        m_player->SetAimLocked(true);
+                    }
+                    // ------------------------------------------------
+
                     m_player->GetStateMachine()->ChangeState(m_player, new PlayerParry());
 
-                    // Reversing the velocity vector
-                    DirectX::XMFLOAT3 currentVel = bullet->GetVelocity();
-                    DirectX::XMFLOAT3 reflectedVel = { -currentVel.x, currentVel.y, -currentVel.z };
+                    // ---> 2. FIND THE NEAREST ENEMY TO THE PLAYER <---
+                    Enemy* nearestEnemy = nullptr;
+                    float closestDistSq = 9999999.0f; // Start with a very large distance
 
-                    // Using YOUR specific Bullet function to apply the bounce!
-                    bullet->ApplyMovement(bPos, reflectedVel);
+                    for (auto& potentialTarget : m_enemyManager->GetEnemies())
+                    {
+                        if (!potentialTarget->IsActive()) continue;
+
+                        DirectX::XMFLOAT3 ePos = potentialTarget->GetPosition();
+                        float dxTarget = pPos.x - ePos.x;
+                        float dzTarget = pPos.z - ePos.z;
+                        float targetDistSq = (dxTarget * dxTarget) + (dzTarget * dzTarget);
+
+                        if (targetDistSq < closestDistSq)
+                        {
+                            closestDistSq = targetDistSq;
+                            nearestEnemy = potentialTarget.get();
+                        }
+                    }
+
+                    // Fallback to the original shooter if no other enemies are found
+                    if (!nearestEnemy) nearestEnemy = enemy.get();
+
+                    // SET THE HOMING TARGET TO THE NEAREST ENEMY!
+                    bullet->SetHomingTarget(nearestEnemy);
+                    // ------------------------------------------------
+
+                    // INITIAL DEFLECTION 
+                    // Shoot straight toward the nearest enemy instead of where the player is facing!
+                    DirectX::XMFLOAT3 targetPos = nearestEnemy->GetPosition();
+                    float defX = targetPos.x - bPos.x;
+                    float defZ = targetPos.z - bPos.z;
+                    float defDist = std::sqrt((defX * defX) + (defZ * defZ));
+
+                    DirectX::XMFLOAT3 deflectDir = { 0.0f, 0.0f, 1.0f }; // Fallback
+                    if (defDist > 0.001f) {
+                        deflectDir = { defX / defDist, 0.0f, defZ / defDist };
+                    }
+
+                    // Apply speed
+                    DirectX::XMFLOAT3 currentVel = bullet->GetVelocity();
+                    DirectX::XMVECTOR vCurrentVel = DirectX::XMLoadFloat3(&currentVel);
+                    float speed = DirectX::XMVectorGetX(DirectX::XMVector3Length(vCurrentVel)) * 2.5f;
+
+                    DirectX::XMVECTOR vNewVel = DirectX::XMVectorScale(DirectX::XMLoadFloat3(&deflectDir), speed);
+                    DirectX::XMFLOAT3 homingVel;
+                    DirectX::XMStoreFloat3(&homingVel, vNewVel);
+
+                    bullet->ApplyMovement(bPos, homingVel);
 
                     return; // Stop checking
                 }

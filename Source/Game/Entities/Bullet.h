@@ -25,6 +25,8 @@ public:
     CharacterMovement* GetMovement() const { return movement; }
     DirectX::XMFLOAT3 GetVelocity() const { return velocity; }
     std::shared_ptr<Model> GetModel() const { return model; }
+    void SetHomingTarget(Character* target) { m_homingTarget = target; }
+    Character* GetHomingTarget() const { return m_homingTarget; }
     float GetRadius() const { return radius; }
     bool IsActive() const { return isActive; }
 
@@ -32,4 +34,6 @@ private:
     DirectX::XMFLOAT3 velocity = { 0, 0, 0 };
     float radius = 0.25f;
     bool isActive = false;
+    Character* m_homingTarget = nullptr;
+    float m_turnSpeed = 8.0f;
 };

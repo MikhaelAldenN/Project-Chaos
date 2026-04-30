@@ -278,7 +278,9 @@ void Player::UpdateHorizontalMovement(float elapsedTime)
 
 void Player::RotateModelToPoint(const DirectX::XMFLOAT3& targetPos)
 {
-    m_aimTarget = targetPos;
+    if (!m_aimLocked) {
+        m_aimTarget = targetPos;
+    }
 }
 
 void Player::FireProjectile()
