@@ -38,9 +38,13 @@ public:
     // --- Movement config ---
     void SetMoveSpeed(float speed) { moveSpeed = speed; }
     void SetInvertControls(bool invert) { invertControls = invert; }
+    void SetGravityEnabled(bool enable) { gravityEnabled = enable; }
 
     // --- Physics init (call once after scene PhysX setup) ---
-    void InitPhysics(physx::PxControllerManager* manager, physx::PxMaterial* material);
+    // spawnY: initial capsule Y position. SceneGame uses 15.0 (falls to ground).
+    //         SceneBoss uses CapsuleHalfHeight (gravity off, no ground plane).
+    void InitPhysics(physx::PxControllerManager* manager, physx::PxMaterial* material,
+        float spawnY = 15.0f);
 
     // --- Aim ---
     void RotateModelToPoint(const DirectX::XMFLOAT3& targetPos);
@@ -96,6 +100,7 @@ private:
     // --- Input state ---
     bool isInputEnabled = true;
     bool invertControls = false;
+    bool gravityEnabled = true;   // Set false for top-down scenes (e.g. SceneBoss)
     DirectX::XMFLOAT2 currentSmoothInput = { 0.0f, 0.0f };
     DirectX::XMFLOAT2 lastValidInput = { 0.0f, 1.0f };
 

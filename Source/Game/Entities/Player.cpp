@@ -48,12 +48,12 @@ Player::~Player()
     if (m_physxController) m_physxController->release();
 }
 
-void Player::InitPhysics(physx::PxControllerManager* manager, physx::PxMaterial* material)
+void Player::InitPhysics(physx::PxControllerManager* manager, physx::PxMaterial* material, float spawnY)
 {
     physx::PxCapsuleControllerDesc desc;
     desc.height = PlayerConst::CapsuleHeight;
     desc.radius = PlayerConst::CapsuleRadius;
-    desc.position = physx::PxExtendedVec3(0.0, 15.0, 0.0);
+    desc.position = physx::PxExtendedVec3(0.0, spawnY, 0.0);
     desc.material = material;
     desc.stepOffset = PlayerConst::CapsuleStep;
 
@@ -155,7 +155,7 @@ void Player::UpdateHorizontalMovement(float dt)
     }
 
     // Apply displacement through PhysX capsule controller
-    const float gravityY = PlayerConst::Gravity * dt;
+    const float gravityY = gravityEnabled ? PlayerConst::Gravity * dt : 0.0f;
     physx::PxVec3 displacement(displacementX, gravityY, displacementZ);
     m_physxController->move(displacement, PlayerConst::PhysXMinDist, dt, physx::PxControllerFilters());
 
@@ -313,7 +313,21 @@ void Player::SetPosition(float x, float y, float z)
 
 void Player::SetPosition(const DirectX::XMFLOAT3& pos)
 {
+    // Update komponen movement logical
     if (movement) movement->SetPosition(pos);
+
+    // PENTING: Update juga komponen fisika PhysX
+    if (m_physxController)
+    {
+        // PxExtendedVec3 membutuhkan offset Y karena posisi 'movement' 
+        // berada di dasar kaki, sedangkan PxController (kapsul) 
+        // posisinya dihitung dari tengah kapsul (titik pusat/centroid).
+        m_physxController->setPosition(physx::PxExtendedVec3(
+            pos.x,
+            pos.y + PlayerConst::CapsuleHalfHeight,
+            pos.z
+        ));
+    }
 }
 
 void Player::DrawDebugGUI()
