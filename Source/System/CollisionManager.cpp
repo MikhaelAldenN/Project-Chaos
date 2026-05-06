@@ -615,11 +615,11 @@ void CollisionManager::ProcessPlayerAttackContext()
 
             if (CheckSphereCollision(pPos, enemy->GetPosition(), slashThreshold))
             {
+                // [FRIEND'S FIX] std::make_uniqueを使用
                 m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerSlash>());
 
-                // Example: Kill the enemy instantly on slash
                 enemy->SetActive(false);
-                return; // Stop checking, attack is resolved
+                return;
             }
         }
 
@@ -638,29 +638,25 @@ void CollisionManager::ProcessPlayerAttackContext()
                     float dxToBullet = bPos.x - pPos.x;
                     float dzToBullet = bPos.z - pPos.z;
 
-                    // Normalize the direction
                     float distToBullet = std::sqrt((dxToBullet * dxToBullet) + (dzToBullet * dzToBullet));
                     if (distToBullet > 0.001f)
                     {
-                        // Overwrite the WASD direction so the legs stay facing the bullet
                         DirectX::XMFLOAT2 parryDir = { dxToBullet / distToBullet, dzToBullet / distToBullet };
                         m_player->SetLastValidInput(parryDir);
 
-                        // Instantly snap the 3D model's rotation
                         float angleDeg = DirectX::XMConvertToDegrees(atan2f(dxToBullet, dzToBullet));
                         m_player->GetMovement()->SetRotationY(angleDeg);
 
-                        // Force the Torso to look at the bullet and lock it!
                         m_player->ForceAimTarget(bPos);
                         m_player->SetAimLocked(true);
                     }
-                    // ------------------------------------------------
 
-                    m_player->GetStateMachine()->ChangeState(m_player, new PlayerParry());
+                    // [FRIEND'S FIX] std::make_uniqueを使用
+                    m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerParry>());
 
                     // ---> 2. FIND THE NEAREST ENEMY TO THE PLAYER <---
                     Enemy* nearestEnemy = nullptr;
-                    float closestDistSq = 9999999.0f; // Start with a very large distance
+                    float closestDistSq = 9999999.0f;
 
                     for (auto& potentialTarget : m_enemyManager->GetEnemies())
                     {
@@ -678,26 +674,21 @@ void CollisionManager::ProcessPlayerAttackContext()
                         }
                     }
 
-                    // Fallback to the original shooter if no other enemies are found
                     if (!nearestEnemy) nearestEnemy = enemy.get();
 
-                    // SET THE HOMING TARGET TO THE NEAREST ENEMY!
                     bullet->SetHomingTarget(nearestEnemy);
-                    // ------------------------------------------------
 
-                    // INITIAL DEFLECTION 
-                    // Shoot straight toward the nearest enemy instead of where the player is facing!
+                    // ---> 3. INITIAL DEFLECTION <---
                     DirectX::XMFLOAT3 targetPos = nearestEnemy->GetPosition();
                     float defX = targetPos.x - bPos.x;
                     float defZ = targetPos.z - bPos.z;
                     float defDist = std::sqrt((defX * defX) + (defZ * defZ));
 
-                    DirectX::XMFLOAT3 deflectDir = { 0.0f, 0.0f, 1.0f }; // Fallback
+                    DirectX::XMFLOAT3 deflectDir = { 0.0f, 0.0f, 1.0f };
                     if (defDist > 0.001f) {
                         deflectDir = { defX / defDist, 0.0f, defZ / defDist };
                     }
 
-                    // Apply speed
                     DirectX::XMFLOAT3 currentVel = bullet->GetVelocity();
                     DirectX::XMVECTOR vCurrentVel = DirectX::XMLoadFloat3(&currentVel);
                     float speed = DirectX::XMVectorGetX(DirectX::XMVector3Length(vCurrentVel)) * 2.5f;
@@ -708,7 +699,7 @@ void CollisionManager::ProcessPlayerAttackContext()
 
                     bullet->ApplyMovement(bPos, homingVel);
 
-                    return; // Stop checking
+                    return;
                 }
             }
         }

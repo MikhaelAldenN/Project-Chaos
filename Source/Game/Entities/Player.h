@@ -1,11 +1,12 @@
 ﻿#pragma once
+
 #include "Bullet.h"
 #include "Character.h"
 #include "PlayerConstants.h"
 #include <deque>
 #include <memory>
 #include <DirectXMath.h>
-#include <characterkinematic/PxController.h>
+#include <characterkinematic/PxController.h> 
 #include <characterkinematic/PxCapsuleController.h>
 #include <characterkinematic/PxControllerManager.h>
 
@@ -77,6 +78,11 @@ public:
     bool  canDash = true;
     float dashCooldownTimer = 0.0f;
 
+    // ---> 追加：パリィとエイムロック用のセッター <---
+    void SetLastValidInput(DirectX::XMFLOAT2 dir) { lastValidInput = dir; }
+    void SetAimLocked(bool locked) { m_aimLocked = locked; }
+    void ForceAimTarget(const DirectX::XMFLOAT3& target) { m_aimTarget = target; }
+
 private:
     // --- Update pipeline (called in order from Update()) ---
     void UpdateDashCooldown(float dt);
@@ -117,16 +123,10 @@ private:
 
     // --- Aim target (set by RotateModelToPoint) ---
     DirectX::XMFLOAT3 m_aimTarget = { 0.0f, 0.0f, 0.0f };
-public:
-    void FireProjectile();
-    void RenderProjectiles(ModelRenderer* renderer);
-    void SetLastValidInput(DirectX::XMFLOAT2 dir) { lastValidInput = dir; }
-    void SetAimLocked(bool locked) { m_aimLocked = locked; }
-    void ForceAimTarget(const DirectX::XMFLOAT3& target) { m_aimTarget = target; }
-    std::deque<std::unique_ptr<Bullet>>& GetProjectiles() { return m_projectiles; }
+
+    // ---> 追加：エイムロック用のフラグ <---
+    bool m_aimLocked = false;
 
     // --- Projectile pool ---
     std::deque<std::unique_ptr<Bullet>> m_projectiles;
-    DirectX::XMFLOAT3 m_aimTarget = { 0.0f, 0.0f, 0.0f };
-    bool m_aimLocked = false;
 };
