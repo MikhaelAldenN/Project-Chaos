@@ -613,13 +613,36 @@ void CollisionManager::ProcessPlayerAttackContext()
         {
             if (!enemy->IsActive()) continue;
 
-            if (CheckSphereCollision(pPos, enemy->GetPosition(), slashThreshold))
+            DirectX::XMFLOAT3 ePos = enemy->GetPosition();
+
+            if (CheckSphereCollision(pPos, ePos, slashThreshold))
             {
-                // [FRIEND'S FIX] std::make_unique‚ðŽg—p
+                // ---> 1. FORCE THE PLAYER TO FACE THE ENEMY <---
+                float dxToEnemy = ePos.x - pPos.x;
+                float dzToEnemy = ePos.z - pPos.z;
+                float distToEnemy = std::sqrt((dxToEnemy * dxToEnemy) + (dzToEnemy * dzToEnemy));
+
+                if (distToEnemy > 0.001f)
+                {
+                    // Overwrite the WASD direction so the legs stay facing the enemy
+                    DirectX::XMFLOAT2 slashDir = { dxToEnemy / distToEnemy, dzToEnemy / distToEnemy };
+                    m_player->SetLastValidInput(slashDir);
+
+                    // Instantly snap the 3D model's rotation
+                    float angleDeg = DirectX::XMConvertToDegrees(atan2f(dxToEnemy, dzToEnemy));
+                    m_player->GetMovement()->SetRotationY(angleDeg);
+
+                    // Force the Torso to look at the enemy and lock it!
+                    m_player->ForceAimTarget(ePos);
+                    m_player->SetAimLocked(true);
+                }
+                // ------------------------------------------------
+
                 m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerSlash>());
 
+                // Kill the enemy instantly
                 enemy->SetActive(false);
-                return;
+                return; // Stop checking, attack is resolved
             }
         }
 

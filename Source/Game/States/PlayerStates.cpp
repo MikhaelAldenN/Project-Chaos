@@ -128,6 +128,7 @@ void PlayerSlash::Exit(Player* player)
 {
     player->color = { 1.0f, 1.0f, 1.0f, 1.0f };
     player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
+    player->SetAimLocked(false);
 }
 
 // ============================================================
