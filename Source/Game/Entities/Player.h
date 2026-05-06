@@ -1,11 +1,11 @@
-#pragma once
-
+﻿#pragma once
 #include "Bullet.h"
 #include "Character.h"
+#include "PlayerConstants.h"
 #include <deque>
 #include <memory>
 #include <DirectXMath.h>
-#include <characterkinematic/PxController.h> 
+#include <characterkinematic/PxController.h>
 #include <characterkinematic/PxCapsuleController.h>
 #include <characterkinematic/PxControllerManager.h>
 
@@ -21,74 +21,102 @@ public:
 
     void Update(float elapsedTime, Camera* camera) override;
 
-    StateMachine* GetStateMachine() const { return stateMachine; }
-    CharacterMovement* GetMovement() const { return movement; }
-    AnimationController* GetAnimator() const { return animator; }
-    std::shared_ptr<Model> GetModel() const { return model; }
+    // --- Component accessors (raw pointers, no ownership transfer) ---
+    StateMachine* GetStateMachine() const { return stateMachine.get(); }
+    CharacterMovement* GetMovement()     const { return movement.get(); }
+    AnimationController* GetAnimator()     const { return animator.get(); }
+    std::shared_ptr<Model> GetModel()        const { return model; }
 
-    void HandleMovementInput(float dt);
-    void UpdateHorizontalMovement(float elapsedTime);
-
+    // --- Input & camera ---
     void SetInputEnabled(bool enable) { isInputEnabled = enable; }
     void SetCamera(Camera* cam) { activeCamera = cam; }
 
+    // --- Position helpers ---
     void SetPosition(float x, float y, float z);
     void SetPosition(const DirectX::XMFLOAT3& pos);
 
-    struct MovementSettings {
-        static constexpr float DefaultSpeed = 20.0f;
-    };
-
+    // --- Movement config ---
     void SetMoveSpeed(float speed) { moveSpeed = speed; }
     void SetInvertControls(bool invert) { invertControls = invert; }
+    void SetGravityEnabled(bool enable) { gravityEnabled = enable; }
 
+    // --- Physics init (call once after scene PhysX setup) ---
+    // spawnY: initial capsule Y position. SceneGame uses 15.0 (falls to ground).
+    //         SceneBoss uses CapsuleHalfHeight (gravity off, no ground plane).
+    void InitPhysics(physx::PxControllerManager* manager, physx::PxMaterial* material,
+        float spawnY = 15.0f);
+
+    // --- Aim ---
     void RotateModelToPoint(const DirectX::XMFLOAT3& targetPos);
 
+    // --- Projectiles ---
+    void FireProjectile();
+    void RenderProjectiles(ModelRenderer* renderer);
+    std::deque<std::unique_ptr<Bullet>>& GetProjectiles() { return m_projectiles; }
+
+    // --- Debug ---
     void DrawDebugGUI();
 
-    void InitPhysics(physx::PxControllerManager* manager, physx::PxMaterial* material);
-
-    DirectX::XMFLOAT4 color;
-
-    bool IsMoving() const {
-        return (std::abs(currentSmoothInput.x) > 0.01f || std::abs(currentSmoothInput.y) > 0.01f);
+    // Returns true when player has meaningful smoothed input
+    bool IsMoving() const
+    {
+        return (std::abs(currentSmoothInput.x) > 0.01f ||
+            std::abs(currentSmoothInput.y) > 0.01f);
     }
 
-private:
-    DirectX::XMFLOAT3 defaultScale = { 3.0f, 3.0f, 3.0f };
-    StateMachine* stateMachine;
-    AnimationController* animator;
-    Camera* activeCamera = nullptr;
-    bool isInputEnabled = true;
-    bool invertControls = false;
-    float moveSpeed = MovementSettings::DefaultSpeed;
-    float acceleration = 8.0f;
-    float deceleration = 12.0f;
-    DirectX::XMFLOAT2 currentSmoothInput = { 0.0f, 0.0f };
-    physx::PxController* m_physxController = nullptr;
+    // Visual tint (used by states for hit flash, etc.)
+    DirectX::XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
 
-    float rotationSmoothSpeed = 100.0f;
-
-public:
-    // Accessors untuk State Machine
-    float GetBaseSpeed() const { return baseSpeed; }
-    float GetDashSpeed() const { return dashSpeed; }
+    // --- Read accessors for state machine ---
+    float GetBaseSpeed()    const { return baseSpeed; }
+    float GetDashSpeed()    const { return dashSpeed; }
     float GetDashDuration() const { return dashDuration; }
     DirectX::XMFLOAT2 GetLastValidInput() const { return lastValidInput; }
 
-    // Dash Status
-    bool canDash = true;
+    // Written by PlayerDash state
+    bool  canDash = true;
     float dashCooldownTimer = 0.0f;
 
 private:
-    float baseSpeed = 10.0f;      // Kecepatan jalan normal
-    float dashSpeed = 40.0f;      // Daya dorong instan dash
-    float dashDuration = 0.15f;   // Berapa lama dash berlangsung (detik)
-    float dashCooldown = 0.5f;    // Jeda sebelum bisa dash lagi
+    // --- Update pipeline (called in order from Update()) ---
+    void UpdateDashCooldown(float dt);
+    void HandleMovementInput(float dt);
+    void UpdateHorizontalMovement(float dt);
+    void UpdateFootRotation(float dt, float& outSmoothedYaw);
+    void UpdateAimConstraint(float& inOutSmoothedYaw, bool& outShouldAim, float& outRelativeAngle);
+    void ApplyWorldMatrix(float smoothedYaw, bool shouldAim, float relativeAngle);
+    void UpdateProjectiles(float dt, Camera* camera);
 
-    // Menyimpan arah terakhir ditekan agar bisa dash meski diam
+    // --- Owned components ---
+    std::unique_ptr<StateMachine>        stateMachine;
+    std::unique_ptr<AnimationController> animator;
+
+    // --- PhysX controller (lifecycle managed by PhysX, released manually in destructor) ---
+    physx::PxController* m_physxController = nullptr;
+
+    // --- Camera ---
+    Camera* activeCamera = nullptr;
+
+    // --- Input state ---
+    bool isInputEnabled = true;
+    bool invertControls = false;
+    bool gravityEnabled = true;   // Set false for top-down scenes (e.g. SceneBoss)
+    DirectX::XMFLOAT2 currentSmoothInput = { 0.0f, 0.0f };
     DirectX::XMFLOAT2 lastValidInput = { 0.0f, 1.0f };
 
+    // --- Movement params (runtime-tunable, initialized from PlayerConst) ---
+    float moveSpeed = PlayerConst::MoveSpeed;
+    float acceleration = PlayerConst::Acceleration;
+    float deceleration = PlayerConst::Deceleration;
+
+    // --- Dash params ---
+    float baseSpeed = 10.0f;
+    float dashSpeed = PlayerConst::DashSpeed;
+    float dashDuration = PlayerConst::DashDuration;
+    float dashCooldown = PlayerConst::DashCooldown;
+
+    // --- Aim target (set by RotateModelToPoint) ---
+    DirectX::XMFLOAT3 m_aimTarget = { 0.0f, 0.0f, 0.0f };
 public:
     void FireProjectile();
     void RenderProjectiles(ModelRenderer* renderer);
@@ -97,7 +125,7 @@ public:
     void ForceAimTarget(const DirectX::XMFLOAT3& target) { m_aimTarget = target; }
     std::deque<std::unique_ptr<Bullet>>& GetProjectiles() { return m_projectiles; }
 
-private:
+    // --- Projectile pool ---
     std::deque<std::unique_ptr<Bullet>> m_projectiles;
     DirectX::XMFLOAT3 m_aimTarget = { 0.0f, 0.0f, 0.0f };
     bool m_aimLocked = false;

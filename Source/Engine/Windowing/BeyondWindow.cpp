@@ -356,6 +356,7 @@ namespace Beyond
 
     void Window::BeginRender(float r, float g, float b, float a)
     {
+        m_contentDirty = true;
         float color[] = { r, g, b, a };
         auto context = Graphics::Instance().GetDeviceContext();
         context->ClearRenderTargetView(m_renderTargetView.Get(), color);
@@ -369,9 +370,18 @@ namespace Beyond
     void Window::EndRender(int syncInterval)
     {
         if (m_isTransparent)
-            UpdateLayeredSurface();
+        {
+            // Hanya lakukan CPU readback dan GDI update jika ada sesuatu yang di-render
+            if (m_contentDirty)  // set true setiap BeginRender dipanggil
+            {
+                UpdateLayeredSurface();
+                m_contentDirty = false;
+            }
+        }
         else
-            if (m_swapChain) m_swapChain->Present(syncInterval, 0);
+        {
+            m_swapChain->Present(syncInterval, 0);
+        }
     }
 
     void Window::Resize(int w, int h)

@@ -62,6 +62,8 @@ namespace Beyond
         // Tambahkan di bagian private variables (di bawah m_isTransparent):
         bool m_isClickThrough = false;
         bool m_showBorder = true;
+        int m_lastRenderedW = 0;
+        int m_lastRenderedH = 0;
 
     private:
         void CreateBuffers(int w, int h);
@@ -109,5 +111,8 @@ namespace Beyond
         void* m_pBits = nullptr;
         int     m_layeredW = 0;
         int     m_layeredH = 0;
+
+        bool m_contentDirty = true;  // Flag: apakah perlu UpdateLayeredWindow?
+
     };
 }

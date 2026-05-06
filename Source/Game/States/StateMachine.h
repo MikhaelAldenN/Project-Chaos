@@ -1,40 +1,36 @@
 #pragma once
+#include <memory>
 #include "PlayerState.h"
 
-// --- 2. State Machine System ---
 class StateMachine
 {
 public:
-    ~StateMachine() {
-        if (currentState) {
-            delete currentState;
-            currentState = nullptr;
-        }
-    }
+    // currentState cleaned up automatically by unique_ptr
+    ~StateMachine() = default;
 
-    void Initialize(PlayerState* startState, Player* player) {
-        currentState = startState;
+    // Takes ownership of startState and immediately enters it
+    void Initialize(std::unique_ptr<PlayerState> startState, Player* player)
+    {
+        currentState = std::move(startState);
         currentState->Enter(player);
     }
 
-    void ChangeState(Player* player, PlayerState* newState) {
-        if (currentState) {
+    // Exits current state, takes ownership of newState, enters it
+    void ChangeState(Player* player, std::unique_ptr<PlayerState> newState)
+    {
+        if (currentState)
             currentState->Exit(player);
-            delete currentState; // Hapus state lama
-        }
-        currentState = newState;
+
+        currentState = std::move(newState);
         currentState->Enter(player);
     }
 
-    void Update(Player* player, float elapsedTime) {
-        if (currentState) {
+    void Update(Player* player, float elapsedTime)
+    {
+        if (currentState)
             currentState->Update(player, elapsedTime);
-        }
     }
-
-    // Helper untuk cek tipe state (opsional, berguna untuk debug)
-    // bool IsState(const std::string& stateName); 
 
 private:
-    PlayerState* currentState = nullptr;
+    std::unique_ptr<PlayerState> currentState;
 };

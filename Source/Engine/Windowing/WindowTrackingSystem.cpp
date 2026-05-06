@@ -7,6 +7,13 @@ using namespace DirectX;
 
 WindowTrackingSystem::WindowTrackingSystem()
 {
+    // Pre-cache screen dimensions agar tidak hit SDL setiap frame awal
+    SDL_Rect bounds;
+    if (SDL_GetDisplayBounds(SDL_GetPrimaryDisplay(), &bounds))
+    {
+        m_cachedScreenWidth = bounds.w;
+        m_cachedScreenHeight = bounds.h;
+    }
 }
 
 WindowTrackingSystem::~WindowTrackingSystem()
@@ -163,8 +170,9 @@ void WindowTrackingSystem::UpdateSingleWindow(float dt, TrackedWindow& tracked)
 
         int newW = max(10, static_cast<int>(roundf(tracked.state.targetW)));
         int newH = max(10, static_cast<int>(roundf(tracked.state.targetH)));
-
-        if (newW != osW || newH != osH)
+        int deltaW = abs(newW - osW);
+        int deltaH = abs(newH - osH);
+        if (deltaW >= 1 || deltaH >= 1)  // sudah ada, ini OK, tapi tambahkan:
         {
             SDL_SetWindowSize(tracked.window->GetSDLWindow(), newW, newH);
             tracked.state.actualW = newW;
@@ -191,21 +199,20 @@ void WindowTrackingSystem::UpdateSingleWindow(float dt, TrackedWindow& tracked)
         tracked.state.targetX += (destX - tracked.state.targetX) * tPos;
         tracked.state.targetY += (destY - tracked.state.targetY) * tPos;
 
+        // Ganti blok position update (bagian bawah UpdateSingleWindow):
+
         int newX = static_cast<int>(roundf(tracked.state.targetX));
         int newY = static_cast<int>(roundf(tracked.state.targetY));
 
-        // HAPUS THRESHOLD >= 2, biarkan window selalu bergerak seiring player!
-        if (newX != tracked.state.actualX || newY != tracked.state.actualY)
+        // Guard yang sudah ada tetap dipakai, TAMBAHKAN:
+        // Kalau delta sub-pixel (floating point jitter), skip OS call
+        float deltaX = fabsf(tracked.state.targetX - tracked.state.actualX);
+        float deltaY = fabsf(tracked.state.targetY - tracked.state.actualY);
+
+        if ((newX != tracked.state.actualX || newY != tracked.state.actualY)
+            && (deltaX >= 0.5f || deltaY >= 0.5f))
         {
-            PerformanceLogger::Instance().StartTimer(PerfBucket::WindowOS);
             SDL_SetWindowPosition(tracked.window->GetSDLWindow(), newX, newY);
-            PerformanceLogger::Instance().StopTimer(PerfBucket::WindowOS);
-
-            // Contoh deteksi boundary (opsional, disesuaikan resolusi OS)
-            if (newX < -5000 || newX > 5000) {
-                PerformanceLogger::Instance().LogBoundaryClamp(tracked.name, tracked.state.actualX, tracked.state.actualY, newX, newY);
-            }
-
             tracked.state.actualX = newX;
             tracked.state.actualY = newY;
         }

@@ -14,7 +14,7 @@ Enemy::Enemy(ID3D11Device* device, const char* filePath, XMFLOAT3 startPos, XMFL
     if (m_type == EnemyType::Pentagon) m_scale = { 150.0f, 150.0f, 150.0f };
     else m_scale = { 1.0f, 1.0f, 1.0f };
 
-    movement->SetGravityEnabled(false);
+
     movement->SetPosition(startPos);
     movement->SetRotation(startRot);
     originalPosition = startPos;
@@ -103,7 +103,6 @@ void Enemy::Update(float elapsedTime, Camera* camera)
         }
     }
 
-    if (movement) movement->Update(elapsedTime);
 
     XMFLOAT3 pos = movement->GetPosition();
     XMFLOAT3 rot = movement->GetRotation();

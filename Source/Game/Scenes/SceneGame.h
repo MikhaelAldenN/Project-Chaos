@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // Standard Libraries
 #include <memory>
@@ -9,6 +9,7 @@
 
 #include <vector>
 #include "BeyondWindow.h"
+#include "PhysXUtils.h"
 #include "Scene.h"
 #include "System/Light.h"
 #include "UberShader.h"
@@ -27,14 +28,8 @@ class PostProcessManager;
 class Stage;
 
 // ==========================================
-// CUSTOM DELETERS
+// MAIN CLASS
 // ==========================================
-struct PhysXDeleter {
-    template <typename T>
-    void operator()(T* ptr) const {
-        if (ptr) ptr->release();
-    }
-};
 
 // ==========================================
 // MAIN CLASS

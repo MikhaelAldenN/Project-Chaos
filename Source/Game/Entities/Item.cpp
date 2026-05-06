@@ -5,15 +5,16 @@ using namespace DirectX;
 
 Item::Item(ID3D11Device* device, const DirectX::XMFLOAT3& position, ItemType type)
 {
-    // Reuse Block Model for optimization
+    // Reuse Block model for memory optimization
     model = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_mdl_Block.glb");
 
     m_type = type;
     movement->SetPosition(position);
-    movement->SetGravityEnabled(false);
-
     originalY = position.y;
     animTime = 0.0f;
+
+    // Initialize color from type
+    SetType(type);
 }
 
 void Item::Update(float elapsedTime, Camera* camera)
@@ -22,13 +23,13 @@ void Item::Update(float elapsedTime, Camera* camera)
 
     animTime += elapsedTime;
 
-    // 1. Floating Animation (Sine Wave)
+    // Floating animation (sine wave on Y axis)
     XMFLOAT3 pos = movement->GetPosition();
-    pos.y = originalY + sinf(animTime * FLOAT_SPEED) * FLOAT_AMP;
+    pos.y = originalY + sinf(animTime * kFloatSpeed) * kFloatAmp;
     movement->SetPosition(pos);
 
-    // 2. Spinning Animation
-    movement->SetRotation({ 0.0f, animTime * SPIN_SPEED, 0.0f });
+    // Spinning animation
+    movement->SetRotation({ 0.0f, animTime * kSpinSpeed, 0.0f });
 
     SyncData();
 }
@@ -36,8 +37,7 @@ void Item::Update(float elapsedTime, Camera* camera)
 void Item::Render(ModelRenderer* renderer)
 {
     if (!isActive) return;
-    XMFLOAT3 currentScale = this->scale;
-    Character::scale = currentScale;
 
+    Character::scale = scale;
     renderer->Draw(ShaderId::Phong, model, color);
 }
