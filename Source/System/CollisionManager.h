@@ -43,6 +43,7 @@ private:
     void CheckPlayerVsCheckpointLines();
     void CheckPlayerVsEnemies();
     void CheckPlayerVsItems();
+    void CheckPlayerProjectilesVsEnemies();
     void CheckPlayerVsTriggerLines();
     void CheckPlayerVsVoidLines();
     bool CheckSphereCollision(const DirectX::XMFLOAT3& posA, const DirectX::XMFLOAT3& posB, float threshold);

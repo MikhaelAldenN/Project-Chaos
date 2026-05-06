@@ -291,6 +291,20 @@ void Enemy::UpdateOriginalTransform(const DirectX::XMFLOAT3& pos, const DirectX:
     }
 }
 
+void Enemy::TakeDamage(int damage)
+{
+    // If the enemy is already dead/inactive but hasn't been cleaned up yet, ignore the hit.
+    if (!m_isActive || m_hp <= 0) return;
+
+    m_hp -= damage;
+
+    if (m_hp <= 0)
+    {
+        m_hp = 0; // Clamp to 0 to prevent negative HP logic bugs
+        SetActive(false); // Kill the enemy
+    }
+}
+
 void Enemy::SetPosition(const DirectX::XMFLOAT3& pos) { movement->SetPosition(pos); }
 void Enemy::SetRotation(const DirectX::XMFLOAT3& rot) { movement->SetRotation(rot); }
 

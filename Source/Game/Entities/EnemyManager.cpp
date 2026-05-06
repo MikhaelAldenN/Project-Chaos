@@ -52,15 +52,26 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
 
     newEnemy->SetScale(config.Scale);
     newEnemy->SetBaseMoveSpeed(config.BaseSpeed);
+    newEnemy->SetMaxHP(config.MaxHP);
     m_enemies.push_back(std::move(newEnemy));
 }
 
 void EnemyManager::Update(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack)
 {
-    for (auto& enemy : m_enemies)
+    auto it = m_enemies.begin();
+    while (it != m_enemies.end())
     {
-        enemy->Update(elapsedTime, camera);
-        enemy->UpdateTracking(elapsedTime, camera, playerPos, allowAttack);
+        if (!(*it)->IsActive())
+        {
+            it = m_enemies.erase(it);
+        }
+        else
+        {
+            (*it)->Update(elapsedTime, camera);
+            (*it)->UpdateTracking(elapsedTime, camera, playerPos, allowAttack);
+
+            ++it; 
+        }
     }
 }
 

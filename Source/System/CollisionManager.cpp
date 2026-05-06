@@ -155,6 +155,7 @@ void CollisionManager::Update(float elapsedTime)
 {
     CheckEnemyProjectilesFull(elapsedTime);
     CheckStageCollision();
+    CheckPlayerProjectilesVsEnemies();
     CheckPlayerVsEnemies();
     CheckPlayerVsCheckpointLines();
     CheckPlayerVsTriggerLines();
@@ -552,6 +553,39 @@ void CollisionManager::CheckPlayerVsItems()
             }
 
             item->SetActive(false);
+        }
+    }
+}
+
+void CollisionManager::CheckPlayerProjectilesVsEnemies()
+{
+    if (!m_player || !m_enemyManager) return;
+
+    auto& projectiles = m_player->GetProjectiles();
+    auto& enemies = m_enemyManager->GetEnemies();
+
+    constexpr int PLAYER_BULLET_DAMAGE = 10;
+    constexpr float BULLET_HITBOX_RADIUS = 1.0f;
+
+    for (auto& bullet : projectiles)
+    {
+        if (!bullet || !bullet->IsActive()) continue;
+
+        DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+
+        for (auto& enemy : enemies)
+        {
+            if (!enemy || !enemy->IsActive()) continue;
+
+            DirectX::XMFLOAT3 ePos = enemy->GetPosition();
+
+            if (CheckSphereCollision(bPos, ePos, BULLET_HITBOX_RADIUS))
+            {
+                enemy->TakeDamage(PLAYER_BULLET_DAMAGE);
+                bullet->SetActive(false);
+
+                break;
+            }
         }
     }
 }

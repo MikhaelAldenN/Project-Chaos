@@ -21,14 +21,15 @@ public:
     // Used when the bullet bounces off a wall
     void ApplyMovement(const DirectX::XMFLOAT3& newPos, const DirectX::XMFLOAT3& newVel);
 
-    // Getters
+    // Getters & Setters
     CharacterMovement* GetMovement() const { return movement.get(); }
     DirectX::XMFLOAT3 GetVelocity() const { return velocity; }
     std::shared_ptr<Model> GetModel() const { return model; }
     void SetHomingTarget(Character* target) { m_homingTarget = target; }
     Character* GetHomingTarget() const { return m_homingTarget; }
     float GetRadius() const { return radius; }
-    bool IsActive() const { return isActive; }
+    [[nodiscard]] bool IsActive() const { return isActive; }
+    void SetActive(bool active) { isActive = active; }
 
 private:
     DirectX::XMFLOAT3 velocity = { 0, 0, 0 };

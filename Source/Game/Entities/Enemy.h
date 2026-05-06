@@ -64,6 +64,10 @@ public:
     void SetScale(const DirectX::XMFLOAT3& scale) { m_scale = scale; }
     DirectX::XMFLOAT3 GetScale() const { return m_scale; }
 
+    void TakeDamage(int damage);
+    void SetMaxHP(int hp) { m_hp = hp; }
+    [[nodiscard]] int GetHP() const { return m_hp; }
+
 private:
     void UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack);
 
@@ -103,4 +107,6 @@ private:
     DirectX::XMFLOAT4 m_projectileColor = { 1.0f, 1.0f, 1.0f, 1.0f };
     DirectX::XMFLOAT3 m_scale = { 1.0f, 1.0f, 1.0f };
     bool m_isHighlighted = false;
+
+    int m_hp = 30;
 };
