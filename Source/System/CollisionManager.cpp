@@ -378,51 +378,78 @@ void CollisionManager::CheckPlayerVsEnemies()
 {
     if (!m_player || !m_enemyManager) return;
 
+    // Use references (&) to prevent copying heavy arrays into local memory
     auto& enemies = m_enemyManager->GetEnemies();
-    XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
+    DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
+    DirectX::XMFLOAT3 playerVel = m_player->GetMovement()->GetVelocity();
 
-    float playerRadius = 0.5f;
-    const float BALL_RADIUS = 1.0f;
-    const float PADDLE_THICKNESS = 0.5f;
-    const float PADDLE_WIDTH_HALF = 0.8f;
+    constexpr float PLAYER_RADIUS = 0.25f;
+    bool collidedAny = false;
 
-    for (auto it = enemies.begin(); it != enemies.end(); )
+    for (auto& enemy : enemies)
     {
-        Enemy* enemy = it->get();
-        if (!enemy) { ++it; continue; }
+        // EARLY EXIT: Skip empty pointers and dead enemies
+        if (!enemy || !enemy->IsActive()) continue;
 
-        XMFLOAT3 enemyPos = enemy->GetPosition();
-        XMVECTOR vPlayerLocal = TransformToEnemyLocal(playerPos, enemy);
-        XMFLOAT3 localPos;
-        XMStoreFloat3(&localPos, vPlayerLocal);
+        DirectX::XMFLOAT3 ePos = enemy->GetPosition();
 
-        float distSq = 0.0f;
-        float combinedRadius = 0.0f;
+        // DYNAMIC HITBOXES
+        // If you make an enemy 2x bigger, its physical wall becomes 2x bigger automatically.
+        float enemyScale = enemy->GetScale().x;
+        float enemyRadius = 0.1f * enemyScale;
 
-        if (enemy->GetType() == EnemyType::Ball)
-        {
-            distSq = localPos.x * localPos.x + localPos.z * localPos.z;
-            combinedRadius = playerRadius + BALL_RADIUS;
-        }
-        else
-        {
-            float closestX = (std::max)(-PADDLE_WIDTH_HALF, (std::min)(localPos.x, PADDLE_WIDTH_HALF));
-            float dx = localPos.x - closestX;
-            float dz = localPos.z - 0.0f;
+        if (enemy->GetType() == EnemyType::Pentagon) enemyRadius = 4.0f * enemyScale;
+        else if (enemy->GetType() == EnemyType::Paddle) enemyRadius = 0.8f * enemyScale;
 
-            distSq = dx * dx + dz * dz;
-            combinedRadius = playerRadius + PADDLE_THICKNESS;
-        }
+        float combinedRadius = PLAYER_RADIUS + enemyRadius;
 
+        float dx = playerPos.x - ePos.x;
+        float dz = playerPos.z - ePos.z;
+        float distSq = (dx * dx) + (dz * dz);
+
+        // Check if player is penetrating the enemy's radius
         if (distSq < (combinedRadius * combinedRadius))
         {
-            if (m_onPlayerDeathCallback) m_onPlayerDeathCallback();
-            it = enemies.erase(it);
+            float dist = std::sqrt(distSq);
+
+            // BUG PREVENTION: The Divide-By-Zero Guard
+            if (dist < 0.0001f)
+            {
+                dx = 1.0f;
+                dz = 0.0f;
+                dist = 1.0f;
+            }
+
+            // Calculate exactly how deep the player is inside the enemy
+            float overlap = combinedRadius - dist;
+
+            // Push the player backward out of the enemy
+            float pushX = (dx / dist) * overlap;
+            float pushZ = (dz / dist) * overlap;
+
+            playerPos.x += pushX;
+            playerPos.z += pushZ;
+
+            collidedAny = true;
+
+            // BUG PREVENTION: The "Sticky Wall" Fix
+            DirectX::XMVECTOR vVel = DirectX::XMLoadFloat3(&playerVel);
+            DirectX::XMVECTOR vNormal = DirectX::XMVectorSet(dx / dist, 0.0f, dz / dist, 0.0f);
+
+            float dot = DirectX::XMVectorGetX(DirectX::XMVector3Dot(vVel, vNormal));
+            if (dot < 0.0f)
+            {
+                vVel = DirectX::XMVectorSubtract(vVel, DirectX::XMVectorScale(vNormal, dot));
+                DirectX::XMStoreFloat3(&playerVel, vVel);
+            }
         }
-        else
-        {
-            ++it;
-        }
+    }
+
+    // Only update the player's transform if a collision actually happened
+    if (collidedAny)
+    {
+        m_player->SetPosition(playerPos);
+        m_player->GetMovement()->SetVelocity(playerVel);
     }
 }
 
@@ -639,19 +666,34 @@ void CollisionManager::ProcessPlayerAttackContext()
     {
         DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
 
-        float slashThreshold = 3.5f; // Melee Range
-        float parryThreshold = 2.5f; // Parry Range
+        float parryThreshold = 2.5f;
+        constexpr int PLAYER_SLASH_DAMAGE = 30;
 
-        // 1. CONDITION: Distance(Enemy) < Threshold -> SLASH
+        // Define the exact length of the sword blade past the player's body.
+        // Tweak this number to make the attack feel perfectly close! (0.5f to 0.8f is usually best)
+        constexpr float WEAPON_REACH = 0.8f;
+
+		// 1. CONDITION: Distance(Enemy) < Threshold -> SLASH
         for (auto& enemy : m_enemyManager->GetEnemies())
         {
-            if (!enemy->IsActive()) continue;
+            if (!enemy || !enemy->IsActive()) continue;
 
             DirectX::XMFLOAT3 ePos = enemy->GetPosition();
 
-            if (CheckSphereCollision(pPos, ePos, slashThreshold))
+            // ---> DYNAMIC HITBOX MATH <---
+            // Get the visual edge of the enemy based on their specific type and scale
+            float enemyScale = enemy->GetScale().x;
+            float enemyRadius = 1.0f * enemyScale; // Default Ball
+
+            if (enemy->GetType() == EnemyType::Pentagon) enemyRadius = 4.0f * enemyScale;
+            else if (enemy->GetType() == EnemyType::Paddle) enemyRadius = 1.2f * enemyScale; // Tight radius for the thin paddle
+
+            // The perfect "touching" distance: Player Body (0.5) + Enemy Body + Sword Length
+            float exactSlashDistance = 0.5f + enemyRadius + WEAPON_REACH;
+
+            if (CheckSphereCollision(pPos, ePos, exactSlashDistance))
             {
-                // ---> 1. FORCE THE PLAYER TO FACE THE ENEMY <---
+                // ---> FORCE THE PLAYER TO FACE THE ENEMY <---
                 float dxToEnemy = ePos.x - pPos.x;
                 float dzToEnemy = ePos.z - pPos.z;
                 float distToEnemy = std::sqrt((dxToEnemy * dxToEnemy) + (dzToEnemy * dzToEnemy));
@@ -674,9 +716,11 @@ void CollisionManager::ProcessPlayerAttackContext()
 
                 m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerSlash>());
 
-                // Kill the enemy instantly
-                enemy->SetActive(false);
-                return; // Stop checking, attack is resolved
+                // ---> APPLY DAMAGE <---
+                enemy->TakeDamage(PLAYER_SLASH_DAMAGE);
+
+
+                return; 
             }
         }
 
@@ -691,7 +735,7 @@ void CollisionManager::ProcessPlayerAttackContext()
 
                 if (CheckSphereCollision(pPos, bPos, parryThreshold))
                 {
-                    // ---> 1. FORCE THE PLAYER TO FACE THE BULLET <---
+                    // ---> FORCE THE PLAYER TO FACE THE BULLET <---
                     float dxToBullet = bPos.x - pPos.x;
                     float dzToBullet = bPos.z - pPos.z;
 
@@ -707,11 +751,9 @@ void CollisionManager::ProcessPlayerAttackContext()
                         m_player->ForceAimTarget(bPos);
                         m_player->SetAimLocked(true);
                     }
-
-                    // [FRIEND'S FIX] std::make_unique‚ðŽg—p
                     m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerParry>());
 
-                    // ---> 2. FIND THE NEAREST ENEMY TO THE PLAYER <---
+                    // ---> FIND THE NEAREST ENEMY TO THE PLAYER <---
                     Enemy* nearestEnemy = nullptr;
                     float closestDistSq = 9999999.0f;
 
@@ -735,7 +777,7 @@ void CollisionManager::ProcessPlayerAttackContext()
 
                     bullet->SetHomingTarget(nearestEnemy);
 
-                    // ---> 3. INITIAL DEFLECTION <---
+                    // ---> INITIAL DEFLECTION <---
                     DirectX::XMFLOAT3 targetPos = nearestEnemy->GetPosition();
                     float defX = targetPos.x - bPos.x;
                     float defZ = targetPos.z - bPos.z;
@@ -761,7 +803,7 @@ void CollisionManager::ProcessPlayerAttackContext()
             }
         }
 
-        // 3. CONDITION: Else -> SHOOT
+        // CONDITION: Else -> SHOOT
         m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerShoot>());
         m_player->FireProjectile();
     }
