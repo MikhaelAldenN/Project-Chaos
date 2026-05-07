@@ -74,9 +74,15 @@ public:
     float GetDashDuration() const { return dashDuration; }
     DirectX::XMFLOAT2 GetLastValidInput() const { return lastValidInput; }
 
+
     // Written by PlayerDash state
     bool  canDash = true;
     float dashCooldownTimer = 0.0f;
+
+	// --- Health ---
+    void TakeDamage(int damage);
+    void SetMaxHP(int hp) { m_hp = hp; }
+    [[nodiscard]] int GetHP() const { return m_hp; }
 
     // ---> 追加：パリィとエイムロック用のセッター <---
     void SetLastValidInput(DirectX::XMFLOAT2 dir) { lastValidInput = dir; }
@@ -120,6 +126,9 @@ private:
     float dashSpeed = PlayerConst::DashSpeed;
     float dashDuration = PlayerConst::DashDuration;
     float dashCooldown = PlayerConst::DashCooldown;
+
+	// --- Health ---
+    int m_hp = 100;
 
     // --- Aim target (set by RotateModelToPoint) ---
     DirectX::XMFLOAT3 m_aimTarget = { 0.0f, 0.0f, 0.0f };

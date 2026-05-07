@@ -125,6 +125,34 @@ static float RayCastOBB(XMVECTOR rayOrigin, XMVECTOR rayDir, float rayLength, fl
     return tMin;
 }
 
+static float DistancePointToLineSegment2D(const DirectX::XMFLOAT3& A, const DirectX::XMFLOAT3& B, const DirectX::XMFLOAT3& P)
+{
+    float lineX = B.x - A.x;
+    float lineZ = B.z - A.z;
+    float px = P.x - A.x;
+    float pz = P.z - A.z;
+
+    float lineLengthSq = (lineX * lineX) + (lineZ * lineZ);
+
+    // If the bullet didn't move this frame, just do a normal sphere check
+    if (lineLengthSq == 0.0f) return std::sqrt((px * px) + (pz * pz));
+
+    // Dot product to project the target's position onto the bullet's path line
+    float t = ((px * lineX) + (pz * lineZ)) / lineLengthSq;
+
+    // Clamp 't' between 0.0f and 1.0f 
+    t = (std::max)(0.0f, (std::min)(1.0f, t));
+
+    // Find the closest point on the line
+    float closestX = A.x + t * lineX;
+    float closestZ = A.z + t * lineZ;
+
+    float dx = P.x - closestX;
+    float dz = P.z - closestZ;
+
+    return std::sqrt((dx * dx) + (dz * dz));
+}
+
 // =========================================================
 // INITIALIZATION OVERLOADS
 // =========================================================
@@ -294,39 +322,43 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
 
             bool hitPlayer = false;
 
-            if (m_player && bullet->GetHomingTarget() == nullptr)
+            // ----------------------------------------------------
+            // ENEMY BULLET VS PLAYER COLLISION
+            // ----------------------------------------------------
+            XMFLOAT3 nextPosFloat;
+            XMStoreFloat3(&nextPosFloat, vNextPos);
+
+            if (m_player && bullet->GetHomingTarget() == nullptr && m_player->GetHP() > 0)
             {
-                DirectX::XMFLOAT3 bulletPos = bullet->GetMovement()->GetPosition();
-
-                float playerHalfSize = 0.3f;
-                float maxRange = playerHalfSize + bulletRadius;
-
                 DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
 
-                float dx = bulletPos.x - playerPos.x;
-                float dz = bulletPos.z - playerPos.z;
-                float distSq = dx * dx + dz * dz;
-                float searchRangeSq = (maxRange * 2.0f) * (maxRange * 2.0f);
+                constexpr int ENEMY_BULLET_DAMAGE = 10;
+                constexpr float PLAYER_HITBOX_RADIUS = 0.3f; 
 
-                if (distSq <= searchRangeSq)
+                float combinedRadius = PLAYER_HITBOX_RADIUS + bulletRadius;
+
+                // Mathematical CCD (Prevents Tunneling)
+                float distToPath = DistancePointToLineSegment2D(currentPos, nextPosFloat, playerPos);
+
+                if (distToPath <= combinedRadius)
                 {
-                    float absX = std::abs(dx);
-                    float absZ = std::abs(dz);
+                    m_player->TakeDamage(ENEMY_BULLET_DAMAGE);
 
-                    if (absX < maxRange && absZ < maxRange)
+                    // ---> THE SIMPLE DEATH STATE <---
+                    if (m_player->GetHP() <= 0)
                     {
-                        if (m_onPlayerDeathCallback) m_onPlayerDeathCallback();
-
-                        it = projectiles.erase(it);
-                        continue;
+                        m_player->scale = { 0.0f, 0.0f, 0.0f }; // Make the 3D model vanish
+                        m_player->SetInputEnabled(false);       // Stop WASD and Spacebar input
+                        m_player->GetMovement()->SetVelocity({ 0,0,0 }); // Stop sliding
                     }
+
+                    // Destroy the bullet and prevent crashes
+                    it = projectiles.erase(it);
+                    continue;
                 }
             }
 
-            XMFLOAT3 nextPosFloat;
-            XMStoreFloat3(&nextPosFloat, vNextPos);
             bullet->ApplyMovement(nextPosFloat, currentVel);
-
             ++it;
         }
     }
@@ -684,6 +716,9 @@ void CollisionManager::ProcessPlayerAttackContext()
 {
     if (!m_player || !m_enemyManager) return;
 
+    // Do not allow the player to slash, parry, or shoot if they are dead!
+    if (m_player->GetHP() <= 0) return;
+
     // Trigger only once per Spacebar press
     if (Input::Instance().GetKeyboard().IsTriggered(VK_SPACE))
     {
@@ -755,7 +790,6 @@ void CollisionManager::ProcessPlayerAttackContext()
 
                 DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
 
-                // ---> USE OUR NEW COMPILE-TIME CONSTANT HERE <---
                 if (CheckSphereCollision(pPos, bPos, PARRY_THRESHOLD))
                 {
                     // ---> FORCE THE PLAYER TO FACE THE BULLET <---

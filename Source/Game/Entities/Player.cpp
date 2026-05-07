@@ -305,6 +305,25 @@ void Player::RenderProjectiles(ModelRenderer* renderer)
 }
 
 // ============================================================
+// DAMAGE SYSTEM
+// ============================================================
+void Player::TakeDamage(int damage)
+{
+    // EARLY EXIT: Prevent "Ghost Hits". 
+    if (m_hp <= 0) return;
+
+    m_hp -= damage;
+
+    // Optional: You can change the player->color here to Flash Red when hit!
+
+    // Clamp to exactly zero to prevent negative UI bugs
+    if (m_hp <= 0)
+    {
+        m_hp = 0;
+    }
+}
+
+// ============================================================
 // HELPERS
 // ============================================================
 
