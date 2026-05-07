@@ -57,11 +57,14 @@ void PlayerMoving::Update(Player* player, float dt)
 
 void PlayerDash::Enter(Player* player)
 {
+    constexpr float DASH_IFRAME_DURATION = 0.2f;
+
     timer = player->GetDashDuration();
     dashDir = player->GetLastValidInput();
 
     player->canDash = false;
     player->dashCooldownTimer = PlayerConst::DashCooldown;
+    player->TriggerInvincibility(DASH_IFRAME_DURATION);
 }
 
 void PlayerDash::Update(Player* player, float dt)

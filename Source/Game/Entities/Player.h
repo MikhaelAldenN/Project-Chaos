@@ -84,6 +84,10 @@ public:
     void SetMaxHP(int hp) { m_hp = hp; }
     [[nodiscard]] int GetHP() const { return m_hp; }
 
+	// --- Invincibility (used by PlayerDash and PlayerHit states) ---
+    void TriggerInvincibility(float duration) { m_invincibilityTimer = duration; }
+    [[nodiscard]] bool IsInvincible() const { return m_invincibilityTimer > 0.0f; }
+
     // ---> 追加：パリィとエイムロック用のセッター <---
     void SetLastValidInput(DirectX::XMFLOAT2 dir) { lastValidInput = dir; }
     void SetAimLocked(bool locked) { m_aimLocked = locked; }
@@ -129,6 +133,9 @@ private:
 
 	// --- Health ---
     int m_hp = 100;
+
+	// --- Invincibility timer (counts down when active, prevents damage) ---
+    float m_invincibilityTimer = 0.0f;
 
     // --- Aim target (set by RotateModelToPoint) ---
     DirectX::XMFLOAT3 m_aimTarget = { 0.0f, 0.0f, 0.0f };

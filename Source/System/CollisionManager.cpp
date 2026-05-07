@@ -328,11 +328,11 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
             XMFLOAT3 nextPosFloat;
             XMStoreFloat3(&nextPosFloat, vNextPos);
 
-            if (m_player && bullet->GetHomingTarget() == nullptr && m_player->GetHP() > 0)
+            if (m_player && bullet->GetHomingTarget() == nullptr && m_player->GetHP() > 0 && !m_player->IsInvincible())
             {
                 DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
 
-                constexpr int ENEMY_BULLET_DAMAGE = 10;
+                constexpr int ENEMY_BULLET_DAMAGE = 100;
                 constexpr float PLAYER_HITBOX_RADIUS = 0.3f; 
 
                 float combinedRadius = PLAYER_HITBOX_RADIUS + bulletRadius;
@@ -342,6 +342,7 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
 
                 if (distToPath <= combinedRadius)
                 {
+                    bool wasAlive = (m_player->GetHP() > 0);
                     m_player->TakeDamage(ENEMY_BULLET_DAMAGE);
 
                     // ---> THE SIMPLE DEATH STATE <---
@@ -350,6 +351,7 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
                         m_player->scale = { 0.0f, 0.0f, 0.0f }; // Make the 3D model vanish
                         m_player->SetInputEnabled(false);       // Stop WASD and Spacebar input
                         m_player->GetMovement()->SetVelocity({ 0,0,0 }); // Stop sliding
+                        m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
                     }
 
                     // Destroy the bullet and prevent crashes

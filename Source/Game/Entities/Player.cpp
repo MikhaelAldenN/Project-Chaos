@@ -66,6 +66,11 @@ void Player::InitPhysics(physx::PxControllerManager* manager, physx::PxMaterial*
 
 void Player::Update(float elapsedTime, Camera* camera)
 {
+    if (m_invincibilityTimer > 0.0f)
+    {
+        m_invincibilityTimer -= elapsedTime;
+    }
+
     UpdateDashCooldown(elapsedTime);
 
     SetCamera(camera);
