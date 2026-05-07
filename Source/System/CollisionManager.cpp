@@ -246,24 +246,47 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
 
             if (bullet->GetHomingTarget() != nullptr)
             {
-                DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+                Enemy* targetEnemy = static_cast<Enemy*>(bullet->GetHomingTarget());
 
-                // Get the position of the TARGET, not the enemy who shot it!
-                DirectX::XMFLOAT3 targetPos = bullet->GetHomingTarget()->GetPosition();
+                // ---> BUG PREVENTION: The Dangling Pointer Guard <---
+                // Verify the target wasn't deleted from memory by a different attack (like a Slash)
+                bool isTargetAlive = false;
+                for (auto& activeEnemy : m_enemyManager->GetEnemies()) {
+                    if (activeEnemy.get() == targetEnemy && activeEnemy->IsActive()) {
+                        isTargetAlive = true;
+                        break;
+                    }
+                }
+
+                // If the target died while the bullet was mid-air, destroy the bullet to prevent a crash.
+                if (!isTargetAlive) {
+                    it = projectiles.erase(it);
+                    continue;
+                }
+
+                DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+                DirectX::XMFLOAT3 targetPos = targetEnemy->GetPosition();
 
                 float dx = bPos.x - targetPos.x;
                 float dz = bPos.z - targetPos.z;
                 float distSq = dx * dx + dz * dz;
 
-                // If the bullet hits the target's radius (1.5f)
-                if (distSq < (1.5f * 1.5f))
-                {
-                    // Safely cast the Character* back to an Enemy* to kill it
-                    Enemy* targetEnemy = static_cast<Enemy*>(bullet->GetHomingTarget());
-                    if (targetEnemy) {
-                        targetEnemy->SetActive(false);
-                    }
+                // ---> DYNAMIC HITBOX MATH <---
+                float enemyScale = targetEnemy->GetScale().x;
+                float hitRadius = 1.0f * enemyScale;
 
+                if (targetEnemy->GetType() == EnemyType::Pentagon) hitRadius = 4.0f * enemyScale;
+                else if (targetEnemy->GetType() == EnemyType::Paddle) hitRadius = 0.8f * enemyScale;
+
+                float combinedHitRadius = hitRadius + bullet->GetRadius();
+
+                if (distSq < (combinedHitRadius * combinedHitRadius))
+                {
+                    // ---> APPLY PARRY DAMAGE <---
+                    constexpr int PARRY_DAMAGE = 30;
+                    targetEnemy->TakeDamage(PARRY_DAMAGE);
+
+                    // Destroy the bullet
                     it = projectiles.erase(it);
                     continue;
                 }
@@ -664,16 +687,18 @@ void CollisionManager::ProcessPlayerAttackContext()
     // Trigger only once per Spacebar press
     if (Input::Instance().GetKeyboard().IsTriggered(VK_SPACE))
     {
+        // ----------------------------------------------------
+        // COMPILE-TIME COMBAT CONSTANTS 
+        // ----------------------------------------------------
+        constexpr int   PLAYER_SLASH_DAMAGE = 30;
+        constexpr float WEAPON_REACH = 0.8f;
+        constexpr float PARRY_THRESHOLD = 2.0f; 
+        constexpr int   PARRY_DAMAGE = 30;
+        // ----------------------------------------------------
+
         DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
 
-        float parryThreshold = 2.5f;
-        constexpr int PLAYER_SLASH_DAMAGE = 30;
-
-        // Define the exact length of the sword blade past the player's body.
-        // Tweak this number to make the attack feel perfectly close! (0.5f to 0.8f is usually best)
-        constexpr float WEAPON_REACH = 0.8f;
-
-		// 1. CONDITION: Distance(Enemy) < Threshold -> SLASH
+        // 1. CONDITION: Distance(Enemy) < Threshold -> SLASH
         for (auto& enemy : m_enemyManager->GetEnemies())
         {
             if (!enemy || !enemy->IsActive()) continue;
@@ -681,12 +706,11 @@ void CollisionManager::ProcessPlayerAttackContext()
             DirectX::XMFLOAT3 ePos = enemy->GetPosition();
 
             // ---> DYNAMIC HITBOX MATH <---
-            // Get the visual edge of the enemy based on their specific type and scale
             float enemyScale = enemy->GetScale().x;
             float enemyRadius = 1.0f * enemyScale; // Default Ball
 
             if (enemy->GetType() == EnemyType::Pentagon) enemyRadius = 4.0f * enemyScale;
-            else if (enemy->GetType() == EnemyType::Paddle) enemyRadius = 1.2f * enemyScale; // Tight radius for the thin paddle
+            else if (enemy->GetType() == EnemyType::Paddle) enemyRadius = 1.2f * enemyScale;
 
             // The perfect "touching" distance: Player Body (0.5) + Enemy Body + Sword Length
             float exactSlashDistance = 0.5f + enemyRadius + WEAPON_REACH;
@@ -700,40 +724,39 @@ void CollisionManager::ProcessPlayerAttackContext()
 
                 if (distToEnemy > 0.001f)
                 {
-                    // Overwrite the WASD direction so the legs stay facing the enemy
                     DirectX::XMFLOAT2 slashDir = { dxToEnemy / distToEnemy, dzToEnemy / distToEnemy };
                     m_player->SetLastValidInput(slashDir);
 
-                    // Instantly snap the 3D model's rotation
                     float angleDeg = DirectX::XMConvertToDegrees(atan2f(dxToEnemy, dzToEnemy));
                     m_player->GetMovement()->SetRotationY(angleDeg);
 
-                    // Force the Torso to look at the enemy and lock it!
                     m_player->ForceAimTarget(ePos);
                     m_player->SetAimLocked(true);
                 }
-                // ------------------------------------------------
 
                 m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerSlash>());
 
-                // ---> APPLY DAMAGE <---
+                // ---> APPLY SLASH DAMAGE <---
                 enemy->TakeDamage(PLAYER_SLASH_DAMAGE);
 
-
-                return; 
+                return;
             }
         }
 
         // 2. CONDITION: Distance(Bullet) < Threshold -> PARRY
         for (auto& enemy : m_enemyManager->GetEnemies())
         {
+            // Only allow parrying bullets from Tracking enemies
+            if (enemy->GetAttackType() != AttackType::Tracking) continue;
+
             for (auto& bullet : enemy->GetProjectiles())
             {
                 if (!bullet->IsActive()) continue;
 
                 DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
 
-                if (CheckSphereCollision(pPos, bPos, parryThreshold))
+                // ---> USE OUR NEW COMPILE-TIME CONSTANT HERE <---
+                if (CheckSphereCollision(pPos, bPos, PARRY_THRESHOLD))
                 {
                     // ---> FORCE THE PLAYER TO FACE THE BULLET <---
                     float dxToBullet = bPos.x - pPos.x;
@@ -751,6 +774,7 @@ void CollisionManager::ProcessPlayerAttackContext()
                         m_player->ForceAimTarget(bPos);
                         m_player->SetAimLocked(true);
                     }
+
                     m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerParry>());
 
                     // ---> FIND THE NEAREST ENEMY TO THE PLAYER <---
@@ -803,7 +827,7 @@ void CollisionManager::ProcessPlayerAttackContext()
             }
         }
 
-        // CONDITION: Else -> SHOOT
+        // 3. CONDITION: Else -> SHOOT
         m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerShoot>());
         m_player->FireProjectile();
     }
