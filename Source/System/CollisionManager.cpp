@@ -332,7 +332,7 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
             {
                 DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
 
-                constexpr int ENEMY_BULLET_DAMAGE = 100;
+                constexpr int ENEMY_BULLET_DAMAGE = 10;
                 constexpr float PLAYER_HITBOX_RADIUS = 0.3f; 
 
                 float combinedRadius = PLAYER_HITBOX_RADIUS + bulletRadius;
