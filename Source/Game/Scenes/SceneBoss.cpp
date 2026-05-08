@@ -403,19 +403,33 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
     rc.isTransparentWindow = isTransparentWindow;
 
-    // Render Entities
-    if (m_player)
-    {
-        const XMFLOAT3 pPos = m_player->GetPosition();
-        if (camera->CheckSphere(pPos.x, pPos.y, pPos.z, 1.5f))
-        {
-            m_player->Render(modelRenderer);
-        }
-        m_player->RenderProjectiles(modelRenderer); // Jangan lupa render peluru Player!
+    // --- 1. DETEKSI KAMERA SAYAP (CAMERA FILTERING) ---
+    bool isWingCamera = false;
+    if (m_navi) {
+        isWingCamera = (camera == m_navi->GetLeftWingCamera() ||
+            camera == m_navi->GetRightWingCamera());
     }
 
-    if (m_enemyManager) m_enemyManager->Render(modelRenderer);
-    if (m_itemManager) m_itemManager->Render(modelRenderer);
+    // --- 2. RENDER ENTITAS UMUM (Hanya jika BUKAN kamera sayap) ---
+    if (!isWingCamera)
+    {
+        if (m_player)
+        {
+            const XMFLOAT3 pPos = m_player->GetPosition();
+            if (camera->CheckSphere(pPos.x, pPos.y, pPos.z, 1.5f))
+            {
+                m_player->Render(modelRenderer);
+            }
+            m_player->RenderProjectiles(modelRenderer);
+        }
+
+        if (m_enemyManager) m_enemyManager->Render(modelRenderer);
+        if (m_itemManager) m_itemManager->Render(modelRenderer);
+    }
+
+    // --- 3. RENDER NAVI ---
+    // Navi dipanggil di semua kamera, tetapi di dalam NaviBoss::Render 
+    // sudah ada filter internal agar bagian badannya tidak tertukar.
     if (m_navi) m_navi->Render(dc, camera);
 
     modelRenderer->Render(rc);
@@ -603,6 +617,35 @@ void SceneBoss::DrawGUI()
         // Jika user menggeser slider, masukkan kembali ke Navi
         if (changed) {
             m_navi->SetBreathParams(speed, intensity);
+        }
+
+        float wSpeed = m_navi->GetWingFlapSpeed();
+        float wIntensity = m_navi->GetWingFlapIntensity();
+        float wOffsetX = m_navi->GetWingXOffset();
+        float wOffsetZ = m_navi->GetWingZOffset();
+        bool offsetChanged = false;
+
+        if (ImGui::SliderFloat("Wing Flap Speed", &wSpeed, 0.1f, 10.0f)) {
+            m_navi->SetWingParams(wSpeed, wIntensity);
+        }
+        if (ImGui::SliderFloat("Wing Flap Intensity", &wIntensity, 0.0f, 2.0f)) {
+            m_navi->SetWingParams(wSpeed, wIntensity);
+        }
+
+        offsetChanged |= ImGui::SliderFloat("Wing Spacing (X)", &wOffsetX, 0.0f, 20.0f);
+        offsetChanged |= ImGui::SliderFloat("Wing Vertical (Z)", &wOffsetZ, -20.0f, 20.0f);
+        if (offsetChanged) {
+            m_navi->SetWingOffsets(wOffsetX, wOffsetZ);
+        }
+
+        float p2u = m_navi->GetPixelToUnit();
+        float gScale = m_navi->GetWingGlobalScale();
+
+        if (ImGui::SliderFloat("Pixel to Unit Ratio", &p2u, 1.0f, 100.0f)) {
+            m_navi->SetScalingParams(p2u, gScale);
+        }
+        if (ImGui::SliderFloat("Global Wing Scale", &gScale, 0.1f, 5.0f)) {
+            m_navi->SetScalingParams(p2u, gScale);
         }
     }
 

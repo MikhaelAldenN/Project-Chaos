@@ -4,6 +4,7 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 #include "Camera.h"
+#include <vector>
 
 // スプライト
 class Sprite
@@ -18,6 +19,16 @@ public:
 		DirectX::XMFLOAT3	position;
 		DirectX::XMFLOAT4	color;
 		DirectX::XMFLOAT2	texcoord;
+	};
+
+	// --- STRUKTUR DATA UNTUK BATCHING ---
+	struct Sprite3DBatchData
+	{
+		float wx, wy, wz;                   // Posisi Dunia
+		float w, h;                         // Ukuran
+		float sx, sy, sw, sh;               // UV Slicing (Isi sw/sh 0 untuk pakai 1 gambar full)
+		float pitch, yaw, roll;             // Rotasi
+		float r, g, b, a;                   // Warna
 	};
 
 	// 描画実行 (Screen Space)
@@ -59,6 +70,10 @@ public:
 		float angle,						// 角度
 		float r, float g, float b, float a	// 色
 	) const;
+
+	void Render3DBatch(ID3D11DeviceContext* dc,
+		const Camera* camera,
+		const std::vector<Sprite3DBatchData>& batchData) const;
 
 private:
 	Microsoft::WRL::ComPtr<ID3D11VertexShader>			vertexShader;

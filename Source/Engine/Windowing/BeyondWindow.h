@@ -44,6 +44,11 @@ namespace Beyond
         void SetTitle(const char* title);
 
         void SetTargetFPS(float fps);
+        void SetFPSLimit(float fps) {
+            m_targetFPS = fps;
+            m_frameInterval = (fps > 0.0f) ? (1.0f / fps) : 0.0f;
+        }
+
         bool ShouldRender(float dt);
         using TickCallback = std::function<void()>;
         void SetTickCallback(TickCallback callback) { m_tickCallback = callback; }
@@ -75,6 +80,10 @@ namespace Beyond
         TickCallback m_tickCallback = nullptr;
 
         float m_backgroundAlpha = 1.0f;
+
+        float m_targetFPS = 60.0f; // Default 60
+        float m_frameInterval = 0.0f;
+        float m_timeSinceLastUpdate = 0.0f; // Accumulator
 
     private:
         SDL_Window* m_sdlWindow = nullptr;

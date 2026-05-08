@@ -316,6 +316,21 @@ namespace Beyond
 
     void Window::UpdateLayeredSurface()
     {
+        // =========================================================
+        // [FIX] GEMBOK FPS MANDIRI (Tanpa butuh variabel 'dt')
+        // =========================================================
+        if (m_targetFPS > 0.0f && m_targetFPS < 60.0f) {
+            Uint64 currentTicks = SDL_GetTicks();
+            Uint64 intervalMs = static_cast<Uint64>(m_frameInterval * 1000.0f);
+
+            // Kita gunakan m_timeSinceLastUpdate untuk menyimpan timestamp eksekusi terakhir
+            if (currentTicks - static_cast<Uint64>(m_timeSinceLastUpdate) < intervalMs) {
+                return; // Batalkan proses readback GPU ke CPU yang berat!
+            }
+
+            m_timeSinceLastUpdate = static_cast<float>(currentTicks);
+        }
+
         PerformanceLogger::Instance().StartTimer(PerfBucket::WindowOS); // START SINI
         if (!m_offscreenTex || !m_stagingTex || !m_pBits) return;
         auto context = Graphics::Instance().GetDeviceContext();
