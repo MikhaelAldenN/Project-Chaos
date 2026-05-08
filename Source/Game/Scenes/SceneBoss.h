@@ -15,6 +15,7 @@
 #include "System/PrimitiveRenderer.h"
 #include "BeyondWindow.h"
 #include "PhysXUtils.h"
+#include "NaviBoss.h"
 
 // =========================================================
 // SCENE BOSS - WINDOWKILL MODE
@@ -82,6 +83,7 @@ private:
     std::unique_ptr<Stage>                m_stage;
     std::unique_ptr<Boss>                 m_boss;
     std::unique_ptr<CollisionManager>     m_collisionManager;
+    std::unique_ptr<NaviBoss> m_navi;
 
     // =========================================================
     // PHYSX (minimal — no ground plane, no gravity)

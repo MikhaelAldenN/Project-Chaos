@@ -85,7 +85,8 @@ SceneBoss::SceneBoss()
     // PENTING: Beri tahu Player siapa wasit (CollisionManager) di scene ini!
     m_player->SetCollisionManager(m_collisionManager.get());
 
-
+    m_navi = std::make_unique<NaviBoss>();
+    m_navi->Initialize(m_windowSystem.get());
 
     WindowManager::Instance().SetTopmost(m_topmostEnabled);
     InitializeSubWindows();
@@ -304,6 +305,7 @@ void SceneBoss::Update(float elapsedTime)
     }
 
     // --- Entities & Collision Update ---
+    if (m_navi) m_navi->Update(scaledDt);
     if (m_enemyManager) m_enemyManager->Update(scaledDt, activeCam, m_player->GetPosition(), true);
     if (m_itemManager) m_itemManager->Update(scaledDt, activeCam);
     // if (m_boss) m_boss->Update(scaledDt, activeCam, m_player->GetPosition());
@@ -414,7 +416,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
 
     if (m_enemyManager) m_enemyManager->Render(modelRenderer);
     if (m_itemManager) m_itemManager->Render(modelRenderer);
-    // if (m_boss) m_boss->Render(modelRenderer);
+    if (m_navi) m_navi->Render(dc, camera);
 
     modelRenderer->Render(rc);
 
@@ -582,6 +584,26 @@ void SceneBoss::DrawGUI()
         POINT mPos; GetCursorPos(&mPos);
         ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "[Mouse]");
         ImGui::Text("Monitor OS: X:%d, Y:%d", mPos.x, mPos.y);
+    }
+
+    // ---------------------------------------------------------
+    // NAVI BOSS CONFIG
+    // ---------------------------------------------------------
+    if (m_navi && ImGui::CollapsingHeader("Navi Boss Tools", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        // Ambil nilai saat ini
+        float speed = m_navi->GetBreathSpeed();
+        float intensity = m_navi->GetBreathIntensity();
+
+        // Buat Slider
+        bool changed = false;
+        changed |= ImGui::SliderFloat("Breath Speed", &speed, 0.1f, 20.0f);
+        changed |= ImGui::SliderFloat("Breath Intensity", &intensity, 0.0f, 200.0f);
+
+        // Jika user menggeser slider, masukkan kembali ke Navi
+        if (changed) {
+            m_navi->SetBreathParams(speed, intensity);
+        }
     }
 
     // ---------------------------------------------------------
