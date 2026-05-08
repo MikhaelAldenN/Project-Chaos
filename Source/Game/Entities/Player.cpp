@@ -262,8 +262,30 @@ void Player::ApplyWorldMatrix(float smoothedYaw, bool shouldAim, float relativeA
 
 void Player::UpdateProjectiles(float dt, Camera* camera)
 {
+    DirectX::XMFLOAT3 myPos = movement->GetPosition();
+
+    // Max distance before the bullet vanishes
+    constexpr float DESPAWN_DISTANCE = 55.0f;
+    constexpr float DESPAWN_DIST_SQ = DESPAWN_DISTANCE * DESPAWN_DISTANCE;
+
     for (auto& bullet : m_projectiles)
-        if (bullet->IsActive()) bullet->Update(dt, camera);
+    {
+        if (!bullet->IsActive()) continue;
+
+        bullet->Update(dt, camera);
+
+        // ---> BUG PREVENTION: The Infinite Flight Guard <---
+        DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+        float dx = myPos.x - bPos.x;
+        float dz = myPos.z - bPos.z;
+
+        if ((dx * dx + dz * dz) > DESPAWN_DIST_SQ)
+        {
+            // The bullet missed and flew off-screen.
+            // DO NOT ERASE IT! Turn it off so we can recycle its memory later!
+            bullet->SetActive(false);
+        }
+    }
 }
 
 // ============================================================
@@ -279,27 +301,49 @@ void Player::RotateModelToPoint(const DirectX::XMFLOAT3& targetPos)
 
 void Player::FireProjectile()
 {
-    XMFLOAT3 myPos = movement->GetPosition();
+    DirectX::XMFLOAT3 myPos = movement->GetPosition();
 
     float dx = m_aimTarget.x - myPos.x;
     float dz = m_aimTarget.z - myPos.z;
     float angleToMouse = atan2f(dx, dz);
-    XMFLOAT3 fwd = { sinf(angleToMouse), 0.0f, cosf(angleToMouse) };
+    DirectX::XMFLOAT3 fwd = { sinf(angleToMouse), 0.0f, cosf(angleToMouse) };
 
     // Spawn slightly ahead of the player at chest height
-    XMFLOAT3 spawnPos =
+    DirectX::XMFLOAT3 spawnPos =
     {
         myPos.x + fwd.x * PlayerConst::BulletSpawnFwd,
         myPos.y + PlayerConst::BulletSpawnY,
         myPos.z + fwd.z * PlayerConst::BulletSpawnFwd
     };
 
+    // --------------------------------------------------------
+    // ---> BUG PREVENTION: THE TRUE OBJECT POOL <---
+    // --------------------------------------------------------
+
+    // Search our pool for an inactive (dead/invisible) bullet
+    for (auto& bullet : m_projectiles)
+    {
+        if (!bullet->IsActive())
+        {
+            // RECYCLE IT! 
+            bullet->Fire(spawnPos, fwd, PlayerConst::BulletSpeed);
+
+            // EARLY EXIT: We saved the CPU from allocating new memory!
+            return;
+        }
+    }
+
+    // If we get here, it means EVERY bullet we own is currently flying on-screen.
+    // ONLY THEN do we allocate new memory.
     auto newBullet = std::make_unique<Bullet>();
     newBullet->Fire(spawnPos, fwd, PlayerConst::BulletSpeed);
     m_projectiles.push_back(std::move(newBullet));
 
-    // Cap pool size to prevent unbounded growth
-    if ((int)m_projectiles.size() > PlayerConst::MaxBullets) m_projectiles.pop_front();
+    // Prevent memory leaks. If the pool gets ridiculously large, pop the oldest.
+    if ((int)m_projectiles.size() > PlayerConst::MaxBullets)
+    {
+        m_projectiles.pop_front();
+    }
 }
 
 void Player::RenderProjectiles(ModelRenderer* renderer)
