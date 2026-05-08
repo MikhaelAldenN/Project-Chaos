@@ -407,8 +407,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
     // --- 1. DETEKSI KAMERA SAYAP (CAMERA FILTERING) ---
     bool isWingCamera = false;
     if (m_navi) {
-        isWingCamera = (camera == m_navi->GetLeftWingCamera() ||
-            camera == m_navi->GetRightWingCamera());
+        isWingCamera = (camera == m_navi->GetFXCamera());
     }
 
     // --- 2. RENDER ENTITAS UMUM (Hanya jika BUKAN kamera sayap) ---
@@ -489,6 +488,13 @@ void SceneBoss::DrawGUI()
                 {
                     WindowManager::Instance().SetTopmost(m_topmostEnabled);
                     ResetEverything();
+                }
+
+                bool fxClickthrough = m_navi->IsFXClickThrough();
+                if (ImGui::Checkbox("FX Click-through Mode", &fxClickthrough))
+                {
+                    m_navi->SetFXClickThrough(fxClickthrough);
+                    AddLog(fxClickthrough ? "FX Window: Click-through Enabled" : "FX Window: Click-through Disabled");
                 }
 
                 if (ImGui::Checkbox("[Player] Toggle Transparent", &m_playerWindowTransparent))
@@ -606,8 +612,8 @@ void SceneBoss::DrawGUI()
         }
 
         // ---------------------------------------------------------
-                // TAB 2: NAVI BOSS
-                // ---------------------------------------------------------
+        // TAB 2: NAVI BOSS
+        // ---------------------------------------------------------
         if (m_navi && ImGui::BeginTabItem("Navi Boss"))
         {
             ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Core Settings ---");
@@ -786,7 +792,7 @@ void SceneBoss::ResetEverything()
     m_stretchOffset = { 0.0f, 0.0f };
     m_showGrid = false;
     m_autoSyncMainWindow = true;
-    m_topmostEnabled = true;
+    //m_topmostEnabled = true;
     m_playerWindowTransparent = false;
     m_debugLogs.clear();
 
