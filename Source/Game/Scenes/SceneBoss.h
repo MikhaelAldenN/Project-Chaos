@@ -20,6 +20,12 @@
 // SCENE BOSS - WINDOWKILL MODE
 // =========================================================
 
+class CollisionManager;
+class EnemyManager;
+class ItemManager;
+class Stage;
+class Boss;
+
 class SceneBoss : public Scene
 {
 public:
@@ -70,6 +76,12 @@ private:
     std::unique_ptr<WindowTrackingSystem> m_windowSystem;
     std::unique_ptr<Primitive>            m_primitive2D;
     std::unique_ptr<PrimitiveRenderer>    m_primitive3D;
+
+    std::unique_ptr<EnemyManager>         m_enemyManager;
+    std::unique_ptr<ItemManager>          m_itemManager;
+    std::unique_ptr<Stage>                m_stage;
+    std::unique_ptr<Boss>                 m_boss;
+    std::unique_ptr<CollisionManager>     m_collisionManager;
 
     // =========================================================
     // PHYSX (minimal — no ground plane, no gravity)

@@ -41,6 +41,8 @@ public:
     void SetMoveSpeed(float speed) { moveSpeed = speed; }
     void SetInvertControls(bool invert) { invertControls = invert; }
     void SetGravityEnabled(bool enable) { gravityEnabled = enable; }
+    void SetDashSpeed(float speed) { dashSpeed = speed; } // Tambahkan ini
+    void SetDashDuration(float duration) { dashDuration = duration; } // Opsional: jika ingin durasi berbeda juga
 
     // --- Physics init (call once after scene PhysX setup) ---
     // spawnY: initial capsule Y position. SceneGame uses 15.0 (falls to ground).

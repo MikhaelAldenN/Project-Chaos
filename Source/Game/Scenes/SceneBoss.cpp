@@ -7,6 +7,11 @@
 #include "PerformanceLogger.h"
 #include <algorithm>
 #include <imgui.h>
+#include "System/CollisionManager.h"
+#include "EnemyManager.h"
+#include "ItemManager.h"
+#include "Stage.h"
+#include "Boss.h"
 
 using namespace DirectX;
 
@@ -51,11 +56,36 @@ SceneBoss::SceneBoss()
     m_player->SetInvertControls(false);
     m_player->SetPosition(0.0f, 0.0f, -8.0f);
     m_player->SetMoveSpeed(20.0f);
+	m_player->SetDashSpeed(60.0f);
+
+    //// --- TAMBAHKAN INISIALISASI MANAGER DI SINI ---
+    //auto device = Graphics::Instance().GetDevice();
 
     // --- Primitive Renderers ---
     ID3D11Device* device = Graphics::Instance().GetDevice();
     m_primitive2D = std::make_unique<Primitive>(device);
     m_primitive3D = std::make_unique<PrimitiveRenderer>(device);
+
+    m_stage = std::make_unique<Stage>(device); // Walau kosong, ini mencegah Null Pointer
+
+    //m_enemyManager = std::make_unique<EnemyManager>();
+    //m_enemyManager->Initialize(device);
+
+    //m_itemManager = std::make_unique<ItemManager>();
+    //m_itemManager->Initialize(device);
+
+    // Jika Anda sudah memiliki inisialisasi Boss, panggil di sini
+    // m_boss = std::make_unique<Boss>(); 
+
+    m_collisionManager = std::make_unique<CollisionManager>();
+
+    // Gunakan Overload 2 yang ada Boss-nya
+    m_collisionManager->Initialize(m_player.get(), m_stage.get(), m_enemyManager.get(), m_itemManager.get(), m_boss.get());
+
+    // PENTING: Beri tahu Player siapa wasit (CollisionManager) di scene ini!
+    m_player->SetCollisionManager(m_collisionManager.get());
+
+
 
     WindowManager::Instance().SetTopmost(m_topmostEnabled);
     InitializeSubWindows();
@@ -240,16 +270,16 @@ void SceneBoss::Update(float elapsedTime)
 
         if (currentSpeedSq > (dashThreshold * dashThreshold))
         {
-            constexpr float kStretchX = 200.0f;
-            constexpr float kSquashY = -40.0f;
-            constexpr float kStretchZ = 120.0f;
-            constexpr float kSquashX = -30.0f;
+            constexpr float kStretchX = 200.0f; // Stretch horizontal biarkan 200
+            constexpr float kSquashY = 0.0f;    // Dulu -40.0f -> Ubah ke 0 agar tidak gepeng saat dash horizontal
+            constexpr float kStretchZ = 0.0f;   // Dulu 120.0f -> Ubah ke 0 agar tidak memanjang saat dash vertikal
+            constexpr float kSquashX = 0.0f;    // Dulu -30.0f -> Ubah ke 0 agar tidak menyusut saat dash vertikal
 
             const float dashRatio = sqrtf(currentSpeedSq) / m_player->GetDashSpeed();
 
             if (std::abs(vel.x) > std::abs(vel.z))
             {
-                // Horizontal dash: stretch X, squash Y
+                // Horizontal dash: stretch X, squash Y (sekarang 0)
                 targetStretch.x = dashRatio * kStretchX;
                 targetStretch.y = dashRatio * kSquashY;
                 const float signX = (vel.x > 0.0f) ? 1.0f : -1.0f;
@@ -257,9 +287,11 @@ void SceneBoss::Update(float elapsedTime)
             }
             else
             {
-                // Vertical dash: stretch Z (Y pixel), squash X
+                // Vertical dash: stretch Z (sekarang 0), squash X (sekarang 0)
                 targetStretch.y = dashRatio * kStretchZ;
                 targetStretch.x = dashRatio * kSquashX;
+
+                // Offset Y otomatis jadi 0 karena targetStretch.y sekarang 0
                 const float signZ = (vel.z > 0.0f) ? 1.0f : -1.0f;
                 targetOffset.y = -signZ * (targetStretch.y * 0.5f) / k_pixelToUnitRatio;
             }
@@ -270,6 +302,14 @@ void SceneBoss::Update(float elapsedTime)
         m_stretchOffset.x += (targetOffset.x - m_stretchOffset.x) * lerpSpeed * scaledDt;
         m_stretchOffset.y += (targetOffset.y - m_stretchOffset.y) * lerpSpeed * scaledDt;
     }
+
+    // --- Entities & Collision Update ---
+    if (m_enemyManager) m_enemyManager->Update(scaledDt, activeCam, m_player->GetPosition(), true);
+    if (m_itemManager) m_itemManager->Update(scaledDt, activeCam);
+    // if (m_boss) m_boss->Update(scaledDt, activeCam, m_player->GetPosition());
+
+    // Collision Update dipanggil paling terakhir agar bisa mengkalkulasi pergerakan Player & Enemy di frame ini
+    if (m_collisionManager) m_collisionManager->Update(scaledDt);
 
     // --- Sync sub-window cameras to match main camera ---
     if (m_windowSystem)
@@ -361,12 +401,20 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
     rc.isTransparentWindow = isTransparentWindow;
 
+    // Render Entities
     if (m_player)
     {
         const XMFLOAT3 pPos = m_player->GetPosition();
         if (camera->CheckSphere(pPos.x, pPos.y, pPos.z, 1.5f))
+        {
             m_player->Render(modelRenderer);
+        }
+        m_player->RenderProjectiles(modelRenderer); // Jangan lupa render peluru Player!
     }
+
+    if (m_enemyManager) m_enemyManager->Render(modelRenderer);
+    if (m_itemManager) m_itemManager->Render(modelRenderer);
+    // if (m_boss) m_boss->Render(modelRenderer);
 
     modelRenderer->Render(rc);
 
@@ -576,6 +624,11 @@ void SceneBoss::ResetEverything()
     CameraController::Instance().ClearCamera();
 
     // 2. Destroy all tracked windows (player must die first — it holds PxController)
+    m_collisionManager.reset();
+    m_enemyManager.reset();
+    m_itemManager.reset();
+    m_stage.reset();
+    m_boss.reset();
     if (m_windowSystem) m_windowSystem->ClearAll();
     m_player.reset();
 
