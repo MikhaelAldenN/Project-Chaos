@@ -12,6 +12,7 @@
 // Game Objects
 #include "EnemyManager.h"
 #include "ItemManager.h"
+#include "NaviAlly.h"
 #include "Player.h"
 #include "Stage.h"
 
@@ -87,11 +88,14 @@ SceneGame::SceneGame()
     m_enemyManager = std::make_unique<EnemyManager>();
     m_enemyManager->Initialize(Graphics::Instance().GetDevice());
 
+    m_navi = std::make_unique<NaviAlly>(Graphics::Instance().GetDevice(), m_player.get(), m_enemyManager.get());
+
     m_itemManager = std::make_unique<ItemManager>();
     m_itemManager->Initialize(Graphics::Instance().GetDevice());
 
     m_collisionManager = std::make_unique<CollisionManager>();
     m_collisionManager->Initialize(m_player.get(), m_stage.get(), m_enemyManager.get(), m_itemManager.get());
+    m_collisionManager->SetNavi(m_navi.get());
 
     m_player->SetCollisionManager(m_collisionManager.get());
 
@@ -155,6 +159,7 @@ void SceneGame::Update(const float elapsedTime)
         }
 
         m_player->Update(elapsedTime, activeCam);
+        if (m_navi) m_navi->Update(elapsedTime, activeCam);
         CameraController::Instance().SetTarget(m_player->GetPosition());
         m_director->Update(elapsedTime, m_player->GetMovement()->GetPosition());
     }
@@ -291,6 +296,10 @@ void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
     {
         modelRenderer->Draw(ShaderId::Phong, m_player->GetModel(), m_player->color);
         m_player->RenderProjectiles(modelRenderer);
+    }
+    if (m_navi) {
+        m_navi->Render(modelRenderer);
+        m_navi->RenderProjectiles(modelRenderer); 
     }
     if (m_enemyManager) m_enemyManager->Render(modelRenderer);
     if (m_itemManager) m_itemManager->Render(modelRenderer);

@@ -69,8 +69,9 @@ void Bullet::Update(float elapsedTime, Camera* camera)
 
     XMFLOAT3 pos = movement->GetPosition();
 
-    // Apply velocity
+    // Apply full 3D velocity
     pos.x += velocity.x * elapsedTime;
+    pos.y += velocity.y * elapsedTime;
     pos.z += velocity.z * elapsedTime;
 
     movement->SetPosition(pos);
