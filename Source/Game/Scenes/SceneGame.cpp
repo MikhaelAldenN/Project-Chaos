@@ -93,6 +93,8 @@ SceneGame::SceneGame()
     m_collisionManager = std::make_unique<CollisionManager>();
     m_collisionManager->Initialize(m_player.get(), m_stage.get(), m_enemyManager.get(), m_itemManager.get());
 
+    m_player->SetCollisionManager(m_collisionManager.get());
+
     m_director = std::make_unique<CinematicDirector>();
 
     m_postProcess = std::make_unique<PostProcessManager>();

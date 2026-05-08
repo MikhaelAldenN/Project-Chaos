@@ -13,6 +13,7 @@
 class StateMachine;
 class AnimationController;
 class Camera;
+class CollisionManager;
 
 class Player : public Character
 {
@@ -93,6 +94,10 @@ public:
     void SetAimLocked(bool locked) { m_aimLocked = locked; }
     void ForceAimTarget(const DirectX::XMFLOAT3& target) { m_aimTarget = target; }
 
+
+    void SetCollisionManager(CollisionManager* colMgr) { m_collisionManager = colMgr; }
+    CollisionManager* GetCollisionManager() const { return m_collisionManager; }
+
 private:
     // --- Update pipeline (called in order from Update()) ---
     void UpdateDashCooldown(float dt);
@@ -145,4 +150,6 @@ private:
 
     // --- Projectile pool ---
     std::deque<std::unique_ptr<Bullet>> m_projectiles;
+
+    CollisionManager* m_collisionManager = nullptr;
 };

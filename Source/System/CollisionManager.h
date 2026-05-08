@@ -33,11 +33,12 @@ public:
     void Initialize(Player* p, Stage* s, EnemyManager* em, ItemManager* im, Boss* boss);
 
     void Update(float elapsedTime);
-    void ProcessPlayerAttackContext();
     void SetOnCheckpointReachCallback(std::function<void(DirectX::XMFLOAT3)> callback) { m_onCheckpointReachCallback = callback; }
     void SetOnLevelCompleteCallback(std::function<void()> callback) { m_onLevelCompleteCallback = callback; }
     void SetOnPlayerDeathCallback(std::function<void()> callback) { m_onPlayerDeathCallback = callback; }
     void SetOnPlayerHitCallback(std::function<void()> callback) { m_onPlayerHitCallback = callback; }
+    bool GetTargetInSlashRange(const DirectX::XMFLOAT3& playerPos, float reach, Enemy** outTarget);
+    bool GetParryableProjectile(const DirectX::XMFLOAT3& playerPos, float threshold, class Bullet** outBullet, Enemy** outNearestEnemy);
 
 private:
     void CheckPlayerVsCheckpointLines();

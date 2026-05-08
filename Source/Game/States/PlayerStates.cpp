@@ -7,6 +7,10 @@
 #include <memory>
 #include <cmath>
 
+#include "System/CollisionManager.h"
+#include "Enemy.h"
+#include "Bullet.h"
+
 using namespace DirectX;
 
 // ============================================================
@@ -26,6 +30,73 @@ void PlayerIdle::Update(Player* player, float dt)
         return;
     }
 
+    // --- Logika Attack Baru ---
+    if (Input::Instance().GetKeyboard().IsTriggered(VK_SPACE))
+    {
+        CollisionManager* colMgr = player->GetCollisionManager();
+        if (colMgr)
+        {
+            XMFLOAT3 pPos = player->GetMovement()->GetPosition();
+            Enemy* slashTarget = nullptr;
+            Bullet* parryBullet = nullptr;
+            Enemy* parryTarget = nullptr;
+
+            // 1. Slash Priority
+            if (colMgr->GetTargetInSlashRange(pPos, 0.8f, &slashTarget))
+            {
+                XMFLOAT3 ePos = slashTarget->GetPosition();
+                float dx = ePos.x - pPos.x;
+                float dz = ePos.z - pPos.z;
+                float dist = sqrt(dx * dx + dz * dz);
+
+                if (dist > 0.001f) {
+                    player->SetLastValidInput({ dx / dist, dz / dist });
+                    player->GetMovement()->SetRotationY(XMConvertToDegrees(atan2f(dx, dz)));
+                    player->ForceAimTarget(ePos);
+                    player->SetAimLocked(true);
+                }
+
+                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerSlash>());
+                slashTarget->TakeDamage(30);
+                return;
+            }
+
+            // 2. Parry Priority
+            if (colMgr->GetParryableProjectile(pPos, 2.0f, &parryBullet, &parryTarget))
+            {
+                XMFLOAT3 bPos = parryBullet->GetMovement()->GetPosition();
+                float dx = bPos.x - pPos.x;
+                float dz = bPos.z - pPos.z;
+                float dist = sqrt(dx * dx + dz * dz);
+
+                if (dist > 0.001f) {
+                    player->SetLastValidInput({ dx / dist, dz / dist });
+                    player->GetMovement()->SetRotationY(XMConvertToDegrees(atan2f(dx, dz)));
+                    player->ForceAimTarget(bPos);
+                    player->SetAimLocked(true);
+                }
+
+                // Logika Homing Deflection
+                parryBullet->SetHomingTarget(parryTarget);
+                XMFLOAT3 tPos = parryTarget->GetPosition();
+                XMVECTOR vDir = XMVector3Normalize(XMLoadFloat3(&tPos) - XMLoadFloat3(&bPos));
+                float speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
+
+                XMFLOAT3 newVel;
+                XMStoreFloat3(&newVel, vDir * speed);
+                parryBullet->ApplyMovement(bPos, newVel);
+
+                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerParry>());
+                return;
+            }
+        }
+
+        // 3. Default: Shoot
+        player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerShoot>());
+        player->FireProjectile();
+        return;
+    }
+
     if (player->IsMoving())
         player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerMoving>());
 }
@@ -41,14 +112,85 @@ void PlayerMoving::Enter(Player* player)
 
 void PlayerMoving::Update(Player* player, float dt)
 {
+    // --- 1. Cek Transisi Dash ---
     if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && player->canDash)
     {
         player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerDash>());
         return;
     }
 
+    // --- 2. Cek Logika Serangan (Identik dengan Idle) ---
+    if (Input::Instance().GetKeyboard().IsTriggered(VK_SPACE))
+    {
+        CollisionManager* colMgr = player->GetCollisionManager();
+        if (colMgr)
+        {
+            XMFLOAT3 pPos = player->GetMovement()->GetPosition();
+            Enemy* slashTarget = nullptr;
+            Bullet* parryBullet = nullptr;
+            Enemy* parryTarget = nullptr;
+
+            // 2A. Slash Priority
+            if (colMgr->GetTargetInSlashRange(pPos, 0.8f, &slashTarget))
+            {
+                XMFLOAT3 ePos = slashTarget->GetPosition();
+                float dx = ePos.x - pPos.x;
+                float dz = ePos.z - pPos.z;
+                float dist = sqrt(dx * dx + dz * dz);
+
+                if (dist > 0.001f) {
+                    player->SetLastValidInput({ dx / dist, dz / dist });
+                    player->GetMovement()->SetRotationY(XMConvertToDegrees(atan2f(dx, dz)));
+                    player->ForceAimTarget(ePos);
+                    player->SetAimLocked(true);
+                }
+
+                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerSlash>());
+                slashTarget->TakeDamage(30);
+                return;
+            }
+
+            // 2B. Parry Priority
+            if (colMgr->GetParryableProjectile(pPos, 2.0f, &parryBullet, &parryTarget))
+            {
+                XMFLOAT3 bPos = parryBullet->GetMovement()->GetPosition();
+                float dx = bPos.x - pPos.x;
+                float dz = bPos.z - pPos.z;
+                float dist = sqrt(dx * dx + dz * dz);
+
+                if (dist > 0.001f) {
+                    player->SetLastValidInput({ dx / dist, dz / dist });
+                    player->GetMovement()->SetRotationY(XMConvertToDegrees(atan2f(dx, dz)));
+                    player->ForceAimTarget(bPos);
+                    player->SetAimLocked(true);
+                }
+
+                // Logika Homing Deflection
+                parryBullet->SetHomingTarget(parryTarget);
+                XMFLOAT3 tPos = parryTarget->GetPosition();
+                XMVECTOR vDir = XMVector3Normalize(XMLoadFloat3(&tPos) - XMLoadFloat3(&bPos));
+                float speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
+
+                XMFLOAT3 newVel;
+                XMStoreFloat3(&newVel, vDir * speed);
+                parryBullet->ApplyMovement(bPos, newVel);
+
+                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerParry>());
+                return;
+            }
+        }
+
+        // 2C. Default: Shoot
+        player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerShoot>());
+        player->FireProjectile();
+        return;
+    }
+
+    // --- 3. Cek Transisi Kembali ke Idle ---
     if (!player->IsMoving())
+    {
         player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerIdle>());
+    }
 }
 
 // ============================================================
