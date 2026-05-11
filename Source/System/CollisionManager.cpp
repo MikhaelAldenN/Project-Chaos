@@ -195,6 +195,7 @@ void CollisionManager::Update(float elapsedTime)
         CheckPlayerVsItems();
     }
     
+    CheckNaviProjectilesVsEnemies(elapsedTime);
 }
 
 void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
@@ -668,6 +669,62 @@ void CollisionManager::CheckPlayerProjectilesVsEnemies()
                 bullet->SetActive(false);
 
                 break;
+            }
+        }
+    }
+}
+
+void CollisionManager::CheckNaviProjectilesVsEnemies(float elapsedTime)
+{
+    if (!m_navi || !m_enemyManager) return;
+
+    auto& projectiles = m_navi->GetProjectiles();
+    auto& enemies = m_enemyManager->GetEnemies();
+
+    constexpr int NAVI_BULLET_DAMAGE = 1;
+    constexpr float BULLET_HITBOX_RADIUS = 0.1f;
+
+    for (auto& bullet : projectiles)
+    {
+        if (!bullet || !bullet->IsActive()) continue;
+
+        DirectX::XMFLOAT3 currentPos = bullet->GetMovement()->GetPosition();
+        DirectX::XMFLOAT3 vel = bullet->GetVelocity();
+
+        // ---> CCD MATH: Calculate exactly where the bullet was last frame! <---
+        DirectX::XMFLOAT3 prevPos = {
+            currentPos.x - (vel.x * elapsedTime),
+            currentPos.y - (vel.y * elapsedTime), 
+            currentPos.z - (vel.z * elapsedTime)
+        };
+
+        for (auto& enemy : enemies)
+        {
+            if (!enemy || !enemy->IsActive()) continue;
+
+            DirectX::XMFLOAT3 ePos = enemy->GetPosition();
+
+            // ---> DYNAMIC HITBOXES <---
+            // Fetch the visual scale of the enemy so the hitbox matches the 3D model perfectly
+            float enemyScale = enemy->GetScale().x;
+            float enemyRadius = 1.0f * enemyScale; // Default Ball
+
+            if (enemy->GetType() == EnemyType::Pentagon) enemyRadius = 4.0f * enemyScale;
+            else if (enemy->GetType() == EnemyType::Paddle) enemyRadius = 0.6f * enemyScale;
+
+            // Combine the enemy's size with the bullet's size
+            float exactHitDistance = enemyRadius + BULLET_HITBOX_RADIUS;
+
+            // ---> THE ANTI-TUNNELING CHECK <---
+            // Draws an invisible math line from prevPos to currentPos.
+            // If the enemy touches ANY part of that line, it's a guaranteed hit!
+            float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, ePos);
+
+            if (distToPath <= exactHitDistance)
+            {
+                enemy->TakeDamage(NAVI_BULLET_DAMAGE);
+                bullet->SetActive(false); // Send back to Object Pool instantly
+                break; // Stop checking this bullet against other enemies
             }
         }
     }

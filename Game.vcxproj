@@ -172,6 +172,7 @@
     <ClInclude Include="Source\Game\Entities\INaviPhase.h" />
     <ClInclude Include="Source\Game\Entities\Item.h" />
     <ClInclude Include="Source\Game\Entities\ItemManager.h" />
+    <ClInclude Include="Source\Game\Entities\NaviAlly.h" />
     <ClInclude Include="Source\Game\Entities\NaviBoss.h" />
     <ClInclude Include="Source\Game\Entities\NaviPhaseNormal.h" />
     <ClInclude Include="Source\Game\Entities\NaviPhaseWindowkill.h" />
@@ -264,6 +265,7 @@
     <ClCompile Include="Source\Game\Entities\EnemyManager.cpp" />
     <ClCompile Include="Source\Game\Entities\Item.cpp" />
     <ClCompile Include="Source\Game\Entities\ItemManager.cpp" />
+    <ClCompile Include="Source\Game\Entities\NaviAlly.cpp" />
     <ClCompile Include="Source\Game\Entities\NaviBoss.cpp" />
     <ClCompile Include="Source\Game\Entities\NaviPhaseNormal.cpp" />
     <ClCompile Include="Source\Game\Entities\NaviPhaseWindowkill.cpp" />

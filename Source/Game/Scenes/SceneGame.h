@@ -23,6 +23,7 @@ class CollisionManager;
 class EnemyManager;
 class GameBreakerGUI;
 class ItemManager;
+class NaviAlly;
 class Player;
 class PostProcessManager;
 class Stage;
@@ -79,6 +80,7 @@ private:
     };
 
     std::unique_ptr<Player> m_player{};
+    std::unique_ptr<NaviAlly> m_navi{};
     std::unique_ptr<CollisionManager> m_collisionManager{};
     std::unique_ptr<EnemyManager> m_enemyManager{};
     std::unique_ptr<ItemManager> m_itemManager{};
