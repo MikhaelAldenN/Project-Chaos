@@ -169,9 +169,12 @@
     <ClInclude Include="Source\Game\Entities\CharacterMovement.h" />
     <ClInclude Include="Source\Game\Entities\Enemy.h" />
     <ClInclude Include="Source\Game\Entities\EnemyManager.h" />
+    <ClInclude Include="Source\Game\Entities\INaviPhase.h" />
     <ClInclude Include="Source\Game\Entities\Item.h" />
     <ClInclude Include="Source\Game\Entities\ItemManager.h" />
     <ClInclude Include="Source\Game\Entities\NaviBoss.h" />
+    <ClInclude Include="Source\Game\Entities\NaviPhaseNormal.h" />
+    <ClInclude Include="Source\Game\Entities\NaviPhaseWindowkill.h" />
     <ClInclude Include="Source\Game\Entities\Player.h" />
     <ClInclude Include="Source\Game\Entities\PlayerConstants.h" />
     <ClInclude Include="Source\Game\Scenes\Scene.h" />
@@ -262,6 +265,8 @@
     <ClCompile Include="Source\Game\Entities\Item.cpp" />
     <ClCompile Include="Source\Game\Entities\ItemManager.cpp" />
     <ClCompile Include="Source\Game\Entities\NaviBoss.cpp" />
+    <ClCompile Include="Source\Game\Entities\NaviPhaseNormal.cpp" />
+    <ClCompile Include="Source\Game\Entities\NaviPhaseWindowkill.cpp" />
     <ClCompile Include="Source\Game\Entities\Player.cpp" />
     <ClCompile Include="Source\Game\Scenes\SceneBoss.cpp" />
     <ClCompile Include="Source\Game\Scenes\SceneGame.cpp" />

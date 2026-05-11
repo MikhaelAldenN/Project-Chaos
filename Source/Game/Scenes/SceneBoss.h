@@ -109,7 +109,7 @@ private:
     bool      m_showGrid = false;
     float     m_timeScale = 1.0f;
     int       m_spawnCount = 0;
-    bool      m_autoSyncMainWindow = true;
+    bool      m_autoSyncMainWindow = false;
     bool      m_topmostEnabled = true;
     bool      m_playerWindowTransparent = false;
     ImVec2    m_debugPanelSize = { 450.0f, 750.0f };
