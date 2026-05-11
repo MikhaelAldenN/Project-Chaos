@@ -729,6 +729,53 @@ void SceneBoss::DrawGUI()
             ImGui::EndTabItem();
         }
 
+        // =========================================================
+        // TAB: BOSS ATTACKS
+        // =========================================================
+        if (m_navi && ImGui::BeginTabItem("Boss Attacks")) {
+            if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+                auto& p = normalPhase->GetParams();
+
+                ImGui::TextColored(ImVec4(1, 1, 0, 1), "--- Global Bullet Settings ---");
+                ImGui::SliderFloat("Bullet Speed", &p.speed, 1.0f, 50.0f);
+                ImGui::SliderInt("Radial Count", &p.count, 4, 128);
+                ImGui::SliderFloat("Burst Delay", &p.burstDelay, 0.01f, 1.0f);
+                ImGui::ColorEdit4("Bullet Color", (float*)&p.color);
+
+                // --- UI BARU UNTUK FAN BURST ---
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0, 1, 0, 1), "--- Targeted Fan Burst Settings ---");
+                ImGui::SliderInt("Fan Lines (Bullets/Wave)", &p.fanLines, 1, 10);
+                ImGui::SliderInt("Fan Waves (Repeats)", &p.fanWaves, 1, 10);
+                ImGui::SliderFloat("Fan Wave Delay", &p.fanWaveDelay, 0.05f, 1.0f);
+                ImGui::SliderFloat("Fan Spread Angle", &p.fanSpreadAngle, 0.05f, 0.5f);
+
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(1, 0, 0, 1), "--- Manual Triggers ---");
+
+                if (ImGui::Button("FIRE SINGLE BURST", ImVec2(ImGui::GetContentRegionAvail().x * 0.5f, 30.0f))) {
+                    normalPhase->TriggerSingleBurst();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("FIRE DOUBLE BURST", ImVec2(-1.0f, 30.0f))) {
+                    normalPhase->TriggerDoubleBurst();
+                }
+
+                // TOMBOL BARU DENGAN TARGET LOCKING!
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
+                if (ImGui::Button("FIRE TARGETED FAN BURST", ImVec2(-1.0f, 40.0f))) {
+                    if (m_player) {
+                        normalPhase->TriggerFanAttack(m_navi.get(), m_player->GetPosition());
+                    }
+                }
+                ImGui::PopStyleColor();
+            }
+            else {
+                ImGui::Text("Attacks are only available in Normal Phase.");
+            }
+            ImGui::EndTabItem();
+        }
+
         // ---------------------------------------------------------
         // TAB 3: TERMINAL
         // ---------------------------------------------------------
