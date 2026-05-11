@@ -409,3 +409,88 @@ void Sprite::Render3D(ID3D11DeviceContext* dc,
 
 	dc->Draw(4, 0);
 }
+
+void Sprite::Render3DBatch(ID3D11DeviceContext* dc,
+	const Camera* camera,
+	const std::vector<Sprite3DBatchData>& batchData) const
+{
+	using namespace DirectX; // <--- TAMBAHKAN BARIS INI DI SINI!
+
+	if (batchData.empty()) return;
+
+	std::vector<Vertex> vertices;
+	vertices.reserve(batchData.size() * 6); // 1 Kotak = 6 Titik (2 Segitiga)
+
+	XMMATRIX matVP = XMLoadFloat4x4(&camera->GetView()) * XMLoadFloat4x4(&camera->GetProjection());
+
+	for (const auto& data : batchData)
+	{
+		// Fitur Auto-Full Texture: Jika sw/sh 0, anggap pakai seluruh gambar
+		float actualSW = (data.sw <= 0.001f) ? textureWidth : data.sw;
+		float actualSH = (data.sh <= 0.001f) ? textureHeight : data.sh;
+
+		// Kalkulasi UV 0.0 -> 1.0
+		float u0 = data.sx / textureWidth;
+		float v0 = data.sy / textureHeight;
+		float u1 = (data.sx + actualSW) / textureWidth;
+		float v1 = (data.sy + actualSH) / textureHeight;
+
+		DirectX::XMFLOAT4 color = { data.r, data.g, data.b, data.a };
+
+		XMMATRIX matWorld = XMMatrixRotationRollPitchYaw(data.pitch, data.yaw, data.roll) * XMMatrixTranslation(data.wx, data.wy, data.wz);
+
+		float halfW = data.w / 2.0f;
+		float halfH = data.h / 2.0f;
+
+		// Posisi lokal (Kiri-Atas, Kanan-Atas, Kiri-Bawah, Kanan-Bawah)
+		DirectX::XMFLOAT3 localPos[4] = {
+			{ -halfW,  halfH, 0 },
+			{  halfW,  halfH, 0 },
+			{ -halfW, -halfH, 0 },
+			{  halfW, -halfH, 0 }
+		};
+
+		Vertex v[4];
+		for (int i = 0; i < 4; ++i)
+		{
+			XMVECTOR vPos = XMVector3TransformCoord(XMLoadFloat3(&localPos[i]), matWorld);
+			XMVECTOR vClip = XMVector3Transform(vPos, matVP);
+
+			float vW = XMVectorGetW(vClip);
+			if (vW < 0.1f) vW = 0.1f; // Cegah error dibagi nol
+
+			XMStoreFloat3(&v[i].position, vClip / vW);
+			v[i].color = color;
+		}
+
+		v[0].texcoord = { u0, v0 };
+		v[1].texcoord = { u1, v0 };
+		v[2].texcoord = { u0, v1 };
+		v[3].texcoord = { u1, v1 };
+
+		// Susun Triangle List (6 Titik)
+		vertices.push_back(v[0]); vertices.push_back(v[1]); vertices.push_back(v[2]); // Segitiga Atas
+		vertices.push_back(v[1]); vertices.push_back(v[3]); vertices.push_back(v[2]); // Segitiga Bawah
+	}
+
+	// --- SATU KALI BUKA VRAM UNTUK SEMUA SAYAP ---
+	D3D11_MAPPED_SUBRESOURCE ms;
+	if (SUCCEEDED(dc->Map(vertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms)))
+	{
+		memcpy(ms.pData, vertices.data(), sizeof(Vertex) * vertices.size());
+		dc->Unmap(vertexBuffer.Get(), 0);
+	}
+
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	dc->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
+	dc->IASetInputLayout(inputLayout.Get());
+	dc->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // <--- KUNCI BATCHING
+
+	dc->VSSetShader(vertexShader.Get(), nullptr, 0);
+	dc->PSSetShader(pixelShader.Get(), nullptr, 0);
+	dc->PSSetShaderResources(0, 1, shaderResourceView.GetAddressOf());
+
+	// --- SATU KALI DRAW CALL UNTUK SEMUA SAYAP ---
+	dc->Draw(static_cast<UINT>(vertices.size()), 0);
+}

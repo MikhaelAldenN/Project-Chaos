@@ -1,4 +1,4 @@
-#include "WindowManager.h"
+﻿#include "WindowManager.h"
 #include "Scene.h" 
 #include <algorithm>
 #include "System/ImGuiRenderer.h" 
@@ -65,6 +65,21 @@ void WindowManager::EnforceWindowPriorities()
 void WindowManager::RenderAll(float dt, Scene* scene)
 {
     if (!scene) return;
+
+    // ── Frame Latency Wait ────────────────────────────────────────────────────
+    // Panggil SEKALI di sini, sebelum loop render dimulai.
+    // JANGAN panggil dari dalam BeginRender per-window:
+    // kalau ada N window → stall N × timeout = FPS anjlok parah.
+    // Cukup tunggu main window saja (swap chain dengan vsync),
+    // window lain mengikuti ritme yang sama.
+    for (auto& win : windows)
+    {
+        if (win->IsVisible())
+        {
+            win->WaitFrameLatency();
+            break; // Tunggu 1 window saja — biasanya main window (index 0)
+        }
+    }
 
     // DrawGUI HANYA SEKALI  sudah benar, tapi OnResize jangan dipanggil tiap window!
     scene->DrawGUI();

@@ -12,6 +12,7 @@
 #include "ItemManager.h"
 #include "Stage.h"
 #include "Boss.h"
+#include <random>
 
 using namespace DirectX;
 
@@ -85,7 +86,8 @@ SceneBoss::SceneBoss()
     // PENTING: Beri tahu Player siapa wasit (CollisionManager) di scene ini!
     m_player->SetCollisionManager(m_collisionManager.get());
 
-
+    m_navi = std::make_unique<NaviBoss>();
+    m_navi->Initialize(m_windowSystem.get());
 
     WindowManager::Instance().SetTopmost(m_topmostEnabled);
     InitializeSubWindows();
@@ -304,6 +306,7 @@ void SceneBoss::Update(float elapsedTime)
     }
 
     // --- Entities & Collision Update ---
+    if (m_navi) m_navi->Update(scaledDt);
     if (m_enemyManager) m_enemyManager->Update(scaledDt, activeCam, m_player->GetPosition(), true);
     if (m_itemManager) m_itemManager->Update(scaledDt, activeCam);
     // if (m_boss) m_boss->Update(scaledDt, activeCam, m_player->GetPosition());
@@ -401,20 +404,33 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
     rc.isTransparentWindow = isTransparentWindow;
 
-    // Render Entities
-    if (m_player)
-    {
-        const XMFLOAT3 pPos = m_player->GetPosition();
-        if (camera->CheckSphere(pPos.x, pPos.y, pPos.z, 1.5f))
-        {
-            m_player->Render(modelRenderer);
-        }
-        m_player->RenderProjectiles(modelRenderer); // Jangan lupa render peluru Player!
+    // --- 1. DETEKSI KAMERA SAYAP (CAMERA FILTERING) ---
+    bool isWingCamera = false;
+    if (m_navi) {
+        isWingCamera = (camera == m_navi->GetFXCamera());
     }
 
-    if (m_enemyManager) m_enemyManager->Render(modelRenderer);
-    if (m_itemManager) m_itemManager->Render(modelRenderer);
-    // if (m_boss) m_boss->Render(modelRenderer);
+    // --- 2. RENDER ENTITAS UMUM (Hanya jika BUKAN kamera sayap) ---
+    if (!isWingCamera)
+    {
+        if (m_player)
+        {
+            const XMFLOAT3 pPos = m_player->GetPosition();
+            if (camera->CheckSphere(pPos.x, pPos.y, pPos.z, 1.5f))
+            {
+                m_player->Render(modelRenderer);
+            }
+            m_player->RenderProjectiles(modelRenderer);
+        }
+
+        if (m_enemyManager) m_enemyManager->Render(modelRenderer);
+        if (m_itemManager) m_itemManager->Render(modelRenderer);
+    }
+
+    // --- 3. RENDER NAVI ---
+    // Navi dipanggil di semua kamera, tetapi di dalam NaviBoss::Render 
+    // sudah ada filter internal agar bagian badannya tidak tertukar.
+    if (m_navi) m_navi->Render(dc, camera);
 
     modelRenderer->Render(rc);
 
@@ -435,172 +451,261 @@ void SceneBoss::DrawGUI()
 
     m_debugPanelSize = ImGui::GetWindowSize();
 
-    // ---------------------------------------------------------
-    // SYSTEM METRICS
-    // ---------------------------------------------------------
-    if (ImGui::CollapsingHeader("System Metrics & Time", ImGuiTreeNodeFlags_DefaultOpen))
+    // =========================================================
+    // MULAI TAB BAR
+    // =========================================================
+    if (ImGui::BeginTabBar("MasterControlTabs"))
     {
-        const float fps = ImGui::GetIO().Framerate;
-        ImVec4 fpsColor = { 0.0f, 1.0f, 0.0f, 1.0f };
-        if (fps < 40.0f) fpsColor = { 1.0f, 0.0f, 0.0f, 1.0f };
-        else if (fps < 50.0f) fpsColor = { 1.0f, 1.0f, 0.0f, 1.0f };
-
-        ImGui::TextColored(fpsColor, "FPS: %.1f (%.2f ms) [cap: 60]", fps, 1000.0f / fps);
-
-        static float s_frametimes[90] = {};
-        static int   s_offset = 0;
-        s_frametimes[s_offset] = 1000.0f / fps;
-        s_offset = (s_offset + 1) % IM_ARRAYSIZE(s_frametimes);
-        ImGui::PlotLines("Frametime", s_frametimes, IM_ARRAYSIZE(s_frametimes),
-            s_offset, nullptr, 0.0f, 33.0f, ImVec2(0, 50));
-
-        ImGui::Separator();
-        ImGui::SliderFloat("Time Scale", &m_timeScale, 0.1f, 3.0f, "%.1fx");
-        if (ImGui::Button("Reset Time (1.0x)")) m_timeScale = 1.0f;
-    }
-
-    // ---------------------------------------------------------
-    // WINDOW MANAGEMENT
-    // ---------------------------------------------------------
-    if (ImGui::CollapsingHeader("Window Tracking Config", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (ImGui::Checkbox("[All] Toggle Topmost (triggers reset)", &m_topmostEnabled))
+        // ---------------------------------------------------------
+        // TAB 1: SYSTEM & ENGINE (Berisi Metrics, Window Config, World)
+        // ---------------------------------------------------------
+        if (ImGui::BeginTabItem("System & Engine"))
         {
-            WindowManager::Instance().SetTopmost(m_topmostEnabled);
-            ResetEverything();
-        }
-
-        if (ImGui::Checkbox("[Player] Toggle Transparent", &m_playerWindowTransparent))
-        {
-            m_windowSystem->RemoveTrackedWindow("player");
-
-            TrackedWindowConfig config;
-            config.name = "player";
-            config.title = "Player";
-            config.width = 300;
-            config.height = 300;
-            config.priority = 1;
-            config.isTransparent = m_playerWindowTransparent;
-
-            m_windowSystem->AddTrackedWindow(
-                config,
-                [this]() -> XMFLOAT3 {
-                    if (!m_player) return XMFLOAT3(0.0f, 0.0f, 0.0f);
-                    const auto pPos = m_player->GetPosition();
-                    return XMFLOAT3(
-                        pPos.x + m_stretchOffset.x,
-                        0.0f,
-                        pPos.z + m_stretchOffset.y
-                    );
-                },
-                [this]() -> XMFLOAT2 {
-                    return XMFLOAT2(
-                        k_defaultWinSize + m_currentStretch.x,
-                        k_defaultWinSize + m_currentStretch.y
-                    );
-                }
-            );
-
-            TrackedWindow* playerWin = m_windowSystem->GetTrackedWindow("player");
-            if (playerWin && playerWin->window)
+            if (ImGui::CollapsingHeader("System Metrics & Time", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                if (m_playerWindowTransparent)
-                {
-                    playerWin->window->SetClickThrough(true);
-                    playerWin->window->SetBorderVisible(false);
-                    playerWin->window->SetDraggable(false);
-                    playerWin->window->SetBackgroundAlpha(0.0f);
-                }
-                else
-                {
-                    SDL_SetWindowResizable(playerWin->window->GetSDLWindow(), true);
-                    SDL_SetWindowBordered(playerWin->window->GetSDLWindow(), true);
-                    playerWin->window->SetDraggable(false);
-                    playerWin->window->SetBackgroundAlpha(1.0f);
-                }
+                const float fps = ImGui::GetIO().Framerate;
+                ImVec4 fpsColor = { 0.0f, 1.0f, 0.0f, 1.0f };
+                if (fps < 40.0f) fpsColor = { 1.0f, 0.0f, 0.0f, 1.0f };
+                else if (fps < 50.0f) fpsColor = { 1.0f, 1.0f, 0.0f, 1.0f };
+
+                ImGui::TextColored(fpsColor, "FPS: %.1f (%.2f ms) [cap: 60]", fps, 1000.0f / fps);
+
+                static float s_frametimes[90] = {};
+                static int   s_offset = 0;
+                s_frametimes[s_offset] = 1000.0f / fps;
+                s_offset = (s_offset + 1) % IM_ARRAYSIZE(s_frametimes);
+                ImGui::PlotLines("Frametime", s_frametimes, IM_ARRAYSIZE(s_frametimes),
+                    s_offset, nullptr, 0.0f, 33.0f, ImVec2(0, 50));
+
+                ImGui::Separator();
+                ImGui::SliderFloat("Time Scale", &m_timeScale, 0.1f, 3.0f, "%.1fx");
+                if (ImGui::Button("Reset Time (1.0x)")) m_timeScale = 1.0f;
             }
 
-            WindowManager::Instance().EnforceWindowPriorities();
-            AddLog(m_playerWindowTransparent
-                ? "Player Window: Stealth Mode Activated"
-                : "Player Window: Normal Mode");
+            if (ImGui::CollapsingHeader("Window Tracking Config", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (ImGui::Checkbox("[All] Toggle Topmost (triggers reset)", &m_topmostEnabled))
+                {
+                    WindowManager::Instance().SetTopmost(m_topmostEnabled);
+                    ResetEverything();
+                }
+
+                bool fxClickthrough = m_navi->IsFXClickThrough();
+                if (ImGui::Checkbox("[ALL] Toggle Clickthrough", &fxClickthrough))
+                {
+                    m_navi->SetFXClickThrough(fxClickthrough);
+                    AddLog(fxClickthrough ? "FX Window: Click-through Enabled" : "FX Window: Click-through Disabled");
+                }
+
+                if (ImGui::Checkbox("[Player] Toggle Transparent", &m_playerWindowTransparent))
+                {
+                    m_windowSystem->RemoveTrackedWindow("player");
+
+                    TrackedWindowConfig config;
+                    config.name = "player";
+                    config.title = "Player";
+                    config.width = 300;
+                    config.height = 300;
+                    config.priority = 1;
+                    config.isTransparent = m_playerWindowTransparent;
+
+                    m_windowSystem->AddTrackedWindow(
+                        config,
+                        [this]() -> DirectX::XMFLOAT3 {
+                            if (!m_player) return DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+                            const auto pPos = m_player->GetPosition();
+                            return DirectX::XMFLOAT3(
+                                pPos.x + m_stretchOffset.x,
+                                0.0f,
+                                pPos.z + m_stretchOffset.y
+                            );
+                        },
+                        [this]() -> DirectX::XMFLOAT2 {
+                            return DirectX::XMFLOAT2(
+                                k_defaultWinSize + m_currentStretch.x,
+                                k_defaultWinSize + m_currentStretch.y
+                            );
+                        }
+                    );
+
+                    TrackedWindow* playerWin = m_windowSystem->GetTrackedWindow("player");
+                    if (playerWin && playerWin->window)
+                    {
+                        if (m_playerWindowTransparent)
+                        {
+                            playerWin->window->SetClickThrough(true);
+                            playerWin->window->SetBorderVisible(false);
+                            playerWin->window->SetDraggable(false);
+                            playerWin->window->SetBackgroundAlpha(0.0f);
+                        }
+                        else
+                        {
+                            SDL_SetWindowResizable(playerWin->window->GetSDLWindow(), true);
+                            SDL_SetWindowBordered(playerWin->window->GetSDLWindow(), true);
+                            playerWin->window->SetDraggable(false);
+                            playerWin->window->SetBackgroundAlpha(1.0f);
+                        }
+                    }
+
+                    WindowManager::Instance().EnforceWindowPriorities();
+                    AddLog(m_playerWindowTransparent
+                        ? "Player Window: Stealth Mode Activated"
+                        : "Player Window: Normal Mode");
+                }
+
+                ImGui::Checkbox("[ImGui] Sync size to main window", &m_autoSyncMainWindow);
+                ImGui::Separator();
+
+                ImGui::Text("Active Windows: %zu", m_windowSystem->GetWindows().size());
+
+                if (ImGui::Button("Spawn Dummy Window", ImVec2(-1.0f, 30.0f)))
+                    SpawnDebugWindow();
+
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.7f, 0.1f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.8f, 0.2f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
+
+                if (ImGui::Button("Spawn Transparent Window (Hollow)", ImVec2(-1.0f, 30.0f)))
+                    SpawnTransparentWindow(0.0f, "Hollow");
+
+                if (ImGui::Button("Spawn Transparent Window (Solid)", ImVec2(-1.0f, 30.0f)))
+                    SpawnTransparentWindow(1.0f / 255.0f, "Solid");
+
+                ImGui::PopStyleColor(3);
+
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
+
+                if (ImGui::Button("Close All Sub Windows", ImVec2(-1.0f, 30.0f)))
+                {
+                    m_windowSystem->ClearAll();
+                    InitializeSubWindows();
+                    m_spawnCount = 0;
+                    AddLog("Cleared and respawned base windows.");
+                }
+
+                if (ImGui::Button("HARD RESET", ImVec2(-1.0f, 40.0f)))
+                    ResetEverything();
+
+                ImGui::PopStyleColor();
+            }
+
+            if (ImGui::CollapsingHeader("World & Entities", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Checkbox("Show 3D Grid", &m_showGrid);
+
+                if (m_player)
+                {
+                    const DirectX::XMFLOAT3 pPos = m_player->GetPosition();
+                    const float    rotY = m_player->GetMovement()->GetRotation().y;
+                    ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "[Player]");
+                    ImGui::Text("Loc: X:%.2f, Y:%.2f, Z:%.2f", pPos.x, pPos.y, pPos.z);
+                    ImGui::Text("Facing: %.1f deg", rotY);
+                }
+
+                ImGui::Separator();
+                POINT mPos; GetCursorPos(&mPos);
+                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "[Mouse]");
+                ImGui::Text("Monitor OS: X:%d, Y:%d", mPos.x, mPos.y);
+            }
+
+            ImGui::EndTabItem();
         }
 
-        ImGui::Checkbox("[ImGui] Sync size to main window", &m_autoSyncMainWindow);
-        ImGui::Separator();
-
-        ImGui::Text("Active Windows: %zu", m_windowSystem->GetWindows().size());
-
-        if (ImGui::Button("Spawn Dummy Window", ImVec2(-1.0f, 30.0f)))
-            SpawnDebugWindow();
-
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.7f, 0.1f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.8f, 0.2f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
-
-        if (ImGui::Button("Spawn Transparent Window (Hollow)", ImVec2(-1.0f, 30.0f)))
-            SpawnTransparentWindow(0.0f, "Hollow");
-
-        if (ImGui::Button("Spawn Transparent Window (Solid)", ImVec2(-1.0f, 30.0f)))
-            SpawnTransparentWindow(1.0f / 255.0f, "Solid");
-
-        ImGui::PopStyleColor(3);
-
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
-
-        if (ImGui::Button("Close All Sub Windows", ImVec2(-1.0f, 30.0f)))
+        // ---------------------------------------------------------
+        // TAB 2: NAVI BOSS
+        // ---------------------------------------------------------
+        if (m_navi && ImGui::BeginTabItem("Navi Boss"))
         {
-            m_windowSystem->ClearAll();
-            InitializeSubWindows();
-            m_spawnCount = 0;
-            AddLog("Cleared and respawned base windows.");
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Core Settings ---");
+            float speed = m_navi->GetCoreBreathSpeed();
+            float intensity = m_navi->GetCoreBreathIntensity();
+
+            bool changed = false;
+            changed |= ImGui::SliderFloat("Breath Speed", &speed, 0.1f, 20.0f);
+            changed |= ImGui::SliderFloat("Breath Intensity", &intensity, 0.0f, 200.0f);
+
+            if (changed) m_navi->SetCoreBreathParams(speed, intensity);
+
+            ImGui::Separator();
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Wing Settings ---");
+
+            float wSpeed = m_navi->GetWingFlapSpeed();
+            float wIntensity = m_navi->GetWingFlapIntensity();
+            float wOffsetX = m_navi->GetWingOffsetX();
+            float wOffsetZ = m_navi->GetWingOffsetZ();
+            bool offsetChanged = false;
+
+            if (ImGui::SliderFloat("Wing Flap Speed", &wSpeed, 0.1f, 10.0f)) m_navi->SetWingFlapParams(wSpeed, wIntensity);
+            if (ImGui::SliderFloat("Wing Flap Intensity", &wIntensity, 0.0f, 2.0f)) m_navi->SetWingFlapParams(wSpeed, wIntensity);
+
+            offsetChanged |= ImGui::SliderFloat("Wing Spacing (X)", &wOffsetX, 0.0f, 20.0f);
+            offsetChanged |= ImGui::SliderFloat("Wing Vertical (Z)", &wOffsetZ, -20.0f, 20.0f);
+            if (offsetChanged) m_navi->SetWingOffsets(wOffsetX, wOffsetZ);
+
+            ImGui::Separator();
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Render Scale ---");
+
+            float p2u = m_navi->GetPixelToUnit();
+            float gScale = m_navi->GetWingGlobalScale();
+
+            if (ImGui::SliderFloat("Pixel to Unit Ratio", &p2u, 1.0f, 100.0f)) m_navi->SetScalingParams(p2u, gScale);
+            if (ImGui::SliderFloat("Global Wing Scale", &gScale, 0.1f, 5.0f)) m_navi->SetScalingParams(p2u, gScale);
+
+            ImGui::Separator();
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Procedural Generation ---");
+
+            int currentSeed = static_cast<int>(m_navi->GetWingSeed());
+            if (ImGui::InputInt("Wing Seed", &currentSeed)) {
+                m_navi->SetWingSeed(static_cast<unsigned int>(currentSeed));
+            }
+
+            if (ImGui::Button("Randomize Seed (Gacha!)", ImVec2(-1.0f, 30.0f))) {
+                std::random_device rd;
+                m_navi->SetWingSeed(rd());
+            }
+
+            ImGui::Separator();
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "--- Spawn Animation ---");
+
+            float pDur = m_navi->GetPopDuration(); // Berubah dari GetPopSpeed
+            float sDur = m_navi->GetSpawnDuration();
+            float sChaos = m_navi->GetSpawnChaos();
+            bool animChanged = false;
+
+            animChanged |= ImGui::SliderFloat("Individual Pop Duration", &pDur, 0.01f, 1.0f);
+            animChanged |= ImGui::SliderFloat("Total Spawn Duration", &sDur, 0.1f, 5.0f);
+            animChanged |= ImGui::SliderFloat("Spawn Chaos", &sChaos, 0.0f, 2.0f);
+
+            if (animChanged) m_navi->SetSpawnParams(pDur, sDur, sChaos);
+
+            if (ImGui::Button("Re-play Expand Animation", ImVec2(-1.0f, 30.0f))) {
+                m_navi->ReplayAnimation();
+            }
+
+            ImGui::EndTabItem();
         }
 
-        if (ImGui::Button("HARD RESET", ImVec2(-1.0f, 40.0f)))
-            ResetEverything();
-
-        ImGui::PopStyleColor();
-    }
-
-    // ---------------------------------------------------------
-    // WORLD & ENTITIES
-    // ---------------------------------------------------------
-    if (ImGui::CollapsingHeader("World & Entities", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::Checkbox("Show 3D Grid", &m_showGrid);
-
-        if (m_player)
+        // ---------------------------------------------------------
+        // TAB 3: TERMINAL
+        // ---------------------------------------------------------
+        if (ImGui::BeginTabItem("Terminal"))
         {
-            const XMFLOAT3 pPos = m_player->GetPosition();
-            const float    rotY = m_player->GetMovement()->GetRotation().y;
-            ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "[Player]");
-            ImGui::Text("Loc: X:%.2f, Y:%.2f, Z:%.2f", pPos.x, pPos.y, pPos.z);
-            ImGui::Text("Facing: %.1f deg", rotY);
+            ImGui::BeginChild("LogRegion", ImVec2(0.0f, 0.0f), true,
+                ImGuiWindowFlags_AlwaysVerticalScrollbar);
+            for (const auto& log : m_debugLogs)
+                ImGui::TextUnformatted(log.c_str());
+            if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+                ImGui::SetScrollHereY(1.0f);
+            ImGui::EndChild();
+
+            ImGui::EndTabItem();
         }
 
-        ImGui::Separator();
-        POINT mPos; GetCursorPos(&mPos);
-        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "[Mouse]");
-        ImGui::Text("Monitor OS: X:%d, Y:%d", mPos.x, mPos.y);
-    }
-
-    // ---------------------------------------------------------
-    // DEBUG TERMINAL
-    // ---------------------------------------------------------
-    if (ImGui::CollapsingHeader("Debug Terminal", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::BeginChild("LogRegion", ImVec2(0.0f, 150.0f), true,
-            ImGuiWindowFlags_AlwaysVerticalScrollbar);
-        for (const auto& log : m_debugLogs)
-            ImGui::TextUnformatted(log.c_str());
-        if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
-            ImGui::SetScrollHereY(1.0f);
-        ImGui::EndChild();
+        ImGui::EndTabBar();
     }
 
     ImGui::End();
 }
-
 void SceneBoss::OnResize(int /*width*/, int /*height*/)
 {
     // Intentionally empty: off-center projection is recalculated per sub-window
@@ -620,10 +725,10 @@ void SceneBoss::AddLog(const std::string& message)
 
 void SceneBoss::ResetEverything()
 {
-    // 1. Detach camera before destroying anything
     CameraController::Instance().ClearCamera();
 
-    // 2. Destroy all tracked windows (player must die first — it holds PxController)
+    // 1. Destroy everything (Navi harus hancur sebelum WindowSystem)
+    m_navi.reset();
     m_collisionManager.reset();
     m_enemyManager.reset();
     m_itemManager.reset();
@@ -632,7 +737,8 @@ void SceneBoss::ResetEverything()
     if (m_windowSystem) m_windowSystem->ClearAll();
     m_player.reset();
 
-    // 3. Rebuild PhysX from scratch
+    // 2. Rebuild PhysX
+    m_defaultMaterial.reset();
     m_controllerManager.reset();
     m_scene.reset();
     m_dispatcher.reset();
@@ -640,12 +746,11 @@ void SceneBoss::ResetEverything()
     m_foundation.reset();
     InitializePhysics();
 
-    // 4. Rebuild window tracking system
+    // 3. Rebuild Window System & Camera
     m_windowSystem = std::make_unique<WindowTrackingSystem>();
     m_windowSystem->SetPixelToUnitRatio(k_pixelToUnitRatio);
     m_windowSystem->SetFOV(k_fov);
 
-    // 5. Rebuild camera
     const float unifiedHeight = m_windowSystem->GetUnifiedCameraHeight();
     m_mainCamera = std::make_shared<Camera>();
     m_mainCamera->SetPerspectiveFov(XMConvertToRadians(k_fov), 1920.0f / 1080.0f, k_camNear, k_camFar);
@@ -656,30 +761,45 @@ void SceneBoss::ResetEverything()
     CameraController::Instance().SetControlMode(CameraControlMode::FixedStatic);
     CameraController::Instance().SetFixedSetting(XMFLOAT3(0.0f, unifiedHeight, 0.0f));
 
-    // 6. Rebuild player
+    // 4. Rebuild Player & Managers
+    ID3D11Device* device = Graphics::Instance().GetDevice();
+
     m_player = std::make_unique<Player>();
-    m_player->InitPhysics(m_controllerManager.get(), m_defaultMaterial.get(),
-        PlayerConst::CapsuleHalfHeight);  // Kaki tepat di Y=0, gravity off
-    m_player->SetGravityEnabled(false);
-    m_player->SetInvertControls(false);
+    m_player->InitPhysics(m_controllerManager.get(), m_defaultMaterial.get(), PlayerConst::CapsuleHalfHeight);
     m_player->SetPosition(0.0f, 0.0f, -8.0f);
     m_player->SetMoveSpeed(20.0f);
+    m_player->SetDashSpeed(60.0f); // Kembalikan nilai dash
 
-    // 7. Reset runtime state
+    // [PENTING] Spawn ulang semua Manager!
+    //m_enemyManager = std::make_unique<EnemyManager>();
+    //m_enemyManager->Initialize(device);
+    //m_itemManager = std::make_unique<ItemManager>();
+    //m_itemManager->Initialize(device);
+    m_stage = std::make_unique<Stage>(device);
+
+    m_collisionManager = std::make_unique<CollisionManager>();
+    m_collisionManager->Initialize(m_player.get(), m_stage.get(), m_enemyManager.get(), m_itemManager.get(), m_boss.get());
+    m_player->SetCollisionManager(m_collisionManager.get());
+
+    // Inisialisasi ulang Navi agar window sayap muncul kembali
+    m_navi = std::make_unique<NaviBoss>();
+    m_navi->Initialize(m_windowSystem.get());
+
+    // 5. Finalize
     m_timeScale = 1.0f;
     m_spawnCount = 0;
     m_currentStretch = { 0.0f, 0.0f };
     m_stretchOffset = { 0.0f, 0.0f };
     m_showGrid = false;
     m_autoSyncMainWindow = true;
-    m_topmostEnabled = true;
+    //m_topmostEnabled = true;
     m_playerWindowTransparent = false;
     m_debugLogs.clear();
 
     WindowManager::Instance().SetTopmost(m_topmostEnabled);
     InitializeSubWindows();
 
-    AddLog("HARD RESET: scene fully rebuilt.");
+    AddLog("HARD RESET: All systems successfully restored.");
 }
 
 void SceneBoss::SpawnDebugWindow()
