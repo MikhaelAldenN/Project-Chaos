@@ -18,29 +18,47 @@ void EnemyManager::Initialize(ID3D11Device* device)
 void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
 {
     ID3D11Device* device = Graphics::Instance().GetDevice();
-    const char* modelPath = "";
+    const char* modelPath{ nullptr };
 
-    // [MODIFIKASI] Seleksi Model
-    if (config.Type == EnemyType::Ball)
+    // ---> Behavior-Driven Model Selection <---
+    switch (config.Type)
     {
+    case EnemyType::MushroomNone:
+        modelPath = "Data/Model/Character/ENEMY_mdl_EnemyNone.glb";
+        break;
+
+    case EnemyType::MushroomStatic:
+        modelPath = "Data/Model/Character/ENEMY_mdl_EnemyStatic.glb";
+        break;
+
+    case EnemyType::MushroomTracking:
+        modelPath = "Data/Model/Character/ENEMY_mdl_EnemyTracking.glb";
+        break;
+
+    case EnemyType::FakeBoss:
+        modelPath = "Data/Model/Character/ENEMY_mdl_EnemyFakeBoss.glb";
+        break;
+
+    case EnemyType::Ball:
         modelPath = "Data/Model/Character/PLACEHOLDER_mdl_Ball.glb";
-    }
-    else if (config.Type == EnemyType::Pentagon) // [BARU]
-    {
+        break;
+
+    case EnemyType::Pentagon:
         modelPath = "Data/Model/Character/PLACEHOLDER_mdl_Pentagon.glb";
-    }
-    else
-    {
-        // Default ke Paddle
+        break;
+
+    case EnemyType::Paddle:
+    default:
         modelPath = "Data/Model/Character/PLACEHOLDER_mdl_Paddle.glb";
+        break;
     }
 
-    auto newEnemy = std::make_unique<Enemy>(
+    auto newEnemy{ std::make_unique<Enemy>(
         device,
         modelPath,
         config.Position,
         config.Rotation,
-        config.Color,
+        config.Color,           
         config.Type,
         config.AttackBehavior,
         config.MinX,
@@ -48,11 +66,12 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
         config.MinZ,
         config.MaxZ,
         config.Direction
-    );
+    ) };
 
     newEnemy->SetScale(config.Scale);
     newEnemy->SetBaseMoveSpeed(config.BaseSpeed);
     newEnemy->SetMaxHP(config.MaxHP);
+
     m_enemies.push_back(std::move(newEnemy));
 }
 
