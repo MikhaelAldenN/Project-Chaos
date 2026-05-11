@@ -491,7 +491,7 @@ void SceneBoss::DrawGUI()
                 }
 
                 bool fxClickthrough = m_navi->IsFXClickThrough();
-                if (ImGui::Checkbox("FX Click-through Mode", &fxClickthrough))
+                if (ImGui::Checkbox("[ALL] Toggle Clickthrough", &fxClickthrough))
                 {
                     m_navi->SetFXClickThrough(fxClickthrough);
                     AddLog(fxClickthrough ? "FX Window: Click-through Enabled" : "FX Window: Click-through Disabled");
