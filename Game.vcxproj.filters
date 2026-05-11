@@ -288,7 +288,10 @@
     <ClCompile Include="Source\Game\Entities\NaviBoss.cpp">
       <Filter>Source\Game\Entities</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\NaviAlly.cpp">
+    <ClCompile Include="Source\Game\Entities\NaviPhaseWindowkill.cpp">
+      <Filter>Source\Game\Entities</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\NaviPhaseNormal.cpp">
       <Filter>Source\Game\Entities</Filter>
     </ClCompile>
   </ItemGroup>
@@ -587,7 +590,13 @@
     <ClInclude Include="Source\Game\Entities\NaviBoss.h">
       <Filter>Source\Game\Entities</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\NaviAlly.h">
+    <ClInclude Include="Source\Game\Entities\INaviPhase.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\NaviPhaseWindowkill.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\NaviPhaseNormal.h">
       <Filter>Source\Game\Entities</Filter>
     </ClInclude>
   </ItemGroup>

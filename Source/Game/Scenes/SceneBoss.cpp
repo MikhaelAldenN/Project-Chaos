@@ -13,6 +13,8 @@
 #include "Stage.h"
 #include "Boss.h"
 #include <random>
+#include "NaviPhaseWindowkill.h"
+#include "NaviPhaseNormal.h"
 
 using namespace DirectX;
 
@@ -88,6 +90,12 @@ SceneBoss::SceneBoss()
 
     m_navi = std::make_unique<NaviBoss>();
     m_navi->Initialize(m_windowSystem.get());
+
+#if 0
+    m_navi->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
+#else
+    m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>());
+#endif
 
     WindowManager::Instance().SetTopmost(m_topmostEnabled);
     InitializeSubWindows();
@@ -203,6 +211,10 @@ void SceneBoss::Update(float elapsedTime)
 
     Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
 
+    if (m_navi && dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+        m_autoSyncMainWindow = true;
+    }
+
     // --- Sync main window size ---
     Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
     if (mainWindow)
@@ -225,7 +237,6 @@ void SceneBoss::Update(float elapsedTime)
     }
 
     // --- Player update ---
-// --- Player update ---
     if (m_player)
     {
         // Aim: convert global mouse to world position and pass to player
@@ -407,7 +418,11 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
     // --- 1. DETEKSI KAMERA SAYAP (CAMERA FILTERING) ---
     bool isWingCamera = false;
     if (m_navi) {
-        isWingCamera = (camera == m_navi->GetFXCamera());
+        // Tanya ke sistem: "Apakah fase saat ini adalah Windowkill?"
+        if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+            // Jika iya, ambil kameranya!
+            isWingCamera = (camera == wkPhase->GetFXCamera());
+        }
     }
 
     // --- 2. RENDER ENTITAS UMUM (Hanya jika BUKAN kamera sayap) ---
@@ -490,11 +505,15 @@ void SceneBoss::DrawGUI()
                     ResetEverything();
                 }
 
-                bool fxClickthrough = m_navi->IsFXClickThrough();
-                if (ImGui::Checkbox("[ALL] Toggle Clickthrough", &fxClickthrough))
-                {
-                    m_navi->SetFXClickThrough(fxClickthrough);
-                    AddLog(fxClickthrough ? "FX Window: Click-through Enabled" : "FX Window: Click-through Disabled");
+                // Cek apakah m_navi ada, dan apakah fasenya adalah Windowkill
+                if (m_navi) {
+                    if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+                        bool fxClickthrough = wkPhase->IsFXClickThrough();
+                        if (ImGui::Checkbox("[ALL] Toggle Clickthrough", &fxClickthrough)) {
+                            wkPhase->SetFXClickThrough(fxClickthrough);
+                            AddLog(fxClickthrough ? "FX Window: Click-through Enabled" : "FX Window: Click-through Disabled");
+                        }
+                    }
                 }
 
                 if (ImGui::Checkbox("[Player] Toggle Transparent", &m_playerWindowTransparent))
@@ -623,65 +642,137 @@ void SceneBoss::DrawGUI()
             bool changed = false;
             changed |= ImGui::SliderFloat("Breath Speed", &speed, 0.1f, 20.0f);
             changed |= ImGui::SliderFloat("Breath Intensity", &intensity, 0.0f, 200.0f);
-
             if (changed) m_navi->SetCoreBreathParams(speed, intensity);
 
-            ImGui::Separator();
-            ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Wing Settings ---");
+            // =========================================================
+            // [MAGIC] DYNAMIC CAST UNTUK KONTROL SAYAP
+            // Jika Fase Normal sedang aktif, UI sayap di bawah ini akan 
+            // otomatis hilang (disembunyikan) agar UI tetap rapi!
+            // =========================================================
+            if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
+            {
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "--- PHASE 1: NORMAL MODE ---");
+                ImGui::TextWrapped("Main Window is now in Borderless Fullscreen.");
 
-            float wSpeed = m_navi->GetWingFlapSpeed();
-            float wIntensity = m_navi->GetWingFlapIntensity();
-            float wOffsetX = m_navi->GetWingOffsetX();
-            float wOffsetZ = m_navi->GetWingOffsetZ();
-            bool offsetChanged = false;
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
 
-            if (ImGui::SliderFloat("Wing Flap Speed", &wSpeed, 0.1f, 10.0f)) m_navi->SetWingFlapParams(wSpeed, wIntensity);
-            if (ImGui::SliderFloat("Wing Flap Intensity", &wIntensity, 0.0f, 2.0f)) m_navi->SetWingFlapParams(wSpeed, wIntensity);
+                // TOMBOL DEBUG TRANSISI!
+                if (ImGui::Button("TRIGGER PHASE 2 (WINDOWKILL) !!!", ImVec2(-1.0f, 50.0f))) {
+                    m_navi->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
+                    AddLog("Transitioning to Windowkill Phase...");
+                }
 
-            offsetChanged |= ImGui::SliderFloat("Wing Spacing (X)", &wOffsetX, 0.0f, 20.0f);
-            offsetChanged |= ImGui::SliderFloat("Wing Vertical (Z)", &wOffsetZ, -20.0f, 20.0f);
-            if (offsetChanged) m_navi->SetWingOffsets(wOffsetX, wOffsetZ);
+                ImGui::PopStyleColor(2);
+            }
+            // --- JIKA SEDANG DI FASE 2 (WINDOWKILL) ---
+            else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()))
+            {
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Wing Settings ---");
 
-            ImGui::Separator();
-            ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Render Scale ---");
+                float wSpeed = wkPhase->GetWingFlapSpeed();
+                float wIntensity = wkPhase->GetWingFlapIntensity();
+                float wOffsetX = wkPhase->GetWingOffsetX();
+                float wOffsetZ = wkPhase->GetWingOffsetZ();
+                bool offsetChanged = false;
 
-            float p2u = m_navi->GetPixelToUnit();
-            float gScale = m_navi->GetWingGlobalScale();
+                if (ImGui::SliderFloat("Wing Flap Speed", &wSpeed, 0.1f, 10.0f)) wkPhase->SetWingFlapParams(wSpeed, wIntensity);
+                if (ImGui::SliderFloat("Wing Flap Intensity", &wIntensity, 0.0f, 2.0f)) wkPhase->SetWingFlapParams(wSpeed, wIntensity);
 
-            if (ImGui::SliderFloat("Pixel to Unit Ratio", &p2u, 1.0f, 100.0f)) m_navi->SetScalingParams(p2u, gScale);
-            if (ImGui::SliderFloat("Global Wing Scale", &gScale, 0.1f, 5.0f)) m_navi->SetScalingParams(p2u, gScale);
+                offsetChanged |= ImGui::SliderFloat("Wing Spacing (X)", &wOffsetX, 0.0f, 20.0f);
+                offsetChanged |= ImGui::SliderFloat("Wing Vertical (Z)", &wOffsetZ, -20.0f, 20.0f);
+                if (offsetChanged) wkPhase->SetWingOffsets(wOffsetX, wOffsetZ);
 
-            ImGui::Separator();
-            ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Procedural Generation ---");
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Render Scale ---");
 
-            int currentSeed = static_cast<int>(m_navi->GetWingSeed());
-            if (ImGui::InputInt("Wing Seed", &currentSeed)) {
-                m_navi->SetWingSeed(static_cast<unsigned int>(currentSeed));
+                float p2u = wkPhase->GetPixelToUnit();
+                float gScale = wkPhase->GetWingGlobalScale();
+
+                if (ImGui::SliderFloat("Pixel to Unit Ratio", &p2u, 1.0f, 100.0f)) wkPhase->SetScalingParams(p2u, gScale);
+                if (ImGui::SliderFloat("Global Wing Scale", &gScale, 0.1f, 5.0f)) wkPhase->SetScalingParams(p2u, gScale);
+
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Procedural Generation ---");
+
+                int currentSeed = static_cast<int>(wkPhase->GetWingSeed());
+                if (ImGui::InputInt("Wing Seed", &currentSeed)) {
+                    wkPhase->SetWingSeed(static_cast<unsigned int>(currentSeed));
+                }
+
+                if (ImGui::Button("Randomize Seed (Gacha!)", ImVec2(-1.0f, 30.0f))) {
+                    std::random_device rd;
+                    wkPhase->SetWingSeed(rd());
+                }
+
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "--- Spawn Animation ---");
+
+                float pDur = wkPhase->GetPopDuration();
+                float sDur = wkPhase->GetSpawnDuration();
+                float sChaos = wkPhase->GetSpawnChaos();
+                bool animChanged = false;
+
+                animChanged |= ImGui::SliderFloat("Individual Pop Duration", &pDur, 0.01f, 1.0f);
+                animChanged |= ImGui::SliderFloat("Total Spawn Duration", &sDur, 0.1f, 5.0f);
+                animChanged |= ImGui::SliderFloat("Spawn Chaos", &sChaos, 0.0f, 2.0f);
+
+                if (animChanged) wkPhase->SetSpawnParams(pDur, sDur, sChaos);
+
+                if (ImGui::Button("Re-play Expand Animation", ImVec2(-1.0f, 30.0f))) {
+                    wkPhase->ReplayAnimation();
+                }
             }
 
-            if (ImGui::Button("Randomize Seed (Gacha!)", ImVec2(-1.0f, 30.0f))) {
-                std::random_device rd;
-                m_navi->SetWingSeed(rd());
+            ImGui::EndTabItem();
+        }
+
+        // =========================================================
+        // TAB: BOSS ATTACKS
+        // =========================================================
+        if (m_navi && ImGui::BeginTabItem("Boss Attacks")) {
+            if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+                auto& p = normalPhase->GetParams();
+
+                ImGui::TextColored(ImVec4(1, 1, 0, 1), "--- Global Bullet Settings ---");
+                ImGui::SliderFloat("Bullet Speed", &p.speed, 1.0f, 50.0f);
+                ImGui::SliderInt("Radial Count", &p.count, 4, 128);
+                ImGui::SliderFloat("Burst Delay", &p.burstDelay, 0.01f, 1.0f);
+                ImGui::ColorEdit4("Bullet Color", (float*)&p.color);
+
+                // --- UI BARU UNTUK FAN BURST ---
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0, 1, 0, 1), "--- Targeted Fan Burst Settings ---");
+                ImGui::SliderInt("Fan Lines (Bullets/Wave)", &p.fanLines, 1, 10);
+                ImGui::SliderInt("Fan Waves (Repeats)", &p.fanWaves, 1, 10);
+                ImGui::SliderFloat("Fan Wave Delay", &p.fanWaveDelay, 0.05f, 1.0f);
+                ImGui::SliderFloat("Fan Spread Angle", &p.fanSpreadAngle, 0.05f, 0.5f);
+
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(1, 0, 0, 1), "--- Manual Triggers ---");
+
+                if (ImGui::Button("FIRE SINGLE BURST", ImVec2(ImGui::GetContentRegionAvail().x * 0.5f, 30.0f))) {
+                    normalPhase->TriggerSingleBurst();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("FIRE DOUBLE BURST", ImVec2(-1.0f, 30.0f))) {
+                    normalPhase->TriggerDoubleBurst();
+                }
+
+                // TOMBOL BARU DENGAN TARGET LOCKING!
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
+                if (ImGui::Button("FIRE TARGETED FAN BURST", ImVec2(-1.0f, 40.0f))) {
+                    if (m_player) {
+                        normalPhase->TriggerFanAttack(m_navi.get(), m_player->GetPosition());
+                    }
+                }
+                ImGui::PopStyleColor();
             }
-
-            ImGui::Separator();
-            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "--- Spawn Animation ---");
-
-            float pDur = m_navi->GetPopDuration(); // Berubah dari GetPopSpeed
-            float sDur = m_navi->GetSpawnDuration();
-            float sChaos = m_navi->GetSpawnChaos();
-            bool animChanged = false;
-
-            animChanged |= ImGui::SliderFloat("Individual Pop Duration", &pDur, 0.01f, 1.0f);
-            animChanged |= ImGui::SliderFloat("Total Spawn Duration", &sDur, 0.1f, 5.0f);
-            animChanged |= ImGui::SliderFloat("Spawn Chaos", &sChaos, 0.0f, 2.0f);
-
-            if (animChanged) m_navi->SetSpawnParams(pDur, sDur, sChaos);
-
-            if (ImGui::Button("Re-play Expand Animation", ImVec2(-1.0f, 30.0f))) {
-                m_navi->ReplayAnimation();
+            else {
+                ImGui::Text("Attacks are only available in Normal Phase.");
             }
-
             ImGui::EndTabItem();
         }
 
@@ -706,6 +797,7 @@ void SceneBoss::DrawGUI()
 
     ImGui::End();
 }
+
 void SceneBoss::OnResize(int /*width*/, int /*height*/)
 {
     // Intentionally empty: off-center projection is recalculated per sub-window
@@ -770,20 +862,21 @@ void SceneBoss::ResetEverything()
     m_player->SetMoveSpeed(20.0f);
     m_player->SetDashSpeed(60.0f); // Kembalikan nilai dash
 
-    // [PENTING] Spawn ulang semua Manager!
-    //m_enemyManager = std::make_unique<EnemyManager>();
-    //m_enemyManager->Initialize(device);
-    //m_itemManager = std::make_unique<ItemManager>();
-    //m_itemManager->Initialize(device);
     m_stage = std::make_unique<Stage>(device);
 
     m_collisionManager = std::make_unique<CollisionManager>();
     m_collisionManager->Initialize(m_player.get(), m_stage.get(), m_enemyManager.get(), m_itemManager.get(), m_boss.get());
     m_player->SetCollisionManager(m_collisionManager.get());
 
-    // Inisialisasi ulang Navi agar window sayap muncul kembali
+    // =========================================================
+    // [FIX] INISIALISASI NAVI BOSS & SET FASE AWAL!
+    // =========================================================
     m_navi = std::make_unique<NaviBoss>();
     m_navi->Initialize(m_windowSystem.get());
+
+    // Beri otak ke Navi agar masuk ke Mode Layar Penuh!
+    m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>());
+    // =========================================================
 
     // 5. Finalize
     m_timeScale = 1.0f;
@@ -791,7 +884,8 @@ void SceneBoss::ResetEverything()
     m_currentStretch = { 0.0f, 0.0f };
     m_stretchOffset = { 0.0f, 0.0f };
     m_showGrid = false;
-    m_autoSyncMainWindow = true;
+    m_autoSyncMainWindow = false; // Tetap false agar tidak merusak Fullscreen Fase 1
+
     //m_topmostEnabled = true;
     m_playerWindowTransparent = false;
     m_debugLogs.clear();
