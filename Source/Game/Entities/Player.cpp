@@ -259,10 +259,28 @@ void Player::ApplyWorldMatrix(float smoothedYaw, bool shouldAim, float relativeA
         if (bodyIndex != -1)
         {
             Model::Node& bodyNode = model->GetNodes()[bodyIndex];
+
+            // Get the Parent's (Hips/Pelvis) Global Matrix
+            XMMATRIX parentGlobal = XMMatrixIdentity();
+            if (bodyNode.parent != nullptr) {
+                parentGlobal = XMLoadFloat4x4(&bodyNode.parent->globalTransform);
+            }
+
+            // Find the "True Sky" inside the tilted Hip space
+            XMVECTOR worldUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+            XMMATRIX parentInverse = XMMatrixInverse(nullptr, parentGlobal);
+            XMVECTOR localUpAxis = XMVector3TransformNormal(worldUp, parentInverse);
+            localUpAxis = XMVector3Normalize(localUpAxis);
+
+            // Create a rotation around that specific calculated axis 
+            XMMATRIX twistMatrix = XMMatrixRotationAxis(localUpAxis, relativeAngle);
+
+            // Apply it to the animation
             XMVECTOR currentLocalRot = XMLoadFloat4(&bodyNode.rotation);
             XMMATRIX localMatrix = XMMatrixRotationQuaternion(currentLocalRot);
-            XMMATRIX twistMatrix = XMMatrixRotationY(relativeAngle);
-            XMVECTOR finalRot = XMQuaternionRotationMatrix(twistMatrix * localMatrix);
+
+            // Multiply Local * Twist
+            XMVECTOR finalRot = XMQuaternionRotationMatrix(localMatrix * twistMatrix);
             XMStoreFloat4(&bodyNode.rotation, finalRot);
         }
     }
