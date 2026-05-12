@@ -247,7 +247,7 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
         ID3D11DepthStencilView* originalDSV{ nullptr };
         dc->OMGetRenderTargets(1, &originalRTV, &originalDSV);
         if (originalRTV) {
-            float clearColor[4]{ 0.0f, 0.0f, 0.0f, 1.0f };
+            float clearColor[4]{ 0.0f, 0.0f, 0.2f, 1.0f };
             dc->ClearRenderTargetView(originalRTV, clearColor);
             originalRTV->Release();
         }

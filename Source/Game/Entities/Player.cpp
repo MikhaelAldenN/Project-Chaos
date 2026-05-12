@@ -26,9 +26,9 @@ Player::Player()
 
     m_equippedWeapon = std::make_unique<Weapon>(device, "Data/Model/Character/WEAPON_mdl_Crossbow.glb");
     m_equippedWeapon->SetLocalOffset(
-        { 0.000f, 0.000f, 0.000f },   // Position
-        { 90.000f, 0.000f, 0.000f },  // Rotation
-        { 0.400f, 0.400f, 0.400f }    // Scale
+        { 0.000f, 0.000f, 0.000f },
+        { 90.000f, 99.000f, 0.000f },
+        { 0.900f, 0.900f, 0.400f }
     );
     if (model) {
         m_rightHandBoneIndex = model->GetNodeIndex("hand.r");
@@ -285,6 +285,9 @@ void Player::ApplyWorldMatrix(float smoothedYaw, bool shouldAim, float relativeA
         }
     }
 
+
+    if (model) model->UpdateTransform(worldMatrix);
+
     if (m_equippedWeapon)
     {
         // ---> BUG PREVENTION: The Null Bone Guard <---
@@ -300,8 +303,6 @@ void Player::ApplyWorldMatrix(float smoothedYaw, bool shouldAim, float relativeA
             m_equippedWeapon->UpdateTransform(worldMatrix);
         }
     }
-
-    if (model) model->UpdateTransform(worldMatrix);
 }
 
 void Player::UpdateProjectiles(float dt, Camera* camera)

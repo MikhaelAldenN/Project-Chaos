@@ -1097,7 +1097,7 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGame* scene)
             Weapon* weapon = scene->m_player->GetWeapon();
 
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "LOCAL OFFSET POSITION");
-            ImGui::DragFloat3("XYZ##WpnPos", &weapon->GetOffsetPos()->x, 0.01f); // Finer step for precise hand placement
+            ImGui::DragFloat3("XYZ##WpnPos", &weapon->GetOffsetPos()->x, 0.01f); 
 
             ImGui::Spacing();
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "LOCAL OFFSET ROTATION");
@@ -1115,15 +1115,16 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGame* scene)
                 weapon->ResetOffsets();
             }
 
-            // QUALITY OF LIFE: Click this button to copy the exact C++ code to paste into your Player.cpp!
             ImGui::Spacing();
             if (ImGui::Button("Copy Code to Clipboard", ImVec2(-1, 30)))
             {
                 char buffer[512];
                 snprintf(buffer, sizeof(buffer),
-                    "m_equippedWeapon->GetOffsetPos() = { %.3ff, %.3ff, %.3ff };\n"
-                    "m_equippedWeapon->GetOffsetRot() = { %.3ff, %.3ff, %.3ff };\n"
-                    "m_equippedWeapon->GetOffsetScale() = { %.3ff, %.3ff, %.3ff };",
+                    "m_equippedWeapon->SetLocalOffset(\n"
+                    "{ %.3ff, %.3ff, %.3ff },\n"
+                    "{ %.3ff, %.3ff, %.3ff },\n"
+                    "{ %.3ff, %.3ff, %.3ff }\n"
+                    ");",
                     weapon->GetOffsetPos()->x, weapon->GetOffsetPos()->y, weapon->GetOffsetPos()->z,
                     weapon->GetOffsetRot()->x, weapon->GetOffsetRot()->y, weapon->GetOffsetRot()->z,
                     weapon->GetOffsetScale()->x, weapon->GetOffsetScale()->y, weapon->GetOffsetScale()->z
