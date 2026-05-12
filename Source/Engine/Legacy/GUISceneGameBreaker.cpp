@@ -1086,4 +1086,51 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGame* scene)
             ImGui::Unindent();
         }
     }
+
+	// 4. WEAPON TRANSFORM
+    ImGui::Spacing();
+    if (scene->m_player && scene->m_player->GetWeapon())
+    {
+        if (ImGui::CollapsingHeader("Weapon Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+            Weapon* weapon = scene->m_player->GetWeapon();
+
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "LOCAL OFFSET POSITION");
+            ImGui::DragFloat3("XYZ##WpnPos", &weapon->GetOffsetPos()->x, 0.01f); // Finer step for precise hand placement
+
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "LOCAL OFFSET ROTATION");
+            ImGui::DragFloat3("Pitch/Yaw/Roll##WpnRot", &weapon->GetOffsetRot()->x, 1.0f, -180.0f, 180.0f);
+
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE MULTIPLIER");
+            ImGui::DragFloat3("XYZ##WpnScl", &weapon->GetOffsetScale()->x, 0.01f, 0.1f, 10.0f);
+
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            if (ImGui::Button("Reset Weapon Transform", ImVec2(-1, 30)))
+            {
+                weapon->ResetOffsets();
+            }
+
+            // QUALITY OF LIFE: Click this button to copy the exact C++ code to paste into your Player.cpp!
+            ImGui::Spacing();
+            if (ImGui::Button("Copy Code to Clipboard", ImVec2(-1, 30)))
+            {
+                char buffer[512];
+                snprintf(buffer, sizeof(buffer),
+                    "m_equippedWeapon->GetOffsetPos() = { %.3ff, %.3ff, %.3ff };\n"
+                    "m_equippedWeapon->GetOffsetRot() = { %.3ff, %.3ff, %.3ff };\n"
+                    "m_equippedWeapon->GetOffsetScale() = { %.3ff, %.3ff, %.3ff };",
+                    weapon->GetOffsetPos()->x, weapon->GetOffsetPos()->y, weapon->GetOffsetPos()->z,
+                    weapon->GetOffsetRot()->x, weapon->GetOffsetRot()->y, weapon->GetOffsetRot()->z,
+                    weapon->GetOffsetScale()->x, weapon->GetOffsetScale()->y, weapon->GetOffsetScale()->z
+                );
+                ImGui::SetClipboardText(buffer);
+            }
+            ImGui::Unindent();
+        }
+    }
 }

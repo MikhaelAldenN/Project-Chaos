@@ -3,6 +3,7 @@
 #include "Bullet.h"
 #include "Character.h"
 #include "PlayerConstants.h"
+#include "Weapon.h"
 #include <deque>
 #include <memory>
 #include <DirectXMath.h>
@@ -49,6 +50,10 @@ public:
     //         SceneBoss uses CapsuleHalfHeight (gravity off, no ground plane).
     void InitPhysics(physx::PxControllerManager* manager, physx::PxMaterial* material,
         float spawnY = 15.0f);
+
+	// --- Weapon ---
+    Weapon* GetWeapon() const { return m_equippedWeapon.get(); }
+    void RenderWeapon(ModelRenderer* renderer);
 
     // --- Aim ---
     void RotateModelToPoint(const DirectX::XMFLOAT3& targetPos);
@@ -143,6 +148,10 @@ private:
 
 	// --- Invincibility timer (counts down when active, prevents damage) ---
     float m_invincibilityTimer = 0.0f;
+
+	// --- Weapon ---
+    std::unique_ptr<Weapon> m_equippedWeapon{};
+    int m_rightHandBoneIndex{ -1 }; // -1 indicates "Not Found Yet"
 
     // --- Aim target (set by RotateModelToPoint) ---
     DirectX::XMFLOAT3 m_aimTarget = { 0.0f, 0.0f, 0.0f };

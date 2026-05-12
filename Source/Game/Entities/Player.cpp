@@ -24,6 +24,16 @@ Player::Player()
     model = std::make_shared<Model>(device, "Data/Model/Character/TEST_mdl_Player3.glb");
     scale = { 1.0f, 1.0f, 1.0f };
 
+    m_equippedWeapon = std::make_unique<Weapon>(device, "Data/Model/Character/WEAPON_mdl_Crossbow.glb");
+    m_equippedWeapon->SetLocalOffset(
+        { 0.000f, 0.000f, 0.000f },   // Position
+        { 90.000f, 0.000f, 0.000f },  // Rotation
+        { 0.400f, 0.400f, 0.400f }    // Scale
+    );
+    if (model) {
+        m_rightHandBoneIndex = model->GetNodeIndex("hand.r");
+    }
+
     animator->Initialize(model);
     animator->SetUpperBodyMaskRoot("body");
     stateMachine->Initialize(std::make_unique<PlayerIdle>(), this);
@@ -257,6 +267,22 @@ void Player::ApplyWorldMatrix(float smoothedYaw, bool shouldAim, float relativeA
         }
     }
 
+    if (m_equippedWeapon)
+    {
+        // ---> BUG PREVENTION: The Null Bone Guard <---
+        if (m_rightHandBoneIndex != -1 && model->GetNodes().size() > m_rightHandBoneIndex)
+        {
+            // Extract the perfectly calculated world matrix of the hand
+            DirectX::XMFLOAT4X4 handMatrix = model->GetNodes()[m_rightHandBoneIndex].worldTransform;
+            m_equippedWeapon->UpdateTransform(handMatrix);
+        }
+        else
+        {
+            // Fallback: If the bone is missing, attach it to the player's root feet so it doesn't crash
+            m_equippedWeapon->UpdateTransform(worldMatrix);
+        }
+    }
+
     if (model) model->UpdateTransform(worldMatrix);
 }
 
@@ -351,6 +377,11 @@ void Player::RenderProjectiles(ModelRenderer* renderer)
     for (auto& bullet : m_projectiles)
         if (bullet->IsActive())
             renderer->Draw(ShaderId::Phong, bullet->GetModel(), { 1.0f, 1.0f, 1.0f, 1.0f });
+}
+
+void Player::RenderWeapon(ModelRenderer* renderer)
+{
+    if (m_equippedWeapon) m_equippedWeapon->Render(renderer);
 }
 
 // ============================================================

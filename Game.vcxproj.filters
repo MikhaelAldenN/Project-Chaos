@@ -294,9 +294,14 @@
     <ClCompile Include="Source\Game\Entities\NaviPhaseNormal.cpp">
       <Filter>Source\Game\Entities</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\NaviAlly.cpp" />
     <ClCompile Include="Source\Engine\VFX\EffectManager.cpp">
       <Filter>Source\Engine\VFX</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\NaviAlly.cpp">
+      <Filter>Source\Game\Entities</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Weapon.cpp">
+      <Filter>Source\Game\Entities</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -603,9 +608,14 @@
     <ClInclude Include="Source\Game\Entities\NaviPhaseNormal.h">
       <Filter>Source\Game\Entities</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\NaviAlly.h" />
     <ClInclude Include="Source\Engine\VFX\EffectManager.h">
       <Filter>Source\Engine\VFX</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\NaviAlly.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Weapon.h">
+      <Filter>Source\Game\Entities</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -300,6 +300,7 @@ void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
     if (m_player)
     {
         modelRenderer->Draw(ShaderId::Phong, m_player->GetModel(), m_player->color);
+        m_player->RenderWeapon(modelRenderer);
         m_player->RenderProjectiles(modelRenderer);
     }
     if (m_navi) {
