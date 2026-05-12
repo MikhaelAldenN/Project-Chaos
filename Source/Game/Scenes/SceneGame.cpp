@@ -10,6 +10,7 @@
 #include "InputHelper.h"
 
 // Game Objects
+#include "EffectManager.h"
 #include "EnemyManager.h"
 #include "ItemManager.h"
 #include "NaviAlly.h"
@@ -103,6 +104,8 @@ SceneGame::SceneGame()
 
     m_postProcess = std::make_unique<PostProcessManager>();
     m_postProcess->Initialize(static_cast<int>(screenW), static_cast<int>(screenH));
+
+    EffectManager::Instance().PreloadEffect("Data/Effect/Hit.efk");
 }
 
 SceneGame::~SceneGame()
@@ -215,6 +218,8 @@ void SceneGame::Update(const float elapsedTime)
     CameraController::Instance().SetDynamicZoomOffset(targetZoom);
     CameraController::Instance().Update(elapsedTime);
 
+    EffectManager::Instance().Update(elapsedTime);
+
     m_uberParams.fineOpacity = 1.0f;
     m_uberParams.fineDensity = m_configFineDensity;
     m_uberParams.fineRotation = 0.0f;
@@ -310,6 +315,8 @@ void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
     }
 
     modelRenderer->Render(rc);
+
+    EffectManager::Instance().Render(camera);
 }
 
 void SceneGame::DrawGUI() { GameBreakerGUI::Draw(this); }

@@ -1,5 +1,6 @@
 ﻿#include "Graphics.h"
 #include "Misc.h"
+#include "EffectManager.h"
 #include <dwmapi.h>
 #pragma comment(lib, "dwmapi.lib")
 
@@ -67,6 +68,9 @@ void Graphics::Initialize()
     primitiveRenderer = std::make_unique<PrimitiveRenderer>(device.Get());
     shapeRenderer = std::make_unique<ShapeRenderer>(device.Get());
     modelRenderer = std::make_unique<ModelRenderer>(device.Get());
+
+    // 6. Initializes Effekseer once for the entire game loop
+    EffectManager::Instance().Initialize(device.Get(), immediateContext.Get());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@
 
 #include "Bullet.h"
 #include "Character.h"
+#include "EffectManager.h"
 #include "EnemyManager.h"
 #include <cmath>
 #include <deque>

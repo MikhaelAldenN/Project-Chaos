@@ -298,6 +298,9 @@ void Enemy::TakeDamage(int damage)
 
     m_hp -= damage;
 
+	// Play visual effect
+    EffectManager::Instance().Play("Data/Effect/Hit.efk", GetPosition(), 1.5f);
+
     if (m_hp <= 0)
     {
         m_hp = 0; // Clamp to 0 to prevent negative HP logic bugs
