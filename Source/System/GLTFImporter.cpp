@@ -18,7 +18,7 @@ bool LoadImageData(tinygltf::Image*, const int, std::string*,
 
 // コンストラクタ
 GLTFImporter::GLTFImporter(const char* filename)
-	: filepath(filename) 
+	: filepath(filename)
 {
 	// 拡張子取得
 	std::string extension = filepath.extension().string();
@@ -66,7 +66,7 @@ void GLTFImporter::LoadNodes(NodeList& nodes)
 
 		// データ取得
 		node.name = gltfNode.name;
-		
+
 		for (int gltfChildNodeIndex : gltfNode.children)
 		{
 			nodes.at(gltfChildNodeIndex).parentIndex = static_cast<int>(gltfNodeIndex);
@@ -112,7 +112,7 @@ void GLTFImporter::LoadMeshes(MeshList& meshes, const NodeList& nodes)
 		if (gltfNode.mesh < 0) continue;
 
 		const tinygltf::Mesh& gltfMesh = gltfModel.meshes.at(gltfNode.mesh);
-				
+
 		for (const tinygltf::Primitive& gltfPrimitive : gltfMesh.primitives)
 		{
 			Model::Mesh& mesh = meshes.emplace_back();
@@ -218,139 +218,139 @@ void GLTFImporter::LoadMeshes(MeshList& meshes, const NodeList& nodes)
 				{
 					switch (gltfAccessor.componentType)
 					{
-						case TINYGLTF_COMPONENT_TYPE_FLOAT:
+					case TINYGLTF_COMPONENT_TYPE_FLOAT:
+					{
+						const float* p = static_cast<const float*>(vertexBuffer);
+						for (size_t i = 0; i < gltfAccessor.count; ++i)
 						{
-							const float* p = static_cast<const float*>(vertexBuffer);
-							for (size_t i = 0; i < gltfAccessor.count; ++i)
-							{
-								DirectX::XMFLOAT2& texcoord = mesh.vertices.at(i).texcoord;
-								texcoord.x = p[0];
-								texcoord.y = p[1];
-								p += 2;
-							}
-							break;
+							DirectX::XMFLOAT2& texcoord = mesh.vertices.at(i).texcoord;
+							texcoord.x = p[0];
+							texcoord.y = p[1];
+							p += 2;
 						}
-						case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+						break;
+					}
+					case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+					{
+						const uint8_t* p = static_cast<const uint8_t*>(vertexBuffer);
+						for (size_t i = 0; i < gltfAccessor.count; ++i)
 						{
-							const uint8_t* p = static_cast<const uint8_t*>(vertexBuffer);
-							for (size_t i = 0; i < gltfAccessor.count; ++i)
-							{
-								DirectX::XMFLOAT2& texcoord = mesh.vertices.at(i).texcoord;
-								texcoord.x = p[0] / static_cast<float>(0xFF);
-								texcoord.y = p[1] / static_cast<float>(0xFF);
-								p += 2;
-							}
-							break;
+							DirectX::XMFLOAT2& texcoord = mesh.vertices.at(i).texcoord;
+							texcoord.x = p[0] / static_cast<float>(0xFF);
+							texcoord.y = p[1] / static_cast<float>(0xFF);
+							p += 2;
 						}
-						case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+						break;
+					}
+					case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+					{
+						const uint16_t* p = static_cast<const uint16_t*>(vertexBuffer);
+						for (size_t i = 0; i < gltfAccessor.count; ++i)
 						{
-							const uint16_t* p = static_cast<const uint16_t*>(vertexBuffer);
-							for (size_t i = 0; i < gltfAccessor.count; ++i)
-							{
-								DirectX::XMFLOAT2& texcoord = mesh.vertices.at(i).texcoord;
-								texcoord.x = p[0] / static_cast<float>(0xFFFF);
-								texcoord.y = p[1] / static_cast<float>(0xFFFF);
-								p += 2;
-							}
-							break;
+							DirectX::XMFLOAT2& texcoord = mesh.vertices.at(i).texcoord;
+							texcoord.x = p[0] / static_cast<float>(0xFFFF);
+							texcoord.y = p[1] / static_cast<float>(0xFFFF);
+							p += 2;
 						}
-						default:
-						{
-							_ASSERT_EXPR(0, L"");
-							continue;
-						}
+						break;
+					}
+					default:
+					{
+						_ASSERT_EXPR(0, L"");
+						continue;
+					}
 					}
 				}
 				else if (gltfAttribute.first == "JOINTS_0")
 				{
 					switch (gltfAccessor.componentType)
 					{
-						case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+					case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+					{
+						const uint8_t* p = static_cast<const uint8_t*>(vertexBuffer);
+						for (size_t i = 0; i < gltfAccessor.count; ++i)
 						{
-							const uint8_t* p = static_cast<const uint8_t*>(vertexBuffer);
-							for (size_t i = 0; i < gltfAccessor.count; ++i)
-							{
-								DirectX::XMUINT4& boneIndex = mesh.vertices.at(i).boneIndex;
-								boneIndex.x = p[0];
-								boneIndex.y = p[1];
-								boneIndex.z = p[2];
-								boneIndex.w = p[3];
-								p += 4;
-							}
-							break;
+							DirectX::XMUINT4& boneIndex = mesh.vertices.at(i).boneIndex;
+							boneIndex.x = p[0];
+							boneIndex.y = p[1];
+							boneIndex.z = p[2];
+							boneIndex.w = p[3];
+							p += 4;
 						}
-						case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+						break;
+					}
+					case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+					{
+						const uint16_t* p = static_cast<const uint16_t*>(vertexBuffer);
+						for (size_t i = 0; i < gltfAccessor.count; ++i)
 						{
-							const uint16_t* p = static_cast<const uint16_t*>(vertexBuffer);
-							for (size_t i = 0; i < gltfAccessor.count; ++i)
-							{
-								DirectX::XMUINT4& boneIndex = mesh.vertices.at(i).boneIndex;
-								boneIndex.x = p[0];
-								boneIndex.y = p[1];
-								boneIndex.z = p[2];
-								boneIndex.w = p[3];
-								p += 4;
-							}
-							break;
+							DirectX::XMUINT4& boneIndex = mesh.vertices.at(i).boneIndex;
+							boneIndex.x = p[0];
+							boneIndex.y = p[1];
+							boneIndex.z = p[2];
+							boneIndex.w = p[3];
+							p += 4;
 						}
-						default:
-						{
-							_ASSERT_EXPR(0, L"");
-							continue;
-						}
+						break;
+					}
+					default:
+					{
+						_ASSERT_EXPR(0, L"");
+						continue;
+					}
 					}
 				}
 				else if (gltfAttribute.first == "WEIGHTS_0")
 				{
 					switch (gltfAccessor.componentType)
 					{
-						case TINYGLTF_COMPONENT_TYPE_FLOAT:
+					case TINYGLTF_COMPONENT_TYPE_FLOAT:
+					{
+						const float* p = static_cast<const float*>(vertexBuffer);
+						for (size_t i = 0; i < gltfAccessor.count; ++i)
 						{
-							const float* p = static_cast<const float*>(vertexBuffer);
-							for (size_t i = 0; i < gltfAccessor.count; ++i)
-							{
-								DirectX::XMFLOAT4& boneWeights = mesh.vertices.at(i).boneWeight;
-								boneWeights.x = p[0];
-								boneWeights.y = p[1];
-								boneWeights.z = p[2];
-								boneWeights.w = p[3];
-								p += 4;
-							}
-							break;
+							DirectX::XMFLOAT4& boneWeights = mesh.vertices.at(i).boneWeight;
+							boneWeights.x = p[0];
+							boneWeights.y = p[1];
+							boneWeights.z = p[2];
+							boneWeights.w = p[3];
+							p += 4;
 						}
-						case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+						break;
+					}
+					case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+					{
+						const uint8_t* p = static_cast<const uint8_t*>(vertexBuffer);
+						for (size_t i = 0; i < gltfAccessor.count; ++i)
 						{
-							const uint8_t* p = static_cast<const uint8_t*>(vertexBuffer);
-							for (size_t i = 0; i < gltfAccessor.count; ++i)
-							{
-								DirectX::XMFLOAT4& boneWeights = mesh.vertices.at(i).boneWeight;
-								boneWeights.x = p[0] / static_cast<float>(0xFF);
-								boneWeights.y = p[1] / static_cast<float>(0xFF);
-								boneWeights.z = p[2] / static_cast<float>(0xFF);
-								boneWeights.w = p[3] / static_cast<float>(0xFF);
-								p += 4;
-							}
-							break;
+							DirectX::XMFLOAT4& boneWeights = mesh.vertices.at(i).boneWeight;
+							boneWeights.x = p[0] / static_cast<float>(0xFF);
+							boneWeights.y = p[1] / static_cast<float>(0xFF);
+							boneWeights.z = p[2] / static_cast<float>(0xFF);
+							boneWeights.w = p[3] / static_cast<float>(0xFF);
+							p += 4;
 						}
-						case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+						break;
+					}
+					case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+					{
+						const uint16_t* p = static_cast<const uint16_t*>(vertexBuffer);
+						for (size_t i = 0; i < gltfAccessor.count; ++i)
 						{
-							const uint16_t* p = static_cast<const uint16_t*>(vertexBuffer);
-							for (size_t i = 0; i < gltfAccessor.count; ++i)
-							{
-								DirectX::XMFLOAT4& boneWeights = mesh.vertices.at(i).boneWeight;
-								boneWeights.x = p[0] / static_cast<float>(0xFFFF);
-								boneWeights.y = p[1] / static_cast<float>(0xFFFF);
-								boneWeights.z = p[2] / static_cast<float>(0xFFFF);
-								boneWeights.w = p[3] / static_cast<float>(0xFFFF);
-								p += 4;
-							}
-							break;
+							DirectX::XMFLOAT4& boneWeights = mesh.vertices.at(i).boneWeight;
+							boneWeights.x = p[0] / static_cast<float>(0xFFFF);
+							boneWeights.y = p[1] / static_cast<float>(0xFFFF);
+							boneWeights.z = p[2] / static_cast<float>(0xFFFF);
+							boneWeights.w = p[3] / static_cast<float>(0xFFFF);
+							p += 4;
 						}
-						default:
-						{
-							_ASSERT_EXPR(0, L"");
-							continue;
-						}
+						break;
+					}
+					default:
+					{
+						_ASSERT_EXPR(0, L"");
+						continue;
+					}
 					}
 				}
 			}
@@ -405,106 +405,106 @@ void GLTFImporter::LoadMaterials(MaterialList& materials, ID3D11Device* device)
 		}
 
 		auto loadTexture = [&](int gltfTextureIndex, const char* textureType, std::string& textureFilename, ID3D11ShaderResourceView** srv)
-		{
-			if (gltfTextureIndex < 0) return;
-
-			const tinygltf::Texture& gltfTexture = gltfModel.textures.at(gltfTextureIndex);
-			const tinygltf::Image& gltfImage = gltfModel.images.at(gltfTexture.source);
-			if (gltfImage.bufferView >= 0 || !gltfImage.image.empty())
 			{
-				if (device != nullptr)
+				if (gltfTextureIndex < 0) return;
+
+				const tinygltf::Texture& gltfTexture = gltfModel.textures.at(gltfTextureIndex);
+				const tinygltf::Image& gltfImage = gltfModel.images.at(gltfTexture.source);
+				if (gltfImage.bufferView >= 0 || !gltfImage.image.empty())
 				{
-					if (gltfImage.bufferView >= 0)
-					{
-						const tinygltf::BufferView& gltfBufferView = gltfModel.bufferViews.at(gltfImage.bufferView);
-						const tinygltf::Buffer& gltfBuffer = gltfModel.buffers.at(gltfBufferView.buffer);
-						const byte* data = gltfBuffer.data.data() + gltfBufferView.byteOffset;
-						GpuResourceUtils::LoadTexture(device, data, gltfBufferView.byteLength, srv);
-					}
-					else
-					{
-						HRESULT hr = GpuResourceUtils::LoadTexture(device, gltfImage.image.data(), gltfImage.image.size(), srv);
-						if (FAILED(hr))
-						{
-							D3D11_TEXTURE2D_DESC desc = { 0 };
-							desc.Width = gltfImage.width;
-							desc.Height = gltfImage.height;
-							desc.MipLevels = 1;
-							desc.ArraySize = 1;
-							desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-							desc.SampleDesc.Count = 1;
-							desc.SampleDesc.Quality = 0;
-							desc.Usage = D3D11_USAGE_DEFAULT;
-							desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-							desc.CPUAccessFlags = 0;
-							desc.MiscFlags = 0;
-							D3D11_SUBRESOURCE_DATA data;
-							::memset(&data, 0, sizeof(data));
-							data.pSysMem = gltfImage.image.data();
-							data.SysMemPitch = gltfImage.width * (gltfImage.bits / 8);
-
-							Microsoft::WRL::ComPtr<ID3D11Texture2D>	texture;
-							HRESULT hr = device->CreateTexture2D(&desc, &data, texture.GetAddressOf());
-							_ASSERT_EXPR(SUCCEEDED(hr), HRTrace(hr));
-
-							hr = device->CreateShaderResourceView(texture.Get(), nullptr, srv);
-							_ASSERT_EXPR(SUCCEEDED(hr), HRTrace(hr));
-						}
-					}
-				}
-				else
-				{
-					// テクスチャファイルパス作成
-					std::filesystem::path textureFilePath(gltfImage.uri);
-					if (textureFilePath == "")
-					{
-						// テクスチャファイル名がなかった場合はマテリアル名とテクスチャタイプから作成
-						std::string extension(std::filesystem::path(gltfImage.mimeType).filename().string());
-						textureFilePath = material.name + "_" + textureType + "." + extension;
-					}
-					textureFilePath = "Textures" / textureFilePath.filename();
-
-					// 埋め込みテクスチャを出力するディレクトリを確認
-					std::filesystem::path outputDirPath(dirpath / textureFilePath.parent_path());
-					if (!std::filesystem::exists(outputDirPath))
-					{
-						// なかったらディレクトリ作成
-						std::filesystem::create_directories(outputDirPath);
-					}
-					// 出力ディレクトリに画像ファイルを保存
-					std::filesystem::path outputFilePath(dirpath / textureFilePath);
-					if (!std::filesystem::exists(outputFilePath))
+					if (device != nullptr)
 					{
 						if (gltfImage.bufferView >= 0)
 						{
 							const tinygltf::BufferView& gltfBufferView = gltfModel.bufferViews.at(gltfImage.bufferView);
 							const tinygltf::Buffer& gltfBuffer = gltfModel.buffers.at(gltfBufferView.buffer);
 							const byte* data = gltfBuffer.data.data() + gltfBufferView.byteOffset;
-
-							std::ofstream os(outputFilePath.string().c_str(), std::ios::binary);
-							os.write(reinterpret_cast<const char*>(data), gltfBufferView.byteLength);
+							GpuResourceUtils::LoadTexture(device, data, gltfBufferView.byteLength, srv);
 						}
 						else
 						{
-							// リニアな画像データは.pngで出力
-							textureFilePath = textureFilePath.replace_extension(".png");
-							stbi_write_png(
-								outputFilePath.string().c_str(),
-								static_cast<int>(gltfImage.width),
-								static_cast<int>(gltfImage.height),
-								static_cast<int>(sizeof(uint32_t)),
-								gltfImage.image.data(), 0);
+							HRESULT hr = GpuResourceUtils::LoadTexture(device, gltfImage.image.data(), gltfImage.image.size(), srv);
+							if (FAILED(hr))
+							{
+								D3D11_TEXTURE2D_DESC desc = { 0 };
+								desc.Width = gltfImage.width;
+								desc.Height = gltfImage.height;
+								desc.MipLevels = 1;
+								desc.ArraySize = 1;
+								desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+								desc.SampleDesc.Count = 1;
+								desc.SampleDesc.Quality = 0;
+								desc.Usage = D3D11_USAGE_DEFAULT;
+								desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+								desc.CPUAccessFlags = 0;
+								desc.MiscFlags = 0;
+								D3D11_SUBRESOURCE_DATA data;
+								::memset(&data, 0, sizeof(data));
+								data.pSysMem = gltfImage.image.data();
+								data.SysMemPitch = gltfImage.width * (gltfImage.bits / 8);
+
+								Microsoft::WRL::ComPtr<ID3D11Texture2D>	texture;
+								HRESULT hr = device->CreateTexture2D(&desc, &data, texture.GetAddressOf());
+								_ASSERT_EXPR(SUCCEEDED(hr), HRTrace(hr));
+
+								hr = device->CreateShaderResourceView(texture.Get(), nullptr, srv);
+								_ASSERT_EXPR(SUCCEEDED(hr), HRTrace(hr));
+							}
 						}
 					}
-					// テクスチャファイルパスを格納
-					textureFilename = textureFilePath.string();
+					else
+					{
+						// テクスチャファイルパス作成
+						std::filesystem::path textureFilePath(gltfImage.uri);
+						if (textureFilePath == "")
+						{
+							// テクスチャファイル名がなかった場合はマテリアル名とテクスチャタイプから作成
+							std::string extension(std::filesystem::path(gltfImage.mimeType).filename().string());
+							textureFilePath = material.name + "_" + textureType + "." + extension;
+						}
+						textureFilePath = "Textures" / textureFilePath.filename();
+
+						// 埋め込みテクスチャを出力するディレクトリを確認
+						std::filesystem::path outputDirPath(dirpath / textureFilePath.parent_path());
+						if (!std::filesystem::exists(outputDirPath))
+						{
+							// なかったらディレクトリ作成
+							std::filesystem::create_directories(outputDirPath);
+						}
+						// 出力ディレクトリに画像ファイルを保存
+						std::filesystem::path outputFilePath(dirpath / textureFilePath);
+						if (!std::filesystem::exists(outputFilePath))
+						{
+							if (gltfImage.bufferView >= 0)
+							{
+								const tinygltf::BufferView& gltfBufferView = gltfModel.bufferViews.at(gltfImage.bufferView);
+								const tinygltf::Buffer& gltfBuffer = gltfModel.buffers.at(gltfBufferView.buffer);
+								const byte* data = gltfBuffer.data.data() + gltfBufferView.byteOffset;
+
+								std::ofstream os(outputFilePath.string().c_str(), std::ios::binary);
+								os.write(reinterpret_cast<const char*>(data), gltfBufferView.byteLength);
+							}
+							else
+							{
+								// リニアな画像データは.pngで出力
+								textureFilePath = textureFilePath.replace_extension(".png");
+								stbi_write_png(
+									outputFilePath.string().c_str(),
+									static_cast<int>(gltfImage.width),
+									static_cast<int>(gltfImage.height),
+									static_cast<int>(sizeof(uint32_t)),
+									gltfImage.image.data(), 0);
+							}
+						}
+						// テクスチャファイルパスを格納
+						textureFilename = textureFilePath.string();
+					}
 				}
-			}
-			else
-			{
-				textureFilename = gltfImage.uri;
-			}
-		};
+				else
+				{
+					textureFilename = gltfImage.uri;
+				}
+			};
 		loadTexture(gltfMaterial.pbrMetallicRoughness.baseColorTexture.index, "Base", material.baseTextureFileName, material.baseMap.GetAddressOf());
 		loadTexture(gltfMaterial.normalTexture.index, "Normal", material.normalTextureFileName, material.normalMap.GetAddressOf());
 		loadTexture(gltfMaterial.emissiveTexture.index, "Emissive", material.emissiveTextureFileName, material.emissiveMap.GetAddressOf());
@@ -821,7 +821,6 @@ void GLTFImporter::ComputeTangents(std::vector<Model::Vertex>& vertices, const s
 	size_t vertexCount = vertices.size();
 	std::unique_ptr<DirectX::XMFLOAT3[]> tan1 = std::make_unique<DirectX::XMFLOAT3[]>(vertexCount);
 	std::unique_ptr<DirectX::XMFLOAT3[]> tan2 = std::make_unique<DirectX::XMFLOAT3[]>(vertexCount);
-	std::unique_ptr<DirectX::XMFLOAT4[]> tangent = std::make_unique<DirectX::XMFLOAT4[]>(vertexCount);
 
 	for (size_t i = 0; i < indices.size(); i += 3)
 	{
@@ -839,19 +838,32 @@ void GLTFImporter::ComputeTangents(std::vector<Model::Vertex>& vertices, const s
 		const float y2 = v3.position.y - v1.position.y;
 		const float z1 = v2.position.z - v1.position.z;
 		const float z2 = v3.position.z - v1.position.z;
+
 		const float s1 = v2.texcoord.x - v1.texcoord.x;
 		const float s2 = v3.texcoord.x - v1.texcoord.x;
 		const float t1 = v2.texcoord.y - v1.texcoord.y;
 		const float t2 = v3.texcoord.y - v1.texcoord.y;
-		const float r = 1.0f / (s1 * t2 - s2 * t1);
+
+		// ---> BUG PREVENTION: The Divide-By-Zero Guard <---
+		float det = (s1 * t2 - s2 * t1);
+		float r = 0.0f;
+
+		// Only perform division if the UV area is larger than a microscopic threshold
+		if (std::abs(det) > 0.0001f)
+		{
+			r = 1.0f / det;
+		}
+
 		const DirectX::XMFLOAT3 sdir = { (t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r, (t2 * z1 - t1 * z2) * r };
 		const DirectX::XMFLOAT3 tdir = { (s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r, (s1 * z2 - s2 * z1) * r };
+
 		tan1[i1] = { tan1[i1].x + sdir.x, tan1[i1].y + sdir.y, tan1[i1].z + sdir.z };
 		tan1[i2] = { tan1[i2].x + sdir.x, tan1[i2].y + sdir.y, tan1[i2].z + sdir.z };
 		tan1[i3] = { tan1[i3].x + sdir.x, tan1[i3].y + sdir.y, tan1[i3].z + sdir.z };
-		tan2[i1] = { tan2[i1].x + sdir.x, tan2[i1].y + sdir.y, tan2[i1].z + sdir.z };
-		tan2[i2] = { tan2[i2].x + sdir.x, tan2[i2].y + sdir.y, tan2[i2].z + sdir.z };
-		tan2[i3] = { tan2[i3].x + sdir.x, tan2[i3].y + sdir.y, tan2[i3].z + sdir.z };
+
+		tan2[i1] = { tan2[i1].x + tdir.x, tan2[i1].y + tdir.y, tan2[i1].z + tdir.z };
+		tan2[i2] = { tan2[i2].x + tdir.x, tan2[i2].y + tdir.y, tan2[i2].z + tdir.z };
+		tan2[i3] = { tan2[i3].x + tdir.x, tan2[i3].y + tdir.y, tan2[i3].z + tdir.z };
 	}
 
 	for (size_t i = 0; i < vertexCount; ++i)
@@ -862,7 +874,19 @@ void GLTFImporter::ComputeTangents(std::vector<Model::Vertex>& vertices, const s
 		DirectX::XMVECTOR T1 = DirectX::XMLoadFloat3(&tan1[i]);
 
 		// Gram-Schmidt orthogonalize        
-		DirectX::XMVECTOR T = DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(T1, DirectX::XMVectorScale(N, DirectX::XMVectorGetX(DirectX::XMVector3Dot(N, T1)))));
+		DirectX::XMVECTOR T = DirectX::XMVectorSubtract(T1, DirectX::XMVectorScale(N, DirectX::XMVectorGetX(DirectX::XMVector3Dot(N, T1))));
+
+		// ---> BUG PREVENTION: Zero Vector Guard <---
+		// If the tangent is a zero vector, normalizing it will cause another NaN crash!
+		if (DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(T)) > 0.0001f)
+		{
+			T = DirectX::XMVector3Normalize(T);
+		}
+		else
+		{
+			// Safe fallback tangent (pointing right) if math fails
+			T = DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+		}
 
 		// Calculate handedness        
 		DirectX::XMVECTOR T2 = DirectX::XMLoadFloat3(&tan2[i]);
