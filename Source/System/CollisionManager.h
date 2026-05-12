@@ -44,6 +44,7 @@ public:
     bool GetParryableProjectile(const DirectX::XMFLOAT3& playerPos, float threshold, class Bullet** outBullet, Enemy** outNearestEnemy);
     void SetNavi(NaviAlly* navi) { m_navi = navi; }
     void SetNaviBoss(NaviBoss* naviBoss) { m_naviBoss = naviBoss; }
+    NaviBoss* GetNaviBoss() const { return m_naviBoss; }
 
 private:
     void CheckPlayerVsCheckpointLines();
@@ -58,6 +59,7 @@ private:
     void CheckBossFilesVsPlayer();
     void CheckNaviProjectilesVsEnemies(float elapsedTime);
     void CheckNaviBossProjectilesVsPlayer(float elapsedTime);
+    void CheckNaviBossProjectilesVsBoss(float elapsedTime); // Fungsi pantulan
 
     Player* m_player = nullptr;
     Stage* m_stage = nullptr;

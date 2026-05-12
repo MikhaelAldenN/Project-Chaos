@@ -4,6 +4,11 @@
 #include "System/Graphics.h"
 #include <SDL3/SDL.h>
 
+#include "System/Input.h"
+#include "Player.h"
+#include "StateMachine.h"
+#include "PlayerStates.h"
+
 void NaviPhaseNormal::Enter(NaviBoss* boss) {
     // (Logika Borderless Fullscreen sama)
     int screenW = GetSystemMetrics(SM_CXSCREEN);
@@ -93,6 +98,49 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
         }
     }
 
+    // =========================================================
+        // LOGIKA RHYTHM LASER PARRY (GHOST BULLET SYSTEM)
+        // =========================================================
+    if (m_isLaserLocked && m_laserTargetPlayer) {
+        m_laserTimer += dt;
+        bool ghostExists = false;
+
+        // 1. Cari Ghost Bullet dan tempelkan terus ke dada player
+        for (auto& bullet : m_bulletPool) {
+            if (bullet->IsActive()) {
+                DirectX::XMFLOAT3 vel = bullet->GetVelocity();
+                float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
+
+                if (speedSq < 0.01f) { // Jika kecepatannya 0 (Hantu)
+                    ghostExists = true;
+                    DirectX::XMFLOAT3 pPos = m_laserTargetPlayer->GetPosition();
+                    pPos.y += 1.0f;
+                    bullet->GetMovement()->SetPosition(pPos); // Sinkronisasi posisi
+                    break;
+                }
+            }
+        }
+
+        // 2. Evaluasi Status Laser
+        if (!ghostExists) {
+            // Jika hantu hilang (Artinya player berhasil mem-Parry-nya hingga kecepatannya tidak 0 lagi!)
+            m_isLaserLocked = false;
+        }
+        else if (m_laserTimer > m_params.laserDuration) {
+            // Waktu habis dan hantu masih ada (Gagal Parry!)
+            m_isLaserLocked = false;
+            m_laserTargetPlayer->TakeDamage(m_params.laserDamage);
+
+            // Bersihkan hantunya agar layar bersih
+            for (auto& bullet : m_bulletPool) {
+                if (bullet->IsActive()) {
+                    DirectX::XMFLOAT3 vel = bullet->GetVelocity();
+                    if ((vel.x * vel.x + vel.z * vel.z) < 0.01f) bullet->SetActive(false);
+                }
+            }
+        }
+    }
+
     // --- 2. Update & Recycle ---
     float distSq = m_params.despawnDist * m_params.despawnDist;
     for (auto& bullet : m_bulletPool) {
@@ -146,9 +194,68 @@ void NaviPhaseNormal::FireRadialBurst(NaviBoss* boss, float angleOffset) {
 void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {
     if (!currentCamera) return;
     auto renderer = Graphics::Instance().GetModelRenderer();
+    auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
+
     for (auto& bullet : m_bulletPool) {
-        if (bullet->IsActive()) renderer->Draw(ShaderId::Phong, bullet->GetModel(), m_params.color);
+        if (bullet->IsActive()) {
+            DirectX::XMFLOAT3 vel = bullet->GetVelocity();
+            float speedSq = vel.x * vel.x + vel.z * vel.z;
+
+            // [FIX] JANGAN RENDER GHOST BULLET! (Kecepatan 0)
+            if (speedSq < 0.01f) continue;
+
+            DirectX::XMFLOAT4 renderColor = m_params.color;
+            if (speedSq > 900.0f) renderColor = { 0.0f, 1.0f, 1.0f, 1.0f }; // Cyan Counter
+
+            renderer->Draw(ShaderId::Phong, bullet->GetModel(), renderColor);
+        }
+    }
+
+    // =========================================================
+    // [NEW] RENDER VISUAL RITME LASER (BOLA MENYUSUT)
+    // =========================================================
+    if (m_isLaserLocked && m_laserTargetPlayer) {
+        DirectX::XMFLOAT3 pPos = m_laserTargetPlayer->GetPosition();
+        pPos.y += 1.0f; // Setinggi dada player
+
+        // A. Gambar Bola Target (Kecil, Cyan)
+        shapeRenderer->DrawSphere(pPos, m_params.laserTargetRadius, { 0.0f, 1.0f, 1.0f, 1.0f });
+
+        // B. Hitung ukuran Bola Menyusut (Interpolasi / Lerp manual)
+        float t = m_laserTimer / m_params.laserDuration;
+        if (t > 1.0f) t = 1.0f;
+        float currentRadius = m_params.laserStartRadius + (m_params.laserTargetRadius - m_params.laserStartRadius) * t;
+
+        // C. Visual Feedback Timing (Bola menyusut berubah putih jika masuk zona Parry!)
+        DirectX::XMFLOAT4 shrinkColor = { 1.0f, 0.0f, 0.0f, 1.0f }; // Merah (Belum pas)
+        float timeDiff = std::abs(m_laserTimer - m_params.laserDuration);
+        if (timeDiff <= m_params.laserParryWindow) {
+            shrinkColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // Putih Menyala! (TEKAN SPACE SEKARANG!)
+        }
+
+        shapeRenderer->DrawSphere(pPos, currentRadius, shrinkColor);
     }
 }
 
 void NaviPhaseNormal::Exit(NaviBoss* boss) { m_bulletPool.clear(); }
+
+void NaviPhaseNormal::TriggerLockingLaser(Player* targetPlayer) {
+    if (!m_isLaserLocked && targetPlayer) {
+        m_isLaserLocked = true;
+        m_laserTimer = 0.0f;
+        m_laserTargetPlayer = targetPlayer;
+
+        // =========================================================
+        // [MAGIC] SPAWN THE GHOST BULLET
+        // =========================================================
+        for (auto& bullet : m_bulletPool) {
+            if (!bullet->IsActive()) {
+                DirectX::XMFLOAT3 pPos = targetPlayer->GetPosition();
+                pPos.y += 1.0f;
+                // Tembakkan peluru dengan kecepatan 0.0f (Hantu diam)
+                bullet->Fire(pPos, { 0.0f, 0.0f, 1.0f }, 0.0f);
+                break;
+            }
+        }
+    }
+}

@@ -10,6 +10,7 @@
 #include "System/CollisionManager.h"
 #include "Enemy.h"
 #include "Bullet.h"
+#include "NaviBoss.h"
 
 using namespace DirectX;
 
@@ -76,12 +77,22 @@ void PlayerIdle::Update(Player* player, float dt)
                     player->SetAimLocked(true);
                 }
 
-                // Logika Homing Deflection
-                parryBullet->SetHomingTarget(parryTarget);
-                XMFLOAT3 tPos = parryTarget->GetPosition();
-                XMVECTOR vDir = XMVector3Normalize(XMLoadFloat3(&tPos) - XMLoadFloat3(&bPos));
-                float speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
+                XMFLOAT3 tPos;
+                float speed = 40.0f; // Kecepatan khusus Counter Bullet
 
+                if (parryTarget) {
+                    // Jika musuh biasa, gunakan sistem homing bawaan Anda
+                    parryBullet->SetHomingTarget(parryTarget);
+                    tPos = parryTarget->GetPosition();
+                    speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
+                    if (speed < 10.0f) speed = 30.0f;
+                }
+                else if (colMgr->GetNaviBoss()) {
+                    // Jika Boss Ghost Bullet, langsung kunci ke posisi bos!
+                    tPos = colMgr->GetNaviBoss()->GetPosition();
+                }
+
+                XMVECTOR vDir = XMVector3Normalize(XMLoadFloat3(&tPos) - XMLoadFloat3(&bPos));
                 XMFLOAT3 newVel;
                 XMStoreFloat3(&newVel, vDir * speed);
                 parryBullet->ApplyMovement(bPos, newVel);
@@ -165,12 +176,22 @@ void PlayerMoving::Update(Player* player, float dt)
                     player->SetAimLocked(true);
                 }
 
-                // Logika Homing Deflection
-                parryBullet->SetHomingTarget(parryTarget);
-                XMFLOAT3 tPos = parryTarget->GetPosition();
-                XMVECTOR vDir = XMVector3Normalize(XMLoadFloat3(&tPos) - XMLoadFloat3(&bPos));
-                float speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
+                XMFLOAT3 tPos;
+                float speed = 40.0f; // Kecepatan khusus Counter Bullet
 
+                if (parryTarget) {
+                    // Jika musuh biasa, gunakan sistem homing bawaan Anda
+                    parryBullet->SetHomingTarget(parryTarget);
+                    tPos = parryTarget->GetPosition();
+                    speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
+                    if (speed < 10.0f) speed = 30.0f;
+                }
+                else if (colMgr->GetNaviBoss()) {
+                    // Jika Boss Ghost Bullet, langsung kunci ke posisi bos!
+                    tPos = colMgr->GetNaviBoss()->GetPosition();
+                }
+
+                XMVECTOR vDir = XMVector3Normalize(XMLoadFloat3(&tPos) - XMLoadFloat3(&bPos));
                 XMFLOAT3 newVel;
                 XMStoreFloat3(&newVel, vDir * speed);
                 parryBullet->ApplyMovement(bPos, newVel);

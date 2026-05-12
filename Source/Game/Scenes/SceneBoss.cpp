@@ -780,6 +780,13 @@ void SceneBoss::DrawGUI()
                 ImGui::SliderFloat("Fan Wave Delay", &p.fanWaveDelay, 0.05f, 1.0f);
                 ImGui::SliderFloat("Fan Spread Angle", &p.fanSpreadAngle, 0.05f, 0.5f);
 
+                // --- UI BARU UNTUK RHYTHM LASER ---
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0, 1, 1, 1), "--- Rhythm Laser Settings ---");
+                ImGui::SliderFloat("Laser Duration", &p.laserDuration, 0.5f, 4.0f);
+                ImGui::SliderFloat("Parry Window (+/- sec)", &p.laserParryWindow, 0.05f, 0.5f);
+                ImGui::SliderInt("Laser Damage", &p.laserDamage, 10, 50);
+
                 ImGui::Separator();
                 ImGui::TextColored(ImVec4(1, 0, 0, 1), "--- Manual Triggers ---");
 
@@ -796,6 +803,14 @@ void SceneBoss::DrawGUI()
                 if (ImGui::Button("FIRE TARGETED FAN BURST", ImVec2(-1.0f, 40.0f))) {
                     if (m_player) {
                         normalPhase->TriggerFanAttack(m_navi.get(), m_player->GetPosition());
+                    }
+                }
+                ImGui::PopStyleColor();
+
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.6f, 1.0f));
+                if (ImGui::Button("FIRE LOCKING LASER (TIMING EVENT)", ImVec2(-1.0f, 40.0f))) {
+                    if (m_player) {
+                        normalPhase->TriggerLockingLaser(m_player.get());
                     }
                 }
                 ImGui::PopStyleColor();

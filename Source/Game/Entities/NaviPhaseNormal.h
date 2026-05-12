@@ -4,6 +4,8 @@
 #include <vector>
 #include <memory>
 
+class Player;
+
 // --- [CENTRALIZED PARAMETERS] ---
 struct NaviBulletParams {
     // Parameter General & Radial Burst
@@ -19,6 +21,15 @@ struct NaviBulletParams {
     int fanWaves = 5;           // Ditembakkan berapa kali
     float fanWaveDelay = 0.15f; // Jeda waktu antar wave (detik)
     float fanSpreadAngle = 0.2f;// Jarak sudut antar peluru (radian)
+
+    // ==========================================
+    // [NEW] Parameter Rhythm Laser
+    // ==========================================
+    float laserDuration = 2.0f;     // Waktu sampai lingkaran besar menyatu ke lingkaran kecil
+    float laserParryWindow = 0.15f; // Jendela toleransi (margin error) = 0.15 detik
+    float laserStartRadius = 8.0f;  // Ukuran awal lingkaran besar
+    float laserTargetRadius = 1.5f; // Ukuran lingkaran kecil (Target)
+    int laserDamage = 20;           // Damage jika gagal parry
 };
 
 class NaviPhaseNormal : public INaviPhase {
@@ -35,10 +46,13 @@ public:
     void TriggerSingleBurst();
     void TriggerDoubleBurst();
     void TriggerFanAttack(NaviBoss* boss, DirectX::XMFLOAT3 playerPos);
+    void TriggerLockingLaser(Player* targetPlayer);
 
     NaviBulletParams& GetParams() { return m_params; }
 
     std::vector<std::unique_ptr<Bullet>>& GetProjectiles() { return m_bulletPool; }
+
+    float GetLaserTimer() const { return m_laserTimer; }
 
 private:
     void FireRadialBurst(NaviBoss* boss, float angleOffset);
@@ -59,4 +73,12 @@ private:
     int m_fanWavesFired = 0;
     float m_fanTimer = 0.0f;
     float m_lockedBaseAngle = 0.0f; // Menyimpan posisi terakhir player
+
+    // ==========================================
+    // [NEW] State Rhythm Laser
+    // ==========================================
+    bool m_isLaserLocked = false;
+    float m_laserTimer = 0.0f;
+    Player* m_laserTargetPlayer = nullptr; // Pointer aman karena Player dikelola SceneBoss
+
 };

@@ -199,6 +199,7 @@ void CollisionManager::Update(float elapsedTime)
     
     CheckNaviProjectilesVsEnemies(elapsedTime);
     CheckNaviBossProjectilesVsPlayer(elapsedTime);
+    CheckNaviBossProjectilesVsBoss(elapsedTime);
 }
 
 void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
@@ -802,44 +803,82 @@ bool CollisionManager::GetTargetInSlashRange(const XMFLOAT3& playerPos, float re
 
 bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float threshold, Bullet** outBullet, Enemy** outNearestEnemy)
 {
-    if (!m_enemyManager) return false;
-
-    for (auto& enemy : m_enemyManager->GetEnemies())
+    // 1. Cek Musuh Biasa (JIKA ADA)
+    if (m_enemyManager)
     {
-        if (enemy->GetAttackType() != AttackType::Tracking) continue;
-
-        for (auto& bullet : enemy->GetProjectiles())
+        for (auto& enemy : m_enemyManager->GetEnemies())
         {
-            if (!bullet->IsActive()) continue;
+            if (enemy->GetAttackType() != AttackType::Tracking) continue;
 
-            XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
-
-            if (CheckSphereCollision(playerPos, bPos, threshold))
+            for (auto& bullet : enemy->GetProjectiles())
             {
-                if (outBullet) *outBullet = bullet.get();
+                if (!bullet->IsActive()) continue;
 
-                // Cari musuh terdekat untuk dijadikan target homing parry
-                Enemy* nearest = nullptr;
-                float closestDistSq = 999999.0f;
-                for (auto& potential : m_enemyManager->GetEnemies())
+                XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+
+                if (CheckSphereCollision(playerPos, bPos, threshold))
                 {
-                    if (!potential->IsActive()) continue;
-                    XMFLOAT3 targetPos = potential->GetPosition();
-                    float distSq = pow(playerPos.x - targetPos.x, 2) + pow(playerPos.z - targetPos.z, 2);
-                    if (distSq < closestDistSq) {
-                        closestDistSq = distSq;
-                        nearest = potential.get();
-                    }
-                }
-                if (outNearestEnemy) *outNearestEnemy = nearest ? nearest : enemy.get();
+                    if (outBullet) *outBullet = bullet.get();
 
-                return true;
+                    // Cari musuh terdekat untuk dijadikan target homing parry
+                    Enemy* nearest = nullptr;
+                    float closestDistSq = 999999.0f;
+                    for (auto& potential : m_enemyManager->GetEnemies())
+                    {
+                        if (!potential->IsActive()) continue;
+                        XMFLOAT3 targetPos = potential->GetPosition();
+                        float distSq = pow(playerPos.x - targetPos.x, 2) + pow(playerPos.z - targetPos.z, 2);
+                        if (distSq < closestDistSq) {
+                            closestDistSq = distSq;
+                            nearest = potential.get();
+                        }
+                    }
+                    if (outNearestEnemy) *outNearestEnemy = nearest ? nearest : enemy.get();
+
+                    return true;
+                }
             }
         }
     }
+
+    // =========================================================
+    // 2. DETEKSI GHOST BULLET NAVI BOSS
+    // =========================================================
+    if (m_naviBoss)
+    {
+        auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_naviBoss->GetCurrentPhase());
+        if (normalPhase)
+        {
+            for (auto& bullet : normalPhase->GetProjectiles())
+            {
+                if (!bullet->IsActive()) continue;
+
+                DirectX::XMFLOAT3 vel = bullet->GetVelocity();
+                float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
+
+                // Jika ini adalah Ghost Bullet (Kecepatan 0)
+                if (speedSq < 0.01f)
+                {
+                    // Cek apakah pemain menekan Space di dalam Jendela Timing yang pas!
+                    float timeDiff = std::abs(normalPhase->GetLaserTimer() - normalPhase->GetParams().laserDuration);
+                    if (timeDiff <= normalPhase->GetParams().laserParryWindow)
+                    {
+                        XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+                        if (CheckSphereCollision(playerPos, bPos, threshold))
+                        {
+                            if (outBullet) *outBullet = bullet.get();
+                            // Kirim nullptr agar PlayerStates tahu targetnya adalah NaviBoss!
+                            if (outNearestEnemy) *outNearestEnemy = nullptr;
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     return false;
 }
-
 void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
 {
     // Cek apakah player masih hidup dan tidak sedang I-Frame (Dash)
@@ -861,6 +900,10 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
 
         DirectX::XMFLOAT3 currentPos = bullet->GetMovement()->GetPosition();
         DirectX::XMFLOAT3 vel = bullet->GetVelocity();
+        float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
+
+        if (speedSq > 900.0f) continue; // Abaikan Counter Bullet
+        if (speedSq < 0.01f) continue;  // [NEW] Abaikan Ghost Bullet (Biar gak instant kill)
 
         // ---> CCD MATH: Kalkulasi posisi frame sebelumnya untuk mencegah Tunneling
         DirectX::XMFLOAT3 prevPos = {
@@ -889,6 +932,35 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
                 m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
             }
             break; // Break agar player tidak kena 2 damage sekaligus di frame yang sama
+        }
+    }
+}
+
+void CollisionManager::CheckNaviBossProjectilesVsBoss(float elapsedTime)
+{
+    if (!m_naviBoss) return;
+    auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_naviBoss->GetCurrentPhase());
+    if (!normalPhase) return;
+
+    for (auto& bullet : normalPhase->GetProjectiles())
+    {
+        if (!bullet->IsActive()) continue;
+
+        DirectX::XMFLOAT3 vel = bullet->GetVelocity();
+        float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
+
+        // Jika kecepatannya gila (Berarti habis di-Parry Player!)
+        if (speedSq > 900.0f)
+        {
+            DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+            DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();
+
+            // Hitbox Boss besar (3.0f)
+            if (CheckSphereCollision(bPos, bossPos, 3.0f))
+            {
+                m_naviBoss->TakeDamage(30); // Boss Kena Parry Damage!
+                bullet->SetActive(false);
+            }
         }
     }
 }
