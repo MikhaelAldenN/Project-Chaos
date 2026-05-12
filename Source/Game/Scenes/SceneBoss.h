@@ -113,6 +113,7 @@ private:
     bool      m_topmostEnabled = true;
     bool      m_playerWindowTransparent = false;
     ImVec2    m_debugPanelSize = { 450.0f, 750.0f };
+    bool      m_showHitboxes = true; // <--- TAMBAHKAN INI (Default True)
 
     // Terminal log (capped at 50 lines)
     std::vector<std::string> m_debugLogs;

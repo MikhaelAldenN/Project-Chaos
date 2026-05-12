@@ -1,4 +1,6 @@
 #include "CollisionManager.h"
+#include "NaviBoss.h"        
+#include "NaviPhaseNormal.h" 
 
 using namespace DirectX;
 
@@ -196,6 +198,7 @@ void CollisionManager::Update(float elapsedTime)
     }
     
     CheckNaviProjectilesVsEnemies(elapsedTime);
+    CheckNaviBossProjectilesVsPlayer(elapsedTime);
 }
 
 void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
@@ -835,4 +838,57 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
         }
     }
     return false;
+}
+
+void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
+{
+    // Cek apakah player masih hidup dan tidak sedang I-Frame (Dash)
+    if (!m_naviBoss || !m_player || m_player->GetHP() <= 0 || m_player->IsInvincible()) return;
+
+    // Pastikan bos sedang berada di Fase Normal
+    auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_naviBoss->GetCurrentPhase());
+    if (!normalPhase) return;
+
+    auto& projectiles = normalPhase->GetProjectiles();
+    DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
+
+    constexpr float PLAYER_HURTBOX_RADIUS = 0.3f; // Sesuai dengan ukuran musuh biasa
+    constexpr int BOSS_BULLET_DAMAGE = 10;        // Damage per peluru
+
+    for (auto& bullet : projectiles)
+    {
+        if (!bullet || !bullet->IsActive()) continue;
+
+        DirectX::XMFLOAT3 currentPos = bullet->GetMovement()->GetPosition();
+        DirectX::XMFLOAT3 vel = bullet->GetVelocity();
+
+        // ---> CCD MATH: Kalkulasi posisi frame sebelumnya untuk mencegah Tunneling
+        DirectX::XMFLOAT3 prevPos = {
+            currentPos.x - (vel.x * elapsedTime),
+            currentPos.y - (vel.y * elapsedTime),
+            currentPos.z - (vel.z * elapsedTime)
+        };
+
+        float combinedRadius = PLAYER_HURTBOX_RADIUS + bullet->GetRadius();
+
+        // Cek garis lintasan peluru vs Posisi Player
+        float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, playerPos);
+
+        if (distToPath <= combinedRadius)
+        {
+            // KENA HIT!
+            m_player->TakeDamage(BOSS_BULLET_DAMAGE);
+            bullet->SetActive(false); // Kembalikan peluru ke Object Pool
+
+            // Cek Kematian Player
+            if (m_player->GetHP() <= 0)
+            {
+                m_player->scale = { 0.0f, 0.0f, 0.0f };
+                m_player->SetInputEnabled(false);
+                m_player->GetMovement()->SetVelocity({ 0,0,0 });
+                m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
+            }
+            break; // Break agar player tidak kena 2 damage sekaligus di frame yang sama
+        }
+    }
 }

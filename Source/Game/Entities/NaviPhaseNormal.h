@@ -34,11 +34,11 @@ public:
     // --- Attack Triggers ---
     void TriggerSingleBurst();
     void TriggerDoubleBurst();
-
-    // BARU: Membutuhkan Boss dan Posisi Player untuk mengunci target
     void TriggerFanAttack(NaviBoss* boss, DirectX::XMFLOAT3 playerPos);
 
     NaviBulletParams& GetParams() { return m_params; }
+
+    std::vector<std::unique_ptr<Bullet>>& GetProjectiles() { return m_bulletPool; }
 
 private:
     void FireRadialBurst(NaviBoss* boss, float angleOffset);

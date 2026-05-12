@@ -21,6 +21,7 @@
 class ItemManager;
 class Boss;
 class NaviAlly;
+class NaviBoss;
 
 class CollisionManager
 {
@@ -42,6 +43,7 @@ public:
     bool GetTargetInSlashRange(const DirectX::XMFLOAT3& playerPos, float reach, Enemy** outTarget);
     bool GetParryableProjectile(const DirectX::XMFLOAT3& playerPos, float threshold, class Bullet** outBullet, Enemy** outNearestEnemy);
     void SetNavi(NaviAlly* navi) { m_navi = navi; }
+    void SetNaviBoss(NaviBoss* naviBoss) { m_naviBoss = naviBoss; }
 
 private:
     void CheckPlayerVsCheckpointLines();
@@ -55,6 +57,7 @@ private:
     void CheckEnemyProjectilesFull(float elapsedTime);
     void CheckBossFilesVsPlayer();
     void CheckNaviProjectilesVsEnemies(float elapsedTime);
+    void CheckNaviBossProjectilesVsPlayer(float elapsedTime);
 
     Player* m_player = nullptr;
     Stage* m_stage = nullptr;
@@ -63,6 +66,7 @@ private:
     EnemyManager* m_enemyManager = nullptr;
     ItemManager* m_itemManager = nullptr;
     NaviAlly* m_navi = nullptr;
+    NaviBoss* m_naviBoss = nullptr;
 
     std::function<void(DirectX::XMFLOAT3)> m_onCheckpointReachCallback;
     std::function<void()> m_onLevelCompleteCallback = nullptr;

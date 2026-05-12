@@ -97,6 +97,10 @@ SceneBoss::SceneBoss()
     m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>());
 #endif
 
+    if (m_collisionManager) {
+        m_collisionManager->SetNaviBoss(m_navi.get());
+    }
+
     WindowManager::Instance().SetTopmost(m_topmostEnabled);
     InitializeSubWindows();
 
@@ -399,6 +403,30 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
             D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
     }
 
+    auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
+    if (m_showHitboxes)
+    {
+        // 1. Gambar Hurtbox Player (Lingkaran Hijau)
+                // Kita kunci di y=1.0f agar terlihat menonjol di badan player
+        if (m_player && m_player->GetHP() > 0) {
+            DirectX::XMFLOAT3 pPos = m_player->GetPosition();
+            pPos.y = 1.0f;
+            shapeRenderer->DrawSphere(pPos, 0.3f, { 0.0f, 1.0f, 0.0f, 1.0f });
+        }
+
+        // 2. Gambar Hitbox Peluru Navi (Lingkaran Merah)
+        if (m_navi) {
+            if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+                for (auto& bullet : normalPhase->GetProjectiles()) {
+                    if (bullet->IsActive()) {
+                        DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+                        shapeRenderer->DrawSphere(bPos, bullet->GetRadius(), { 1.0f, 0.0f, 0.0f, 1.0f });
+                    }
+                }
+            }
+        }
+    }
+
     Graphics::Instance().GetShapeRenderer()->Render(
         dc, targetCam->GetView(), targetCam->GetProjection());
 }
@@ -606,11 +634,13 @@ void SceneBoss::DrawGUI()
                     ResetEverything();
 
                 ImGui::PopStyleColor();
+
             }
 
             if (ImGui::CollapsingHeader("World & Entities", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ImGui::Checkbox("Show 3D Grid", &m_showGrid);
+                ImGui::Checkbox("Show Hitboxes/Hurtboxes", &m_showHitboxes);
 
                 if (m_player)
                 {
@@ -769,6 +799,29 @@ void SceneBoss::DrawGUI()
                     }
                 }
                 ImGui::PopStyleColor();
+
+                if (ImGui::CollapsingHeader("Player Vital Signs", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    int hp = m_player->GetHP();
+                    float hpProgress = hp / 100.0f;
+
+                    // Warna bar: Hijau jika sehat, Merah jika kritis
+                    ImVec4 barColor = { (1.0f - hpProgress), hpProgress, 0.0f, 1.0f };
+
+                    ImGui::Text("Player Health: %d / 100", hp);
+                    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, barColor);
+                    ImGui::ProgressBar(hpProgress, ImVec2(-1.0f, 25.0f));
+                    ImGui::PopStyleColor();
+
+                    if (ImGui::Button("Heal Player (Cheat)", ImVec2(-1.0f, 30.0f))) {
+                        m_player->SetMaxHP(100);
+                    }
+
+                    if (m_player->IsInvincible()) {
+                        ImGui::TextColored(ImVec4(0, 1, 1, 1), "STATUS: I-FRAME ACTIVE (DASHING)");
+                    }
+                }
+
             }
             else {
                 ImGui::Text("Attacks are only available in Normal Phase.");
@@ -877,6 +930,11 @@ void SceneBoss::ResetEverything()
     // Beri otak ke Navi agar masuk ke Mode Layar Penuh!
     m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>());
     // =========================================================
+
+    m_player->SetMaxHP(100); // Reset darah player
+    m_player->scale = { 1.0f, 1.0f, 1.0f }; // Kembalikan badan player jika tadi mati
+
+    if (m_collisionManager) m_collisionManager->SetNaviBoss(m_navi.get());
 
     // 5. Finalize
     m_timeScale = 1.0f;
