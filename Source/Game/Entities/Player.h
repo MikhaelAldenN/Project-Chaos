@@ -61,6 +61,16 @@ public:
     // --- Projectiles ---
     void FireProjectile();
     void RenderProjectiles(ModelRenderer* renderer);
+    void ResetPlayerBulletOffsets() {
+        m_playerbulletOffsetPos = { 0.0f, 0.0f, 0.0f };
+        m_playerbulletOffsetRot = { 0.0f, 0.0f, 0.0f };
+        m_playerbulletOffsetScale = { 1.0f, 1.0f, 1.0f };
+    }
+    std::shared_ptr<Model> GetPlayerBulletModel() const { return m_playerbulletModel; }
+    DirectX::XMFLOAT3* GetPlayerBulletOffsetPos() { return &m_playerbulletOffsetPos; }
+    DirectX::XMFLOAT3* GetPlayerBulletOffsetRot() { return &m_playerbulletOffsetRot; }
+    DirectX::XMFLOAT3* GetPlayerBulletOffsetScale() { return &m_playerbulletOffsetScale; }
+    DirectX::XMFLOAT4* GetPlayerBulletColor() { return &m_playerbulletColor; }
     std::deque<std::unique_ptr<Bullet>>& GetProjectiles() { return m_projectiles; }
 
     // --- Debug ---
@@ -160,6 +170,11 @@ private:
     bool m_aimLocked = false;
 
     // --- Projectile pool ---
+    std::shared_ptr<Model> m_playerbulletModel{};
+    DirectX::XMFLOAT3 m_playerbulletOffsetPos   { 0.000f, 0.460f, -0.950f };
+    DirectX::XMFLOAT3 m_playerbulletOffsetRot   { 0.000f, 0.000f, 0.000f };
+    DirectX::XMFLOAT3 m_playerbulletOffsetScale { 20.000f, 20.000f, 70.000f };
+    DirectX::XMFLOAT4 m_playerbulletColor       { 1.000f, 1.000f, 1.000f, 1.000f };
     std::deque<std::unique_ptr<Bullet>> m_projectiles;
 
     CollisionManager* m_collisionManager = nullptr;

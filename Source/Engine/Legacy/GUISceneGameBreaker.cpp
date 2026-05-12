@@ -493,7 +493,7 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGame* scene)
         ImGui::Spacing();
     }
 
-    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "Items");
+    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "ITEMS");
     ImGui::Separator();
     ImGui::Spacing();
 
@@ -520,6 +520,21 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGame* scene)
             }
             ImGui::Unindent();
         }
+    }
+
+    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "BULLET");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    if (scene->m_player)
+    {
+        if (ImGui::CollapsingHeader("Player Bullet Color", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+            ImGui::ColorEdit4("Base Color##PBColor", &scene->m_player->GetPlayerBulletColor()->x);
+            ImGui::Unindent();
+        }
+        ImGui::Spacing();
     }
 }
 
@@ -1128,6 +1143,54 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGame* scene)
                     weapon->GetOffsetPos()->x, weapon->GetOffsetPos()->y, weapon->GetOffsetPos()->z,
                     weapon->GetOffsetRot()->x, weapon->GetOffsetRot()->y, weapon->GetOffsetRot()->z,
                     weapon->GetOffsetScale()->x, weapon->GetOffsetScale()->y, weapon->GetOffsetScale()->z
+                );
+                ImGui::SetClipboardText(buffer);
+            }
+            ImGui::Unindent();
+        }
+    }
+
+    // 5. PLAYER BULLET TRANSFORM
+    ImGui::Spacing();
+    if (scene->m_player && scene->m_player->GetPlayerBulletModel())
+    {
+        if (ImGui::CollapsingHeader("Player Bullet Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+            Player* p = scene->m_player.get();
+
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "LOCAL OFFSET POSITION");
+            ImGui::DragFloat3("XYZ##PBPos", &p->GetPlayerBulletOffsetPos()->x, 0.01f);
+
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "LOCAL OFFSET ROTATION");
+            ImGui::DragFloat3("Pitch/Yaw/Roll##PBRot", &p->GetPlayerBulletOffsetRot()->x, 1.0f, -180.0f, 180.0f);
+
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE MULTIPLIER");
+            ImGui::DragFloat3("XYZ##PBScl", &p->GetPlayerBulletOffsetScale()->x, 0.01f, 0.1f, 10.0f);
+
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            if (ImGui::Button("Reset Player Bullet Transform", ImVec2(-1, 30)))
+            {
+                p->ResetPlayerBulletOffsets();
+            }
+
+            ImGui::Spacing();
+            if (ImGui::Button("Copy Bullet Code to Clipboard", ImVec2(-1, 30)))
+            {
+                char buffer[512];
+                snprintf(buffer, sizeof(buffer),
+                    "DirectX::XMFLOAT3 m_playerbulletOffsetPos   { %.3ff, %.3ff, %.3ff };\n"
+                    "DirectX::XMFLOAT3 m_playerbulletOffsetRot   { %.3ff, %.3ff, %.3ff };\n"
+                    "DirectX::XMFLOAT3 m_playerbulletOffsetScale { %.3ff, %.3ff, %.3ff };\n"
+                    "DirectX::XMFLOAT4 m_playerbulletColor       { %.3ff, %.3ff, %.3ff, %.3ff };",
+                    p->GetPlayerBulletOffsetPos()->x, p->GetPlayerBulletOffsetPos()->y, p->GetPlayerBulletOffsetPos()->z,
+                    p->GetPlayerBulletOffsetRot()->x, p->GetPlayerBulletOffsetRot()->y, p->GetPlayerBulletOffsetRot()->z,
+                    p->GetPlayerBulletOffsetScale()->x, p->GetPlayerBulletOffsetScale()->y, p->GetPlayerBulletOffsetScale()->z,
+                    p->GetPlayerBulletColor()->x, p->GetPlayerBulletColor()->y, p->GetPlayerBulletColor()->z, p->GetPlayerBulletColor()->w
                 );
                 ImGui::SetClipboardText(buffer);
             }

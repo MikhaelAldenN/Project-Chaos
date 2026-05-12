@@ -34,6 +34,8 @@ Player::Player()
         m_rightHandBoneIndex = model->GetNodeIndex("hand.r");
     }
 
+    m_playerbulletModel = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_mdl_Paddle.glb");
+
     animator->Initialize(model);
     animator->SetUpperBodyMaskRoot("body");
     stateMachine->Initialize(std::make_unique<PlayerIdle>(), this);
@@ -394,8 +396,47 @@ void Player::FireProjectile()
 void Player::RenderProjectiles(ModelRenderer* renderer)
 {
     for (auto& bullet : m_projectiles)
+    {
         if (bullet->IsActive())
-            renderer->Draw(ShaderId::Phong, bullet->GetModel(), { 1.0f, 1.0f, 1.0f, 1.0f });
+        {
+            if (m_playerbulletModel)
+            {
+                // Get the physics bullet's position and velocity
+                DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+                DirectX::XMFLOAT3 bVel = bullet->GetVelocity();
+
+                // Calculate Yaw
+                float yaw = atan2f(bVel.x, bVel.z);
+
+                // Apply ImGui Local Offsets (S * R * T)
+                DirectX::XMMATRIX S = DirectX::XMMatrixScaling(m_playerbulletOffsetScale.x, m_playerbulletOffsetScale.y, m_playerbulletOffsetScale.z);
+                DirectX::XMMATRIX R = DirectX::XMMatrixRotationRollPitchYaw(
+                    DirectX::XMConvertToRadians(m_playerbulletOffsetRot.x),
+                    DirectX::XMConvertToRadians(m_playerbulletOffsetRot.y),
+                    DirectX::XMConvertToRadians(m_playerbulletOffsetRot.z)
+                );
+                DirectX::XMMATRIX T = DirectX::XMMatrixTranslation(m_playerbulletOffsetPos.x, m_playerbulletOffsetPos.y, m_playerbulletOffsetPos.z);
+                DirectX::XMMATRIX localOffset = S * R * T;
+
+                // Multiply by Bullet's World Path
+                DirectX::XMMATRIX bulletRot = DirectX::XMMatrixRotationY(yaw);
+                DirectX::XMMATRIX bulletTrans = DirectX::XMMatrixTranslation(bPos.x, bPos.y, bPos.z);
+
+                // FINAL MATRIX
+                DirectX::XMMATRIX finalMatrix = localOffset * bulletRot * bulletTrans;
+
+                DirectX::XMFLOAT4X4 worldMatrix;
+                DirectX::XMStoreFloat4x4(&worldMatrix, finalMatrix);
+
+				// Draw the bullet with the player's custom color (can be used for hit flash, elemental tint, etc.)
+                renderer->Draw(ShaderId::Phong, m_playerbulletModel, m_playerbulletColor, worldMatrix);
+            }
+            else
+            {
+                renderer->Draw(ShaderId::Phong, bullet->GetModel(), { 1.0f, 1.0f, 1.0f, 1.0f });
+            }
+        }
+    }
 }
 
 void Player::RenderWeapon(ModelRenderer* renderer)
