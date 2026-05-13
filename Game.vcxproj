@@ -137,6 +137,7 @@
     <ClInclude Include="Source\Engine\Graphics\PostProcessManager.h" />
     <ClInclude Include="Source\Engine\Graphics\Primitive.h" />
     <ClInclude Include="Source\Engine\Graphics\UberShader.h" />
+    <ClInclude Include="Source\Engine\Helpers\CapeSimulator.h" />
     <ClInclude Include="Source\Engine\Helpers\InputHelper.h" />
     <ClInclude Include="Source\Engine\Helpers\PerformanceLogger.h" />
     <ClInclude Include="Source\Engine\Helpers\PhysXutils.h" />
@@ -239,6 +240,7 @@
     <ClCompile Include="Source\Engine\Graphics\PostProcessManager.cpp" />
     <ClCompile Include="Source\Engine\Graphics\Primitive.cpp" />
     <ClCompile Include="Source\Engine\Graphics\UberShader.cpp" />
+    <ClCompile Include="Source\Engine\Helpers\CapeSimulator.cpp" />
     <ClCompile Include="Source\Engine\Helpers\InputHelper.cpp" />
     <ClCompile Include="Source\Engine\Helpers\PerformanceLogger.cpp" />
     <ClCompile Include="Source\Engine\Legacy\BossTerminal.cpp" />

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Bullet.h"
+#include "CapeSimulator.h"
 #include "Character.h"
 #include "PlayerConstants.h"
 #include "Weapon.h"
@@ -111,9 +112,11 @@ public:
     void SetAimLocked(bool locked) { m_aimLocked = locked; }
     void ForceAimTarget(const DirectX::XMFLOAT3& target) { m_aimTarget = target; }
 
-
     void SetCollisionManager(CollisionManager* colMgr) { m_collisionManager = colMgr; }
     CollisionManager* GetCollisionManager() const { return m_collisionManager; }
+
+	// --- Cape Simulator (optional, only used if player model has a cape) ---
+    CapeSimulator* GetCapeSimulator() const { return m_capeSimulator.get(); }
 
 private:
     // --- Update pipeline (called in order from Update()) ---
@@ -178,4 +181,7 @@ private:
     std::deque<std::unique_ptr<Bullet>> m_projectiles;
 
     CollisionManager* m_collisionManager = nullptr;
+
+	// --- Cape Simulator (optional) ---
+    std::unique_ptr<CapeSimulator> m_capeSimulator{};
 };

@@ -50,6 +50,30 @@ Player::Player()
     }
     OutputDebugStringA("=========================\n\n");
 
+    m_capeSimulator = std::make_unique<CapeSimulator>();
+
+    auto GenerateBoneNames = [](const char* prefix, int startIdx, int endIdx)
+        {
+            std::vector<std::string> names;
+            char buffer[32];
+            for (int i = startIdx; i <= endIdx; ++i)
+            {
+                // %03d automatically adds the zeros: 1 becomes "001", 15 becomes "015"
+                snprintf(buffer, sizeof(buffer), "%s%03d", prefix, i);
+                names.push_back(std::string(buffer));
+            }
+            return names;
+        };
+
+    // Chain 1: Center (001 to 007)
+    m_capeSimulator->AddChain(model, GenerateBoneNames("cape.", 1, 7));
+
+    // Chain 2: Right (008 to 015)
+    m_capeSimulator->AddChain(model, GenerateBoneNames("cape.", 8, 15));
+
+    // Chain 3: Left (016 to 023)
+    m_capeSimulator->AddChain(model, GenerateBoneNames("cape.", 16, 23));
+
     color = { 1.0f, 1.0f, 1.0f, 1.0f };
 }
 
@@ -287,6 +311,18 @@ void Player::ApplyWorldMatrix(float smoothedYaw, bool shouldAim, float relativeA
         }
     }
 
+    if (m_capeSimulator)
+    {
+        DirectX::XMFLOAT3 trueVelocity = movement->GetVelocity();
+
+        if (trueVelocity.x == 0.0f && trueVelocity.z == 0.0f)
+        {
+            trueVelocity.x = currentSmoothInput.x * moveSpeed;
+            trueVelocity.z = currentSmoothInput.y * moveSpeed;
+        }
+
+        m_capeSimulator->Update(0.016f, trueVelocity);
+    }
 
     if (model) model->UpdateTransform(worldMatrix);
 

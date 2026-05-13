@@ -1212,4 +1212,65 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGame* scene)
             ImGui::Unindent();
         }
     }
+
+    // ---------------------------------------------------------
+    // 6. CAPE PHYSICS TUNING
+    // ---------------------------------------------------------
+    ImGui::Spacing();
+    if (scene->m_player && scene->m_player->GetCapeSimulator())
+    {
+        if (ImGui::CollapsingHeader("Cape Physics Tuning", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+            CapeSimulator* cape = scene->m_player->GetCapeSimulator();
+
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SPRING DYNAMICS (FEEL)");
+            // Clamped > 1.0f to prevent divide-by-zero or inverted math explosions
+            ImGui::DragFloat("Stiffness", cape->GetStiffness(), 1.0f, 10.0f, 500.0f, "%.1f");
+            ImGui::DragFloat("Damping", cape->GetDamping(), 0.1f, 1.0f, 50.0f, "%.1f");
+
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "MOVEMENT & GRAVITY");
+
+            ImGui::DragFloat("Body Clip Limit", cape->GetBodyClipLimit(), 0.05f, -3.14f, 3.14f, "%.2f");
+            ImGui::DragFloat("Max Sway (Radians)", cape->GetMaxSway(), 0.05f, 0.1f, 3.14f, "%.2f");
+            ImGui::DragFloat("Gravity Angle X", cape->GetGravityAngle(), 0.05f, -1.0f, 2.0f, "%.2f");
+            ImGui::DragFloat("Velocity Sensitivity", cape->GetSwaySensitivity(), 0.005f, 0.0f, 0.2f, "%.3f");
+
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            if (ImGui::Button("Reset Default Cape Physics", ImVec2(-1, 30)))
+            {
+                // AAA Default Safe Values
+                *cape->GetStiffness() = 150.0f;
+                *cape->GetDamping() = 12.0f;
+                *cape->GetMaxSway() = 1.2f;
+                *cape->GetGravityAngle() = 0.4f;
+                *cape->GetSwaySensitivity() = 0.03f;
+            }
+
+            ImGui::Spacing();
+            if (ImGui::Button("Copy Cape Config to Clipboard", ImVec2(-1, 30)))
+            {
+                char buffer[512];
+                snprintf(buffer, sizeof(buffer),
+                    "float m_stiffness{ %.1ff };\n"
+                    "float m_damping{ %.1ff };\n"
+                    "float m_maxSway{ %.2ff };\n"
+					"float m_bodyClipLimit{ %.2ff };\n"
+                    "float m_gravityAngleX{ %.2ff };\n"
+                    "float m_swaySensitivity{ %.3ff };",
+                    *cape->GetStiffness(),
+                    *cape->GetDamping(),
+                    *cape->GetMaxSway(),
+                    *cape->GetGravityAngle(),
+                    *cape->GetSwaySensitivity()
+                );
+                ImGui::SetClipboardText(buffer);
+            }
+
+            ImGui::Unindent();
+        }
+    }
 }
