@@ -107,6 +107,14 @@ public:
 
     float GetLaserTimer() const { return m_laserTimer; }
 
+    // ==========================================
+    // [BARU] Sistem Health Boss
+    // ==========================================
+    void TakeDamage(int damage);
+    int GetHP() const { return m_bossHP; }
+    int GetMaxHP() const { return m_bossMaxHP; }
+    bool IsDead() const { return m_bossHP <= 0; }
+
 private:
     void FireRadialBurst(NaviBoss* boss, float angleOffset);
     void FireFanWave(NaviBoss* boss); // Fungsi tembak fan/shotgun
@@ -154,4 +162,8 @@ private:
     DirectX::XMFLOAT3 m_rainCenter = { 0,0,0 };
 
     std::unique_ptr<Primitive> m_zonePrimitive;
+
+    int m_bossMaxHP = 5000;
+    int m_bossHP = 5000;
+    float m_hitFlashTimer = 0.0f; // Untuk efek kedip saat kena tembak
 };

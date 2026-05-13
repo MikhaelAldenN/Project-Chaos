@@ -910,6 +910,18 @@ void SceneBoss::DrawGUI()
                 }
                 ImGui::PopStyleColor();
 
+                ImGui::Separator();
+                if (normalPhase->GetHP() > 0) {
+                    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "NAVI BOSS HEALTH: %d / %d", normalPhase->GetHP(), normalPhase->GetMaxHP());
+                    float hpProgress = (float)normalPhase->GetHP() / normalPhase->GetMaxHP();
+                    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(1.0f, 0.0f, 0.0f, 1.0f)); // Bar Merah
+                    ImGui::ProgressBar(hpProgress, ImVec2(-1.0f, 30.0f));
+                    ImGui::PopStyleColor();
+                }
+                else {
+                    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "[ NAVI DEFEATED ]");
+                }
+
                 if (ImGui::CollapsingHeader("Player Vital Signs", ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     int hp = m_player->GetHP();

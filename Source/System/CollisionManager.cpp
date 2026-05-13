@@ -202,6 +202,41 @@ void CollisionManager::Update(float elapsedTime)
     CheckNaviProjectilesVsEnemies(elapsedTime);
     CheckNaviBossProjectilesVsPlayer(elapsedTime);
     CheckNaviBossProjectilesVsBoss(elapsedTime);
+
+    // =========================================================
+    // DETEKSI PELURU PLAYER VS WINDOW BOSS (AABB COLLISION)
+    // =========================================================
+    if (m_naviBoss && m_player) {
+        if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_naviBoss->GetCurrentPhase())) {
+
+            if (!normalPhase->IsDead()) {
+                DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();
+
+                // Ukuran Window di 3D World adalah 5.0f (Radius/Setengahnya adalah 2.5f)
+                float halfW = 2.5f;
+                float halfD = 2.5f;
+
+                // Asumsi: m_player memiliki fungsi GetProjectiles() yang me-return peluru player
+                for (auto& bullet : m_player->GetProjectiles()) {
+                    if (!bullet->IsActive()) continue;
+
+                    DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+
+                    // Pengecekan Kotak (AABB): Apakah titik peluru berada di DALAM kotak Window?
+                    if (bPos.x > (bossPos.x - halfW) && bPos.x < (bossPos.x + halfW) &&
+                        bPos.z >(bossPos.z - halfD) && bPos.z < (bossPos.z + halfD))
+                    {
+                        // BOOM! Kena kaca window!
+                        bullet->SetActive(false); // Hancurkan peluru player
+                        normalPhase->TakeDamage(10); // Asumsi 1 peluru = 10 Damage
+
+                        // Opsional: Mainkan suara kaca retak / benturan peluru di sini
+                        // AudioManager::Instance().PlaySFX("Hit.wav");
+                    }
+                }
+            }
+        }
+    }
 }
 
 void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)

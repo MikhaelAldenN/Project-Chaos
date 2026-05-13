@@ -91,14 +91,14 @@ private:
     // =========================================================
     // PHYSX (minimal — no ground plane, no gravity)
     // =========================================================
-    physx::PxDefaultAllocator                                   m_allocator;
-    physx::PxDefaultErrorCallback                               m_errorCallback;
-    std::unique_ptr<physx::PxFoundation, PhysXDeleter>  m_foundation;
-    std::unique_ptr<physx::PxPhysics, PhysXDeleter>  m_physics;
+    physx::PxDefaultAllocator                                    m_allocator;
+    physx::PxDefaultErrorCallback                                m_errorCallback;
+    std::unique_ptr<physx::PxFoundation, PhysXDeleter>           m_foundation;
+    std::unique_ptr<physx::PxPhysics, PhysXDeleter>              m_physics;
     std::unique_ptr<physx::PxDefaultCpuDispatcher, PhysXDeleter> m_dispatcher;
-    std::unique_ptr<physx::PxScene, PhysXDeleter>  m_scene;
-    std::unique_ptr<physx::PxControllerManager, PhysXDeleter>  m_controllerManager;
-    std::unique_ptr<physx::PxMaterial, PhysXDeleter>  m_defaultMaterial;
+    std::unique_ptr<physx::PxScene, PhysXDeleter>                m_scene;
+    std::unique_ptr<physx::PxControllerManager, PhysXDeleter>    m_controllerManager;
+    std::unique_ptr<physx::PxMaterial, PhysXDeleter>             m_defaultMaterial;
 
     // =========================================================
     // SQUASH & STRETCH STATE

@@ -537,6 +537,7 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
         }
     }
 }
+
 void NaviPhaseNormal::Exit(NaviBoss* boss) { m_bulletPool.clear(); }
 
 void NaviPhaseNormal::TriggerBijuudama(Player* targetPlayer) {
@@ -655,4 +656,16 @@ void NaviPhaseNormal::TriggerRainAttack(bool onLeftSide) {
         m_rainCenter.y = 0.0f;
         m_rainCenter.z = 0.0f; // Tengah layar sumbu Z
     }
+}
+
+void NaviPhaseNormal::TakeDamage(int damage) {
+    if (m_bossHP <= 0) return; // Sudah mati
+
+    m_bossHP -= damage;
+    if (m_bossHP < 0) m_bossHP = 0;
+
+    m_hitFlashTimer = 0.05f; // Timer untuk efek visual (jika ada)
+
+    // [JUICE] Berikan getaran super mikro setiap kali peluru mengenai kaca jendela bos!
+    CameraController::Instance().AddTrauma(0.1f);
 }
