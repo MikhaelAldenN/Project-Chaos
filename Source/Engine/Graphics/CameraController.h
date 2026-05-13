@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 #include <functional>
+#include <algorithm>
 
 // Forward declaration
 class Camera;
@@ -122,6 +123,12 @@ public:
 
     static float ApplyEasing(float t, EasingType type);
 
+    void AddTrauma(float amount) {
+        // [FIX] Tambahkan tanda kurung mengapit std::min untuk memblokir Macro Windows!
+        m_trauma = (std::min)(1.0f, m_trauma + amount);
+    }
+    DirectX::XMFLOAT3 GetShakeOffset() const { return m_shakeOffset; }
+
 private:
     // Singleton handling
     CameraController();
@@ -194,4 +201,8 @@ private:
 
     DirectX::XMFLOAT3 m_shakeResultPos = { 0,0,0 }; // Output Offset Pos
     DirectX::XMFLOAT3 m_shakeResultRot = { 0,0,0 }; // Output Offset Rot
+
+    float m_trauma = 0.0f;
+    float m_traumaDecay = 1.5f; // Seberapa cepat getaran hilang per detik
+    DirectX::XMFLOAT3 m_shakeOffset = { 0.0f, 0.0f, 0.0f };
 };

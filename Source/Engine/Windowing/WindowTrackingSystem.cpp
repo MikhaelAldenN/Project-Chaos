@@ -227,8 +227,14 @@ void WindowTrackingSystem::UpdateOffCenterProjection(Camera* targetCam, int winX
     int screenW, screenH;
     GetScreenDimensions(screenW, screenH);
 
-    targetCam->SetPosition(0.0f, camHeight, 0.0f);
-    targetCam->LookAt({ 0.0f, 0.0f, 0.0f });
+    // [FIX 3] Gunakan posisi kamera saat ini (yang sudah mengandung Shake dari CameraController)
+    // Jangan dipaksa ke (0, camHeight, 0) agar getarannya sinkron di semua jendela.
+    DirectX::XMFLOAT3 currentPos = targetCam->GetPosition();
+    targetCam->SetPosition(currentPos);
+
+    // Pastikan arah hadap kamera portal selalu tegak lurus ke bawah (Top-Down)
+    // agar proyeksi portal tetap konsisten dengan koordinat Desktop.
+    targetCam->LookAt({ currentPos.x, 0.0f, currentPos.z });
 
     float nearZ = 0.1f;
     float farZ = 1000.0f;
@@ -247,7 +253,6 @@ void WindowTrackingSystem::UpdateOffCenterProjection(Camera* targetCam, int winX
 
     targetCam->SetOffCenterProjection(l * halfWidth, r * halfWidth, b * halfHeight, t * halfHeight, nearZ, farZ);
 }
-
 // =========================================================
 // MATH HELPERS
 // =========================================================

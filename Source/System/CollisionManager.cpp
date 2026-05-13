@@ -1,6 +1,8 @@
 #include "CollisionManager.h"
 #include "NaviBoss.h"        
 #include "NaviPhaseNormal.h" 
+#include "TimeManager.h"
+#include <CameraController.h>
 
 using namespace DirectX;
 
@@ -916,6 +918,13 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
         {
             if (distToPath <= combinedRadius + 1.5f)
             {
+                // [JUICE: HIT STOP & SCREEN SHAKE]
+                // Bekukan game selama 0.15 detik (Terasa seperti impact pedang yang sangat berat!)
+                TimeManager::Instance().TriggerHitStop(0.15f, 0.0f);
+
+                // Berikan Trauma 0.8f ke kamera (Guncangan hebat yang akan mereda dalam ~0.5 detik)
+                CameraController::Instance().AddTrauma(0.8f);
+
                 // [MAGIC SHATTER] Alih-alih memantulkan, pecahkan Bijuudama!
                 normalPhase->ShatterBijuudama(currentPos, m_naviBoss);
 

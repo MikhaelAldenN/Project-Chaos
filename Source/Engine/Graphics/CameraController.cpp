@@ -94,6 +94,27 @@ void CameraController::Update(float elapsedTime)
     std::shared_ptr<Camera> camera = m_activeCamera.lock();
     if (!camera) return;
 
+    // Catatan: Gunakan dt murni (unscaled) agar kamera tetap bergetar meski waktu game berhenti (Hit Stop)
+    if (m_trauma > 0.0f) {
+        m_trauma -= m_traumaDecay * elapsedTime;
+        if (m_trauma < 0.0f) m_trauma = 0.0f;
+
+        // Vlambeer Formula: getaran = trauma kuadrat (Membuat efek redanya sangat natural)
+        float shake = m_trauma * m_trauma;
+        float maxOffset = 2.0f; // Kekuatan getaran maksimal (Unit 3D)
+
+        // Random generator sederhana (-1.0 sampai 1.0)
+        float rx = ((rand() % 200) - 100) / 100.0f;
+        float rz = ((rand() % 200) - 100) / 100.0f;
+
+        m_shakeOffset.x = rx * maxOffset * shake;
+        m_shakeOffset.y = 0.0f; // Sengaja dikunci agar layar tidak naik-turun terlalu pusing
+        m_shakeOffset.z = rz * maxOffset * shake;
+    }
+    else {
+        m_shakeOffset = { 0.0f, 0.0f, 0.0f };
+    }
+
     // --- Global Inputs (Cursor Toggle) ---
     static bool isF1Pressed = false;
     bool f1Down = (GetKeyState(VK_F1) & 0x8000) != 0;

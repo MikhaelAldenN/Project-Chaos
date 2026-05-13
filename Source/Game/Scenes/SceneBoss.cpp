@@ -15,6 +15,7 @@
 #include <random>
 #include "NaviPhaseWindowkill.h"
 #include "NaviPhaseNormal.h"
+#include "TimeManager.h"
 
 using namespace DirectX;
 
@@ -203,7 +204,9 @@ void SceneBoss::InitializeSubWindows()
 void SceneBoss::Update(float elapsedTime)
 {
     PerformanceLogger::Instance().StartTimer(PerfBucket::Logic);
+    TimeManager::Instance().Update(elapsedTime);
 
+    float activeTimeScale = m_timeScale * TimeManager::Instance().GetHitStopMultiplier();
     const float scaledDt = elapsedTime * m_timeScale;
 
     // --- PhysX tick ---
@@ -276,12 +279,23 @@ void SceneBoss::Update(float elapsedTime)
     m_windowSystem->SetPixelToUnitRatio(dynamicPixelRatio);
 
 
-    // Update Kamera via Controller
+    // =========================================================
+    // [FIX] UPDATE KAMERA & CAMERA SHAKE (GABUNGAN)
+    // =========================================================
+    // Deklarasi hanya dilakukan SATU KALI di sini!
     float newUnifiedHeight = m_windowSystem->GetUnifiedCameraHeight();
     auto& camCtrl = CameraController::Instance();
-    camCtrl.SetFixedSetting(XMFLOAT3(0.0f, newUnifiedHeight, 0.0f));
-    camCtrl.SetTarget({ 0.0f, 0.0f, 0.0f });
-    camCtrl.Update(scaledDt);
+
+    // Ambil nilai getaran (Trauma)
+    DirectX::XMFLOAT3 shake = camCtrl.GetShakeOffset();
+    
+    // Set posisi kamera dengan menggabungkan Zoom (Y) dan Shake (X, Z)
+    camCtrl.SetFixedSetting(DirectX::XMFLOAT3(shake.x, newUnifiedHeight + shake.y, shake.z));
+    camCtrl.SetTarget({ shake.x, shake.y, shake.z }); 
+    
+    // [PENTING] Update kamera menggunakan waktu murni (elapsedTime) agar tetap bergetar saat Hit Stop!
+    camCtrl.Update(elapsedTime);
+    // =========================================================
 
     // --- Player update ---
     if (m_player)
@@ -359,7 +373,7 @@ void SceneBoss::Update(float elapsedTime)
     if (m_collisionManager) m_collisionManager->Update(scaledDt);
 
     // Terapkan posisi m_fixedPos dan Shakes
-    camCtrl.Update(scaledDt);
+    //camCtrl.Update(scaledDt);
 
     // --- Sync sub-window cameras to match main camera ---
     if (m_windowSystem)
@@ -371,8 +385,8 @@ void SceneBoss::Update(float elapsedTime)
             tracked->camera->SetPosition(m_mainCamera->GetPosition());
             tracked->camera->SetRotation(m_mainCamera->GetRotation());
 
-            if (tracked->role != WindowRole::SUB_VIEWPORT && m_player)
-                tracked->camera->LookAt(m_player->GetPosition());
+            //if (tracked->role != WindowRole::SUB_VIEWPORT && m_player)
+            //    tracked->camera->LookAt(m_player->GetPosition());
         }
 
         m_windowSystem->Update(elapsedTime);
