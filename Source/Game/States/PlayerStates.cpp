@@ -19,6 +19,7 @@ using namespace DirectX;
 
 void PlayerIdle::Enter(Player* player)
 {
+    player->GetAnimator()->SetPlaybackSpeed(1.0f);
     player->GetAnimator()->Play("Idle", true, PlayerConst::AnimBlendDefault);
 }
 
@@ -112,6 +113,14 @@ void PlayerMoving::Enter(Player* player)
 
 void PlayerMoving::Update(Player* player, float dt)
 {
+    // Toogle reverse animation
+    if (player->IsBackpedaling()) {
+        player->GetAnimator()->SetPlaybackSpeed(-1.0f); // Play backward
+    }
+    else {
+        player->GetAnimator()->SetPlaybackSpeed(1.0f);  // Play forward
+    }
+
     // --- 1. Cek Transisi Dash ---
     if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && player->canDash)
     {

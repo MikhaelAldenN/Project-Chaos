@@ -54,14 +54,27 @@ void AnimationController::Update(float dt)
     if (!ownerModel || currentAnimIndex == -1) return;
 
     // 1. Update Timer Animasi Utama
-    timer += dt;
+    timer += dt * m_playbackSpeed;
     const auto& anims = ownerModel->GetAnimations();
     float duration = anims.at(currentAnimIndex).secondsLength;
 
-    if (timer >= duration)
+    if (m_playbackSpeed >= 0.0f)
     {
-        if (isLooping) timer = fmod(timer, duration);
-        else timer = duration;
+        // Playing Forward
+        if (timer >= duration)
+        {
+            if (isLooping) timer = fmod(timer, duration);
+            else timer = duration;
+        }
+    }
+    else
+    {
+        // Playing Backward
+        if (timer < 0.0f)
+        {
+            if (isLooping) timer = duration + fmod(timer, duration); // Loop back to the end
+            else timer = 0.0f;
+        }
     }
 
     // 2. Hitung Pose Animasi Target (Animasi Baru)

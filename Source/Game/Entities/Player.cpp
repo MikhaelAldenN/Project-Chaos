@@ -214,6 +214,8 @@ void Player::UpdateFootRotation(float dt, float& outSmoothedYaw)
     if (moveInput.x != 0.0f || moveInput.y != 0.0f)
         targetYaw = atan2f(moveInput.x, moveInput.y);
 
+    m_isBackpedaling = false;
+
     XMFLOAT3 pos = movement->GetPosition();
     float dx = m_aimTarget.x - pos.x;
     float dz = m_aimTarget.z - pos.z;
@@ -223,29 +225,26 @@ void Player::UpdateFootRotation(float dt, float& outSmoothedYaw)
         float aimYaw = atan2f(dx, dz);
         float diff = targetYaw - aimYaw;
 
-        // Normalize diff to [-Pi, Pi]
         while (diff > XM_PI) diff -= XM_2PI;
         while (diff < -XM_PI) diff += XM_2PI;
 
-        // Fold the backward hemisphere into the forward hemisphere continuously.
-        // If moving backwards relative to aim, point legs forward instead.
         if (diff > XM_PIDIV2)
         {
             diff = XM_PI - diff;
             targetYaw = aimYaw + diff;
+            m_isBackpedaling = true; // <-- NEW: We are backpedaling!
         }
         else if (diff < -XM_PIDIV2)
         {
             diff = -XM_PI - diff;
             targetYaw = aimYaw + diff;
+            m_isBackpedaling = true; // <-- NEW: We are backpedaling!
         }
 
-        // Normalize targetYaw to [-Pi, Pi]
         while (targetYaw > XM_PI) targetYaw -= XM_2PI;
         while (targetYaw < -XM_PI) targetYaw += XM_2PI;
     }
 
-    // Shortest-path angle delta to avoid wrap-around snapping
     float angleDiff = targetYaw - currentYaw;
     while (angleDiff > XM_PI) angleDiff -= XM_2PI;
     while (angleDiff < -XM_PI) angleDiff += XM_2PI;

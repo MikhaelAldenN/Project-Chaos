@@ -83,6 +83,7 @@ public:
         return (std::abs(currentSmoothInput.x) > 0.01f ||
             std::abs(currentSmoothInput.y) > 0.01f);
     }
+    [[nodiscard]] bool IsBackpedaling() const { return m_isBackpedaling; }
 
     // Visual tint (used by states for hit flash, etc.)
     DirectX::XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -141,6 +142,7 @@ private:
     // --- Input state ---
     bool isInputEnabled = true;
     bool invertControls = false;
+    bool m_isBackpedaling = false;
     bool gravityEnabled = true;   // Set false for top-down scenes (e.g. SceneBoss)
     DirectX::XMFLOAT2 currentSmoothInput = { 0.0f, 0.0f };
     DirectX::XMFLOAT2 lastValidInput = { 0.0f, 1.0f };
