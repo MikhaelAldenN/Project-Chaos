@@ -844,8 +844,8 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
     }
 
     // =========================================================
-        // 2. DETEKSI BIJUUDAMA NAVI BOSS
-        // =========================================================
+    // 2. DETEKSI BIJUUDAMA NAVI BOSS
+    // =========================================================
     if (m_naviBoss)
     {
         auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_naviBoss->GetCurrentPhase());

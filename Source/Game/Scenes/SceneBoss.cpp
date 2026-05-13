@@ -833,6 +833,15 @@ void SceneBoss::DrawGUI()
                 ImGui::SliderFloat("Fan Wave Delay", &p.fanWaveDelay, 0.05f, 1.0f);
                 ImGui::SliderFloat("Fan Spread Angle", &p.fanSpreadAngle, 0.05f, 0.5f);
 
+				// --- UI BARU UNTUK PHALANX ---1
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "--- Phalanx Settings ---");
+                ImGui::SliderInt("Phalanx Count", &p.phalanxCount, 3, 10);
+                ImGui::SliderFloat("Charge Delay", &p.phalanxChargeDelay, 0.05f, 0.5f);
+                ImGui::SliderFloat("Fire Delay", &p.phalanxFireDelay, 0.05f, 0.5f);
+                ImGui::SliderFloat("Phalanx Speed", &p.phalanxSpeed, 10.0f, 80.0f);
+                ImGui::SliderFloat("Phalanx Turn Speed", &p.phalanxTurnSpeed, 0.1f, 10.0f);
+
                 // --- UI BARU UNTUK RHYTHM LASER ---
                 ImGui::Separator();
                 ImGui::TextColored(ImVec4(0, 1, 1, 1), "--- Rhythm Laser & Bijuudama Settings ---");
@@ -872,6 +881,14 @@ void SceneBoss::DrawGUI()
                 if (ImGui::Button("FIRE TARGETED FAN BURST", ImVec2(-1.0f, 40.0f))) {
                     if (m_player) {
                         normalPhase->TriggerFanAttack(m_navi.get(), m_player->GetPosition());
+                    }
+                }
+                ImGui::PopStyleColor();
+
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.8f, 1.0f));
+                if (ImGui::Button("FIRE GLINTSTONE PHALANX", ImVec2(-1.0f, 40.0f))) {
+                    if (m_player) {
+                        normalPhase->TriggerPhalanx(m_player.get());
                     }
                 }
                 ImGui::PopStyleColor();

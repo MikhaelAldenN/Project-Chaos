@@ -142,6 +142,98 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
         }
     }
 
+    // --- 1C. Logika Glintstone Phalanx ---
+    if (m_phalanxState > 0) {
+        m_phalanxTimer += dt;
+        DirectX::XMFLOAT3 bPos = boss->GetPosition();
+
+        // 1. BUAT PELURU MELAYANG (HOVERING) DI BELAKANG BOS
+        // Kita hanya menggeser peluru yang belum ditembakkan!
+        for (int i = m_phalanxFired; i < m_phalanxSpawned; ++i) {
+            if (m_phalanxBullets[i] && m_phalanxBullets[i]->IsActive()) {
+                // Bentuk melengkung setengah lingkaran (PI)
+                float totalSpread = DirectX::XM_PI;
+                float startAngle = -totalSpread * 0.5f;
+                float angleStep = m_params.phalanxCount > 1 ? totalSpread / (float)(m_params.phalanxCount - 1) : 0.0f;
+                float currentAngle = startAngle + (i * angleStep);
+
+                DirectX::XMFLOAT3 hoverPos = bPos;
+                hoverPos.x += sinf(currentAngle) * m_params.phalanxHoverRadius;
+                hoverPos.z += cosf(currentAngle) * m_params.phalanxHoverRadius;
+                hoverPos.y += 1.0f; // Sedikit lebih tinggi dari lantai
+
+                // Paksa pindah tanpa velocity
+                m_phalanxBullets[i]->GetMovement()->SetPosition(hoverPos);
+            }
+        }
+
+        // 2. FASE 1: CHARGING / MUNCUL SATU PER SATU
+        if (m_phalanxState == 1) {
+            if (m_phalanxTimer >= m_params.phalanxChargeDelay) {
+                m_phalanxTimer -= m_params.phalanxChargeDelay;
+
+                for (auto& bullet : m_bulletPool) {
+                    if (!bullet->IsActive()) {
+                        bullet->SetActive(true);
+                        // MANDIKAN PELURU
+                        bullet->ApplyMovement(bPos, { 0,0,0 });
+                        bullet->SetHomingTarget(nullptr);
+                        bullet->SetBossTarget(nullptr);
+                        bullet->SetParabolic(false);
+                        bullet->SetParryReturn(false);
+
+                        // SETUP KHUSUS PHALANX
+                        bullet->SetRadius(0.35f);
+                        bullet->scale = { 2.0f, 2.0f, 2.0f }; // Agak besar, ancaman nyata
+                        bullet->SetTurnSpeed(m_params.phalanxTurnSpeed); // Buat dia BODOH saat membelok!
+
+                        m_phalanxBullets.push_back(bullet.get());
+                        m_phalanxSpawned++;
+                        break;
+                    }
+                }
+
+                // Jika sudah full 5 peluru, ganti state jadi Firing!
+                if (m_phalanxSpawned >= m_params.phalanxCount) {
+                    m_phalanxState = 2;
+                    m_phalanxTimer = 0.0f; // Reset timer untuk delay tembakan
+                }
+            }
+        }
+        // 3. FASE 2: FIRING / TEMBAK SATU PER SATU
+        else if (m_phalanxState == 2) {
+            if (m_phalanxTimer >= m_params.phalanxFireDelay) {
+                m_phalanxTimer -= m_params.phalanxFireDelay;
+
+                if (m_phalanxFired < m_phalanxSpawned) {
+                    Bullet* b = m_phalanxBullets[m_phalanxFired];
+                    if (b && b->IsActive()) {
+                        b->SetHomingTarget(m_phalanxTarget); // Kunci ke Player!
+
+                        // Arah tembakan awal (Lurus ke player)
+                        DirectX::XMFLOAT3 myPos = b->GetMovement()->GetPosition();
+                        DirectX::XMFLOAT3 pPos = m_phalanxTarget->GetPosition();
+                        float dx = pPos.x - myPos.x;
+                        float dz = pPos.z - myPos.z;
+                        float dist = std::sqrt(dx * dx + dz * dz);
+
+                        DirectX::XMFLOAT3 dir = { 0,0,1 };
+                        if (dist > 0.001f) dir = { dx / dist, 0.0f, dz / dist };
+
+                        b->Fire(myPos, dir, m_params.phalanxSpeed);
+                    }
+                    m_phalanxFired++;
+                }
+
+                // Jika semua sudah tertembak, matikan serangan
+                if (m_phalanxFired >= m_phalanxSpawned) {
+                    m_phalanxState = 0;
+                    m_phalanxBullets.clear();
+                }
+            }
+        }
+    }
+
     if (m_isLaserLocked && m_laserTargetPlayer) {
         m_laserTimer += dt;
         DirectX::XMFLOAT3 pPos = m_laserTargetPlayer->GetPosition();
@@ -207,17 +299,36 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
         }
     }
 
-    // --- 2. Update & Recycle ---
-    float distSq = m_params.despawnDist * m_params.despawnDist;
+// --- 2. Update & Recycle (DYNAMIC SCREEN BOUNDS) ---
+    float limitX = 30.0f; // Fallback
+    float limitZ = 20.0f; // Fallback
+
+    if (ws) {
+        // Ambil rasio piksel terbaru yang sudah dipengaruhi Zoom dari SceneBoss
+        float p2u = ws->GetPixelToUnitRatio();
+        int screenW = GetSystemMetrics(SM_CXSCREEN);
+        int screenH = GetSystemMetrics(SM_CYSCREEN);
+
+        // Hitung batas dunia berdasarkan resolusi layar OS saat ini
+        // Ditambah padding agar peluru tidak "pop-out" secara kasar
+        limitX = ((screenW / 2.0f) / p2u) + m_params.screenDespawnPadding;
+        limitZ = ((screenH / 2.0f) / p2u) + m_params.screenDespawnPadding;
+    }
+
     for (auto& bullet : m_bulletPool) {
         if (!bullet->IsActive()) continue;
+
+        // Jalankan pergerakan peluru
         bullet->Update(dt, nullptr);
 
         DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
-        DirectX::XMFLOAT3 bossPos = boss->GetPosition();
-        float dx = bossPos.x - bPos.x;
-        float dz = bossPos.z - bPos.z;
-        if ((dx * dx + dz * dz) > distSq) bullet->SetActive(false);
+
+        // [OPTIMISASI MUTLAK] 
+        // Jika peluru berada di luar kotak layar, langsung balikin ke Pool!
+        // Ini akan otomatis menghentikan Phalanx yang mencoba memutar balik dari luar layar.
+        if (bPos.x < -limitX || bPos.x > limitX || bPos.z < -limitZ || bPos.z > limitZ) {
+            bullet->SetActive(false);
+        }
     }
 }
 
@@ -243,6 +354,7 @@ void NaviPhaseNormal::FireFanWave(NaviBoss* boss) {
             bullet->SetHomingTarget(nullptr);
             bullet->SetBossTarget(nullptr);
             bullet->SetParabolic(false);
+            bullet->SetTurnSpeed(8.0f);
 
             float currentAngle = startAngle + (firedCount * spread);
             DirectX::XMFLOAT3 dir = { sinf(currentAngle), 0.0f, cosf(currentAngle) };
@@ -270,6 +382,7 @@ void NaviPhaseNormal::FireRadialBurst(NaviBoss* boss, float angleOffset) {
             bullet->SetBossTarget(nullptr);               // Hapus pelacak bos (Shatter)
             bullet->SetParabolic(false);                  // Matikan mode melengkung
             bullet->SetParryReturn(false);
+            bullet->SetTurnSpeed(8.0f);
 
             float angle = (firedCount * angleStep) + angleOffset;
             bullet->Fire(boss->GetPosition(), { sinf(angle), 0.0f, cosf(angle) }, m_params.speed);
@@ -353,6 +466,7 @@ void NaviPhaseNormal::TriggerBijuudama(Player* targetPlayer) {
                 bullet->SetBossTarget(nullptr);
                 bullet->SetParabolic(false);
                 bullet->SetParryReturn(false); // <--- [FIX] WAJIB TAMBAHKAN INI!
+                bullet->SetTurnSpeed(8.0f);
 
                 // 3. Reset ukuran Hitbox dan Skala Visual 3D
                 float baseHitbox = m_params.bijuudamaBaseHitbox;
@@ -395,6 +509,7 @@ void NaviPhaseNormal::ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* bos
             bullet->SetBossTarget(boss);
             bullet->SetParabolic(true);
             bullet->SetParryReturn(false);
+            bullet->SetTurnSpeed(8.0f);
 
             // 2. Set Ukuran
             float r = distSize(gen);
@@ -418,5 +533,17 @@ void NaviPhaseNormal::ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* bos
             spawned++;
             if (spawned >= fragments) break;
         }
+    }
+}
+
+void NaviPhaseNormal::TriggerPhalanx(Player* targetPlayer) {
+    // Hanya bisa trigger jika tidak sedang aktif
+    if (m_phalanxState == 0 && targetPlayer) {
+        m_phalanxState = 1; // Masuk fase Charging
+        m_phalanxTimer = 0.0f;
+        m_phalanxSpawned = 0;
+        m_phalanxFired = 0;
+        m_phalanxTarget = targetPlayer;
+        m_phalanxBullets.clear(); // Kosongkan tangan bos
     }
 }

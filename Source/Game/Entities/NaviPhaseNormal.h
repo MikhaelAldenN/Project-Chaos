@@ -8,6 +8,8 @@ class Player;
 
 // --- [CENTRALIZED PARAMETERS] ---
 struct NaviBulletParams {
+    float screenDespawnPadding = 5.0f;
+
     // Parameter General & Radial Burst
     float speed = 14.0f;
     int count = 24;
@@ -32,8 +34,8 @@ struct NaviBulletParams {
     int laserDamage = 20;
 
     // ==========================================
-        // Parameter Bijuudama
-        // ==========================================
+    // Parameter Bijuudama
+    // ==========================================
     DirectX::XMFLOAT4 bijuudamaColor = { 1.0f, 0.0f, 0.0f, 1.0f }; // Merah Darah!
     float bijuudamaBaseHitbox = 0.5f;
     float bijuudamaMaxHitboxGrow = 2.0f;
@@ -51,6 +53,17 @@ struct NaviBulletParams {
     float shatterMinDuration = 0.5f; // Waktu tempuh (Lebih besar = Lebih lambat)
     float shatterMaxDuration = 0.7f;
     float shatterCurveOffset = 11.0f; // Seberapa melengkung / lebar parabolanya};
+
+    // ==========================================
+    // Parameter Glintstone
+    // ==========================================
+    int phalanxCount = 5;               // Jumlah pedang/peluru
+    float phalanxChargeDelay = 0.2f;    // Waktu panggil tiap peluru
+    float phalanxFireDelay = 0.3f;      // Waktu jeda antar tembakan
+    float phalanxSpeed = 35.0f;         // Kecepatan terbang
+    float phalanxHoverRadius = 4.0f;    // Jarak melayang di sekitar bos
+    float phalanxTurnSpeed = 1.5f;      // Homing LEMAH (Supaya player bisa dash!)
+
 };
 
 class NaviPhaseNormal : public INaviPhase {
@@ -72,6 +85,8 @@ public:
         m_isLaserLocked = false;
         m_bijuudamaBall = nullptr;
     }
+
+    void TriggerPhalanx(Player* targetPlayer);
 
     void ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* boss);
 
@@ -109,4 +124,14 @@ private:
     Player* m_laserTargetPlayer = nullptr; // Pointer aman karena Player dikelola SceneBoss
 
     Bullet* m_bijuudamaBall = nullptr;
+
+    // ==========================================
+    // [NEW] State Glintstone Phalanx
+    // ==========================================
+    int m_phalanxState = 0; // 0=Mati, 1=Charging/Panggil, 2=Nembak
+    float m_phalanxTimer = 0.0f;
+    int m_phalanxSpawned = 0;
+    int m_phalanxFired = 0;
+    Player* m_phalanxTarget = nullptr;
+    std::vector<Bullet*> m_phalanxBullets; // Pegang peluru yang sedang melayang
 };

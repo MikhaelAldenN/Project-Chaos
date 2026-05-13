@@ -32,6 +32,7 @@ public:
     Character* GetHomingTarget() const { return m_homingTarget; }
     float GetRadius() const { return radius; }
 	void SetRadius(float r) { radius = r; }
+	void SetTurnSpeed(float speed) { m_turnSpeed = speed; }
     [[nodiscard]] bool IsActive() const { return isActive; }
     void SetActive(bool active) { isActive = active; }
 
@@ -54,17 +55,15 @@ public:
     bool IsParryReturn() const { return m_isParryReturn; }
 
 private:
-    // ... (variabel yang sudah ada) ...
     NaviBoss* m_bossTarget = nullptr;
 
-    // [BARU] Variabel State Bezier
     bool m_isParabolic = false;
     DirectX::XMFLOAT3 m_parabolaStart = { 0,0,0 };
     DirectX::XMFLOAT3 m_parabolaCtrl = { 0,0,0 };
     float m_parabolaTime = 0.0f;
     float m_parabolaDuration = 1.0f; 
 
-    bool m_isParryReturn = false; // [BARU] Flag status parry
+    bool m_isParryReturn = false;
 
 private:
     DirectX::XMFLOAT3 velocity = { 0, 0, 0 };
