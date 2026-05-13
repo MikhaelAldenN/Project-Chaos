@@ -88,6 +88,7 @@ public:
     void SetFollowSpeed(float speed) { m_followSpeed = speed; }
     void SetPixelToUnitRatio(float ratio) { m_pixelToUnitRatio = ratio; }
     void SetFOV(float fov) { m_fov = fov; }
+    float GetPixelToUnitRatio() const { return m_pixelToUnitRatio; }
 
     // Accessors for Rendering (misal untuk menggambar overlay shatter)
     const std::vector<std::unique_ptr<TrackedWindow>>& GetWindows() const { return m_trackedWindows; }

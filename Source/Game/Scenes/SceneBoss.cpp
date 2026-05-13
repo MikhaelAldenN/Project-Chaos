@@ -41,8 +41,8 @@ SceneBoss::SceneBoss()
     const float unifiedHeight = m_windowSystem->GetUnifiedCameraHeight();
     m_mainCamera = std::make_shared<Camera>();
     m_mainCamera->SetPerspectiveFov(XMConvertToRadians(k_fov), 1920.0f / 1080.0f, k_camNear, k_camFar);
-    m_mainCamera->SetPosition(0.0f, unifiedHeight, 0.0f);
-    m_mainCamera->LookAt({ 0.0f, 0.0f, 0.0f });
+    m_mainCamera->SetPosition(m_cameraPosition);
+    m_mainCamera->LookAt(m_cameraTarget);
 
     CameraController::Instance().SetActiveCamera(m_mainCamera);
     CameraController::Instance().SetControlMode(CameraControlMode::FixedStatic);
@@ -240,41 +240,75 @@ void SceneBoss::Update(float elapsedTime)
         }
     }
 
+    // =========================================================
+        // [REVISED] AGGRESSIVE BIDIRECTIONAL ZOOM LOGIC
+        // =========================================================
+    m_targetZoom = 0.0f; // 0.0f = Normal Zoom (k_pixelToUnitRatio)
+
+    if (m_player && m_navi && dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
+    {
+        DirectX::XMFLOAT3 pPos = m_player->GetPosition();
+        DirectX::XMFLOAT3 bPos = m_navi->GetPosition();
+        float dx = pPos.x - bPos.x;
+        float dz = pPos.z - bPos.z;
+        float dist = std::sqrt(dx * dx + dz * dz);
+
+        // A. ZONE ZOOM IN (TENSION): Jika dekat Bos
+        if (dist < 12.0f) {
+            float intensity = 1.0f - (dist / 12.0f);
+            m_targetZoom = 0.35f * intensity; // Maksimal Zoom In 35% 
+        }
+        // B. ZONE ZOOM OUT (WIDE VIEW): Jika menjauh dari Bos
+        else if (dist > 16.0f) {
+            float outDist = dist - 16.0f;
+
+            // [CRITICAL FIX] Limit maksimal zoom out dikunci keras di -0.15f (Hanya 15%!)
+            // Pengali 0.02f membuat pergerakan mundurnya sangat halus dan tidak menyentak.
+            m_targetZoom = max(0.0, -outDist * 0.02f);
+        }
+    }
+
+    // Gunakan Lerp 4.0f agar kamera responsif mengejar player
+    m_currentZoom += (m_targetZoom - m_currentZoom) * 4.0f * elapsedTime;
+
+    // Hitung Rasio Piksel Aktif
+    float dynamicPixelRatio = k_pixelToUnitRatio * (1.0f + m_currentZoom);
+    m_windowSystem->SetPixelToUnitRatio(dynamicPixelRatio);
+
+
+    // Update Kamera via Controller
+    float newUnifiedHeight = m_windowSystem->GetUnifiedCameraHeight();
+    auto& camCtrl = CameraController::Instance();
+    camCtrl.SetFixedSetting(XMFLOAT3(0.0f, newUnifiedHeight, 0.0f));
+    camCtrl.SetTarget({ 0.0f, 0.0f, 0.0f });
+    camCtrl.Update(scaledDt);
+
     // --- Player update ---
     if (m_player)
     {
-        // Aim: convert global mouse to world position and pass to player
-        const XMFLOAT3 mouseWorldPos =
-            Beyond::InputHelper::GetMouseWorldPos(m_mainCamera->GetPosition());
+        const XMFLOAT3 mouseWorldPos = Beyond::InputHelper::GetMouseWorldPos(m_mainCamera->GetPosition());
         m_player->RotateModelToPoint(mouseWorldPos);
-
         m_player->Update(scaledDt, activeCam);
 
-        // 1. Ambil resolusi layar laptop/monitor yang sebenarnya via OS
+        // =========================================================
+        // [CRITICAL FIX] DYNAMIC SCREEN CLAMPING
+        // Kita kunci player agar SELALU ada di dalam layar yang sedang ter-zoom
+        // =========================================================
         int screenWidth = GetSystemMetrics(SM_CXSCREEN);
         int screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
-        // 2. Kalkulasi batas X dan Z dunia murni berdasarkan ukuran monitor.
-        // Beri margin 1.0 unit (setara 40 pixel) sebagai ruang untuk badan model 3D,
-        // persis seperti saat kamu menggunakan angka 23.0f (24 - 1) sebelumnya.
-        float playerRadiusMargin = 1.0f;
+        // Gunakan dynamicPixelRatio agar batas layar bergeser sesuai Zoom!
+        float limitX = ((screenWidth / 2.0f) / dynamicPixelRatio) - 0.5f; // Margin 0.5 agar tidak nempel bgt
+        float limitZ = ((screenHeight / 2.0f) / dynamicPixelRatio) - 0.5f;
 
-        float limitX = ((screenWidth / 2.0f) / k_pixelToUnitRatio) - playerRadiusMargin;
-        float limitZ = ((screenHeight / 2.0f) / k_pixelToUnitRatio) - playerRadiusMargin;
-
-        // Pastikan limit tidak tembus minus jika monitor entah kenapa terbaca aneh
-        limitX = max(0.0f, limitX);
-        limitZ = max(0.0f, limitZ);
-
-        // 3. Apply clamp ke posisi PLAYER
         XMFLOAT3 pos = m_player->GetPosition();
         pos.x = std::clamp(pos.x, -limitX, limitX);
         pos.z = std::clamp(pos.z, -limitZ, limitZ);
         pos.y = max(pos.y, 0.0f);
-
         m_player->SetPosition(pos);
     }
-    // --- Squash & Stretch (elastic window deformation during dash) ---
+
+    // --- Squash & Stretch ---
     if (m_player)
     {
         const XMFLOAT3 vel = m_player->GetMovement()->GetVelocity();
@@ -287,30 +321,28 @@ void SceneBoss::Update(float elapsedTime)
 
         if (currentSpeedSq > (dashThreshold * dashThreshold))
         {
-            constexpr float kStretchX = 200.0f; // Stretch horizontal biarkan 200
-            constexpr float kSquashY = 0.0f;    // Dulu -40.0f -> Ubah ke 0 agar tidak gepeng saat dash horizontal
-            constexpr float kStretchZ = 0.0f;   // Dulu 120.0f -> Ubah ke 0 agar tidak memanjang saat dash vertikal
-            constexpr float kSquashX = 0.0f;    // Dulu -30.0f -> Ubah ke 0 agar tidak menyusut saat dash vertikal
+            constexpr float kStretchX = 200.0f;
+            constexpr float kSquashY = 0.0f;
+            constexpr float kStretchZ = 0.0f;
+            constexpr float kSquashX = 0.0f;
 
             const float dashRatio = sqrtf(currentSpeedSq) / m_player->GetDashSpeed();
 
             if (std::abs(vel.x) > std::abs(vel.z))
             {
-                // Horizontal dash: stretch X, squash Y (sekarang 0)
                 targetStretch.x = dashRatio * kStretchX;
                 targetStretch.y = dashRatio * kSquashY;
                 const float signX = (vel.x > 0.0f) ? 1.0f : -1.0f;
-                targetOffset.x = -signX * (targetStretch.x * 0.5f) / k_pixelToUnitRatio;
+                // Gunakan dynamicPixelRatio
+                targetOffset.x = -signX * (targetStretch.x * 0.5f) / dynamicPixelRatio;
             }
             else
             {
-                // Vertical dash: stretch Z (sekarang 0), squash X (sekarang 0)
                 targetStretch.y = dashRatio * kStretchZ;
                 targetStretch.x = dashRatio * kSquashX;
-
-                // Offset Y otomatis jadi 0 karena targetStretch.y sekarang 0
                 const float signZ = (vel.z > 0.0f) ? 1.0f : -1.0f;
-                targetOffset.y = -signZ * (targetStretch.y * 0.5f) / k_pixelToUnitRatio;
+                // Gunakan dynamicPixelRatio
+                targetOffset.y = -signZ * (targetStretch.y * 0.5f) / dynamicPixelRatio;
             }
         }
 
@@ -324,10 +356,10 @@ void SceneBoss::Update(float elapsedTime)
     if (m_navi) m_navi->Update(scaledDt);
     if (m_enemyManager) m_enemyManager->Update(scaledDt, activeCam, m_player->GetPosition(), true);
     if (m_itemManager) m_itemManager->Update(scaledDt, activeCam);
-    // if (m_boss) m_boss->Update(scaledDt, activeCam, m_player->GetPosition());
-
-    // Collision Update dipanggil paling terakhir agar bisa mengkalkulasi pergerakan Player & Enemy di frame ini
     if (m_collisionManager) m_collisionManager->Update(scaledDt);
+
+    // Terapkan posisi m_fixedPos dan Shakes
+    camCtrl.Update(scaledDt);
 
     // --- Sync sub-window cameras to match main camera ---
     if (m_windowSystem)
@@ -339,7 +371,6 @@ void SceneBoss::Update(float elapsedTime)
             tracked->camera->SetPosition(m_mainCamera->GetPosition());
             tracked->camera->SetRotation(m_mainCamera->GetRotation());
 
-            // SUB_VIEWPORT portals just mirror the main camera orientation
             if (tracked->role != WindowRole::SUB_VIEWPORT && m_player)
                 tracked->camera->LookAt(m_player->GetPosition());
         }
@@ -347,14 +378,10 @@ void SceneBoss::Update(float elapsedTime)
         m_windowSystem->Update(elapsedTime);
     }
 
-    CameraController::Instance().Update(scaledDt);
-
-    // --- Performance bookkeeping ---
     PerformanceLogger::Instance().StopTimer(PerfBucket::Logic);
     const int activeWins = m_windowSystem ? static_cast<int>(m_windowSystem->GetWindows().size()) : 0;
     PerformanceLogger::Instance().EndFrameCheck(ImGui::GetIO().Framerate, activeWins);
 }
-
 // =========================================================
 // RENDER
 // =========================================================
@@ -657,6 +684,18 @@ void SceneBoss::DrawGUI()
                 ImGui::Text("Monitor OS: X:%d, Y:%d", mPos.x, mPos.y);
             }
 
+            if (ImGui::CollapsingHeader("Cinematic Camera", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::SliderFloat("Combat Radius", &m_combatRadius, 5.0f, 50.0f);
+                ImGui::SliderFloat("Max Zoom Amount", &m_maxZoomIn, -15.0f, 0.0f);
+                ImGui::Text("Current Zoom: %.2f", m_currentZoom);
+
+                if (ImGui::Button("Reset Zoom Settings")) {
+                    m_combatRadius = 25.0f;
+                    m_maxZoomIn = -8.0f;
+                }
+            }
+
             ImGui::EndTabItem();
         }
 
@@ -782,10 +821,17 @@ void SceneBoss::DrawGUI()
 
                 // --- UI BARU UNTUK RHYTHM LASER ---
                 ImGui::Separator();
-                ImGui::TextColored(ImVec4(0, 1, 1, 1), "--- Rhythm Laser Settings ---");
+                ImGui::TextColored(ImVec4(0, 1, 1, 1), "--- Rhythm Laser & Bijuudama Settings ---");
                 ImGui::SliderFloat("Laser Duration", &p.laserDuration, 0.5f, 4.0f);
                 ImGui::SliderFloat("Parry Window (+/- sec)", &p.laserParryWindow, 0.05f, 0.5f);
                 ImGui::SliderInt("Laser Damage", &p.laserDamage, 10, 50);
+
+                // [BARU] Slider Bijuudama
+                ImGui::SliderFloat("Base Radius", &p.bijuudamaBaseHitbox, 0.1f, 2.0f);
+                ImGui::SliderFloat("Max Grow Amount", &p.bijuudamaMaxHitboxGrow, 0.0f, 10.0f);
+                ImGui::SliderFloat("Visual Multiplier", &p.bijuudamaVisualMultiplier, 1.0f, 10.0f);
+                ImGui::SliderFloat("Spawn Offset Z", &p.bijuudamaSpawnOffsetZ, 0.0f, 10.0f);
+                ImGui::SliderFloat("Shoot Speed", &p.bijuudamaShootSpeed, 10.0f, 120.0f);
 
                 ImGui::Separator();
                 ImGui::TextColored(ImVec4(1, 0, 0, 1), "--- Manual Triggers ---");
@@ -808,9 +854,9 @@ void SceneBoss::DrawGUI()
                 ImGui::PopStyleColor();
 
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.6f, 1.0f));
-                if (ImGui::Button("FIRE LOCKING LASER (TIMING EVENT)", ImVec2(-1.0f, 40.0f))) {
+                if (ImGui::Button("FIRE BIJUUDAMA (TIMING EVENT)", ImVec2(-1.0f, 40.0f))) {
                     if (m_player) {
-                        normalPhase->TriggerLockingLaser(m_player.get());
+                        normalPhase->TriggerBijuudama(m_player.get());
                     }
                 }
                 ImGui::PopStyleColor();

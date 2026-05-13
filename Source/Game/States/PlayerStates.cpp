@@ -81,15 +81,16 @@ void PlayerIdle::Update(Player* player, float dt)
                 float speed = 40.0f; // Kecepatan khusus Counter Bullet
 
                 if (parryTarget) {
-                    // Jika musuh biasa, gunakan sistem homing bawaan Anda
+                    // Jika musuh biasa
                     parryBullet->SetHomingTarget(parryTarget);
                     tPos = parryTarget->GetPosition();
                     speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
                     if (speed < 10.0f) speed = 30.0f;
                 }
                 else if (colMgr->GetNaviBoss()) {
-                    // Jika Boss Ghost Bullet, langsung kunci ke posisi bos!
-                    tPos = colMgr->GetNaviBoss()->GetPosition();
+                    // [FIX] JIKA BIJUUDAMA SUKSES: Tembak ke arah Player dengan kecepatan ekstrem!
+                    tPos = pPos; // Jadikan player sebagai target!
+                    speed = 80.0f;
                 }
 
                 XMVECTOR vDir = XMVector3Normalize(XMLoadFloat3(&tPos) - XMLoadFloat3(&bPos));
@@ -180,15 +181,16 @@ void PlayerMoving::Update(Player* player, float dt)
                 float speed = 40.0f; // Kecepatan khusus Counter Bullet
 
                 if (parryTarget) {
-                    // Jika musuh biasa, gunakan sistem homing bawaan Anda
+                    // Jika musuh biasa
                     parryBullet->SetHomingTarget(parryTarget);
                     tPos = parryTarget->GetPosition();
                     speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
                     if (speed < 10.0f) speed = 30.0f;
                 }
                 else if (colMgr->GetNaviBoss()) {
-                    // Jika Boss Ghost Bullet, langsung kunci ke posisi bos!
-                    tPos = colMgr->GetNaviBoss()->GetPosition();
+                    // [FIX] JIKA BIJUUDAMA SUKSES: Tembak ke arah Player dengan kecepatan ekstrem!
+                    tPos = pPos; // Jadikan player sebagai target!
+                    speed = 80.0f;
                 }
 
                 XMVECTOR vDir = XMVector3Normalize(XMLoadFloat3(&tPos) - XMLoadFloat3(&bPos));

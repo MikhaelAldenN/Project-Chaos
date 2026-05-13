@@ -28,6 +28,7 @@ public:
     void SetHomingTarget(Character* target) { m_homingTarget = target; }
     Character* GetHomingTarget() const { return m_homingTarget; }
     float GetRadius() const { return radius; }
+	void SetRadius(float r) { radius = r; }
     [[nodiscard]] bool IsActive() const { return isActive; }
     void SetActive(bool active) { isActive = active; }
 

@@ -9,19 +9,37 @@
 #include "StateMachine.h"
 #include "PlayerStates.h"
 
+#include "WindowTrackingSystem.h"
+
 void NaviPhaseNormal::Enter(NaviBoss* boss) {
-    // (Logika Borderless Fullscreen sama)
     int screenW = GetSystemMetrics(SM_CXSCREEN);
     int screenH = GetSystemMetrics(SM_CYSCREEN);
 
     Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
     if (mainWindow && mainWindow->GetSDLWindow()) {
         SDL_Window* sdlWin = mainWindow->GetSDLWindow();
+
+        // [FIX 1] Pastikan Main Window TIDAK AlwaysOnTop agar tidak menutupi Navi
+        SDL_SetWindowAlwaysOnTop(sdlWin, false);
+
         SDL_SetWindowBordered(sdlWin, false);
-        SDL_SetWindowResizable(sdlWin, false);
         SDL_SetWindowPosition(sdlWin, 0, 0);
         SDL_SetWindowSize(sdlWin, screenW, screenH);
     }
+
+    if (boss->GetMainWindow()) {
+        // [FIX 2] Paksa Navi ke posisi paling depan menggunakan Win32 API
+        HWND naviHwnd = boss->GetMainWindow()->GetNativeHandle();
+        if (naviHwnd) {
+            SetWindowPos(naviHwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+        }
+
+        // [FIX 3] Trigger WindowManager agar me-refresh susunan window
+        WindowManager::Instance().MarkPriorityDirty();
+    }
+
+    // Matikan Breathing (Intensity = 0.0f) agar Navi statik
+    boss->SetCoreBreathParams(1.0f, 0.0f);
 
     m_bulletPool.clear();
     m_bulletPool.reserve(200);
@@ -67,6 +85,20 @@ void NaviPhaseNormal::TriggerFanAttack(NaviBoss* boss, DirectX::XMFLOAT3 playerP
 void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
     if (!boss) return;
 
+    // =========================================================
+    // SINKRONISASI UKURAN JENDELA DENGAN ZOOM CAMERA
+    // =========================================================
+    auto* ws = boss->GetWindowSystem();
+    if (ws) {
+        float currentP2U = ws->GetPixelToUnitRatio();
+        
+        // [FIX 5] Ukuran 6.0f unit biasanya lebih pas untuk komposisi wajah Navi
+        // saat kamera sedang melakukan zoom-in.
+        float newSize = 5.0f * currentP2U; 
+        
+        boss->SetBaseWindowSize(newSize, newSize);
+        boss->SetWindowSize(newSize, newSize);
+    }
     // --- 1A. Logika Radial Burst ---
     if (m_isFiring) {
         if (m_burstsFired == 0) {
@@ -98,46 +130,68 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
         }
     }
 
-    // =========================================================
-        // LOGIKA RHYTHM LASER PARRY (GHOST BULLET SYSTEM)
-        // =========================================================
     if (m_isLaserLocked && m_laserTargetPlayer) {
         m_laserTimer += dt;
-        bool ghostExists = false;
+        DirectX::XMFLOAT3 pPos = m_laserTargetPlayer->GetPosition();
+        DirectX::XMFLOAT3 bPos = boss->GetPosition();
 
-        // 1. Cari Ghost Bullet dan tempelkan terus ke dada player
-        for (auto& bullet : m_bulletPool) {
-            if (bullet->IsActive()) {
-                DirectX::XMFLOAT3 vel = bullet->GetVelocity();
-                float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
+        // --- 1. UPDATE FISIK BOLA BIJUUDAMA ---
+        if (m_bijuudamaBall && m_bijuudamaBall->IsActive()) {
+            DirectX::XMFLOAT3 vel = m_bijuudamaBall->GetVelocity();
+            if ((vel.x * vel.x + vel.z * vel.z) < 0.01f) {
 
-                if (speedSq < 0.01f) { // Jika kecepatannya 0 (Hantu)
-                    ghostExists = true;
-                    DirectX::XMFLOAT3 pPos = m_laserTargetPlayer->GetPosition();
-                    pPos.y += 1.0f;
-                    bullet->GetMovement()->SetPosition(pPos); // Sinkronisasi posisi
-                    break;
-                }
+                // [TIDAK HARDCODE] Tempel bola di depan mulut Boss
+                DirectX::XMFLOAT3 offsetPos = bPos;
+                offsetPos.z -= m_params.bijuudamaSpawnOffsetZ;
+                m_bijuudamaBall->GetMovement()->SetPosition(offsetPos);
+
+                // [TIDAK HARDCODE] Kalkulasi Hitbox vs Visual
+                float progress = min(1.0f, m_laserTimer / m_params.laserDuration);
+
+                float currentHitboxRadius = m_params.bijuudamaBaseHitbox + (m_params.bijuudamaMaxHitboxGrow * progress);
+                m_bijuudamaBall->SetRadius(currentHitboxRadius);
+
+                float visualScale = currentHitboxRadius * m_params.bijuudamaVisualMultiplier;
+                m_bijuudamaBall->scale = { visualScale, visualScale, visualScale };
             }
         }
 
-        // 2. Evaluasi Status Laser
-        if (!ghostExists) {
-            // Jika hantu hilang (Artinya player berhasil mem-Parry-nya hingga kecepatannya tidak 0 lagi!)
-            m_isLaserLocked = false;
-        }
-        else if (m_laserTimer > m_params.laserDuration) {
-            // Waktu habis dan hantu masih ada (Gagal Parry!)
-            m_isLaserLocked = false;
-            m_laserTargetPlayer->TakeDamage(m_params.laserDamage);
+        // --- 2. VISUAL TIMING RING (Tetap ada di Player) ---
+        auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
+        float t = m_laserTimer / m_params.laserDuration;
+        if (t > 1.0f) t = 1.0f;
+        float currentRingRadius = m_params.laserStartRadius + (m_params.laserTargetRadius - m_params.laserStartRadius) * t;
 
-            // Bersihkan hantunya agar layar bersih
-            for (auto& bullet : m_bulletPool) {
-                if (bullet->IsActive()) {
-                    DirectX::XMFLOAT3 vel = bullet->GetVelocity();
-                    if ((vel.x * vel.x + vel.z * vel.z) < 0.01f) bullet->SetActive(false);
+        DirectX::XMFLOAT4 ringColor = { 1.0f, 0.0f, 0.0f, 1.0f }; // Merah (Belum pas)
+        float timeDiff = std::abs(m_laserTimer - m_params.laserDuration);
+        if (timeDiff <= m_params.laserParryWindow) {
+            ringColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // Putih Menyala! (PARRY SEKARANG!)
+        }
+        shapeRenderer->DrawSphere(pPos, currentRingRadius, ringColor);
+
+        // --- 3. RESOLUSI: WAKTU CHARGE HABIS ---
+        if (m_laserTimer >= m_params.laserDuration) {
+            m_isLaserLocked = false;
+
+            if (m_bijuudamaBall && m_bijuudamaBall->IsActive()) {
+                DirectX::XMFLOAT3 vel = m_bijuudamaBall->GetVelocity();
+                if ((vel.x * vel.x + vel.z * vel.z) < 0.01f) {
+
+                    float dx = pPos.x - bPos.x;
+                    float dz = pPos.z - bPos.z;
+                    float dist = std::sqrt(dx * dx + dz * dz);
+
+                    if (dist > 0.001f) {
+                        // [TIDAK HARDCODE] Kecepatan tembak
+                        float sSpeed = m_params.bijuudamaShootSpeed;
+                        DirectX::XMFLOAT3 shootVel = { (dx / dist) * sSpeed, 0.0f, (dz / dist) * sSpeed };
+                        DirectX::XMFLOAT3 currentPos = m_bijuudamaBall->GetMovement()->GetPosition();
+
+                        m_bijuudamaBall->ApplyMovement(currentPos, shootVel);
+                    }
                 }
             }
+            m_bijuudamaBall = nullptr;
         }
     }
 
@@ -201,9 +255,6 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
             DirectX::XMFLOAT3 vel = bullet->GetVelocity();
             float speedSq = vel.x * vel.x + vel.z * vel.z;
 
-            // [FIX] JANGAN RENDER GHOST BULLET! (Kecepatan 0)
-            if (speedSq < 0.01f) continue;
-
             DirectX::XMFLOAT4 renderColor = m_params.color;
             if (speedSq > 900.0f) renderColor = { 0.0f, 1.0f, 1.0f, 1.0f }; // Cyan Counter
 
@@ -239,21 +290,34 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
 
 void NaviPhaseNormal::Exit(NaviBoss* boss) { m_bulletPool.clear(); }
 
-void NaviPhaseNormal::TriggerLockingLaser(Player* targetPlayer) {
+void NaviPhaseNormal::TriggerBijuudama(Player* targetPlayer) {
     if (!m_isLaserLocked && targetPlayer) {
         m_isLaserLocked = true;
         m_laserTimer = 0.0f;
         m_laserTargetPlayer = targetPlayer;
 
-        // =========================================================
-        // [MAGIC] SPAWN THE GHOST BULLET
-        // =========================================================
+        // Cari peluru kosong untuk dijadikan Bijuudama
         for (auto& bullet : m_bulletPool) {
             if (!bullet->IsActive()) {
-                DirectX::XMFLOAT3 pPos = targetPlayer->GetPosition();
-                pPos.y += 1.0f;
-                // Tembakkan peluru dengan kecepatan 0.0f (Hantu diam)
-                bullet->Fire(pPos, { 0.0f, 0.0f, 1.0f }, 0.0f);
+                bullet->SetActive(true);
+
+                // =========================================================
+                // [CRITICAL FIX] PEMBERSIHAN OBJECT POOL
+                // =========================================================
+                // 1. Gunakan ApplyMovement agar internal Bullet::velocity benar-benar menjadi 0
+                bullet->ApplyMovement({ 0.0f, -1000.0f, 0.0f }, { 0.0f, 0.0f, 0.0f });
+
+                // 2. Bersihkan sisa memori Homing Target (jika sebelumnya adalah peluru biasa)
+                bullet->SetHomingTarget(nullptr);
+
+                // 3. Reset ukuran Hitbox dan Skala Visual 3D
+                float baseHitbox = m_params.bijuudamaBaseHitbox;
+                float baseVisual = baseHitbox * m_params.bijuudamaVisualMultiplier;
+
+                bullet->SetRadius(baseHitbox);
+                bullet->scale = { baseVisual, baseVisual, baseVisual };
+
+                m_bijuudamaBall = bullet.get();
                 break;
             }
         }

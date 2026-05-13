@@ -46,6 +46,10 @@ void NaviBoss::ChangePhase(std::unique_ptr<INaviPhase> newPhase) {
 void NaviBoss::Update(float dt) {
     m_glitchTimer += dt;
 
+    if (m_windowSystem) {
+        m_pixelToUnit = m_windowSystem->GetPixelToUnitRatio();
+    }
+
     // Logika Breathing Kepala (Tetap di sini karena bersifat global)
     float breath = sinf(m_glitchTimer * m_breathSpeed) * m_breathIntensity;
     m_windowSize.x = m_baseWindowSize.x + breath;

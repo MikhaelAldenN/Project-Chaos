@@ -842,8 +842,8 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
     }
 
     // =========================================================
-    // 2. DETEKSI GHOST BULLET NAVI BOSS
-    // =========================================================
+        // 2. DETEKSI BIJUUDAMA NAVI BOSS
+        // =========================================================
     if (m_naviBoss)
     {
         auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_naviBoss->GetCurrentPhase());
@@ -856,21 +856,20 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
                 DirectX::XMFLOAT3 vel = bullet->GetVelocity();
                 float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
 
-                // Jika ini adalah Ghost Bullet (Kecepatan 0)
+                // Jika ini Bijuudama yang sedang di-charge (Kecepatan 0)
                 if (speedSq < 0.01f)
                 {
                     // Cek apakah pemain menekan Space di dalam Jendela Timing yang pas!
                     float timeDiff = std::abs(normalPhase->GetLaserTimer() - normalPhase->GetParams().laserDuration);
                     if (timeDiff <= normalPhase->GetParams().laserParryWindow)
                     {
-                        XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
-                        if (CheckSphereCollision(playerPos, bPos, threshold))
-                        {
-                            if (outBullet) *outBullet = bullet.get();
-                            // Kirim nullptr agar PlayerStates tahu targetnya adalah NaviBoss!
-                            if (outNearestEnemy) *outNearestEnemy = nullptr;
-                            return true;
-                        }
+                        // [FIX] HAPUS CheckSphereCollision! 
+                        // Bijuudama adalah event global, bisa di-parry dari ujung layar manapun!
+                        if (outBullet) *outBullet = bullet.get();
+                        if (outNearestEnemy) *outNearestEnemy = nullptr;
+
+                        normalPhase->CancelBijuudama(); // Hentikan charge
+                        return true;
                     }
                 }
             }
@@ -879,22 +878,17 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
 
     return false;
 }
+
 void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
 {
-    // Cek apakah player masih hidup dan tidak sedang I-Frame (Dash)
     if (!m_naviBoss || !m_player || m_player->GetHP() <= 0 || m_player->IsInvincible()) return;
-
-    // Pastikan bos sedang berada di Fase Normal
     auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_naviBoss->GetCurrentPhase());
     if (!normalPhase) return;
 
-    auto& projectiles = normalPhase->GetProjectiles();
-    DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
+    constexpr float PLAYER_HURTBOX_RADIUS = 0.3f;
+    constexpr int BOSS_BULLET_DAMAGE = 10;
 
-    constexpr float PLAYER_HURTBOX_RADIUS = 0.3f; // Sesuai dengan ukuran musuh biasa
-    constexpr int BOSS_BULLET_DAMAGE = 10;        // Damage per peluru
-
-    for (auto& bullet : projectiles)
+    for (auto& bullet : normalPhase->GetProjectiles())
     {
         if (!bullet || !bullet->IsActive()) continue;
 
@@ -902,28 +896,44 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
         DirectX::XMFLOAT3 vel = bullet->GetVelocity();
         float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
 
-        if (speedSq > 900.0f) continue; // Abaikan Counter Bullet
-        if (speedSq < 0.01f) continue;  // [NEW] Abaikan Ghost Bullet (Biar gak instant kill)
+        if (speedSq < 0.01f) continue; // Abaikan bola yang masih di-charge
 
-        // ---> CCD MATH: Kalkulasi posisi frame sebelumnya untuk mencegah Tunneling
+        // TIER 3: Peluru sukses dipantulkan ke bos (Kecepatan 150 = 22500)
+        if (speedSq > 10000.0f) continue;
+
         DirectX::XMFLOAT3 prevPos = {
             currentPos.x - (vel.x * elapsedTime),
             currentPos.y - (vel.y * elapsedTime),
             currentPos.z - (vel.z * elapsedTime)
         };
 
+        DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
         float combinedRadius = PLAYER_HURTBOX_RADIUS + bullet->GetRadius();
-
-        // Cek garis lintasan peluru vs Posisi Player
         float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, playerPos);
 
+        // TIER 2: Peluru Sukses Parry yang OTW ke Player (Kecepatan 80 = 6400)
+        if (speedSq > 4000.0f && speedSq < 10000.0f)
+        {
+            if (distToPath <= combinedRadius + 1.5f) // Jangkauan pantul dilebarkan agar pedang kena
+            {
+                // [MAGIC PANTULAN OTOMATIS] Jangan lukai player, pantulkan balik ke bos!
+                DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();
+                DirectX::XMVECTOR vDir = DirectX::XMVector3Normalize(DirectX::XMLoadFloat3(&bossPos) - DirectX::XMLoadFloat3(&currentPos));
+                DirectX::XMFLOAT3 newVel;
+                DirectX::XMStoreFloat3(&newVel, vDir * 150.0f); // Kecepatan Cahaya!
+                bullet->ApplyMovement(currentPos, newVel);
+
+                AudioManager::Instance().PlaySFX("Data/Sound/SE_Parry.wav", 1.0f);
+            }
+            continue;
+        }
+
+        // TIER 1: Peluru Normal / Bijuudama GAGAL Parry (Kecepatan < 45 = 2025 kebawah)
         if (distToPath <= combinedRadius)
         {
-            // KENA HIT!
             m_player->TakeDamage(BOSS_BULLET_DAMAGE);
-            bullet->SetActive(false); // Kembalikan peluru ke Object Pool
+            bullet->SetActive(false);
 
-            // Cek Kematian Player
             if (m_player->GetHP() <= 0)
             {
                 m_player->scale = { 0.0f, 0.0f, 0.0f };
@@ -931,7 +941,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
                 m_player->GetMovement()->SetVelocity({ 0,0,0 });
                 m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
             }
-            break; // Break agar player tidak kena 2 damage sekaligus di frame yang sama
+            break;
         }
     }
 }
@@ -950,7 +960,7 @@ void CollisionManager::CheckNaviBossProjectilesVsBoss(float elapsedTime)
         float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
 
         // Jika kecepatannya gila (Berarti habis di-Parry Player!)
-        if (speedSq > 900.0f)
+        if (speedSq > 10000.0f)
         {
             DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
             DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();

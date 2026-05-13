@@ -17,19 +17,28 @@ struct NaviBulletParams {
     float despawnDist = 60.0f;
 
     // Parameter Targeted Fan Burst (Shotgun)
-    int fanLines = 4;           // Jumlah peluru per baris/wave
-    int fanWaves = 5;           // Ditembakkan berapa kali
-    float fanWaveDelay = 0.15f; // Jeda waktu antar wave (detik)
-    float fanSpreadAngle = 0.2f;// Jarak sudut antar peluru (radian)
+    int fanLines = 4;
+    int fanWaves = 5;
+    float fanWaveDelay = 0.15f;
+    float fanSpreadAngle = 0.2f;
 
     // ==========================================
-    // [NEW] Parameter Rhythm Laser
+    // Parameter Rhythm Laser
     // ==========================================
-    float laserDuration = 2.0f;     // Waktu sampai lingkaran besar menyatu ke lingkaran kecil
-    float laserParryWindow = 0.15f; // Jendela toleransi (margin error) = 0.15 detik
-    float laserStartRadius = 8.0f;  // Ukuran awal lingkaran besar
-    float laserTargetRadius = 1.5f; // Ukuran lingkaran kecil (Target)
-    int laserDamage = 20;           // Damage jika gagal parry
+    float laserDuration = 2.0f;
+    float laserParryWindow = 0.15f;
+    float laserStartRadius = 8.0f;
+    float laserTargetRadius = 1.5f;
+    int laserDamage = 20;
+
+    // ==========================================
+    // [NEW] Parameter Bijuudama
+    // ==========================================
+    float bijuudamaBaseHitbox = 0.5f;       // Radius awal bola saat keluar dari mulut
+    float bijuudamaMaxHitboxGrow = 2.0f;    // Tambahan radius saat charge (Max = Base + Grow)
+    float bijuudamaVisualMultiplier = 4.0f; // Pengali skala 3D model terhadap Hitbox
+    float bijuudamaSpawnOffsetZ = 2.0f;     // Jarak bola di depan boss (Sumbu Z)
+    float bijuudamaShootSpeed = 45.0f;      // Kecepatan tembak jika gagal parry
 };
 
 class NaviPhaseNormal : public INaviPhase {
@@ -46,7 +55,11 @@ public:
     void TriggerSingleBurst();
     void TriggerDoubleBurst();
     void TriggerFanAttack(NaviBoss* boss, DirectX::XMFLOAT3 playerPos);
-    void TriggerLockingLaser(Player* targetPlayer);
+    void TriggerBijuudama(Player* targetPlayer);
+    void CancelBijuudama() {
+        m_isLaserLocked = false;
+        m_bijuudamaBall = nullptr;
+    }
 
     NaviBulletParams& GetParams() { return m_params; }
 
@@ -81,4 +94,5 @@ private:
     float m_laserTimer = 0.0f;
     Player* m_laserTargetPlayer = nullptr; // Pointer aman karena Player dikelola SceneBoss
 
+    Bullet* m_bijuudamaBall = nullptr;
 };

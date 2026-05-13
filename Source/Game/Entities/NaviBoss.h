@@ -43,6 +43,9 @@ public:
     float GetCoreBreathSpeed() const { return m_breathSpeed; }
     float GetCoreBreathIntensity() const { return m_breathIntensity; }
 
+    void SetBaseWindowSize(float w, float h) { m_baseWindowSize = { w, h }; }
+    void SetWindowSize(float w, float h) { m_windowSize = { w, h }; }
+
 private:
     // --- System Reference ---
     WindowTrackingSystem* m_windowSystem = nullptr;

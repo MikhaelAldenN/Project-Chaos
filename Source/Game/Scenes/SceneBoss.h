@@ -78,12 +78,15 @@ private:
     std::unique_ptr<Primitive>            m_primitive2D;
     std::unique_ptr<PrimitiveRenderer>    m_primitive3D;
 
+    DirectX::XMFLOAT3 m_cameraPosition{ 0.0f, 18.0f, 0.0f }; // Posisi default (Top View)
+    DirectX::XMFLOAT3 m_cameraTarget{ 0.0f, 0.0f, 0.0f };   // Titik yang dilihat kamera
+
     std::unique_ptr<EnemyManager>         m_enemyManager;
     std::unique_ptr<ItemManager>          m_itemManager;
     std::unique_ptr<Stage>                m_stage;
     std::unique_ptr<Boss>                 m_boss;
     std::unique_ptr<CollisionManager>     m_collisionManager;
-    std::unique_ptr<NaviBoss> m_navi;
+    std::unique_ptr<NaviBoss>             m_navi;
 
     // =========================================================
     // PHYSX (minimal — no ground plane, no gravity)
@@ -110,10 +113,18 @@ private:
     float     m_timeScale = 1.0f;
     int       m_spawnCount = 0;
     bool      m_autoSyncMainWindow = false;
-    bool      m_topmostEnabled = true;
+    bool      m_topmostEnabled = false;
     bool      m_playerWindowTransparent = false;
     ImVec2    m_debugPanelSize = { 450.0f, 750.0f };
     bool      m_showHitboxes = true; // <--- TAMBAHKAN INI (Default True)
+
+    // =========================================================
+    // CAMERA COMBAT ZOOM (Furi Style)
+    // =========================================================
+    float     m_targetZoom = 0.0f;
+    float     m_currentZoom = 0.0f;
+    float     m_combatRadius = 25.0f; // Radius deteksi
+    float     m_maxZoomIn = -8.0f;    // Seberapa jauh kamera turun (Y)
 
     // Terminal log (capped at 50 lines)
     std::vector<std::string> m_debugLogs;
