@@ -64,6 +64,9 @@ void UberShader::Draw(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* texture
         cb.fineDensity = data.fineDensity;
         cb.fineRotation = data.fineRotation;
 
+        cb.bloomThreshold = data.bloomThreshold;
+        cb.bloomIntensity = data.bloomIntensity;
+
         dc->UpdateSubresource(constantBuffer.Get(), 0, 0, &cb, 0, 0);
         currentData = finalData;
     }

@@ -397,44 +397,39 @@ void Player::RenderProjectiles(ModelRenderer* renderer)
 {
     for (auto& bullet : m_projectiles)
     {
-        if (bullet->IsActive())
+        if (!bullet->IsActive()) continue;
+
+        if (m_playerbulletModel)
         {
-            if (m_playerbulletModel)
-            {
-                // Get the physics bullet's position and velocity
-                DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
-                DirectX::XMFLOAT3 bVel = bullet->GetVelocity();
+            DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+            DirectX::XMFLOAT3 bVel = bullet->GetVelocity();
+            float yaw = atan2f(bVel.x, bVel.z);
 
-                // Calculate Yaw
-                float yaw = atan2f(bVel.x, bVel.z);
+            DirectX::XMMATRIX S = DirectX::XMMatrixScaling(
+                m_playerbulletOffsetScale.x,
+                m_playerbulletOffsetScale.y,
+                m_playerbulletOffsetScale.z
+            );
 
-                // Apply ImGui Local Offsets (S * R * T)
-                DirectX::XMMATRIX S = DirectX::XMMatrixScaling(m_playerbulletOffsetScale.x, m_playerbulletOffsetScale.y, m_playerbulletOffsetScale.z);
-                DirectX::XMMATRIX R = DirectX::XMMatrixRotationRollPitchYaw(
-                    DirectX::XMConvertToRadians(m_playerbulletOffsetRot.x),
-                    DirectX::XMConvertToRadians(m_playerbulletOffsetRot.y),
-                    DirectX::XMConvertToRadians(m_playerbulletOffsetRot.z)
-                );
-                DirectX::XMMATRIX T = DirectX::XMMatrixTranslation(m_playerbulletOffsetPos.x, m_playerbulletOffsetPos.y, m_playerbulletOffsetPos.z);
-                DirectX::XMMATRIX localOffset = S * R * T;
+            DirectX::XMMATRIX R = DirectX::XMMatrixRotationRollPitchYaw(
+                DirectX::XMConvertToRadians(m_playerbulletOffsetRot.x),
+                DirectX::XMConvertToRadians(m_playerbulletOffsetRot.y),
+                DirectX::XMConvertToRadians(m_playerbulletOffsetRot.z)
+            );
+            DirectX::XMMATRIX T = DirectX::XMMatrixTranslation(m_playerbulletOffsetPos.x, m_playerbulletOffsetPos.y, m_playerbulletOffsetPos.z);
 
-                // Multiply by Bullet's World Path
-                DirectX::XMMATRIX bulletRot = DirectX::XMMatrixRotationY(yaw);
-                DirectX::XMMATRIX bulletTrans = DirectX::XMMatrixTranslation(bPos.x, bPos.y, bPos.z);
+            DirectX::XMMATRIX bulletRot = DirectX::XMMatrixRotationY(yaw);
+            DirectX::XMMATRIX bulletTrans = DirectX::XMMatrixTranslation(bPos.x, bPos.y, bPos.z);
 
-                // FINAL MATRIX
-                DirectX::XMMATRIX finalMatrix = localOffset * bulletRot * bulletTrans;
+            DirectX::XMFLOAT4X4 worldMatrix;
+            DirectX::XMStoreFloat4x4(&worldMatrix, S * R * T * bulletRot * bulletTrans);
 
-                DirectX::XMFLOAT4X4 worldMatrix;
-                DirectX::XMStoreFloat4x4(&worldMatrix, finalMatrix);
-
-				// Draw the bullet with the player's custom color (can be used for hit flash, elemental tint, etc.)
-                renderer->Draw(ShaderId::Phong, m_playerbulletModel, m_playerbulletColor, worldMatrix);
-            }
-            else
-            {
-                renderer->Draw(ShaderId::Phong, bullet->GetModel(), { 1.0f, 1.0f, 1.0f, 1.0f });
-            }
+            // Draw ONCE using standard Phong! The PostProcessor will see the HDR color and bloom it automatically!
+            renderer->Draw(ShaderId::Basic, m_playerbulletModel, m_playerbulletColor, worldMatrix);
+        }
+        else
+        {
+            renderer->Draw(ShaderId::Phong, bullet->GetModel(), { 1.0f, 1.0f, 1.0f, 1.0f });
         }
     }
 }

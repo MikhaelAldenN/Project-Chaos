@@ -2,13 +2,20 @@
 
 cbuffer CbMesh : register(b0)
 {
-	float4		materialColor;
+    float4 materialColor;
 };
 
-Texture2D DiffuseMap		: register(t0);
-SamplerState LinearSampler	: register(s0);
+cbuffer CbObject : register(b2)
+{
+    float4 guiColor;
+};
+
+Texture2D DiffuseMap : register(t0);
+SamplerState LinearSampler : register(s0);
 
 float4 main(VS_OUT pin) : SV_TARGET
 {
-	return DiffuseMap.Sample(LinearSampler, pin.texcoord) * materialColor;
+    float4 texColor = DiffuseMap.Sample(LinearSampler, pin.texcoord);
+    
+    return texColor * materialColor * guiColor;
 }

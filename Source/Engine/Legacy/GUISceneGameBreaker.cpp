@@ -411,6 +411,21 @@ void GameBreakerGUI::DrawPostProcessTab(SceneGame* scene)
         if (!scene->m_fxState.EnableChromatic) ImGui::PopStyleVar();
         ImGui::Unindent();
     }
+
+    if (ImGui::CollapsingHeader("HDR Bloom", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Indent();
+
+        ImGui::DragFloat("Bloom Threshold", &uber.bloomThreshold, 0.05f, 0.0f, 10.0f);
+        ImGui::DragFloat("Bloom Intensity", &uber.bloomIntensity, 0.05f, 0.0f, 10.0f);
+
+        if (ImGui::Button("Reset Bloom", ImVec2(-1, 0)))
+        {
+            uber.bloomThreshold = 1.0f;
+            uber.bloomIntensity = 1.5f;
+        }
+        ImGui::Unindent();
+    }
 }
 
 // Renamed parameter to SceneGame*
@@ -531,7 +546,7 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGame* scene)
         if (ImGui::CollapsingHeader("Player Bullet Color", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Indent();
-            ImGui::ColorEdit4("Base Color##PBColor", &scene->m_player->GetPlayerBulletColor()->x);
+            ImGui::ColorEdit4("Base Color##PBColor", &scene->m_player->GetPlayerBulletColor()->x, ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float);
             ImGui::Unindent();
         }
         ImGui::Spacing();
