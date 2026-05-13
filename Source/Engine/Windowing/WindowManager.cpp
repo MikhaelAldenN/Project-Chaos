@@ -32,28 +32,33 @@ void WindowManager::EnforceWindowPriorities()
         }
     }
 
-    // 2. Sort by priority (Ascending: Priority 0 paling atas, makin besar makin di belakang)
-    // Note: Logika sort kamu sebelumnya Ascending, pastikan ini sesuai keinginanmu.
+    // 2. Sort by priority (Ascending)
     std::sort(sortedWindows.begin(), sortedWindows.end(),
         [](Beyond::Window* a, Beyond::Window* b) {
             return a->GetPriority() < b->GetPriority();
         });
 
     // =========================================================
-    // [MODIFIKASI] SMART TOPMOST
+    // [FIX MUTLAK] PISAHKAN KASTA TOPMOST DAN NORMAL
     // =========================================================
-    HWND hInsertAfter = m_topmostEnabled ? HWND_TOPMOST : HWND_NOTOPMOST;
-    // =========================================================
+    HWND hTopmost = HWND_TOPMOST;
+    HWND hNormal = HWND_NOTOPMOST;
 
-    // Gunakan flag SWP_NOACTIVATE agar tidak mencuri fokus keyboard
     UINT uFlags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOREDRAW;
 
     for (Beyond::Window* win : sortedWindows)
     {
-        SetWindowPos(win->GetNativeHandle(), hInsertAfter, 0, 0, 0, 0, uFlags);
-
-        // Chain Z-Order: Window berikutnya diletakkan DI BAWAH window ini.
-        hInsertAfter = win->GetNativeHandle();
+        // Jika Checkbox ImGui "All Topmost" nyala, ATAU priority <= 0 (Khusus Bos)
+        if (m_topmostEnabled || win->GetPriority() <= 0)
+        {
+            SetWindowPos(win->GetNativeHandle(), hTopmost, 0, 0, 0, 0, uFlags);
+            hTopmost = win->GetNativeHandle(); // Chain di lapisan elit Topmost
+        }
+        else
+        {
+            SetWindowPos(win->GetNativeHandle(), hNormal, 0, 0, 0, 0, uFlags);
+            hNormal = win->GetNativeHandle(); // Chain di lapisan Normal
+        }
     }
 
     if (debugWindow && debugWindow->IsVisible())

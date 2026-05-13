@@ -50,6 +50,9 @@ public:
         m_parabolaTime = 0.0f;
     }
 
+    void SetParryReturn(bool val) { m_isParryReturn = val; }
+    bool IsParryReturn() const { return m_isParryReturn; }
+
 private:
     // ... (variabel yang sudah ada) ...
     NaviBoss* m_bossTarget = nullptr;
@@ -60,6 +63,8 @@ private:
     DirectX::XMFLOAT3 m_parabolaCtrl = { 0,0,0 };
     float m_parabolaTime = 0.0f;
     float m_parabolaDuration = 1.0f; 
+
+    bool m_isParryReturn = false; // [BARU] Flag status parry
 
 private:
     DirectX::XMFLOAT3 velocity = { 0, 0, 0 };

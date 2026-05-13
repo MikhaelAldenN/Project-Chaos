@@ -207,7 +207,7 @@ void SceneBoss::Update(float elapsedTime)
     TimeManager::Instance().Update(elapsedTime);
 
     float activeTimeScale = m_timeScale * TimeManager::Instance().GetHitStopMultiplier();
-    const float scaledDt = elapsedTime * m_timeScale;
+    const float scaledDt = elapsedTime * activeTimeScale;
 
     // --- PhysX tick ---
     if (m_scene)
@@ -374,7 +374,7 @@ void SceneBoss::Update(float elapsedTime)
 
     // Terapkan posisi m_fixedPos dan Shakes
     //camCtrl.Update(scaledDt);
-
+    
     // --- Sync sub-window cameras to match main camera ---
     if (m_windowSystem)
     {

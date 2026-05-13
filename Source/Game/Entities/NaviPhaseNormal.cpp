@@ -21,22 +21,32 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
     if (mainWindow && mainWindow->GetSDLWindow()) {
         SDL_Window* sdlWin = mainWindow->GetSDLWindow();
 
-        // [FIX 1] Pastikan Main Window TIDAK AlwaysOnTop agar tidak menutupi Navi
-        SDL_SetWindowAlwaysOnTop(sdlWin, false);
+        // =========================================================
+        // [FIX 1] LUCUTI KASTA MAIN WINDOW!
+        // Set Priority ke 50 (Rakyat Biasa) agar WindowManager 
+        // membuangnya ke HWND_NOTOPMOST!
+        // =========================================================
+        mainWindow->SetPriority(50);
 
+        SDL_SetWindowAlwaysOnTop(sdlWin, false);
         SDL_SetWindowBordered(sdlWin, false);
         SDL_SetWindowPosition(sdlWin, 0, 0);
-        SDL_SetWindowSize(sdlWin, screenW, screenH);
+
+        // =========================================================
+        // [FIX 2] HACK "FULLSCREEN OPTIMIZATION" WINDOWS OS!
+        // Tambahkan +1 pixel pada tinggi (Height) layar.
+        // Mata pemain tidak akan menyadari 1 pixel ini yang tersembunyi di bawah taskbar,
+        // TAPI Windows OS akan mengira ini bukan "Exclusive Fullscreen" dan 
+        // akan mematuhi aturan Z-Order kita!
+        // =========================================================
+        SDL_SetWindowSize(sdlWin, screenW, screenH + 1);
     }
 
     if (boss->GetMainWindow()) {
-        // [FIX 2] Paksa Navi ke posisi paling depan menggunakan Win32 API
-        HWND naviHwnd = boss->GetMainWindow()->GetNativeHandle();
-        if (naviHwnd) {
-            SetWindowPos(naviHwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-        }
+        // Navi Boss tetap di Kasta Dewa (0)
+        boss->GetMainWindow()->SetPriority(0);
 
-        // [FIX 3] Trigger WindowManager agar me-refresh susunan window
+        // Memicu WindowManager untuk menata ulang Z-Order
         WindowManager::Instance().MarkPriorityDirty();
     }
 
@@ -224,6 +234,16 @@ void NaviPhaseNormal::FireFanWave(NaviBoss* boss) {
     int firedCount = 0;
     for (auto& bullet : m_bulletPool) {
         if (!bullet->IsActive()) {
+
+            // =========================================================
+            // [FIX] MANDIKAN PELURU SEBELUM JADI PELURU NORMAL!
+            // =========================================================
+            bullet->SetRadius(0.25f);
+            bullet->scale = { 1.0f, 1.0f, 1.0f };
+            bullet->SetHomingTarget(nullptr);
+            bullet->SetBossTarget(nullptr);
+            bullet->SetParabolic(false);
+
             float currentAngle = startAngle + (firedCount * spread);
             DirectX::XMFLOAT3 dir = { sinf(currentAngle), 0.0f, cosf(currentAngle) };
 
@@ -240,12 +260,24 @@ void NaviPhaseNormal::FireRadialBurst(NaviBoss* boss, float angleOffset) {
     float angleStep = DirectX::XM_2PI / (float)m_params.count;
     for (auto& bullet : m_bulletPool) {
         if (!bullet->IsActive()) {
+
+            // =========================================================
+            // [FIX] MANDIKAN PELURU SEBELUM JADI PELURU NORMAL!
+            // =========================================================
+            bullet->SetRadius(0.25f);                     // Hitbox standar peluru kecil
+            bullet->scale = { 1.0f, 1.0f, 1.0f };         // Skala visual standar
+            bullet->SetHomingTarget(nullptr);             // Hapus pelacak player
+            bullet->SetBossTarget(nullptr);               // Hapus pelacak bos (Shatter)
+            bullet->SetParabolic(false);                  // Matikan mode melengkung
+            bullet->SetParryReturn(false);
+
             float angle = (firedCount * angleStep) + angleOffset;
             bullet->Fire(boss->GetPosition(), { sinf(angle), 0.0f, cosf(angle) }, m_params.speed);
             if (++firedCount >= m_params.count) break;
         }
     }
 }
+
 
 void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {
     if (!currentCamera) return;
@@ -320,6 +352,7 @@ void NaviPhaseNormal::TriggerBijuudama(Player* targetPlayer) {
                 bullet->SetHomingTarget(nullptr);
                 bullet->SetBossTarget(nullptr);
                 bullet->SetParabolic(false);
+                bullet->SetParryReturn(false); // <--- [FIX] WAJIB TAMBAHKAN INI!
 
                 // 3. Reset ukuran Hitbox dan Skala Visual 3D
                 float baseHitbox = m_params.bijuudamaBaseHitbox;
@@ -361,6 +394,7 @@ void NaviPhaseNormal::ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* bos
             bullet->ApplyMovement(parryPos, { 0,0,0 });
             bullet->SetBossTarget(boss);
             bullet->SetParabolic(true);
+            bullet->SetParryReturn(false);
 
             // 2. Set Ukuran
             float r = distSize(gen);

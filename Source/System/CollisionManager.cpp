@@ -865,6 +865,7 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
                     float timeDiff = std::abs(normalPhase->GetLaserTimer() - normalPhase->GetParams().laserDuration);
                     if (timeDiff <= normalPhase->GetParams().laserParryWindow)
                     {
+                        bullet->SetParryReturn(true);
                         // [FIX] HAPUS CheckSphereCollision! 
                         // Bijuudama adalah event global, bisa di-parry dari ujung layar manapun!
                         if (outBullet) *outBullet = bullet.get();
@@ -913,22 +914,22 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
         float combinedRadius = PLAYER_HURTBOX_RADIUS + bullet->GetRadius();
         float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, playerPos);
 
-        // TIER 2: Peluru Sukses Parry yang OTW ke Player (Kecepatan 80 = 6400)
-        if (speedSq > 4000.0f && speedSq < 10000.0f)
+        // =========================================================
+        // TIER 2: BIJUUDAMA YANG SUKSES DI-PARRY (Pakai Flag, bukan Speed!)
+        // =========================================================
+        if (bullet->IsParryReturn())
         {
-            if (distToPath <= combinedRadius + 1.5f)
+            // [FIX] HAPUS "+ 1.5f" di sini! 
+            // Biarkan pecah tepat saat permukaan bola menyentuh hurtbox player (combinedRadius).
+            // Jika dirasa terlalu masuk ke dalam badan, Anda bisa menambahkan sedikit saja, misal "+ 0.2f"
+            if (distToPath <= combinedRadius)
             {
                 // [JUICE: HIT STOP & SCREEN SHAKE]
-                // Bekukan game selama 0.15 detik (Terasa seperti impact pedang yang sangat berat!)
                 TimeManager::Instance().TriggerHitStop(0.15f, 0.0f);
-
-                // Berikan Trauma 0.8f ke kamera (Guncangan hebat yang akan mereda dalam ~0.5 detik)
                 CameraController::Instance().AddTrauma(0.8f);
 
-                // [MAGIC SHATTER] Alih-alih memantulkan, pecahkan Bijuudama!
                 normalPhase->ShatterBijuudama(currentPos, m_naviBoss);
-
-                bullet->SetActive(false); // Matikan Bijuudama utamanya
+                bullet->SetActive(false);
                 AudioManager::Instance().PlaySFX("Data/Sound/SE_Parry.wav", 1.0f);
             }
             continue;
