@@ -901,6 +901,15 @@ void SceneBoss::DrawGUI()
                 }
                 ImGui::PopStyleColor();
 
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.3f, 0.0f, 1.0f));
+                if (ImGui::Button("ASGORE RAIN (LEFT HALF)", ImVec2(-1.0f, 35.0f))) {
+                    normalPhase->TriggerRainAttack(true); // True = Kiri
+                }
+                if (ImGui::Button("ASGORE RAIN (RIGHT HALF)", ImVec2(-1.0f, 35.0f))) {
+                    normalPhase->TriggerRainAttack(false); // False = Kanan
+                }
+                ImGui::PopStyleColor();
+
                 if (ImGui::CollapsingHeader("Player Vital Signs", ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     int hp = m_player->GetHP();

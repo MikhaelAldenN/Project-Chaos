@@ -3,6 +3,7 @@
 #include "Bullet.h"
 #include <vector>
 #include <memory>
+#include "Primitive.h"
 
 class Player;
 
@@ -44,7 +45,7 @@ struct NaviBulletParams {
     float bijuudamaShootSpeed = 45.0f;
 
     // ==========================================
-    // [BARU] Parameter Shatter Bijuudama
+    // Parameter Shatter Bijuudama
     // ==========================================
     int shatterMinFragments = 3;
     int shatterMaxFragments = 5;
@@ -64,6 +65,14 @@ struct NaviBulletParams {
     float phalanxHoverRadius = 4.0f;    // Jarak melayang di sekitar bos
     float phalanxTurnSpeed = 1.5f;      // Homing LEMAH (Supaya player bisa dash!)
 
+    // ==========================================
+    // Parameter Asgore Rain (Area Denial)
+    // ==========================================
+    float rainWarningDuration = 1.5f;   // Berapa lama tanda bahaya muncul
+    float rainActiveDuration = 2.0f;    // Berapa lama hujannya berlangsung
+    float rainWidth = 25.0f;            // Lebar area (Sumbu X)
+    float rainDepth = 40.0f;            // Panjang area (Sumbu Z)
+    int rainDamage = 1;                // Damage jika masuk area
 };
 
 class NaviPhaseNormal : public INaviPhase {
@@ -87,8 +96,10 @@ public:
     }
 
     void TriggerPhalanx(Player* targetPlayer);
-
+    void TriggerRainAttack(bool onLeftSide);
     void ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* boss);
+    int GetRainState() const { return m_rainState; }
+    DirectX::XMFLOAT3 GetRainCenter() const { return m_rainCenter; }
 
     NaviBulletParams& GetParams() { return m_params; }
 
@@ -134,4 +145,13 @@ private:
     int m_phalanxFired = 0;
     Player* m_phalanxTarget = nullptr;
     std::vector<Bullet*> m_phalanxBullets; // Pegang peluru yang sedang melayang
+
+    // ==========================================
+    // [NEW] State Asgore Rain
+    // ==========================================
+    int m_rainState = 0; // 0 = Off, 1 = Warning, 2 = Raining
+    float m_rainTimer = 0.0f;
+    DirectX::XMFLOAT3 m_rainCenter = { 0,0,0 };
+
+    std::unique_ptr<Primitive> m_zonePrimitive;
 };
