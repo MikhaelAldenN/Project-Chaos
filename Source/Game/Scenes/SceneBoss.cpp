@@ -833,6 +833,15 @@ void SceneBoss::DrawGUI()
                 ImGui::SliderFloat("Spawn Offset Z", &p.bijuudamaSpawnOffsetZ, 0.0f, 10.0f);
                 ImGui::SliderFloat("Shoot Speed", &p.bijuudamaShootSpeed, 10.0f, 120.0f);
 
+                // [BARU] Slider Shatter / Pecahan
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(1, 0.5f, 0, 1), "--- Shatter / Parabola Settings ---");
+                ImGui::SliderInt("Min Fragments", &p.shatterMinFragments, 1, 10);
+                ImGui::SliderInt("Max Fragments", &p.shatterMaxFragments, 1, 20);
+                ImGui::SliderFloat("Curve Width/Offset", &p.shatterCurveOffset, 5.0f, 30.0f);
+                ImGui::SliderFloat("Min Travel Time", &p.shatterMinDuration, 0.1f, 3.0f);
+                ImGui::SliderFloat("Max Travel Time", &p.shatterMaxDuration, 0.1f, 3.0f);
+
                 ImGui::Separator();
                 ImGui::TextColored(ImVec4(1, 0, 0, 1), "--- Manual Triggers ---");
 

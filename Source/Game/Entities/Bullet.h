@@ -6,6 +6,9 @@
 #include "System/Graphics.h"
 #include "System/Model.h"
 #include "Character.h"
+#include "NaviBoss.h"
+
+class NaviBoss;
 
 class Bullet : public Character
 {
@@ -32,10 +35,38 @@ public:
     [[nodiscard]] bool IsActive() const { return isActive; }
     void SetActive(bool active) { isActive = active; }
 
+    void SetBossTarget(NaviBoss* target) {
+        m_bossTarget = target;
+        m_homingTarget = nullptr; // Reset target biasa jika ada
+    }
+    NaviBoss* GetBossTarget() const { return m_bossTarget; }
+
+    // [BARU] Fungsi setup untuk Kurva Parabola
+    void SetParabolic(bool val) { m_isParabolic = val; }
+    void SetParabolaParams(const DirectX::XMFLOAT3& startPos, const DirectX::XMFLOAT3& ctrl, float duration) {
+        m_parabolaStart = startPos;
+        m_parabolaCtrl = ctrl;
+        m_parabolaDuration = duration;
+        m_parabolaTime = 0.0f;
+    }
+
+private:
+    // ... (variabel yang sudah ada) ...
+    NaviBoss* m_bossTarget = nullptr;
+
+    // [BARU] Variabel State Bezier
+    bool m_isParabolic = false;
+    DirectX::XMFLOAT3 m_parabolaStart = { 0,0,0 };
+    DirectX::XMFLOAT3 m_parabolaCtrl = { 0,0,0 };
+    float m_parabolaTime = 0.0f;
+    float m_parabolaDuration = 1.0f; 
+
 private:
     DirectX::XMFLOAT3 velocity = { 0, 0, 0 };
     float radius = 0.25f;
     bool isActive = false;
     Character* m_homingTarget = nullptr;
     float m_turnSpeed = 8.0f;
+
+
 };

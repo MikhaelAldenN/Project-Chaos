@@ -914,15 +914,12 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
         // TIER 2: Peluru Sukses Parry yang OTW ke Player (Kecepatan 80 = 6400)
         if (speedSq > 4000.0f && speedSq < 10000.0f)
         {
-            if (distToPath <= combinedRadius + 1.5f) // Jangkauan pantul dilebarkan agar pedang kena
+            if (distToPath <= combinedRadius + 1.5f)
             {
-                // [MAGIC PANTULAN OTOMATIS] Jangan lukai player, pantulkan balik ke bos!
-                DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();
-                DirectX::XMVECTOR vDir = DirectX::XMVector3Normalize(DirectX::XMLoadFloat3(&bossPos) - DirectX::XMLoadFloat3(&currentPos));
-                DirectX::XMFLOAT3 newVel;
-                DirectX::XMStoreFloat3(&newVel, vDir * 150.0f); // Kecepatan Cahaya!
-                bullet->ApplyMovement(currentPos, newVel);
+                // [MAGIC SHATTER] Alih-alih memantulkan, pecahkan Bijuudama!
+                normalPhase->ShatterBijuudama(currentPos, m_naviBoss);
 
+                bullet->SetActive(false); // Matikan Bijuudama utamanya
                 AudioManager::Instance().PlaySFX("Data/Sound/SE_Parry.wav", 1.0f);
             }
             continue;
@@ -959,8 +956,8 @@ void CollisionManager::CheckNaviBossProjectilesVsBoss(float elapsedTime)
         DirectX::XMFLOAT3 vel = bullet->GetVelocity();
         float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
 
-        // Jika kecepatannya gila (Berarti habis di-Parry Player!)
-        if (speedSq > 10000.0f)
+        // [FIX] Bandingkan BossTarget dengan m_naviBoss (Sama-sama tipe NaviBoss*)
+        if (bullet->GetBossTarget() == m_naviBoss || speedSq > 10000.0f)
         {
             DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
             DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();
@@ -968,7 +965,7 @@ void CollisionManager::CheckNaviBossProjectilesVsBoss(float elapsedTime)
             // Hitbox Boss besar (3.0f)
             if (CheckSphereCollision(bPos, bossPos, 3.0f))
             {
-                m_naviBoss->TakeDamage(30); // Boss Kena Parry Damage!
+                m_naviBoss->TakeDamage(10); // Bos menerima 10 Damage per kepingan!
                 bullet->SetActive(false);
             }
         }

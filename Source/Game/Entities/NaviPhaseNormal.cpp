@@ -11,6 +11,8 @@
 
 #include "WindowTrackingSystem.h"
 
+#include <random> // Pastikan ini ada di atas!
+
 void NaviPhaseNormal::Enter(NaviBoss* boss) {
     int screenW = GetSystemMetrics(SM_CXSCREEN);
     int screenH = GetSystemMetrics(SM_CYSCREEN);
@@ -256,7 +258,14 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
             float speedSq = vel.x * vel.x + vel.z * vel.z;
 
             DirectX::XMFLOAT4 renderColor = m_params.color;
-            if (speedSq > 900.0f) renderColor = { 0.0f, 1.0f, 1.0f, 1.0f }; // Cyan Counter
+
+            if (bullet.get() == m_bijuudamaBall || bullet->GetBossTarget() != nullptr) {
+                renderColor = m_params.bijuudamaColor; // Tetap Merah!
+            }
+            // Jika peluru biasa yang dipantulkan (Kecepatan tinggi), baru ubah jadi Cyan
+            else if (speedSq > 900.0f) {
+                renderColor = { 1.0f, 0.0f, 0.0f, 1.0f };
+            }
 
             renderer->Draw(ShaderId::Phong, bullet->GetModel(), renderColor);
         }
@@ -307,8 +316,10 @@ void NaviPhaseNormal::TriggerBijuudama(Player* targetPlayer) {
                 // 1. Gunakan ApplyMovement agar internal Bullet::velocity benar-benar menjadi 0
                 bullet->ApplyMovement({ 0.0f, -1000.0f, 0.0f }, { 0.0f, 0.0f, 0.0f });
 
-                // 2. Bersihkan sisa memori Homing Target (jika sebelumnya adalah peluru biasa)
+                // 2. Bersihkan sisa memori State
                 bullet->SetHomingTarget(nullptr);
+                bullet->SetBossTarget(nullptr);
+                bullet->SetParabolic(false);
 
                 // 3. Reset ukuran Hitbox dan Skala Visual 3D
                 float baseHitbox = m_params.bijuudamaBaseHitbox;
@@ -320,6 +331,58 @@ void NaviPhaseNormal::TriggerBijuudama(Player* targetPlayer) {
                 m_bijuudamaBall = bullet.get();
                 break;
             }
+        }
+    }
+}
+
+void NaviPhaseNormal::ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* boss) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    std::uniform_int_distribution<> distCount(m_params.shatterMinFragments, m_params.shatterMaxFragments);
+    std::uniform_real_distribution<float> distSize(m_params.shatterMinRadius, m_params.shatterMaxRadius);
+    std::uniform_real_distribution<float> distDur(m_params.shatterMinDuration, m_params.shatterMaxDuration);
+    // Sudut sebaran lengkungan (90 derajat ke kiri sampai 90 derajat ke kanan)
+    std::uniform_real_distribution<float> distAngle(-DirectX::XM_PIDIV2, DirectX::XM_PIDIV2);
+
+    int fragments = distCount(gen);
+    int spawned = 0;
+
+    DirectX::XMFLOAT3 bossPos = boss->GetPosition();
+    float dx = bossPos.x - parryPos.x;
+    float dz = bossPos.z - parryPos.z;
+    float baseAngle = atan2f(dx, dz); // Sudut lurus ke arah bos
+
+    for (auto& bullet : m_bulletPool) {
+        if (!bullet->IsActive()) {
+            bullet->SetActive(true);
+
+            // 1. Reset Internal State & Aktifkan Parabola
+            bullet->ApplyMovement(parryPos, { 0,0,0 });
+            bullet->SetBossTarget(boss);
+            bullet->SetParabolic(true);
+
+            // 2. Set Ukuran
+            float r = distSize(gen);
+            bullet->SetRadius(r);
+            bullet->scale = { r * 3.0f, r * 3.0f, r * 3.0f };
+
+            // 3. Kalkulasi Titik Kontrol (Control Point Bezier)
+            // Lempar titik kontrol sejauh parameter curve offset ke arah serong
+            float spreadAngle = baseAngle + distAngle(gen);
+            float curveDist = m_params.shatterCurveOffset;
+
+            DirectX::XMFLOAT3 ctrlPoint = {
+                parryPos.x + (sinf(spreadAngle) * curveDist),
+                parryPos.y,
+                parryPos.z + (cosf(spreadAngle) * curveDist)
+            };
+
+            // 4. Jalankan Parabola
+            bullet->SetParabolaParams(parryPos, ctrlPoint, distDur(gen));
+
+            spawned++;
+            if (spawned >= fragments) break;
         }
     }
 }

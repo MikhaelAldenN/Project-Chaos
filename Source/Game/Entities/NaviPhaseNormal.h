@@ -32,13 +32,25 @@ struct NaviBulletParams {
     int laserDamage = 20;
 
     // ==========================================
-    // [NEW] Parameter Bijuudama
+        // Parameter Bijuudama
+        // ==========================================
+    DirectX::XMFLOAT4 bijuudamaColor = { 1.0f, 0.0f, 0.0f, 1.0f }; // Merah Darah!
+    float bijuudamaBaseHitbox = 0.5f;
+    float bijuudamaMaxHitboxGrow = 2.0f;
+    float bijuudamaVisualMultiplier = 4.0f;
+    float bijuudamaSpawnOffsetZ = 2.0f;
+    float bijuudamaShootSpeed = 45.0f;
+
     // ==========================================
-    float bijuudamaBaseHitbox = 0.5f;       // Radius awal bola saat keluar dari mulut
-    float bijuudamaMaxHitboxGrow = 2.0f;    // Tambahan radius saat charge (Max = Base + Grow)
-    float bijuudamaVisualMultiplier = 4.0f; // Pengali skala 3D model terhadap Hitbox
-    float bijuudamaSpawnOffsetZ = 2.0f;     // Jarak bola di depan boss (Sumbu Z)
-    float bijuudamaShootSpeed = 45.0f;      // Kecepatan tembak jika gagal parry
+    // [BARU] Parameter Shatter Bijuudama
+    // ==========================================
+    int shatterMinFragments = 3;
+    int shatterMaxFragments = 5;
+    float shatterMinRadius = 0.2f;
+    float shatterMaxRadius = 0.8f;
+    float shatterMinDuration = 0.5f; // Waktu tempuh (Lebih besar = Lebih lambat)
+    float shatterMaxDuration = 0.7f;
+    float shatterCurveOffset = 11.0f; // Seberapa melengkung / lebar parabolanya};
 };
 
 class NaviPhaseNormal : public INaviPhase {
@@ -60,6 +72,8 @@ public:
         m_isLaserLocked = false;
         m_bijuudamaBall = nullptr;
     }
+
+    void ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* boss);
 
     NaviBulletParams& GetParams() { return m_params; }
 
