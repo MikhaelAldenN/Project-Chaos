@@ -893,16 +893,15 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
                 DirectX::XMFLOAT3 vel = bullet->GetVelocity();
                 float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
 
-                // Jika ini Bijuudama yang sedang di-charge (Kecepatan 0)
-                if (speedSq < 0.01f)
+                // [FIX MUTLAK] DI SINILAH TEMPAT YANG BENAR!
+                if (speedSq < 0.01f && normalPhase->IsLaserLocked())
                 {
                     // Cek apakah pemain menekan Space di dalam Jendela Timing yang pas!
                     float timeDiff = std::abs(normalPhase->GetLaserTimer() - normalPhase->GetParams().laserDuration);
                     if (timeDiff <= normalPhase->GetParams().laserParryWindow)
                     {
                         bullet->SetParryReturn(true);
-                        // [FIX] HAPUS CheckSphereCollision! 
-                        // Bijuudama adalah event global, bisa di-parry dari ujung layar manapun!
+
                         if (outBullet) *outBullet = bullet.get();
                         if (outNearestEnemy) *outNearestEnemy = nullptr;
 
@@ -933,8 +932,6 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
         DirectX::XMFLOAT3 currentPos = bullet->GetMovement()->GetPosition();
         DirectX::XMFLOAT3 vel = bullet->GetVelocity();
         float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
-
-        if (speedSq < 0.01f) continue; // Abaikan bola yang masih di-charge
 
         // TIER 3: Peluru sukses dipantulkan ke bos (Kecepatan 150 = 22500)
         if (speedSq > 10000.0f) continue;

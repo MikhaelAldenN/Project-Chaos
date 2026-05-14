@@ -59,7 +59,7 @@ private:
     std::unique_ptr<Sprite> m_faceSprite;
 
     // --- Data Global ---
-    DirectX::XMFLOAT3 m_position = { 0.0f, 0.0f, 5.0f };
+    DirectX::XMFLOAT3 m_position = { 0.0f, 0.0f, 0.0f };
     DirectX::XMFLOAT2 m_baseWindowSize = { 200.0f, 200.0f };
     DirectX::XMFLOAT2 m_windowSize = { 400.0f, 400.0f };
 

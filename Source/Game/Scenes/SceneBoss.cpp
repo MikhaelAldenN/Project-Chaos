@@ -244,40 +244,14 @@ void SceneBoss::Update(float elapsedTime)
     }
 
     // =========================================================
-        // [REVISED] AGGRESSIVE BIDIRECTIONAL ZOOM LOGIC
-        // =========================================================
-    m_targetZoom = 0.0f; // 0.0f = Normal Zoom (k_pixelToUnitRatio)
+    // KAMERA STATIS (NO ZOOM)
+    // =========================================================
+    m_targetZoom = 0.0f;
+    m_currentZoom = 0.0f;
 
-    if (m_player && m_navi && dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
-    {
-        DirectX::XMFLOAT3 pPos = m_player->GetPosition();
-        DirectX::XMFLOAT3 bPos = m_navi->GetPosition();
-        float dx = pPos.x - bPos.x;
-        float dz = pPos.z - bPos.z;
-        float dist = std::sqrt(dx * dx + dz * dz);
-
-        // A. ZONE ZOOM IN (TENSION): Jika dekat Bos
-        if (dist < 12.0f) {
-            float intensity = 1.0f - (dist / 12.0f);
-            m_targetZoom = 0.35f * intensity; // Maksimal Zoom In 35% 
-        }
-        // B. ZONE ZOOM OUT (WIDE VIEW): Jika menjauh dari Bos
-        else if (dist > 16.0f) {
-            float outDist = dist - 16.0f;
-
-            // [CRITICAL FIX] Limit maksimal zoom out dikunci keras di -0.15f (Hanya 15%!)
-            // Pengali 0.02f membuat pergerakan mundurnya sangat halus dan tidak menyentak.
-            m_targetZoom = max(0.0, -outDist * 0.02f);
-        }
-    }
-
-    // Gunakan Lerp 4.0f agar kamera responsif mengejar player
-    m_currentZoom += (m_targetZoom - m_currentZoom) * 4.0f * elapsedTime;
-
-    // Hitung Rasio Piksel Aktif
-    float dynamicPixelRatio = k_pixelToUnitRatio * (1.0f + m_currentZoom);
+    // Kunci Rasio Piksel ke default agar ukuran dunia stabil
+    float dynamicPixelRatio = k_pixelToUnitRatio;
     m_windowSystem->SetPixelToUnitRatio(dynamicPixelRatio);
-
 
     // =========================================================
     // [FIX] UPDATE KAMERA & CAMERA SHAKE (GABUNGAN)
@@ -367,7 +341,13 @@ void SceneBoss::Update(float elapsedTime)
     }
 
     // --- Entities & Collision Update ---
-    if (m_navi) m_navi->Update(scaledDt);
+    if (m_navi) {
+        // [FIX] Oper data Player ke AI Director sebelum Update berjalan
+        if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+            normalPhase->SetAITarget(m_player.get());
+        }
+        m_navi->Update(scaledDt);
+    }
     if (m_enemyManager) m_enemyManager->Update(scaledDt, activeCam, m_player->GetPosition(), true);
     if (m_itemManager) m_itemManager->Update(scaledDt, activeCam);
     if (m_collisionManager) m_collisionManager->Update(scaledDt);
@@ -749,6 +729,7 @@ void SceneBoss::DrawGUI()
 
                 ImGui::PopStyleColor(2);
             }
+
             // --- JIKA SEDANG DI FASE 2 (WINDOWKILL) ---
             else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()))
             {
@@ -909,6 +890,17 @@ void SceneBoss::DrawGUI()
                     normalPhase->TriggerRainAttack(false); // False = Kanan
                 }
                 ImGui::PopStyleColor();
+
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(1, 0, 1, 1), "--- AI DIRECTOR (OMEGA FLOWEY MODE) ---");
+
+                bool aiActive = normalPhase->IsAIEnabled();
+                if (ImGui::Checkbox("ENABLE BOSS AI", &aiActive)) {
+                    normalPhase->SetAIEnabled(aiActive);
+                }
+                if (aiActive) {
+                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "WARNING: PURE CHAOS INCOMING! BRACE YOURSELF!");
+                }
 
                 ImGui::Separator();
                 if (normalPhase->GetHP() > 0) {

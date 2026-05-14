@@ -101,6 +101,11 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
     if (!boss) return;
 
     // =========================================================
+    // --- 0. JALANKAN OTAK AI DIRECTOR ---
+    // =========================================================
+    UpdateAI(dt, boss);
+
+    // =========================================================
     // SINKRONISASI UKURAN JENDELA DENGAN ZOOM CAMERA
     // =========================================================
     auto* ws = boss->GetWindowSystem();
@@ -326,6 +331,7 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                 }
             }
             m_bijuudamaBall = nullptr;
+            m_laserTimer = 0.0f;
         }
     }
 
@@ -668,4 +674,69 @@ void NaviPhaseNormal::TakeDamage(int damage) {
 
     // [JUICE] Berikan getaran super mikro setiap kali peluru mengenai kaca jendela bos!
     CameraController::Instance().AddTrauma(0.1f);
+}
+
+void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
+    if (!m_aiEnabled || !m_aiTarget) return;
+
+    // 1. Turunkan semua cooldown secara paralel!
+    m_cdRadial -= dt;
+    m_cdFan -= dt;
+    m_cdPhalanx -= dt;
+    m_cdRain -= dt;
+    m_cdBijuudama -= dt;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    // 2. Cek keranjang yang siap meledak (Prioritas dari yang paling mematikan)
+
+    // --- ASGORE RAIN (Area Denial) ---
+    if (m_cdRain <= 0.0f) {
+        std::uniform_int_distribution<> distSide(0, 1);
+        TriggerRainAttack(distSide(gen) == 0); // Kiri atau Kanan
+
+        // Reset Cooldown RNG (8 sampai 15 detik)
+        std::uniform_real_distribution<float> distCD(8.0f, 15.0f);
+        m_cdRain = distCD(gen);
+    }
+
+    // --- BIJUUDAMA (Rhythm Parry) ---
+    if (m_cdBijuudama <= 0.0f) {
+        if (!m_isLaserLocked) { // Jangan tumpuk bijuudama dengan dirinya sendiri
+            TriggerBijuudama(m_aiTarget);
+            std::uniform_real_distribution<float> distCD(15.0f, 25.0f);
+            m_cdBijuudama = distCD(gen);
+        }
+    }
+
+    // --- GLINTSTONE PHALANX (Homing lambat) ---
+    if (m_cdPhalanx <= 0.0f) {
+        if (m_phalanxState == 0) { // Pastikan tangan bos sedang kosong
+            TriggerPhalanx(m_aiTarget);
+            std::uniform_real_distribution<float> distCD(6.0f, 10.0f);
+            m_cdPhalanx = distCD(gen);
+        }
+    }
+
+    // --- TARGETED FAN WAVE (Shotgun) ---
+    if (m_cdFan <= 0.0f) {
+        if (!m_isFiringFan) {
+            TriggerFanAttack(boss, m_aiTarget->GetPosition());
+            std::uniform_real_distribution<float> distCD(4.0f, 8.0f);
+            m_cdFan = distCD(gen);
+        }
+    }
+
+    // --- RADIAL BURST (Bullet Hell murni) ---
+    if (m_cdRadial <= 0.0f) {
+        if (!m_isFiring) {
+            std::uniform_int_distribution<> distType(0, 1);
+            if (distType(gen) == 0) TriggerSingleBurst();
+            else TriggerDoubleBurst();
+
+            std::uniform_real_distribution<float> distCD(2.0f, 5.0f);
+            m_cdRadial = distCD(gen);
+        }
+    }
 }

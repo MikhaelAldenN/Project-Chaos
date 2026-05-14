@@ -12,7 +12,7 @@ struct NaviBulletParams {
     float screenDespawnPadding = 5.0f;
 
     // Parameter General & Radial Burst
-    float speed = 14.0f;
+    float speed = 20.0f;
     int count = 24;
     float fireRate = 1.5f;
     float burstDelay = 0.25f;
@@ -29,7 +29,7 @@ struct NaviBulletParams {
     // Parameter Rhythm Laser
     // ==========================================
     float laserDuration = 2.0f;
-    float laserParryWindow = 0.15f;
+    float laserParryWindow = 0.25f;
     float laserStartRadius = 8.0f;
     float laserTargetRadius = 1.5f;
     int laserDamage = 20;
@@ -58,7 +58,7 @@ struct NaviBulletParams {
     // ==========================================
     // Parameter Glintstone
     // ==========================================
-    int phalanxCount = 5;               // Jumlah pedang/peluru
+    int phalanxCount = 8;               // Jumlah pedang/peluru
     float phalanxChargeDelay = 0.2f;    // Waktu panggil tiap peluru
     float phalanxFireDelay = 0.3f;      // Waktu jeda antar tembakan
     float phalanxSpeed = 35.0f;         // Kecepatan terbang
@@ -93,7 +93,9 @@ public:
     void CancelBijuudama() {
         m_isLaserLocked = false;
         m_bijuudamaBall = nullptr;
+        m_laserTimer = 0.0f;
     }
+    bool IsLaserLocked() const { return m_isLaserLocked; }
 
     void TriggerPhalanx(Player* targetPlayer);
     void TriggerRainAttack(bool onLeftSide);
@@ -108,16 +110,24 @@ public:
     float GetLaserTimer() const { return m_laserTimer; }
 
     // ==========================================
-    // [BARU] Sistem Health Boss
+    // Sistem Health Boss
     // ==========================================
     void TakeDamage(int damage);
     int GetHP() const { return m_bossHP; }
     int GetMaxHP() const { return m_bossMaxHP; }
     bool IsDead() const { return m_bossHP <= 0; }
 
+    // ==========================================
+    // [NEW] AI Director (Omega Flowey Mode)
+    // ==========================================
+    void SetAITarget(Player* p) { m_aiTarget = p; }
+    void SetAIEnabled(bool val) { m_aiEnabled = val; }
+    bool IsAIEnabled() const { return m_aiEnabled; }
+
 private:
     void FireRadialBurst(NaviBoss* boss, float angleOffset);
     void FireFanWave(NaviBoss* boss); // Fungsi tembak fan/shotgun
+    void UpdateAI(float dt, NaviBoss* boss); // Fungsi Otak Utama
 
 private:
     std::vector<std::unique_ptr<Bullet>> m_bulletPool;
@@ -163,7 +173,20 @@ private:
 
     std::unique_ptr<Primitive> m_zonePrimitive;
 
-    int m_bossMaxHP = 5000;
-    int m_bossHP = 5000;
+    int m_bossMaxHP = 1000;
+    int m_bossHP = 1000;
     float m_hitFlashTimer = 0.0f; // Untuk efek kedip saat kena tembak
+
+    // ==========================================
+    // [NEW] AI Cooldown Memory
+    // ==========================================
+    bool m_aiEnabled = false;
+    Player* m_aiTarget = nullptr;
+
+    // Timer awal sebelum serangan pertama diluncurkan
+    float m_cdRadial = 2.0f;
+    float m_cdFan = 4.0f;
+    float m_cdPhalanx = 6.0f;
+    float m_cdRain = 10.0f;
+    float m_cdBijuudama = 15.0f;
 };
