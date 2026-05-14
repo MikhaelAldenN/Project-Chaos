@@ -65,17 +65,11 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
     m_zonePrimitive = std::make_unique<Primitive>(Graphics::Instance().GetDevice());
 }
 
-void NaviPhaseNormal::TriggerSingleBurst() {
+void NaviPhaseNormal::TriggerTripleBurst() {
     if (!m_isFiring && !m_isFiringFan) {
-        m_isFiring = true; m_isDoubleBurst = false;
-        m_burstsFired = 0; m_burstSequenceTimer = 0.0f;
-    }
-}
-
-void NaviPhaseNormal::TriggerDoubleBurst() {
-    if (!m_isFiring && !m_isFiringFan) {
-        m_isFiring = true; m_isDoubleBurst = true;
-        m_burstsFired = 0; m_burstSequenceTimer = 0.0f;
+        m_isFiring = true;
+        m_burstsFired = 0;
+        m_burstSequenceTimer = 0.0f;
     }
 }
 
@@ -107,12 +101,14 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
     // =========================================================
     // --- 0A. LOGIKA PERGERAKAN JENDELA (LERP) ---
     // =========================================================
+// 1. EASE-IN: Lerp kecepatannya dari 0 menuju Target Kecepatan
+    m_currentMoveLerpSpeed += (m_moveLerpSpeed - m_currentMoveLerpSpeed) * m_moveAcceleration * dt;
+
+    // 2. EASE-OUT: Lerp posisinya menggunakan kecepatan yang sudah dihaluskan
     DirectX::XMFLOAT3 currentPos = boss->GetPosition();
-
-    // Kejar m_targetPosition secara halus
-    currentPos.x += (m_targetPosition.x - currentPos.x) * m_moveLerpSpeed * dt;
-    currentPos.z += (m_targetPosition.z - currentPos.z) * m_moveLerpSpeed * dt;
-
+    currentPos.x += (m_targetPosition.x - currentPos.x) * m_currentMoveLerpSpeed * dt;
+    currentPos.z += (m_targetPosition.z - currentPos.z) * m_currentMoveLerpSpeed * dt;
+    
     boss->SetPosition(currentPos);
 
     // =========================================================
@@ -129,19 +125,31 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
         boss->SetBaseWindowSize(newSize, newSize);
         boss->SetWindowSize(newSize, newSize);
     }
-    // --- 1A. Logika Radial Burst ---
+
+    // --- 1A. Logika Radial Burst (TRIPLE BURST) ---
     if (m_isFiring) {
+        // Tembakan Pertama (Instan)
         if (m_burstsFired == 0) {
             FireRadialBurst(boss, 0.0f);
             m_burstsFired++;
-            if (!m_isDoubleBurst) m_isFiring = false;
         }
-        else if (m_isDoubleBurst && m_burstsFired == 1) {
+        // Tembakan Kedua dan Ketiga (Dengan Delay)
+        else if (m_burstsFired < 3) {
             m_burstSequenceTimer += dt;
             if (m_burstSequenceTimer >= m_params.burstDelay) {
+                m_burstSequenceTimer = 0.0f; // Reset timer!
+
+                // [JUICE] Selang-seling offset rotasi agar membentuk jaring maut!
                 float step = DirectX::XM_2PI / (float)m_params.count;
-                FireRadialBurst(boss, step * 0.5f);
-                m_isFiring = false;
+                // Tembakan ke-2 (index 1) di-offset. Tembakan ke-3 (index 2) kembali lurus.
+                float offset = (m_burstsFired % 2 == 1) ? (step * 0.5f) : 0.0f;
+
+                FireRadialBurst(boss, offset);
+                m_burstsFired++;
+
+                if (m_burstsFired >= 3) {
+                    m_isFiring = false; // Matikan serangan setelah 3 gelombang
+                }
             }
         }
     }
@@ -289,6 +297,7 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                 m_phalanxState = 5;
                 m_targetPosition = { 0.0f, 0.0f, 0.0f };
                 m_moveLerpSpeed = m_params.phalanxReturnMoveSpeed; // Speed diperlambat
+                m_currentMoveLerpSpeed = 0.0f;
             }
         }
 
@@ -417,6 +426,7 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
             m_isBijuudamaRecovering = false;
             m_targetPosition = { 0.0f, 0.0f, 0.0f };
             m_moveLerpSpeed = m_params.bijuudamaReturnMoveSpeed;
+            m_currentMoveLerpSpeed = 0.0f;
         }
     }
 
@@ -578,23 +588,23 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
             float p2u = boss->GetWindowSystem()->GetPixelToUnitRatio();
             int screenW = GetSystemMetrics(SM_CXSCREEN);
             int screenH = GetSystemMetrics(SM_CYSCREEN);
-
             DirectX::XMFLOAT3 camPos = currentCamera->GetPosition();
-
-            // Hitung posisi di layar
-            float screenX = (m_rainCenter.x - camPos.x) * p2u + (screenW / 2.0f);
-            float screenY = -(m_rainCenter.z - camPos.z) * p2u + (screenH / 2.0f);
 
             float width2D = actualW * p2u;
             float height2D = actualD * p2u;
 
-            m_zonePrimitive->Rect(
-                screenX, screenY,
-                width2D, height2D,
-                width2D * 0.5f, height2D * 0.5f,
-                0.0f,
-                1.0f, 0.0f, 0.0f, alpha
-            );
+            // Fungsi mini (Lambda) untuk menggambar kotak merah
+            auto drawWarningRect = [&](DirectX::XMFLOAT3 centerPos) {
+                float screenX = (centerPos.x - camPos.x) * p2u + (screenW / 2.0f);
+                float screenY = -(centerPos.z - camPos.z) * p2u + (screenH / 2.0f);
+                m_zonePrimitive->Rect(screenX, screenY, width2D, height2D, width2D * 0.5f, height2D * 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, alpha);
+                };
+
+            // Gambar kotak utama (Kiri)
+            drawWarningRect(m_rainCenter);
+            // Jika mode Dual aktif, gambar juga kotak kedua (Kanan)!
+            if (m_rainIsDual) drawWarningRect(m_rainCenter2);
+
             m_zonePrimitive->Render(context);
         }
 
@@ -605,7 +615,7 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
             std::uniform_real_distribution<float> distSpawn(0.0f, m_params.rainActiveDuration);
 
             float currentGlobalTime = (m_rainState == 2) ? m_rainTimer : (m_params.rainActiveDuration + m_rainTimer);
-            int dropCount = 400;
+            int dropCount = m_rainIsDual ? 800 : 400;
 
             for (int i = 0; i < dropCount; ++i) {
                 float speed = distSpeed(gen);
@@ -613,9 +623,23 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
                 float localTime = currentGlobalTime - spawnTime;
 
                 if (localTime >= 0.0f) {
-                    // [FIX MUTLAK] Logika Sumbu DITUKAR agar mengalir sesuai panjang kotak!
 
-                    if (m_rainIsVertical) {
+                    if (m_rainIsDual) {
+                        // --- DUAL MODE (KIRI KANAN SEKALIGUS) ---
+                        // Bagi rata: peluru genap jatuh di kiri, peluru ganjil jatuh di kanan
+                        DirectX::XMFLOAT3 activeCenter = (i % 2 == 0) ? m_rainCenter : m_rainCenter2;
+                        std::uniform_real_distribution<float> distX(activeCenter.x - halfW, activeCenter.x + halfW);
+
+                        float rx = distX(gen);
+                        float topEdge = activeCenter.z + halfD + 5.0f;
+                        float bottomEdge = activeCenter.z - halfD;
+                        float z = topEdge - (localTime * speed);
+
+                        if (z >= bottomEdge) {
+                            shapeRenderer->DrawSphere({ rx, 1.0f, z }, 0.4f, { 1.0f, 0.4f, 0.0f, 1.0f });
+                        }
+                    }
+                    else if (m_rainIsVertical) {
                         // --- ZONA KIRI / KANAN (SIDE MODE) ---
                         // Kotak memanjang vertikal, jadi Hujan JATUH DARI ATAS KE BAWAH (Sumbu Z)
                         std::uniform_real_distribution<float> distX(m_rainCenter.x - halfW, m_rainCenter.x + halfW);
@@ -668,6 +692,7 @@ void NaviPhaseNormal::TriggerBijuudama(Player* targetPlayer) {
 
         m_targetPosition = { 0.0f, 0.0f, 10.0f };
         m_moveLerpSpeed = m_params.bijuudamaAttackMoveSpeed;
+        m_currentMoveLerpSpeed = 0.0f;
 
         // Cari peluru kosong untuk dijadikan Bijuudama
         for (auto& bullet : m_bulletPool) {
@@ -772,6 +797,7 @@ void NaviPhaseNormal::TriggerPhalanx(Player* targetPlayer) {
         std::uniform_int_distribution<> dist(0, 1);
 
         m_moveLerpSpeed = m_params.phalanxAttackMoveSpeed;
+        m_currentMoveLerpSpeed = 0.0f;
 
         // Pindah ke X = -15.0f (Kiri) atau 15.0f (Kanan)
         m_targetPosition.x = (dist(gen) == 0) ? -15.0f : 15.0f;
@@ -779,24 +805,28 @@ void NaviPhaseNormal::TriggerPhalanx(Player* targetPlayer) {
     }
 }
 
-void NaviPhaseNormal::TriggerRainAttack(bool isSideMode, bool isPositiveSide, float sweepDir) {
+void NaviPhaseNormal::TriggerRainAttack(bool isSideMode, bool isPositiveSide, float sweepDir, bool isDual) {
     if (m_rainState == 0) {
         m_rainState = 1;
         m_rainTimer = 0.0f;
         m_rainIsVertical = isSideMode;
         m_rainSweepDir = sweepDir;
+        m_rainIsDual = isDual; // [NEW] Aktifkan mode ganda
 
-        if (!isSideMode) {
-            // --- HUJAN NORMAL (ATAS / BAWAH) ---
-            // Lebar penuh (80), tinggi dibagi dua (15)
-            // Pusat Z di +/- 7.5f (Setengah dari tinggi area 15)
+        if (isDual) {
+            // --- DUAL MODE (KIRI & KANAN SEKALIGUS) ---
+            m_rainCenter.x = -16.0f;  // Pilar Kiri
+            m_rainCenter.z = 0.0f;
+            m_rainCenter2.x = 16.0f; // Pilar Kanan
+            m_rainCenter2.z = 0.0f;
+        }
+        else if (!isSideMode) {
+            // --- ZONA ATAS / BAWAH (NORMAL MODE) ---
             m_rainCenter.x = 0.0f;
             m_rainCenter.z = isPositiveSide ? 7.5f : -7.5f;
         }
         else {
-            // --- HUJAN SAMPING (KIRI / KANAN) ---
-            // Tinggi penuh (45), lebar dibagi dua (25)
-            // Pusat X di +/- 12.5f (Setengah dari lebar area 25)
+            // --- ZONA KIRI / KANAN (SIDE MODE) ---
             m_rainCenter.x = isPositiveSide ? 12.5f : -12.5f;
             m_rainCenter.z = 0.0f;
         }
@@ -822,26 +852,16 @@ void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
     std::mt19937 gen(rd());
 
     // =========================================================
-    // [TRACK A] TARGETED SIDE RAIN (Eksklusif Kiri / Kanan)
-    // Serangan ini muncul secara mandiri untuk mengincar posisi X Player
+    // [TRACK A] SIDE RAIN (Mengincar Posisi X Player)
     // =========================================================
     if (m_cdRain > 0.0f) m_cdRain -= dt;
 
     if (m_cdRain <= 0.0f && !m_isLaserLocked && m_phalanxState == 0) {
-        std::uniform_int_distribution<> distSideMode(0, 1);
-        bool useSideMode = (distSideMode(gen) == 0);
+        // NGECENG PLAYER: Cek player ada di kiri atau kanan
+        bool isRightSide = (m_aiTarget->GetPosition().x > 0.0f);
 
-        // Acak arah sapuan (1.0f atau -1.0f)
-        float randomSweep = (distSideMode(gen) == 0) ? 1.0f : -1.0f;
-
-        if (useSideMode) {
-            bool isRightSide = (m_aiTarget->GetPosition().x > 0.0f);
-            TriggerRainAttack(true, isRightSide);
-        }
-        else {
-            bool isTopSide = (m_aiTarget->GetPosition().z > 0.0f);
-            TriggerRainAttack(false, isTopSide, randomSweep); // [FIX] Lempar arah acak
-        }
+        // [FIX] Gunakan 'true' agar yang muncul adalah hujan Kiri/Kanan
+        TriggerRainAttack(true, isRightSide);
 
         std::uniform_real_distribution<float> distCD(8.0f, 15.0f);
         m_cdRain = distCD(gen);
@@ -869,6 +889,9 @@ void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
         // Prioritas 1: Bijuudama (Dilarang bareng hujan jenis apapun)
         if (m_cdBijuudama <= 0.0f && m_rainState == 0) {
             TriggerBijuudama(m_aiTarget);
+
+            TriggerRainAttack(true, false, 1.0f, true);
+
             std::uniform_real_distribution<float> distCD(15.0f, 25.0f);
             m_cdBijuudama = distCD(gen);
             m_aiGlobalCooldown = 1.0f;
@@ -877,16 +900,18 @@ void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
         // Prioritas 2: PHALANX + TOP/BOTTOM RAIN COMBO!
         // Hujan Palang (Horizontal Sweep) sekarang EKSKLUSIF di sini
         // =========================================================
-        else if (m_cdPhalanx <= 0.0f && m_rainState == 0) {
+        else if (m_cdPhalanx <= 0.0f && m_rainState == 0) { // Pastikan m_rainState == 0
             TriggerPhalanx(m_aiTarget);
 
+            // 1. NGECENG PLAYER: Cek player ada di Atas atau Bawah untuk posisi palang
             bool isTopSide = (m_aiTarget->GetPosition().z > 0.0f);
 
-            // [FIX MUTLAK] HUBUNGKAN VISUAL HUJAN DENGAN POSISI BOS!
+            // 2. [FIX MUTLAK] SINKRONISASI POSISI BOS
             // Jika Navi meluncur ke Kanan (X > 0), hujan datang dari Kanan menyapu ke Kiri (-1.0f)
             // Jika Navi meluncur ke Kiri (X < 0), hujan datang dari Kiri menyapu ke Kanan (1.0f)
             float sweepDirection = (m_targetPosition.x > 0.0f) ? -1.0f : 1.0f;
 
+            // 3. Panggil Hujan: Mode Normal (false), arah target, dan arah sapuan!
             TriggerRainAttack(false, isTopSide, sweepDirection);
 
             std::uniform_real_distribution<float> distCD(6.0f, 10.0f);
@@ -901,11 +926,10 @@ void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
             m_cdFan = distCD(gen);
             m_aiGlobalCooldown = 0.5f;
         }
-        // Prioritas 4: Radial Burst
+
+        // Prioritas 4: Radial Burst (SELALU TRIPLE)
         else if (m_cdRadial <= 0.0f) {
-            std::uniform_int_distribution<> distType(0, 1);
-            if (distType(gen) == 0) TriggerSingleBurst();
-            else TriggerDoubleBurst();
+            TriggerTripleBurst();
 
             std::uniform_real_distribution<float> distCD(2.0f, 5.0f);
             m_cdRadial = distCD(gen);

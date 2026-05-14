@@ -859,12 +859,8 @@ void SceneBoss::DrawGUI()
                 ImGui::Separator();
                 ImGui::TextColored(ImVec4(1, 0, 0, 1), "--- Manual Triggers ---");
 
-                if (ImGui::Button("FIRE SINGLE BURST", ImVec2(ImGui::GetContentRegionAvail().x * 0.5f, 30.0f))) {
-                    normalPhase->TriggerSingleBurst();
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("FIRE DOUBLE BURST", ImVec2(-1.0f, 30.0f))) {
-                    normalPhase->TriggerDoubleBurst();
+                if (ImGui::Button("FIRE TRIPLE BURST", ImVec2(-1.0f, 40.0f))) {
+                    normalPhase->TriggerTripleBurst();
                 }
 
                 // TOMBOL BARU DENGAN TARGET LOCKING!

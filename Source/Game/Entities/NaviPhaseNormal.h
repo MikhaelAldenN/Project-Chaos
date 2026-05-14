@@ -28,7 +28,7 @@ struct NaviBulletParams {
     // ==========================================
     // Parameter Rhythm Laser
     // ==========================================
-    float laserDuration = 2.0f;
+    float laserDuration = 4.0f;
     float laserParryWindow = 0.25f;
     float laserStartRadius = 8.0f;
     float laserTargetRadius = 1.5f;
@@ -95,8 +95,7 @@ public:
     void Exit(NaviBoss* boss) override;
 
     // --- Attack Triggers ---
-    void TriggerSingleBurst();
-    void TriggerDoubleBurst();
+    void TriggerTripleBurst();
     void TriggerFanAttack(NaviBoss* boss, DirectX::XMFLOAT3 playerPos);
     void TriggerBijuudama(Player* targetPlayer);
     void CancelBijuudama() {
@@ -109,11 +108,17 @@ public:
     bool IsLaserLocked() const { return m_isLaserLocked; }
 
     void TriggerPhalanx(Player* targetPlayer);
-    void TriggerRainAttack(bool isVertical, bool isPositiveSide, float sweepDir = 1.0f);
+    void TriggerRainAttack(bool isVertical, bool isPositiveSide, float sweepDir = 1.0f, bool isDual = false);
     void ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* boss);
     int GetRainState() const { return m_rainState; }
     bool IsRainVertical() const { return m_rainIsVertical; }
-    float GetActualRainWidth() const { return m_rainIsVertical ? 25.0f : 80.0f; }
+    bool IsRainDual() const { return m_rainIsDual; }
+    DirectX::XMFLOAT3 GetRainCenter2() const { return m_rainCenter2; }
+
+    float GetActualRainWidth() const {
+        if (m_rainIsDual) return 18.0f;
+        return m_rainIsVertical ? 25.0f : 80.0f;
+    }
     float GetActualRainDepth() const { return m_rainIsVertical ? 45.0f : 15.0f; }
 
     DirectX::XMFLOAT3 GetRainCenter() const { return m_rainCenter; }
@@ -150,7 +155,6 @@ private:
 
     // Sequence States: Radial
     bool m_isFiring = false;
-    bool m_isDoubleBurst = false;
     int m_burstsFired = 0;
     float m_burstSequenceTimer = 0.0f;
 
@@ -196,6 +200,9 @@ private:
     int m_bossHP = 1000;
     float m_hitFlashTimer = 0.0f; // Untuk efek kedip saat kena tembak
 
+    bool m_rainIsDual = false;
+    DirectX::XMFLOAT3 m_rainCenter2 = { 0,0,0 };
+
     // ==========================================
     // [NEW] AI Cooldown Memory
     // ==========================================
@@ -217,4 +224,6 @@ private:
     // ==========================================
     DirectX::XMFLOAT3 m_targetPosition = { 0.0f, 0.0f, 0.0f };
     float m_moveLerpSpeed = 3.5f; // Kecepatan jendela mengejar target
+    float m_currentMoveLerpSpeed = 0.0f;
+    float m_moveAcceleration = 8.0f;
 };

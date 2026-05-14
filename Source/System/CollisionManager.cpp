@@ -985,21 +985,29 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
     }
 
     // =========================================================
-    // [OPTIMISASI MUTLAK] DETEKSI KILL ZONE (ASGORE RAIN)
-    // =========================================================
-    if (normalPhase->GetRainState() == 2) { // Hanya sakit jika sedang Raining
+        // [OPTIMISASI MUTLAK] DETEKSI KILL ZONE (ASGORE RAIN)
+        // =========================================================
+    if (normalPhase->GetRainState() == 2) {
         DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
-        DirectX::XMFLOAT3 rCenter = normalPhase->GetRainCenter();
 
-        // [FIX MUTLAK] Wajib panggil GetActualRain... agar hitbox akurat dengan visual 2D!
-        // Jangan pernah pakai m_params.rainWidth lagi di sini!
         float halfW = normalPhase->GetActualRainWidth() * 0.5f;
         float halfD = normalPhase->GetActualRainDepth() * 0.5f;
 
-        // Pengecekan Kotak (AABB): Apakah player ada di dalam batas X dan Z area hujan?
-        if (pPos.x > (rCenter.x - halfW) && pPos.x < (rCenter.x + halfW) &&
-            pPos.z >(rCenter.z - halfD) && pPos.z < (rCenter.z + halfD))
-        {
+        // Fungsi mini untuk mengecek benturan di satu titik pusat
+        auto checkHit = [&](DirectX::XMFLOAT3 rCenter) {
+            return (pPos.x > (rCenter.x - halfW) && pPos.x < (rCenter.x + halfW) &&
+                pPos.z >(rCenter.z - halfD) && pPos.z < (rCenter.z + halfD));
+            };
+
+        // Cek kotak pertama
+        bool hit = checkHit(normalPhase->GetRainCenter());
+
+        // Jika mode dual aktif dan belum kena, cek kotak kedua!
+        if (normalPhase->IsRainDual() && !hit) {
+            hit = checkHit(normalPhase->GetRainCenter2());
+        }
+
+        if (hit) {
             m_player->TakeDamage(normalPhase->GetParams().rainDamage);
 
             if (m_player->GetHP() <= 0) {
