@@ -5,6 +5,7 @@
 #include "Character.h"
 #include "PlayerConstants.h"
 #include "Weapon.h"
+#include <array>
 #include <deque>
 #include <memory>
 #include <DirectXMath.h>
@@ -20,6 +21,19 @@ class CollisionManager;
 class Player : public Character
 {
 public:
+    enum class WeaponType {
+        Crossbow = 0,
+        Sword,
+        Count // Automatically tracks the number of weapons.
+    };
+
+    struct DebugAnimState {
+        bool forceAnimation{ false };
+        std::string animationName{ "" };
+        bool disableAimConstraint{ false };
+    };
+    [[nodiscard]] DebugAnimState& GetDebugState() { return m_debugState; }
+
     Player();
     ~Player() override;
 
@@ -53,11 +67,20 @@ public:
         float spawnY = 15.0f);
 
 	// --- Weapon ---
-    Weapon* GetWeapon() const { return m_equippedWeapon.get(); }
+    void SetActiveWeapon(WeaponType type) { m_activeWeaponType = type; }
+    [[nodiscard]] WeaponType GetActiveWeaponType() const { return m_activeWeaponType; }
+
+    // Returns a specific weapon (used by GUI)
+    [[nodiscard]] Weapon* GetWeapon(WeaponType type) const { return m_weapons[static_cast<size_t>(type)].get(); }
+
+    // Returns the weapon currently being held (used by Render)
+    [[nodiscard]] Weapon* GetActiveWeapon() const { return m_weapons[static_cast<size_t>(m_activeWeaponType)].get(); }
+
     void RenderWeapon(ModelRenderer* renderer);
 
     // --- Aim ---
     void RotateModelToPoint(const DirectX::XMFLOAT3& targetPos);
+    [[nodiscard]] const DirectX::XMFLOAT3& GetAimTarget() const { return m_aimTarget; }
 
     // --- Projectiles ---
     void FireProjectile();
@@ -125,6 +148,7 @@ private:
     void HandleMovementInput(float dt);
     void UpdateHorizontalMovement(float dt);
     void UpdateFootRotation(float dt, float& outSmoothedYaw);
+    void UpdateAimConstraint(float dt, float& inOutSmoothedYaw, bool& outShouldAim, float& outRelativeAngle);
     void UpdateAimConstraint(float& inOutSmoothedYaw, bool& outShouldAim, float& outRelativeAngle);
     void ApplyWorldMatrix(float smoothedYaw, bool shouldAim, float relativeAngle);
     void UpdateProjectiles(float dt, Camera* camera);
@@ -165,7 +189,8 @@ private:
     float m_invincibilityTimer = 0.0f;
 
 	// --- Weapon ---
-    std::unique_ptr<Weapon> m_equippedWeapon{};
+    std::array<std::unique_ptr<Weapon>, static_cast<size_t>(WeaponType::Count)> m_weapons{};
+    WeaponType m_activeWeaponType{ WeaponType::Crossbow };
     int m_rightHandBoneIndex{ -1 }; // -1 indicates "Not Found Yet"
 
     // --- Aim target (set by RotateModelToPoint) ---
@@ -186,4 +211,7 @@ private:
 
 	// --- Cape Simulator (optional) ---
     std::unique_ptr<CapeSimulator> m_capeSimulator{};
+
+	// --- Debug Animation ---
+    DebugAnimState m_debugState{};
 };

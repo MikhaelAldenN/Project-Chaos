@@ -24,12 +24,21 @@ Player::Player()
     model = std::make_shared<Model>(device, "Data/Model/Character/TEST_mdl_Player3.glb");
     scale = { 1.0f, 1.0f, 1.0f };
 
-    m_equippedWeapon = std::make_unique<Weapon>(device, "Data/Model/Character/WEAPON_mdl_Crossbow.glb");
-    m_equippedWeapon->SetLocalOffset(
+	// Load weapons and set their local offsets for correct hand positioning
+    m_weapons[static_cast<size_t>(WeaponType::Crossbow)] = std::make_unique<Weapon>(device, "Data/Model/Character/WEAPON_mdl_Crossbow.glb");
+    m_weapons[static_cast<size_t>(WeaponType::Crossbow)]->SetLocalOffset(
         { 0.000f, 0.000f, 0.000f },
         { 90.000f, 99.000f, 0.000f },
         { 0.900f, 0.900f, 0.400f }
     );
+
+    m_weapons[static_cast<size_t>(WeaponType::Sword)] = std::make_unique<Weapon>(device, "Data/Model/Character/WEAPON_mdl_Sword.glb");
+    m_weapons[static_cast<size_t>(WeaponType::Sword)]->SetLocalOffset(
+        { 0.000f, 0.001f, 0.000f },
+        { 0.000f, 180.000f, 0.000f },
+        { 0.350f, 0.350f, 0.350f }
+    );
+
     if (model) {
         m_rightHandBoneIndex = model->GetNodeIndex("hand.r");
     }
@@ -96,10 +105,6 @@ void Player::InitPhysics(physx::PxControllerManager* manager, physx::PxMaterial*
     m_physxController = manager->createController(desc);
 }
 
-// ============================================================
-// UPDATE — orchestrator only, no inline logic
-// ============================================================
-
 void Player::Update(float elapsedTime, Camera* camera)
 {
     if (m_invincibilityTimer > 0.0f)
@@ -115,17 +120,56 @@ void Player::Update(float elapsedTime, Camera* camera)
 
     UpdateHorizontalMovement(elapsedTime);
 
-    if (stateMachine) stateMachine->Update(this, elapsedTime);
-    if (animator)     animator->Update(elapsedTime);
+    // -------------------------------------------------------------
+    // ---> DEBUG: BYPASS THE STATE MACHINE FOR WEAPON TUNING <---
+    // -------------------------------------------------------------
+    if (m_debugState.forceAnimation)
+    {
+        // Force the animation on loop, bypassing the State Machine entirely!
+        if (!animator->IsPlaying(m_debugState.animationName))
+        {
+            // Note: We play this on the FULL body, ignoring PlayUpper, 
+            // so you get a perfectly clean stance for tuning!
+            animator->Play(m_debugState.animationName, true, 0.2f);
+        }
+    }
+    else
+    {
+        // Normal Gameplay
+        if (stateMachine) stateMachine->Update(this, elapsedTime);
+    }
+    // -------------------------------------------------------------
+
+    if (animator) animator->Update(elapsedTime);
+
+    // -------------------------------------------------------------
+    // ---> NEW: THE WEAPON STATE MANAGER (Auto-Sheathe) <---
+    // -------------------------------------------------------------
+    // If the player is holding the Sword, but the upper-body attack 
+    // animation has officially finished, automatically revert to the Crossbow.
+    // The !m_debugState check ensures the sword doesn't vanish while you are tuning it in the GUI!
+    if (!m_debugState.forceAnimation && m_activeWeaponType == WeaponType::Sword && !animator->IsUpperPlaying())
+    {
+        SetActiveWeapon(WeaponType::Crossbow);
+        m_aimLocked = false;
+    }
+    // -------------------------------------------------------------
 
     float smoothedYaw = 0.0f;
     bool  shouldAim = false;
     float relativeAngle = 0.0f;
 
     UpdateFootRotation(elapsedTime, smoothedYaw);
-    UpdateAimConstraint(smoothedYaw, shouldAim, relativeAngle);
-    ApplyWorldMatrix(smoothedYaw, shouldAim, relativeAngle);
+    UpdateAimConstraint(elapsedTime, smoothedYaw, shouldAim, relativeAngle);
 
+    // ---> DEBUG: DISABLE SPINE TWIST <---
+    if (m_debugState.disableAimConstraint)
+    {
+        shouldAim = false;
+        relativeAngle = 0.0f;
+    }
+
+    ApplyWorldMatrix(smoothedYaw, shouldAim, relativeAngle);
     UpdateProjectiles(elapsedTime, camera);
 }
 
@@ -253,18 +297,17 @@ void Player::UpdateFootRotation(float dt, float& outSmoothedYaw)
     outSmoothedYaw = currentYaw + angleDiff * lerpFactor;
 }
 
-void Player::UpdateAimConstraint(float& inOutSmoothedYaw, bool& outShouldAim, float& outRelativeAngle)
+void Player::UpdateAimConstraint(float dt, float& inOutSmoothedYaw, bool& outShouldAim, float& outRelativeAngle)
 {
     outShouldAim = false;
     outRelativeAngle = 0.0f;
 
     if (!model || !activeCamera) return;
 
-    XMFLOAT3 pos = movement->GetPosition();
+    DirectX::XMFLOAT3 pos = movement->GetPosition();
     float dx = m_aimTarget.x - pos.x;
     float dz = m_aimTarget.z - pos.z;
 
-    // Skip if aim target is too close (avoids atan2 instability)
     if ((dx * dx + dz * dz) <= PlayerConst::AimMinDistSq) return;
 
     outShouldAim = true;
@@ -272,19 +315,31 @@ void Player::UpdateAimConstraint(float& inOutSmoothedYaw, bool& outShouldAim, fl
     float absoluteAngleToMouse = atan2f(dx, dz);
     float relativeAngle = absoluteAngleToMouse - inOutSmoothedYaw;
 
-    while (relativeAngle > XM_PI) relativeAngle -= XM_2PI;
-    while (relativeAngle < -XM_PI) relativeAngle += XM_2PI;
+    while (relativeAngle > DirectX::XM_PI) relativeAngle -= DirectX::XM_2PI;
+    while (relativeAngle < -DirectX::XM_PI) relativeAngle += DirectX::XM_2PI;
 
-    // Clamp torso to ±MaxTorsoAngle; if clamped, pull feet to compensate
-    if (relativeAngle > PlayerConst::MaxTorsoAngle)
+    // -----------------------------------------------------------------
+    // ---> THE FIX: SMOOTH FOOT DRAG (Zero Duplication Math) <---
+    // -----------------------------------------------------------------
+    // Clamp torso to ±MaxTorsoAngle; if clamped, PULL feet smoothly to compensate
+    if (std::abs(relativeAngle) > PlayerConst::MaxTorsoAngle)
     {
-        relativeAngle = PlayerConst::MaxTorsoAngle;
-        inOutSmoothedYaw = absoluteAngleToMouse - relativeAngle;
-    }
-    else if (relativeAngle < -PlayerConst::MaxTorsoAngle)
-    {
-        relativeAngle = -PlayerConst::MaxTorsoAngle;
-        inOutSmoothedYaw = absoluteAngleToMouse - relativeAngle;
+        // 1. Get the direction of the twist (1.0f for right, -1.0f for left)
+        float sign = (relativeAngle > 0.0f) ? 1.0f : -1.0f;
+
+        // 2. Safely clamp the spine twist
+        relativeAngle = PlayerConst::MaxTorsoAngle * sign;
+
+        // 3. Calculate exactly where the feet NEED to be to support this spine twist
+        float targetFootYaw = absoluteAngleToMouse - relativeAngle;
+
+        // 4. Find the shortest path for the feet to rotate
+        float diff = targetFootYaw - inOutSmoothedYaw;
+        while (diff > DirectX::XM_PI) diff -= DirectX::XM_2PI;
+        while (diff < -DirectX::XM_PI) diff += DirectX::XM_2PI;
+
+        // 5. Smoothly drag the feet over time instead of teleporting them!
+        inOutSmoothedYaw += diff * (std::min)(PlayerConst::RotSmoothSpeed * dt, 1.0f);
     }
 
     outRelativeAngle = relativeAngle;
@@ -356,20 +411,16 @@ void Player::ApplyWorldMatrix(float smoothedYaw, bool shouldAim, float relativeA
 
     if (model) model->UpdateTransform(worldMatrix);
 
-    if (m_equippedWeapon)
+    DirectX::XMFLOAT4X4 attachMatrix = worldMatrix; // Fallback to feet if hand is missing
+    if (m_rightHandBoneIndex != -1 && model->GetNodes().size() > m_rightHandBoneIndex)
     {
-        // ---> BUG PREVENTION: The Null Bone Guard <---
-        if (m_rightHandBoneIndex != -1 && model->GetNodes().size() > m_rightHandBoneIndex)
-        {
-            // Extract the perfectly calculated world matrix of the hand
-            DirectX::XMFLOAT4X4 handMatrix = model->GetNodes()[m_rightHandBoneIndex].worldTransform;
-            m_equippedWeapon->UpdateTransform(handMatrix);
-        }
-        else
-        {
-            // Fallback: If the bone is missing, attach it to the player's root feet so it doesn't crash
-            m_equippedWeapon->UpdateTransform(worldMatrix);
-        }
+        attachMatrix = model->GetNodes()[m_rightHandBoneIndex].worldTransform;
+    }
+
+    // Optimization: Range-based for-loop. Updates all weapons so they are ready instantly.
+    for (const auto& weapon : m_weapons)
+    {
+        if (weapon) weapon->UpdateTransform(attachMatrix);
     }
 }
 
@@ -502,7 +553,10 @@ void Player::RenderProjectiles(ModelRenderer* renderer)
 
 void Player::RenderWeapon(ModelRenderer* renderer)
 {
-    if (m_equippedWeapon) m_equippedWeapon->Render(renderer);
+    if (Weapon* activeWpn = GetActiveWeapon())
+    {
+        activeWpn->Render(renderer);
+    }
 }
 
 // ============================================================
