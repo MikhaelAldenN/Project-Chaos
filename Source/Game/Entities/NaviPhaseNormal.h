@@ -29,7 +29,7 @@ struct NaviBulletParams {
     // Parameter Rhythm Laser
     // ==========================================
     float laserDuration = 4.0f;
-    float laserParryWindow = 0.25f;
+    float laserParryWindow = 0.5f;
     float laserStartRadius = 8.0f;
     float laserTargetRadius = 1.5f;
     int laserDamage = 20;
@@ -43,7 +43,7 @@ struct NaviBulletParams {
     float bijuudamaVisualMultiplier = 4.0f;
     float bijuudamaSpawnOffsetZ = 2.0f;
     float bijuudamaShootSpeed = 45.0f;
-    float bijuudamaAttackMoveSpeed = 5.0f; // Kecepatan meluncur ke atas
+    float bijuudamaAttackMoveSpeed = 3.0f; // Kecepatan meluncur ke atas
     float bijuudamaReturnMoveSpeed = 2.0f; // Kecepatan balik ke tengah (lebih anggun)
     float bijuudamaPostFireDelay = 1.0f;
 
@@ -71,8 +71,8 @@ struct NaviBulletParams {
     float phalanxSmoothSpeed = 12.0f;
 
     float phalanxPostFireDelay = 1.0f;    // Delay 1 detik setelah tembakan habis
-    float phalanxAttackMoveSpeed = 2.5f;  // Speed saat meluncur ke samping
-    float phalanxReturnMoveSpeed = 2.5f;  // Speed saat pulang ke tengah (lebih lambat)
+    float phalanxAttackMoveSpeed = 2.0f;  // Speed saat meluncur ke samping
+    float phalanxReturnMoveSpeed = 2.0f;  // Speed saat pulang ke tengah (lebih lambat)
 
     // ==========================================
     // Parameter Asgore Rain (Area Denial)

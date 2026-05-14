@@ -944,7 +944,10 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
 
 void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
 {
-    if (!m_naviBoss || !m_player || m_player->GetHP() <= 0 || m_player->IsInvincible()) return;
+    // [FIX MUTLAK] Cabut pengecekan m_player->IsInvincible() dari sini!
+    // Kita biarkan fungsi tetap jalan agar Bijuudama yang di-parry tetap bisa pecah!
+    if (!m_naviBoss || !m_player || m_player->GetHP() <= 0) return;
+
     auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_naviBoss->GetCurrentPhase());
     if (!normalPhase) return;
 
@@ -959,7 +962,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
         DirectX::XMFLOAT3 vel = bullet->GetVelocity();
         float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
 
-        // TIER 3: Peluru sukses dipantulkan ke bos (Kecepatan 150 = 22500)
+        // TIER 3: Peluru sukses dipantulkan ke bos
         if (speedSq > 10000.0f) continue;
 
         DirectX::XMFLOAT3 prevPos = {
@@ -973,16 +976,12 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
         float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, playerPos);
 
         // =========================================================
-        // TIER 2: BIJUUDAMA YANG SUKSES DI-PARRY (Pakai Flag, bukan Speed!)
+        // TIER 2: BIJUUDAMA YANG SUKSES DI-PARRY
         // =========================================================
         if (bullet->IsParryReturn())
         {
-            // [FIX] HAPUS "+ 1.5f" di sini! 
-            // Biarkan pecah tepat saat permukaan bola menyentuh hurtbox player (combinedRadius).
-            // Jika dirasa terlalu masuk ke dalam badan, Anda bisa menambahkan sedikit saja, misal "+ 0.2f"
             if (distToPath <= combinedRadius)
             {
-                // [JUICE: HIT STOP & SCREEN SHAKE]
                 TimeManager::Instance().TriggerHitStop(0.15f, 0.0f);
                 CameraController::Instance().AddTrauma(0.8f);
 
@@ -993,53 +992,49 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
             continue;
         }
 
-        // TIER 1: Peluru Normal / Bijuudama GAGAL Parry (Kecepatan < 45 = 2025 kebawah)
+        // =========================================================
+        // TIER 1: Peluru Normal / Bijuudama GAGAL Parry
+        // =========================================================
         if (distToPath <= combinedRadius)
         {
-            m_player->TakeDamage(BOSS_BULLET_DAMAGE);
-            bullet->SetActive(false);
+            // [FIX] Cek kekebalan di sini! Jika sedang I-Frame, peluru hanya nembus (tidak hilang dan tidak damage).
+            if (!m_player->IsInvincible()) {
+                m_player->TakeDamage(BOSS_BULLET_DAMAGE);
+                bullet->SetActive(false);
 
-            if (m_player->GetHP() <= 0)
-            {
-                m_player->scale = { 0.0f, 0.0f, 0.0f };
-                m_player->SetInputEnabled(false);
-                m_player->GetMovement()->SetVelocity({ 0,0,0 });
-                m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
+                if (m_player->GetHP() <= 0)
+                {
+                    m_player->scale = { 0.0f, 0.0f, 0.0f };
+                    m_player->SetInputEnabled(false);
+                    m_player->GetMovement()->SetVelocity({ 0,0,0 });
+                    m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
+                }
             }
-            break;
         }
     }
 
     // =========================================================
-        // [OPTIMISASI MUTLAK] DETEKSI KILL ZONE (ASGORE RAIN)
-        // =========================================================
+    // [OPTIMISASI MUTLAK] DETEKSI KILL ZONE (ASGORE RAIN)
+    // =========================================================
     if (normalPhase->GetRainState() == 2) {
         DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
+        DirectX::XMFLOAT3 rCenter = normalPhase->GetRainCenter();
 
         float halfW = normalPhase->GetActualRainWidth() * 0.5f;
         float halfD = normalPhase->GetActualRainDepth() * 0.5f;
 
-        // Fungsi mini untuk mengecek benturan di satu titik pusat
-        auto checkHit = [&](DirectX::XMFLOAT3 rCenter) {
-            return (pPos.x > (rCenter.x - halfW) && pPos.x < (rCenter.x + halfW) &&
-                pPos.z >(rCenter.z - halfD) && pPos.z < (rCenter.z + halfD));
-            };
+        if (pPos.x > (rCenter.x - halfW) && pPos.x < (rCenter.x + halfW) &&
+            pPos.z >(rCenter.z - halfD) && pPos.z < (rCenter.z + halfD))
+        {
+            // [FIX] Hujan juga harus menghormati waktu kekebalan pemain!
+            if (!m_player->IsInvincible()) {
+                m_player->TakeDamage(normalPhase->GetParams().rainDamage);
 
-        // Cek kotak pertama
-        bool hit = checkHit(normalPhase->GetRainCenter());
-
-        // Jika mode dual aktif dan belum kena, cek kotak kedua!
-        if (normalPhase->IsRainDual() && !hit) {
-            hit = checkHit(normalPhase->GetRainCenter2());
-        }
-
-        if (hit) {
-            m_player->TakeDamage(normalPhase->GetParams().rainDamage);
-
-            if (m_player->GetHP() <= 0) {
-                m_player->scale = { 0.0f, 0.0f, 0.0f };
-                m_player->SetInputEnabled(false);
-                m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
+                if (m_player->GetHP() <= 0) {
+                    m_player->scale = { 0.0f, 0.0f, 0.0f };
+                    m_player->SetInputEnabled(false);
+                    m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
+                }
             }
         }
     }

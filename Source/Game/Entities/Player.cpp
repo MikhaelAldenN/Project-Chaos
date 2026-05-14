@@ -564,12 +564,13 @@ void Player::RenderWeapon(ModelRenderer* renderer)
 // ============================================================
 void Player::TakeDamage(int damage)
 {
-    // EARLY EXIT: Prevent "Ghost Hits". 
-    if (m_hp <= 0) return;
+    // [FIX MUTLAK] EARLY EXIT: Tolak damage jika darah habis atau sedang I-Frame!
+    if (m_hp <= 0 || IsInvincible()) return;
 
     m_hp -= damage;
 
-    // Optional: You can change the player->color here to Flash Red when hit!
+    // [BARU] Berikan Invincibility Time selama 1.0 detik!
+    TriggerInvincibility(1.0f);
 
     // Clamp to exactly zero to prevent negative UI bugs
     if (m_hp <= 0)
