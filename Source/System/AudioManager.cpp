@@ -87,6 +87,17 @@ void AudioManager::Update(float elapsedTime) {
             SDL_PutAudioStreamData(m_musicStream, loopStartPointer, loopLength);
         }
     }
+
+    for (auto it = m_delayedSounds.begin(); it != m_delayedSounds.end(); ) {
+        it->delayTimer -= elapsedTime;
+        if (it->delayTimer <= 0.0f) {
+            PlaySFX(it->filePath, it->volume); // Waktunya habis, mainkan!
+            it = m_delayedSounds.erase(it);    // Hapus dari antrean
+        }
+        else {
+            ++it;
+        }
+    }
 }
 
 AudioManager::SoundData* AudioManager::LoadWav(const std::string& path) {
@@ -101,7 +112,7 @@ AudioManager::SoundData* AudioManager::LoadWav(const std::string& path) {
     return &m_soundCache[path];
 }
 
-void AudioManager::PlayMusic(const std::string& filePath, bool loop, float loopStartSeconds) {
+void AudioManager::PlayMusic(const std::string& filePath, float volume, bool loop, float loopStartSeconds) {
     StopMusic();
 
     SoundData* data = LoadWav(filePath);
@@ -112,11 +123,13 @@ void AudioManager::PlayMusic(const std::string& filePath, bool loop, float loopS
 
     SDL_BindAudioStream(m_deviceId, m_musicStream);
     SDL_PutAudioStreamData(m_musicStream, data->buffer, data->length);
-    SDL_SetAudioStreamGain(m_musicStream, 1.0f);
+
+    // [FIX] Gunakan parameter volume, bukan angka baku 1.0f
+    SDL_SetAudioStreamGain(m_musicStream, volume);
 
     m_currentMusicData = data;
     m_isMusicLooping = loop;
-    m_musicLoopStart = loopStartSeconds; 
+    m_musicLoopStart = loopStartSeconds;
     m_isFadingOut = false;
 }
 
@@ -148,5 +161,16 @@ void AudioManager::PlaySFX(const std::string& filePath, float volume) {
         SDL_PutAudioStreamData(stream, data->buffer, data->length);
         SDL_SetAudioStreamGain(stream, volume);
         m_activeSFXStreams.push_back(stream);
+    }
+}
+
+void AudioManager::PlaySFXDelayed(const std::string& filePath, float volume, float delaySeconds) {
+    m_delayedSounds.push_back({ filePath, volume, delaySeconds });
+}
+
+void AudioManager::SetMusicVolume(float volume) {
+    if (m_musicStream) {
+        // Ini akan secara instan mengubah volume musik yang sedang berputar di SDL3
+        SDL_SetAudioStreamGain(m_musicStream, volume);
     }
 }

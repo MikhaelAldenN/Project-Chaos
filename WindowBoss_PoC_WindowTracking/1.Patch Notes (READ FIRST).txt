@@ -1,3 +1,15 @@
+v0.0.11 PHASE 1 BOSSFIGHT
+Bossfight setengah jadi anjay. H-6
+
+Key Features:
+- [NEW] Sekarang Bossnya nyerang anjay
+- [NEW] Press SPACE to parry "Bijuudama" (parry window when circle turns WHITE)
+
+Known Issues:
+- Volume slider not working
+
+=======================================================================
+
 v0.0.10 WINDOW OPTIMISATION
 God is Good
 

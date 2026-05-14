@@ -92,7 +92,7 @@ SceneBoss::SceneBoss()
     m_navi = std::make_unique<NaviBoss>();
     m_navi->Initialize(m_windowSystem.get());
 
-#if 1
+#if 0
     m_navi->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
 #else
     m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>());
@@ -515,46 +515,37 @@ void SceneBoss::DrawGUI()
 
     m_debugPanelSize = ImGui::GetWindowSize();
 
-    // =========================================================
-    // MULAI TAB BAR
-    // =========================================================
     if (ImGui::BeginTabBar("MasterControlTabs"))
     {
         // ---------------------------------------------------------
-        // TAB 1: SYSTEM & ENGINE (Berisi Metrics, Window Config, World)
+        // TAB 1: SYSTEM & ENGINE
         // ---------------------------------------------------------
         if (ImGui::BeginTabItem("System & Engine"))
         {
             if (ImGui::CollapsingHeader("System Metrics & Time", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 const float fps = ImGui::GetIO().Framerate;
-                ImVec4 fpsColor = { 0.0f, 1.0f, 0.0f, 1.0f };
-                if (fps < 40.0f) fpsColor = { 1.0f, 0.0f, 0.0f, 1.0f };
-                else if (fps < 50.0f) fpsColor = { 1.0f, 1.0f, 0.0f, 1.0f };
-
+                ImVec4 fpsColor = (fps < 40.0f) ? ImVec4(1, 0, 0, 1) : (fps < 50.0f) ? ImVec4(1, 1, 0, 1) : ImVec4(0, 1, 0, 1);
                 ImGui::TextColored(fpsColor, "FPS: %.1f (%.2f ms) [cap: 60]", fps, 1000.0f / fps);
 
                 static float s_frametimes[90] = {};
                 static int   s_offset = 0;
                 s_frametimes[s_offset] = 1000.0f / fps;
                 s_offset = (s_offset + 1) % IM_ARRAYSIZE(s_frametimes);
-                ImGui::PlotLines("Frametime", s_frametimes, IM_ARRAYSIZE(s_frametimes),
-                    s_offset, nullptr, 0.0f, 33.0f, ImVec2(0, 50));
+                ImGui::PlotLines("Frametime", s_frametimes, IM_ARRAYSIZE(s_frametimes), s_offset, nullptr, 0.0f, 33.0f, ImVec2(0, 50));
 
                 ImGui::Separator();
                 ImGui::SliderFloat("Time Scale", &m_timeScale, 0.1f, 3.0f, "%.1fx");
                 if (ImGui::Button("Reset Time (1.0x)")) m_timeScale = 1.0f;
             }
 
-            if (ImGui::CollapsingHeader("Window Tracking Config", ImGuiTreeNodeFlags_DefaultOpen))
+            if (ImGui::CollapsingHeader("Window Tracking Config"))
             {
-                if (ImGui::Checkbox("[All] Toggle Topmost (triggers reset)", &m_topmostEnabled))
-                {
+                if (ImGui::Checkbox("[All] Toggle Topmost (triggers reset)", &m_topmostEnabled)) {
                     WindowManager::Instance().SetTopmost(m_topmostEnabled);
                     ResetEverything();
                 }
 
-                // Cek apakah m_navi ada, dan apakah fasenya adalah Windowkill
                 if (m_navi) {
                     if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
                         bool fxClickthrough = wkPhase->IsFXClickThrough();
@@ -565,390 +556,294 @@ void SceneBoss::DrawGUI()
                     }
                 }
 
-                if (ImGui::Checkbox("[Player] Toggle Transparent", &m_playerWindowTransparent))
-                {
+                if (ImGui::Checkbox("[Player] Toggle Transparent", &m_playerWindowTransparent)) {
+                    // Logika transparansi (biarkan sesuai aslinya)
                     m_windowSystem->RemoveTrackedWindow("player");
-
                     TrackedWindowConfig config;
-                    config.name = "player";
-                    config.title = "Player";
-                    config.width = 300;
-                    config.height = 300;
-                    config.priority = 1;
+                    config.name = "player"; config.title = "Player";
+                    config.width = 300; config.height = 300; config.priority = 1;
                     config.isTransparent = m_playerWindowTransparent;
 
-                    m_windowSystem->AddTrackedWindow(
-                        config,
+                    m_windowSystem->AddTrackedWindow(config,
                         [this]() -> DirectX::XMFLOAT3 {
-                            if (!m_player) return DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
-                            const auto pPos = m_player->GetPosition();
-                            return DirectX::XMFLOAT3(
-                                pPos.x + m_stretchOffset.x,
-                                0.0f,
-                                pPos.z + m_stretchOffset.y
-                            );
+                            if (!m_player) return DirectX::XMFLOAT3(0, 0, 0);
+                            auto pPos = m_player->GetPosition();
+                            return DirectX::XMFLOAT3(pPos.x + m_stretchOffset.x, 0.0f, pPos.z + m_stretchOffset.y);
                         },
                         [this]() -> DirectX::XMFLOAT2 {
-                            return DirectX::XMFLOAT2(
-                                k_defaultWinSize + m_currentStretch.x,
-                                k_defaultWinSize + m_currentStretch.y
-                            );
-                        }
-                    );
+                            return DirectX::XMFLOAT2(k_defaultWinSize + m_currentStretch.x, k_defaultWinSize + m_currentStretch.y);
+                        });
 
                     TrackedWindow* playerWin = m_windowSystem->GetTrackedWindow("player");
-                    if (playerWin && playerWin->window)
-                    {
-                        if (m_playerWindowTransparent)
-                        {
+                    if (playerWin && playerWin->window) {
+                        if (m_playerWindowTransparent) {
                             playerWin->window->SetClickThrough(true);
                             playerWin->window->SetBorderVisible(false);
                             playerWin->window->SetDraggable(false);
                             playerWin->window->SetBackgroundAlpha(0.0f);
                         }
-                        else
-                        {
+                        else {
                             SDL_SetWindowResizable(playerWin->window->GetSDLWindow(), true);
                             SDL_SetWindowBordered(playerWin->window->GetSDLWindow(), true);
                             playerWin->window->SetDraggable(false);
                             playerWin->window->SetBackgroundAlpha(1.0f);
                         }
                     }
-
                     WindowManager::Instance().EnforceWindowPriorities();
-                    AddLog(m_playerWindowTransparent
-                        ? "Player Window: Stealth Mode Activated"
-                        : "Player Window: Normal Mode");
                 }
 
                 ImGui::Checkbox("[ImGui] Sync size to main window", &m_autoSyncMainWindow);
                 ImGui::Separator();
-
                 ImGui::Text("Active Windows: %zu", m_windowSystem->GetWindows().size());
 
-                if (ImGui::Button("Spawn Dummy Window", ImVec2(-1.0f, 30.0f)))
-                    SpawnDebugWindow();
-
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.7f, 0.1f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.8f, 0.2f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
-
-                if (ImGui::Button("Spawn Transparent Window (Hollow)", ImVec2(-1.0f, 30.0f)))
-                    SpawnTransparentWindow(0.0f, "Hollow");
-
-                if (ImGui::Button("Spawn Transparent Window (Solid)", ImVec2(-1.0f, 30.0f)))
-                    SpawnTransparentWindow(1.0f / 255.0f, "Solid");
-
-                ImGui::PopStyleColor(3);
+                if (ImGui::Button("Spawn Dummy Window", ImVec2(-1.0f, 30.0f))) SpawnDebugWindow();
+                if (ImGui::Button("Spawn Transparent (Hollow)", ImVec2(-1.0f, 30.0f))) SpawnTransparentWindow(0.0f, "Hollow");
+                if (ImGui::Button("Spawn Transparent (Solid)", ImVec2(-1.0f, 30.0f))) SpawnTransparentWindow(1.0f / 255.0f, "Solid");
 
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
-
-                if (ImGui::Button("Close All Sub Windows", ImVec2(-1.0f, 30.0f)))
-                {
+                if (ImGui::Button("Close All Sub Windows", ImVec2(-1.0f, 30.0f))) {
                     m_windowSystem->ClearAll();
                     InitializeSubWindows();
                     m_spawnCount = 0;
-                    AddLog("Cleared and respawned base windows.");
                 }
-
-                if (ImGui::Button("HARD RESET", ImVec2(-1.0f, 40.0f)))
-                    ResetEverything();
-
+                if (ImGui::Button("HARD RESET", ImVec2(-1.0f, 40.0f))) ResetEverything();
                 ImGui::PopStyleColor();
-
             }
 
-            if (ImGui::CollapsingHeader("World & Entities", ImGuiTreeNodeFlags_DefaultOpen))
+            if (ImGui::CollapsingHeader("World & Camera"))
             {
                 ImGui::Checkbox("Show 3D Grid", &m_showGrid);
                 ImGui::Checkbox("Show Hitboxes/Hurtboxes", &m_showHitboxes);
 
-                if (m_player)
-                {
-                    const DirectX::XMFLOAT3 pPos = m_player->GetPosition();
-                    const float    rotY = m_player->GetMovement()->GetRotation().y;
+                if (m_player) {
                     ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "[Player]");
-                    ImGui::Text("Loc: X:%.2f, Y:%.2f, Z:%.2f", pPos.x, pPos.y, pPos.z);
-                    ImGui::Text("Facing: %.1f deg", rotY);
+                    ImGui::Text("Loc: X:%.2f, Y:%.2f, Z:%.2f", m_player->GetPosition().x, m_player->GetPosition().y, m_player->GetPosition().z);
                 }
 
                 ImGui::Separator();
-                POINT mPos; GetCursorPos(&mPos);
-                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "[Mouse]");
-                ImGui::Text("Monitor OS: X:%d, Y:%d", mPos.x, mPos.y);
-            }
-
-            if (ImGui::CollapsingHeader("Cinematic Camera", ImGuiTreeNodeFlags_DefaultOpen))
-            {
                 ImGui::SliderFloat("Combat Radius", &m_combatRadius, 5.0f, 50.0f);
                 ImGui::SliderFloat("Max Zoom Amount", &m_maxZoomIn, -15.0f, 0.0f);
-                ImGui::Text("Current Zoom: %.2f", m_currentZoom);
-
-                if (ImGui::Button("Reset Zoom Settings")) {
-                    m_combatRadius = 25.0f;
-                    m_maxZoomIn = -8.0f;
-                }
             }
-
             ImGui::EndTabItem();
         }
 
         // ---------------------------------------------------------
-        // TAB 2: NAVI BOSS
+        // TAB 2: BOSS PHASE & VISUALS
         // ---------------------------------------------------------
-        if (m_navi && ImGui::BeginTabItem("Navi Boss"))
+        if (m_navi && ImGui::BeginTabItem("Phase & Visuals"))
         {
-            ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Core Settings ---");
-            float speed = m_navi->GetCoreBreathSpeed();
-            float intensity = m_navi->GetCoreBreathIntensity();
+            if (ImGui::CollapsingHeader("Core Face Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+                float speed = m_navi->GetCoreBreathSpeed();
+                float intensity = m_navi->GetCoreBreathIntensity();
+                bool changed = false;
+                changed |= ImGui::SliderFloat("Breath Speed", &speed, 0.1f, 20.0f);
+                changed |= ImGui::SliderFloat("Breath Intensity", &intensity, 0.0f, 200.0f);
+                if (changed) m_navi->SetCoreBreathParams(speed, intensity);
+            }
 
-            bool changed = false;
-            changed |= ImGui::SliderFloat("Breath Speed", &speed, 0.1f, 20.0f);
-            changed |= ImGui::SliderFloat("Breath Intensity", &intensity, 0.0f, 200.0f);
-            if (changed) m_navi->SetCoreBreathParams(speed, intensity);
-
-            // =========================================================
-            // [MAGIC] DYNAMIC CAST UNTUK KONTROL SAYAP
-            // Jika Fase Normal sedang aktif, UI sayap di bawah ini akan 
-            // otomatis hilang (disembunyikan) agar UI tetap rapi!
-            // =========================================================
             if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
             {
                 ImGui::Separator();
-                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "--- PHASE 1: NORMAL MODE ---");
-                ImGui::TextWrapped("Main Window is now in Borderless Fullscreen.");
+                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "CURRENT PHASE: 1 (NORMAL MODE)");
 
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
-
-                // TOMBOL DEBUG TRANSISI!
                 if (ImGui::Button("TRIGGER PHASE 2 (WINDOWKILL) !!!", ImVec2(-1.0f, 50.0f))) {
                     m_navi->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
                     AddLog("Transitioning to Windowkill Phase...");
                 }
-
                 ImGui::PopStyleColor(2);
             }
-
-            // --- JIKA SEDANG DI FASE 2 (WINDOWKILL) ---
             else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()))
             {
                 ImGui::Separator();
-                ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Wing Settings ---");
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "CURRENT PHASE: 2 (WINDOWKILL)");
 
-                float wSpeed = wkPhase->GetWingFlapSpeed();
-                float wIntensity = wkPhase->GetWingFlapIntensity();
-                float wOffsetX = wkPhase->GetWingOffsetX();
-                float wOffsetZ = wkPhase->GetWingOffsetZ();
-                bool offsetChanged = false;
+                if (ImGui::CollapsingHeader("Wing Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    float wSpeed = wkPhase->GetWingFlapSpeed();
+                    float wIntensity = wkPhase->GetWingFlapIntensity();
+                    float wOffsetX = wkPhase->GetWingOffsetX();
+                    float wOffsetZ = wkPhase->GetWingOffsetZ();
 
-                if (ImGui::SliderFloat("Wing Flap Speed", &wSpeed, 0.1f, 10.0f)) wkPhase->SetWingFlapParams(wSpeed, wIntensity);
-                if (ImGui::SliderFloat("Wing Flap Intensity", &wIntensity, 0.0f, 2.0f)) wkPhase->SetWingFlapParams(wSpeed, wIntensity);
+                    if (ImGui::SliderFloat("Flap Speed", &wSpeed, 0.1f, 10.0f)) wkPhase->SetWingFlapParams(wSpeed, wIntensity);
+                    if (ImGui::SliderFloat("Flap Intensity", &wIntensity, 0.0f, 2.0f)) wkPhase->SetWingFlapParams(wSpeed, wIntensity);
 
-                offsetChanged |= ImGui::SliderFloat("Wing Spacing (X)", &wOffsetX, 0.0f, 20.0f);
-                offsetChanged |= ImGui::SliderFloat("Wing Vertical (Z)", &wOffsetZ, -20.0f, 20.0f);
-                if (offsetChanged) wkPhase->SetWingOffsets(wOffsetX, wOffsetZ);
-
-                ImGui::Separator();
-                ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Render Scale ---");
-
-                float p2u = wkPhase->GetPixelToUnit();
-                float gScale = wkPhase->GetWingGlobalScale();
-
-                if (ImGui::SliderFloat("Pixel to Unit Ratio", &p2u, 1.0f, 100.0f)) wkPhase->SetScalingParams(p2u, gScale);
-                if (ImGui::SliderFloat("Global Wing Scale", &gScale, 0.1f, 5.0f)) wkPhase->SetScalingParams(p2u, gScale);
-
-                ImGui::Separator();
-                ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Procedural Generation ---");
-
-                int currentSeed = static_cast<int>(wkPhase->GetWingSeed());
-                if (ImGui::InputInt("Wing Seed", &currentSeed)) {
-                    wkPhase->SetWingSeed(static_cast<unsigned int>(currentSeed));
+                    bool offsetChanged = false;
+                    offsetChanged |= ImGui::SliderFloat("Spacing (X)", &wOffsetX, 0.0f, 20.0f);
+                    offsetChanged |= ImGui::SliderFloat("Vertical (Z)", &wOffsetZ, -20.0f, 20.0f);
+                    if (offsetChanged) wkPhase->SetWingOffsets(wOffsetX, wOffsetZ);
                 }
 
-                if (ImGui::Button("Randomize Seed (Gacha!)", ImVec2(-1.0f, 30.0f))) {
-                    std::random_device rd;
-                    wkPhase->SetWingSeed(rd());
-                }
+                if (ImGui::CollapsingHeader("Wing Animation & Render")) {
+                    float p2u = wkPhase->GetPixelToUnit();
+                    float gScale = wkPhase->GetWingGlobalScale();
+                    if (ImGui::SliderFloat("Pixel to Unit Ratio", &p2u, 1.0f, 100.0f)) wkPhase->SetScalingParams(p2u, gScale);
+                    if (ImGui::SliderFloat("Global Wing Scale", &gScale, 0.1f, 5.0f)) wkPhase->SetScalingParams(p2u, gScale);
 
-                ImGui::Separator();
-                ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "--- Spawn Animation ---");
+                    int currentSeed = static_cast<int>(wkPhase->GetWingSeed());
+                    if (ImGui::InputInt("Wing Seed", &currentSeed)) wkPhase->SetWingSeed(static_cast<unsigned int>(currentSeed));
+                    if (ImGui::Button("Randomize Seed (Gacha!)", ImVec2(-1.0f, 30.0f))) {
+                        std::random_device rd; wkPhase->SetWingSeed(rd());
+                    }
 
-                float pDur = wkPhase->GetPopDuration();
-                float sDur = wkPhase->GetSpawnDuration();
-                float sChaos = wkPhase->GetSpawnChaos();
-                bool animChanged = false;
-
-                animChanged |= ImGui::SliderFloat("Individual Pop Duration", &pDur, 0.01f, 1.0f);
-                animChanged |= ImGui::SliderFloat("Total Spawn Duration", &sDur, 0.1f, 5.0f);
-                animChanged |= ImGui::SliderFloat("Spawn Chaos", &sChaos, 0.0f, 2.0f);
-
-                if (animChanged) wkPhase->SetSpawnParams(pDur, sDur, sChaos);
-
-                if (ImGui::Button("Re-play Expand Animation", ImVec2(-1.0f, 30.0f))) {
-                    wkPhase->ReplayAnimation();
+                    float pDur = wkPhase->GetPopDuration();
+                    float sDur = wkPhase->GetSpawnDuration();
+                    float sChaos = wkPhase->GetSpawnChaos();
+                    bool animChanged = false;
+                    animChanged |= ImGui::SliderFloat("Pop Duration", &pDur, 0.01f, 1.0f);
+                    animChanged |= ImGui::SliderFloat("Spawn Duration", &sDur, 0.1f, 5.0f);
+                    animChanged |= ImGui::SliderFloat("Spawn Chaos", &sChaos, 0.0f, 2.0f);
+                    if (animChanged) wkPhase->SetSpawnParams(pDur, sDur, sChaos);
+                    if (ImGui::Button("Re-play Expand Animation", ImVec2(-1.0f, 30.0f))) wkPhase->ReplayAnimation();
                 }
             }
-
             ImGui::EndTabItem();
         }
 
-        // =========================================================
-        // TAB: BOSS ATTACKS
-        // =========================================================
-        if (m_navi && ImGui::BeginTabItem("Boss Attacks")) {
-            if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+        // ---------------------------------------------------------
+        // TAB 3: COMBAT & AI
+        // ---------------------------------------------------------
+        if (m_navi && ImGui::BeginTabItem("Combat & AI"))
+        {
+            if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
+            {
                 auto& p = normalPhase->GetParams();
 
-                ImGui::TextColored(ImVec4(1, 1, 0, 1), "--- Global Bullet Settings ---");
-                ImGui::SliderFloat("Bullet Speed", &p.speed, 1.0f, 50.0f);
-                ImGui::SliderInt("Radial Count", &p.count, 4, 128);
-                ImGui::SliderFloat("Burst Delay", &p.burstDelay, 0.01f, 1.0f);
-                ImGui::ColorEdit4("Bullet Color", (float*)&p.color);
-
-                // --- UI BARU UNTUK FAN BURST ---
-                ImGui::Separator();
-                ImGui::TextColored(ImVec4(0, 1, 0, 1), "--- Targeted Fan Burst Settings ---");
-                ImGui::SliderInt("Fan Lines (Bullets/Wave)", &p.fanLines, 1, 10);
-                ImGui::SliderInt("Fan Waves (Repeats)", &p.fanWaves, 1, 10);
-                ImGui::SliderFloat("Fan Wave Delay", &p.fanWaveDelay, 0.05f, 1.0f);
-                ImGui::SliderFloat("Fan Spread Angle", &p.fanSpreadAngle, 0.05f, 0.5f);
-
-				// --- UI BARU UNTUK PHALANX ---1
-                ImGui::Separator();
-                ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "--- Phalanx Settings ---");
-                ImGui::SliderInt("Phalanx Count", &p.phalanxCount, 3, 10);
-                ImGui::SliderFloat("Smooth Speed (Spawn)", &p.phalanxSmoothSpeed, 1.0f, 20.0f);
-                ImGui::SliderFloat("Charge Delay", &p.phalanxChargeDelay, 0.05f, 0.5f);
-                ImGui::SliderFloat("Hold Duration", &p.phalanxHoldDuration, 0.0f, 3.0f);
-                ImGui::SliderFloat("Fire Delay", &p.phalanxFireDelay, 0.05f, 0.5f);
-                ImGui::SliderFloat("Phalanx Speed", &p.phalanxSpeed, 10.0f, 80.0f);
-                ImGui::SliderFloat("Phalanx Turn Speed", &p.phalanxTurnSpeed, 0.1f, 10.0f);
-                ImGui::SliderFloat("Post-Fire Delay", &p.phalanxPostFireDelay, 0.0f, 3.0f);
-                ImGui::SliderFloat("Attack Move Speed", &p.phalanxAttackMoveSpeed, 1.0f, 20.0f);
-                ImGui::SliderFloat("Return Move Speed", &p.phalanxReturnMoveSpeed, 0.1f, 10.0f);
-
-                // --- UI BARU UNTUK RHYTHM LASER ---
-                ImGui::Separator();
-                ImGui::TextColored(ImVec4(0, 1, 1, 1), "--- Rhythm Laser & Bijuudama Settings ---");
-                ImGui::SliderFloat("Laser Duration", &p.laserDuration, 0.5f, 4.0f);
-                ImGui::SliderFloat("Parry Window (+/- sec)", &p.laserParryWindow, 0.05f, 0.5f);
-                ImGui::SliderInt("Laser Damage", &p.laserDamage, 10, 50);
-
-                // [BARU] Slider Bijuudama
-                ImGui::SliderFloat("Base Radius", &p.bijuudamaBaseHitbox, 0.1f, 2.0f);
-                ImGui::SliderFloat("Max Grow Amount", &p.bijuudamaMaxHitboxGrow, 0.0f, 10.0f);
-                ImGui::SliderFloat("Visual Multiplier", &p.bijuudamaVisualMultiplier, 1.0f, 10.0f);
-                ImGui::SliderFloat("Spawn Offset Z", &p.bijuudamaSpawnOffsetZ, 0.0f, 10.0f);
-                ImGui::SliderFloat("Shoot Speed", &p.bijuudamaShootSpeed, 10.0f, 120.0f);
-                
-                ImGui::SliderFloat("Post-Fire Delay", &p.bijuudamaPostFireDelay, 0.0f, 3.0f);
-                ImGui::SliderFloat("Move Up Speed", &p.bijuudamaAttackMoveSpeed, 1.0f, 15.0f);
-                ImGui::SliderFloat("Return Speed", &p.bijuudamaReturnMoveSpeed, 0.5f, 10.0f);
-
-                // [BARU] Slider Shatter / Pecahan
-                ImGui::Separator();
-                ImGui::TextColored(ImVec4(1, 0.5f, 0, 1), "--- Shatter / Parabola Settings ---");
-                ImGui::SliderInt("Min Fragments", &p.shatterMinFragments, 1, 10);
-                ImGui::SliderInt("Max Fragments", &p.shatterMaxFragments, 1, 20);
-                ImGui::SliderFloat("Curve Width/Offset", &p.shatterCurveOffset, 5.0f, 30.0f);
-                ImGui::SliderFloat("Min Travel Time", &p.shatterMinDuration, 0.1f, 3.0f);
-                ImGui::SliderFloat("Max Travel Time", &p.shatterMaxDuration, 0.1f, 3.0f);
-
-                ImGui::Separator();
-                ImGui::TextColored(ImVec4(1, 0, 0, 1), "--- Manual Triggers ---");
-
-                if (ImGui::Button("FIRE TRIPLE BURST", ImVec2(-1.0f, 40.0f))) {
-                    normalPhase->TriggerTripleBurst();
-                }
-
-                // TOMBOL BARU DENGAN TARGET LOCKING!
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
-                if (ImGui::Button("FIRE TARGETED FAN BURST", ImVec2(-1.0f, 40.0f))) {
-                    if (m_player) {
-                        normalPhase->TriggerFanAttack(m_navi.get(), m_player->GetPosition());
-                    }
-                }
-                ImGui::PopStyleColor();
-
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.8f, 1.0f));
-                if (ImGui::Button("FIRE GLINTSTONE PHALANX", ImVec2(-1.0f, 40.0f))) {
-                    if (m_player) {
-                        normalPhase->TriggerPhalanx(m_player.get());
-                    }
-                }
-                ImGui::PopStyleColor();
-
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.6f, 1.0f));
-                if (ImGui::Button("FIRE BIJUUDAMA (TIMING EVENT)", ImVec2(-1.0f, 40.0f))) {
-                    if (m_player) {
-                        normalPhase->TriggerBijuudama(m_player.get());
-                    }
-                }
-                ImGui::PopStyleColor();
-
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.3f, 0.0f, 1.0f));
-                if (ImGui::Button("ASGORE RAIN (LEFT)", ImVec2(-1.0f, 30.0f))) {
-                    normalPhase->TriggerRainAttack(true, false); // True = Side Mode, False = Left
-                }
-                if (ImGui::Button("ASGORE RAIN (RIGHT)", ImVec2(-1.0f, 30.0f))) {
-                    normalPhase->TriggerRainAttack(true, true);  // True = Side Mode, True = Right
-                }
-                if (ImGui::Button("ASGORE RAIN (TOP)", ImVec2(-1.0f, 30.0f))) {
-                    normalPhase->TriggerRainAttack(false, true); // False = Normal Mode, True = Top
-                }
-                if (ImGui::Button("ASGORE RAIN (BOTTOM)", ImVec2(-1.0f, 30.0f))) {
-                    normalPhase->TriggerRainAttack(false, false);// False = Normal Mode, False = Bottom
-                }
-                ImGui::PopStyleColor();
-
-                ImGui::Separator();
-                ImGui::TextColored(ImVec4(1, 0, 1, 1), "--- AI DIRECTOR (OMEGA FLOWEY MODE) ---");
+                // ==========================================
+                // 1. STATUS & MASTER AI
+                // ==========================================
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "=== BATTLE STATUS ===");
 
                 bool aiActive = normalPhase->IsAIEnabled();
-                if (ImGui::Checkbox("ENABLE BOSS AI", &aiActive)) {
-                    normalPhase->SetAIEnabled(aiActive);
+                if (!aiActive) {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.6f, 0.1f, 1.0f)); // Hijau
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.8f, 0.2f, 1.0f));
+                    if (ImGui::Button("START BOSS FIGHT (ENABLE AI)", ImVec2(-1.0f, 50.0f))) {
+                        normalPhase->SetAIEnabled(true);
+                        AudioManager::Instance().PlayMusic("Data/Sound/BGM_Boss_Phase_01.wav", 0.05f * p.bgmVolumeMultiplier, true);
+                    }
+                    ImGui::PopStyleColor(2);
                 }
-                if (aiActive) {
-                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "WARNING: PURE CHAOS INCOMING! BRACE YOURSELF!");
+                else {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f)); // Merah
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
+                    if (ImGui::Button("STOP BOSS FIGHT (DISABLE AI)", ImVec2(-1.0f, 50.0f))) {
+                        normalPhase->SetAIEnabled(false);
+                    }
+                    ImGui::PopStyleColor(2);
                 }
 
-                ImGui::Separator();
+                // Health Bars
                 if (normalPhase->GetHP() > 0) {
-                    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "NAVI BOSS HEALTH: %d / %d", normalPhase->GetHP(), normalPhase->GetMaxHP());
                     float hpProgress = (float)normalPhase->GetHP() / normalPhase->GetMaxHP();
-                    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(1.0f, 0.0f, 0.0f, 1.0f)); // Bar Merah
-                    ImGui::ProgressBar(hpProgress, ImVec2(-1.0f, 30.0f));
+                    ImGui::Text("Navi HP: %d / %d", normalPhase->GetHP(), normalPhase->GetMaxHP());
+                    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+                    ImGui::ProgressBar(hpProgress, ImVec2(-1.0f, 20.0f));
                     ImGui::PopStyleColor();
                 }
                 else {
                     ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "[ NAVI DEFEATED ]");
                 }
 
-                if (ImGui::CollapsingHeader("Player Vital Signs", ImGuiTreeNodeFlags_DefaultOpen))
-                {
+                if (m_player) {
                     int hp = m_player->GetHP();
                     float hpProgress = hp / 100.0f;
-
-                    // Warna bar: Hijau jika sehat, Merah jika kritis
                     ImVec4 barColor = { (1.0f - hpProgress), hpProgress, 0.0f, 1.0f };
-
-                    ImGui::Text("Player Health: %d / 100", hp);
+                    ImGui::Text("Player HP: %d / 100", hp);
                     ImGui::PushStyleColor(ImGuiCol_PlotHistogram, barColor);
-                    ImGui::ProgressBar(hpProgress, ImVec2(-1.0f, 25.0f));
+                    ImGui::ProgressBar(hpProgress, ImVec2(-1.0f, 20.0f));
                     ImGui::PopStyleColor();
-
-                    if (ImGui::Button("Heal Player (Cheat)", ImVec2(-1.0f, 30.0f))) {
-                        m_player->SetMaxHP(100);
-                    }
-
-                    if (m_player->IsInvincible()) {
-                        ImGui::TextColored(ImVec4(0, 1, 1, 1), "STATUS: I-FRAME ACTIVE (DASHING)");
-                    }
+                    if (ImGui::Button("Heal Player to Full", ImVec2(-1.0f, 25.0f))) m_player->SetMaxHP(100);
                 }
 
+                ImGui::Separator();
+
+                // ==========================================
+                // 2. MANUAL TRIGGERS
+                // ==========================================
+                if (ImGui::CollapsingHeader("Manual Attack Triggers", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    if (ImGui::Button("TRIPLE BURST", ImVec2(-1.0f, 35.0f))) normalPhase->TriggerTripleBurst();
+
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
+                    if (ImGui::Button("TARGETED FAN BURST", ImVec2(-1.0f, 35.0f))) {
+                        if (m_player) normalPhase->TriggerFanAttack(m_navi.get(), m_player->GetPosition());
+                    }
+                    ImGui::PopStyleColor();
+
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.8f, 1.0f));
+                    if (ImGui::Button("GLINTSTONE PHALANX", ImVec2(-1.0f, 35.0f))) {
+                        if (m_player) normalPhase->TriggerPhalanx(m_player.get());
+                    }
+                    ImGui::PopStyleColor();
+
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.6f, 1.0f));
+                    if (ImGui::Button("BIJUUDAMA (TIMING EVENT)", ImVec2(-1.0f, 35.0f))) {
+                        if (m_player) normalPhase->TriggerBijuudama(m_player.get());
+                    }
+                    ImGui::PopStyleColor();
+
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.3f, 0.0f, 1.0f));
+                    if (ImGui::Button("RAIN (LEFT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRainAttack(true, false); ImGui::SameLine();
+                    if (ImGui::Button("RAIN (RIGHT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRainAttack(true, true); ImGui::SameLine();
+                    if (ImGui::Button("RAIN (TOP)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRainAttack(false, true); ImGui::SameLine();
+                    if (ImGui::Button("RAIN (BOT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRainAttack(false, false);
+                    ImGui::PopStyleColor();
+                }
+
+                // ==========================================
+                // 3. PARAMETER TUNING
+                // ==========================================
+                if (ImGui::CollapsingHeader("Global Settings & Audio")) {
+                    ImGui::SliderFloat("SFX Volume Multiplier", &p.sfxVolumeMultiplier, 0.0f, 2.0f, "%.2fx");
+                    if (ImGui::SliderFloat("BGM Volume Multiplier", &p.bgmVolumeMultiplier, 0.0f, 2.0f, "%.2fx")) {
+                        // Asumsi base volume BGM adalah 0.05f, kalikan dengan posisi slider
+                        AudioManager::Instance().SetMusicVolume(0.05f * p.bgmVolumeMultiplier);
+                    }
+                    ImGui::SliderFloat("Base Bullet Speed", &p.speed, 1.0f, 50.0f);
+                    ImGui::ColorEdit4("Base Bullet Color", (float*)&p.color);
+                    ImGui::SliderInt("Radial Burst Count", &p.count, 4, 128);
+                    ImGui::SliderFloat("Burst Delay", &p.burstDelay, 0.01f, 1.0f);
+                }
+
+                if (ImGui::CollapsingHeader("Targeted Fan Burst")) {
+                    ImGui::SliderInt("Fan Lines (Bullets/Wave)", &p.fanLines, 1, 10);
+                    ImGui::SliderInt("Fan Waves (Repeats)", &p.fanWaves, 1, 10);
+                    ImGui::SliderFloat("Wave Delay", &p.fanWaveDelay, 0.05f, 1.0f);
+                    ImGui::SliderFloat("Spread Angle", &p.fanSpreadAngle, 0.05f, 0.5f);
+                }
+
+                if (ImGui::CollapsingHeader("Glintstone Phalanx")) {
+                    ImGui::SliderInt("Blade Count", &p.phalanxCount, 3, 10);
+                    ImGui::SliderFloat("Spawn Smoothing", &p.phalanxSmoothSpeed, 1.0f, 20.0f);
+                    ImGui::SliderFloat("Charge Delay", &p.phalanxChargeDelay, 0.05f, 0.5f);
+                    ImGui::SliderFloat("Hold Duration", &p.phalanxHoldDuration, 0.0f, 3.0f);
+                    ImGui::SliderFloat("Fire Delay", &p.phalanxFireDelay, 0.05f, 0.5f);
+                    ImGui::SliderFloat("Flight Speed", &p.phalanxSpeed, 10.0f, 80.0f);
+                    ImGui::SliderFloat("Turn Tracking", &p.phalanxTurnSpeed, 0.1f, 10.0f);
+                    ImGui::SliderFloat("Hover Move Speed", &p.phalanxAttackMoveSpeed, 1.0f, 20.0f);
+                    ImGui::SliderFloat("Return Speed", &p.phalanxReturnMoveSpeed, 0.1f, 10.0f);
+                }
+
+                if (ImGui::CollapsingHeader("Bijuudama & Rhythm Laser")) {
+                    ImGui::SliderFloat("Laser Duration", &p.laserDuration, 0.5f, 4.0f);
+                    ImGui::SliderFloat("Parry Window (+/- sec)", &p.laserParryWindow, 0.05f, 0.5f);
+                    ImGui::SliderFloat("Base Radius", &p.bijuudamaBaseHitbox, 0.1f, 2.0f);
+                    ImGui::SliderFloat("Max Grow Amount", &p.bijuudamaMaxHitboxGrow, 0.0f, 10.0f);
+                    ImGui::SliderFloat("Shoot Speed", &p.bijuudamaShootSpeed, 10.0f, 120.0f);
+                    ImGui::SliderFloat("Post-Fire Delay", &p.bijuudamaPostFireDelay, 0.0f, 3.0f);
+                }
+
+                if (ImGui::CollapsingHeader("Shatter / Parabola Dynamics")) {
+                    ImGui::SliderInt("Min Fragments", &p.shatterMinFragments, 1, 10);
+                    ImGui::SliderInt("Max Fragments", &p.shatterMaxFragments, 1, 20);
+                    ImGui::SliderFloat("Curve Width/Offset", &p.shatterCurveOffset, 5.0f, 30.0f);
+                    ImGui::SliderFloat("Min Travel Time", &p.shatterMinDuration, 0.1f, 3.0f);
+                    ImGui::SliderFloat("Max Travel Time", &p.shatterMaxDuration, 0.1f, 3.0f);
+                }
             }
-            else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+            else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()))
+            {
                 ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "--- PHASE 2: WINDOWKILL ATTACKS ---");
                 ImGui::Separator();
 
@@ -958,29 +853,24 @@ void SceneBoss::DrawGUI()
                 if (ImGui::Button("FIRE BOUNCING WINDOWS", ImVec2(-1.0f, 50.0f))) {
                     wkPhase->TriggerBouncingWindows(m_navi.get());
                 }
+                if (ImGui::Button("FIRE ORBITAL LASER (SANS)", ImVec2(-1.0f, 50.0f))) {
+                    wkPhase->TriggerOrbitalBlaster();
+                }
 
                 ImGui::PopStyleColor(2);
             }
-            else {
-                ImGui::Text("No active attacks available for current phase.");
-            }
-
             ImGui::EndTabItem();
         }
 
         // ---------------------------------------------------------
-        // TAB 3: TERMINAL
+        // TAB 4: TERMINAL
         // ---------------------------------------------------------
         if (ImGui::BeginTabItem("Terminal"))
         {
-            ImGui::BeginChild("LogRegion", ImVec2(0.0f, 0.0f), true,
-                ImGuiWindowFlags_AlwaysVerticalScrollbar);
-            for (const auto& log : m_debugLogs)
-                ImGui::TextUnformatted(log.c_str());
-            if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
-                ImGui::SetScrollHereY(1.0f);
+            ImGui::BeginChild("LogRegion", ImVec2(0.0f, 0.0f), true, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+            for (const auto& log : m_debugLogs) ImGui::TextUnformatted(log.c_str());
+            if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) ImGui::SetScrollHereY(1.0f);
             ImGui::EndChild();
-
             ImGui::EndTabItem();
         }
 

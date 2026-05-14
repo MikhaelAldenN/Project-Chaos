@@ -56,7 +56,7 @@ private:
     void SpawnDebugWindow();
     void SpawnTransparentWindow(float bgAlpha, const std::string& typeSuffix);
     void AddLog(const std::string& message);
-
+    
 private:
     // =========================================================
     // LOCAL CONSTANTS
@@ -128,4 +128,5 @@ private:
 
     // Terminal log (capped at 50 lines)
     std::vector<std::string> m_debugLogs;
+
 };

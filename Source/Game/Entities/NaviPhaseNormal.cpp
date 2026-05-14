@@ -14,6 +14,8 @@
 #include <random> // Pastikan ini ada di atas!
 #include <CameraController.h>
 
+#include "System/AudioManager.h"
+
 void NaviPhaseNormal::Enter(NaviBoss* boss) {
     int screenW = GetSystemMetrics(SM_CXSCREEN);
     int screenH = GetSystemMetrics(SM_CYSCREEN);
@@ -274,6 +276,9 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                             bullet->SetTurnSpeed(m_params.phalanxTurnSpeed);
 
                             m_phalanxBullets.push_back(bullet.get());
+
+                            AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Phalanx_Ready.wav", 0.1f * m_params.sfxVolumeMultiplier);
+
                             m_phalanxSpawned++;
                             break;
                         }
@@ -321,6 +326,7 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
 
                         b->Fire(myPos, dir, m_params.phalanxSpeed);
                     }
+                    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Phalanx_Shoot.wav", 0.1f * m_params.sfxVolumeMultiplier);
                     m_phalanxFired++;
                 }
 
@@ -374,21 +380,67 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                 m_rainState = 2; // Mulai Hujan! (Hitbox Aktif)
                 m_rainTimer = 0.0f;
                 CameraController::Instance().AddTrauma(0.5f); // Ledakan getaran awal
+
+                // =========================================================
+                // [FIX MUTLAK] MENGHANCURKAN DELAY AWAL 1.3 DETIK
+                // =========================================================
+                // 1. Tembakkan 1 suara secara INSTAN sebagai "Pecah Telur" pembukaan hujan
+                AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Rain_01.wav", 0.07f * m_params.sfxVolumeMultiplier);
+
+                // 2. "Hack" metronomnya dengan memalsukan waktu!
+                // Setel timer langsung ke batas maksimalnya. Dengan ini, pada frame
+                // berikutnya loop delay kita akan LANGSUNG terpicu tanpa harus 
+                // menunggu 0.8 detik pertama!
+                m_rainSFXTimer = RAIN_SFX_LOOP_DURATION;
+                // =========================================================
             }
         }
         else if (m_rainState == 2) { // FASE RAINING (Mematikan)
+
+            // =========================================================
+            // [FIX MUTLAK] RHYTHMIC RAIN SFX LOOP (PINDAHAN DARI RENDER!)
+            // =========================================================
+            m_rainSFXTimer += dt; // SEKARANG AMAN KARENA ADA 'dt'!
+
+            if (m_rainSFXTimer >= RAIN_SFX_LOOP_DURATION) {
+
+                // Siapkan daftar 3 suara acak
+                std::string rainSounds[] = {
+                    "Data/Sound/SE_Boss_Rain_01.wav",
+                    "Data/Sound/SE_Boss_Rain_02.wav",
+                    "Data/Sound/SE_Boss_Rain_03.wav"
+                };
+
+                for (int i = 0; i < 3; ++i) {
+                    float randomDelay = 0.5f + ((rand() % 301) / 1000.0f);
+                    int randomIndex = rand() % 3; // Pilih salah satu dari 3 suara
+
+                    // Mainkan suara yang terpilih dengan volume rendah
+                    AudioManager::Instance().PlaySFXDelayed(rainSounds[randomIndex], 0.07f * m_params.sfxVolumeMultiplier, randomDelay);
+                }
+                m_rainSFXTimer = 0.0f; // Reset timer untuk siklus berikutnya
+            }
+            // =========================================================
+
             if (m_rainTimer >= m_params.rainActiveDuration) {
                 m_rainState = 3;
                 m_rainTimer = 0.0f;
             }
         }
         else if (m_rainState == 3) { // FASE DISSIPATING (Reda & Aman)
+            m_rainSFXTimer = 0.0f; // Matikan timer suara saat mereda
+
             // Tunggu 1.5 detik agar peluru terakhir benar-benar keluar layar bawah
             if (m_rainTimer >= 1.0f) {
                 m_rainState = 0; // Hujan benar-benar bersih
             }
         }
     }
+    else {
+        // Jaga-jaga: Pastikan timer suara benar-benar reset saat hujan mati
+        m_rainSFXTimer = 0.0f;
+    }
+    
 
     if (m_isLaserLocked && m_laserTargetPlayer) {
         DirectX::XMFLOAT3 bPos = boss->GetPosition();
@@ -402,8 +454,12 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
         }
 
         else {
-            TriggerRainAttack(true, false, 1.0f, true);
+            if (m_laserTimer == 0.0f) {
+                // Mainkan suara charging yang panjang!
+                AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Bijuudama_Charge.wav", 0.1f * m_params.sfxVolumeMultiplier);
+            }
 
+            TriggerRainAttack(true, false, 1.0f, true);
             // Jika sudah sampai, pastikan bola aktif kembali
             if (m_bijuudamaBall && !m_bijuudamaBall->IsActive()) m_bijuudamaBall->SetActive(true);
 
@@ -466,6 +522,7 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                             DirectX::XMFLOAT3 currentPos = m_bijuudamaBall->GetMovement()->GetPosition();
 
                             m_bijuudamaBall->ApplyMovement(currentPos, shootVel);
+                            AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Bijuudama_Shoot.wav", 0.2f * m_params.sfxVolumeMultiplier);
                         }
                     }
                 }
@@ -556,6 +613,9 @@ void NaviPhaseNormal::FireFanWave(NaviBoss* boss) {
             if (firedCount >= lines) break; // Berhenti jika sudah menembak 3-4 peluru
         }
     }
+
+    // Masukkan ke antrean!
+    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Shoot.wav", 0.2f * m_params.sfxVolumeMultiplier);
 }
 
 void NaviPhaseNormal::FireRadialBurst(NaviBoss* boss, float angleOffset) {
@@ -580,6 +640,8 @@ void NaviPhaseNormal::FireRadialBurst(NaviBoss* boss, float angleOffset) {
             if (++firedCount >= m_params.count) break;
         }
     }
+
+    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Shoot.wav", 0.2f * m_params.sfxVolumeMultiplier);
 }
 
 
@@ -833,6 +895,7 @@ void NaviPhaseNormal::ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* bos
 
             // 4. Jalankan Parabola
             bullet->SetParabolaParams(parryPos, ctrlPoint, distDur(gen));
+            AudioManager::Instance().PlaySFX("Data/Sound/SE_Player_Parry_Boss.wav", 0.015f * m_params.sfxVolumeMultiplier);
 
             spawned++;
             if (spawned >= fragments) break;
@@ -902,7 +965,10 @@ void NaviPhaseNormal::TakeDamage(int damage) {
     m_hitFlashTimer = 0.05f; // Timer untuk efek visual (jika ada)
 
     // [JUICE] Berikan getaran super mikro setiap kali peluru mengenai kaca jendela bos!
-    CameraController::Instance().AddTrauma(0.1f);
+    CameraController::Instance().AddTrauma(0.3f);
+
+    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Hit.wav", 0.1f * m_params.sfxVolumeMultiplier);
+
 }
 
 void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {

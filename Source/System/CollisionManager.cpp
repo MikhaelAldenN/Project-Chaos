@@ -1001,7 +1001,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
                 }
 
                 bullet->SetActive(false);
-                AudioManager::Instance().PlaySFX("Data/Sound/SE_Parry.wav", 1.0f);
+                AudioManager::Instance().PlaySFX("Data/Sound/SE_Parry.wav", 0.8);
             }
             continue;
         }
@@ -1055,6 +1055,43 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
             }
         }
     }
+
+    // =========================================================
+    // [NEW] DETEKSI DAMAGE LASER (AREA DENIAL)
+    // =========================================================
+    if (wkPhase) {
+        auto blaster = wkPhase->GetBlaster();
+
+        // Damage HANYA diberikan saat State = 3 (Firing)
+        if (blaster.active && blaster.state == 3) {
+            DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
+
+            // Hitung Area Laser (Mencontek logika Rain)
+            // Sumbu X: Berdasarkan beamScaleX (dikali 6 seperti di Render)
+            float halfWidth = (blaster.beamScaleX * 6.0f) * 0.5f;
+
+            // Sumbu Z: Laser memanjang dari posisi kepala ke arah negatif Z (belakang)
+            float laserLength = 120.0f;
+            float zStart = blaster.pos.z;
+            float zEnd = blaster.pos.z - laserLength;
+
+            // Cek apakah Player di dalam kotak laser (XZ Plane)
+            if (pPos.x > (blaster.pos.x - halfWidth) && pPos.x < (blaster.pos.x + halfWidth) &&
+                pPos.z < zStart && pPos.z > zEnd)
+            {
+                if (!m_player->IsInvincible()) {
+                    // Berikan damage besar karena ini Laser!
+                    m_player->TakeDamage(20);
+
+                    if (m_player->GetHP() <= 0) {
+                        m_player->scale = { 0.0f, 0.0f, 0.0f };
+                        m_player->SetInputEnabled(false);
+                        m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
+                    }
+                }
+            }
+        }
+    }
 }
 
 void CollisionManager::CheckNaviBossProjectilesVsBoss(float elapsedTime)
@@ -1067,20 +1104,37 @@ void CollisionManager::CheckNaviBossProjectilesVsBoss(float elapsedTime)
     {
         if (!bullet->IsActive()) continue;
 
-        DirectX::XMFLOAT3 vel = bullet->GetVelocity();
-        float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
-
-        // [FIX] Bandingkan BossTarget dengan m_naviBoss (Sama-sama tipe NaviBoss*)
-        if (bullet->GetBossTarget() == m_naviBoss || speedSq > 10000.0f)
+        // Bandingkan BossTarget dengan m_naviBoss
+        if (bullet->GetBossTarget() == m_naviBoss)
         {
             DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
             DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();
 
-            // Hitbox Boss besar (3.0f)
-            if (CheckSphereCollision(bPos, bossPos, 3.0f))
+            // =========================================================
+            // [FIX 1] DETEKSI 3D PENUH
+            // Tambahkan sumbu Y agar pecahan parabola tidak meledak di udara
+            // saat melintas tepat di atas kepala bos.
+            // =========================================================
+            float dx = bPos.x - bossPos.x;
+            float dy = bPos.y - bossPos.y;
+            float dz = bPos.z - bossPos.z;
+            float distSq = (dx * dx) + (dy * dy) + (dz * dz);
+
+            // Hitbox Boss untuk serangan ini (radius 4.0f -> Kuadrat = 16.0f)
+            if (distSq <= 16.0f)
             {
-                m_naviBoss->TakeDamage(10); // Bos menerima 10 Damage per kepingan!
+                // 1. Matikan kepingan peluru agar tidak hit berkali-kali
                 bullet->SetActive(false);
+
+                // =========================================================
+                // [FIX 2] ROUTING DAMAGE YANG BENAR
+                // Panggil TakeDamage langsung ke Fase-nya agar sinkron 
+                // dengan UI Bar, Efek Suara, dan Flash Damage!
+                // =========================================================
+                normalPhase->TakeDamage(15);
+
+                // 3. [JUICE] Berikan micro-shake untuk SETIAP kepingan yang menabrak
+                CameraController::Instance().AddTrauma(0.15f);
             }
         }
     }

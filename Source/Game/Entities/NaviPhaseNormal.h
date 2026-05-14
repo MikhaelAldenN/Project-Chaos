@@ -11,6 +11,8 @@ class Player;
 struct NaviBulletParams {
     float screenDespawnPadding = 5.0f;
 
+    float sfxVolumeMultiplier = 1.0f;
+    float bgmVolumeMultiplier = 1.0f;
     // Parameter General & Radial Burst
     float speed = 20.0f;
     int count = 24;
@@ -230,4 +232,9 @@ private:
 
     // [BARU] Waktu untuk kurva melayang
     float m_idleHoverTimer = 0.0f;
+
+    //--- AUDIO----
+
+    float m_rainSFXTimer = 0.0f;
+    const float RAIN_SFX_LOOP_DURATION = 0.8f;
 };

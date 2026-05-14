@@ -11,6 +11,7 @@
 #include "Enemy.h"
 #include "Bullet.h"
 #include "NaviBoss.h"
+#include "System/AudioManager.h"
 
 using namespace DirectX;
 
@@ -101,6 +102,7 @@ void PlayerIdle::Update(Player* player, float dt)
                     parryBullet->SetHomingTarget(nullptr);
                     tPos = pPos; // Tembak ke arah player untuk memicu Shatter!
                     speed = 80.0f;
+                    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Bijuudama_Shoot.wav", 0.2f);
                 }
 
                 // Kalkulasi arah yang aman dari pembagian dengan nol (NaN)
@@ -287,6 +289,19 @@ void PlayerDash::Enter(Player* player)
     player->canDash = false;
     player->dashCooldownTimer = PlayerConst::DashCooldown;
     player->TriggerInvincibility(DASH_IFRAME_DURATION);
+
+    std::string dashSounds[] = {
+        "Data/Sound/SE_Dash_01.wav",
+        "Data/Sound/SE_Dash_02.wav",
+        "Data/Sound/SE_Dash_03.wav"
+    };
+
+    // 2. Pilih index secara acak (0, 1, atau 2)
+    int randomIndex = rand() % 3;
+
+    // 3. Mainkan suaranya lewat AudioManager
+    // Kita gunakan volume 0.5f agar tidak terlalu memekakkan telinga
+    AudioManager::Instance().PlaySFX(dashSounds[randomIndex], 0.1f);
 }
 
 void PlayerDash::Update(Player* player, float dt)
@@ -394,6 +409,19 @@ void PlayerParry::Exit(Player* player)
 void PlayerShoot::Enter(Player* player)
 {
     player->color = { 1.0f, 1.0f, 0.0f, 1.0f }; // Flash yellow
+
+    std::string dashSounds[] = {
+        "Data/Sound/SE_Player_Shoot_01.wav",
+        "Data/Sound/SE_Player_Shoot_02.wav",
+        "Data/Sound/SE_Player_Shoot_02.wav"
+    };
+
+    // 2. Pilih index secara acak (0, 1, atau 2)
+    int randomIndex = rand() % 3;
+
+    // 3. Mainkan suaranya lewat AudioManager
+    // Kita gunakan volume 0.5f agar tidak terlalu memekakkan telinga
+    AudioManager::Instance().PlaySFX(dashSounds[randomIndex], 0.1f);
 }
 
 void PlayerShoot::Update(Player* player, float dt)

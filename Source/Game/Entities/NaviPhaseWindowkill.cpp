@@ -8,6 +8,7 @@
 #include <SceneBoss.h>
 #include "WindowManager.h" 
 #include <SDL3/SDL.h>
+#include <System/AudioManager.h>
 
 using namespace DirectX;
 
@@ -54,6 +55,7 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
 
     // Load tekstur sayap ke VRAM hanya di fase ini
     m_wingSprite = std::make_unique<Sprite>(device, "Data/Sprite/Placeholder/[PLACEHOLDER]ErrorAtlas.png");
+    m_placeholderModel = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_mdl_Ball.glb");
 
     // Reset timer dan ciptakan array
     m_glitchTimer = 0.0f;
@@ -267,6 +269,63 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
     if (anyBouncedThisFrame) {
         CameraController::Instance().AddTrauma(0.2f);
     }
+
+    // =========================================================
+    // [NEW] UPDATE ORBITAL BLASTER (SANS LASER)
+    // =========================================================
+    if (m_testBlaster.active) {
+        m_testBlaster.timer += dt;
+
+        // STATE 1: DROP IN (Jatuh ke posisi tembak)
+        if (m_testBlaster.state == 1) {
+            // Lerp super mulus dengan kecepatan tinggi (Ease Out)
+            m_testBlaster.pos.z += (m_testBlaster.targetPos.z - m_testBlaster.pos.z) * 12.0f * dt;
+
+            if (m_testBlaster.timer >= 0.4f) {
+                m_testBlaster.state = 2; // Masuk ke mode bidik
+                m_testBlaster.timer = 0.0f;
+                AudioManager::Instance().PlaySFX("Data/Sound/SE_Charge.wav", 0.5f); // Opsional
+            }
+        }
+        // STATE 2: CHARGING / TELEGRAPH (Garis Peringatan)
+        else if (m_testBlaster.state == 2) {
+            // Getarkan kepala meriam untuk memberi kesan "Overload"
+            m_testBlaster.pos.x = ((rand() % 100) / 100.0f - 0.5f) * 0.4f;
+            m_testBlaster.beamScaleX = 0.2f; // Lebar laser sangat tipis (Peringatan!)
+
+            if (m_testBlaster.timer >= 0.6f) { // Jeda 0.6 detik agar player bisa bereaksi
+                m_testBlaster.state = 3;
+                m_testBlaster.timer = 0.0f;
+                CameraController::Instance().AddTrauma(0.6f); // GETARAN MAUT SAAT MENEMBAK!
+                AudioManager::Instance().PlaySFX("Data/Sound/SE_Laser.wav", 1.0f); // Opsional
+            }
+        }
+        // STATE 3: FIRING (Laser Raksasa!)
+        else if (m_testBlaster.state == 3) {
+            m_testBlaster.pos.x = 0.0f; // Kunci posisi X ke tengah lagi
+
+            // Laser membesar tiba-tiba ke ukuran raksasa
+            m_testBlaster.beamScaleX += (4.0f - m_testBlaster.beamScaleX) * 20.0f * dt;
+            CameraController::Instance().AddTrauma(0.1f); // Getaran bergemuruh konstan
+
+            if (m_testBlaster.timer >= 0.8f) { // Tembak selama 0.8 detik
+                m_testBlaster.state = 4;
+                m_testBlaster.timer = 0.0f;
+            }
+        }
+        // STATE 4: RETREAT (Hilang)
+        else if (m_testBlaster.state == 4) {
+            m_testBlaster.beamScaleX -= dt * 25.0f; // Laser menciut super cepat
+            if (m_testBlaster.beamScaleX < 0.0f) m_testBlaster.beamScaleX = 0.0f;
+
+            m_testBlaster.pos.z += 40.0f * dt; // Kepala meriam terbang ke atas
+
+            if (m_testBlaster.timer >= 0.3f) {
+                m_testBlaster.active = false; // Siklus selesai
+            }
+        }
+    }
+
 }
 
 void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {
@@ -317,6 +376,74 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
             if (bwb.bullet->IsActive()) {
                 Graphics::Instance().GetModelRenderer()->Draw(ShaderId::Phong, bwb.bullet->GetModel(), { 1.0f, 0.2f, 0.0f, 1.0f });
             }
+        }
+    }
+    // =========================================================
+        // [NEW] RENDER ORBITAL BLASTER & LASER BEAM
+        // =========================================================
+    if (m_testBlaster.active && m_placeholderModel && isMainCam) {
+        auto renderer = Graphics::Instance().GetModelRenderer();
+
+        DirectX::XMMATRIX rotMatrix = DirectX::XMMatrixRotationRollPitchYaw(0.0f, 0.0f, 0.0f);
+
+        // =========================================================
+        // [FIX MUTLAK] SUNTIKKAN STEROID KE SKALA MODEL!
+        // =========================================================
+        // Kalikan skala kepala meriam hingga 6x lipat agar raksasa!
+        float giantHeadScale = m_testBlaster.headScale * 6.0f;
+
+        // 1. GAMBAR KEPALA MERIAM
+        DirectX::XMMATRIX headS = DirectX::XMMatrixScaling(giantHeadScale, giantHeadScale, giantHeadScale);
+        DirectX::XMMATRIX headT = DirectX::XMMatrixTranslation(m_testBlaster.pos.x, m_testBlaster.pos.y, m_testBlaster.pos.z);
+
+        DirectX::XMFLOAT4X4 headMatrix;
+        DirectX::XMStoreFloat4x4(&headMatrix, headS * rotMatrix * headT);
+
+        // Warna abu-abu gelap agar terlihat seperti besi mesin
+        renderer->Draw(ShaderId::Phong, m_placeholderModel, { 0.3f, 0.3f, 0.3f, 1.0f }, headMatrix);
+
+        // 2. GAMBAR LASER BEAM
+        if (m_testBlaster.beamScaleX > 0.0f) {
+            float laserLength = 120.0f; // Panjangkan hingga 120 unit agar pasti menembus bawah layar!
+
+            // Lebarkan tiang lasernya agar tidak terlihat seperti lidi
+            float giantBeamWidth = m_testBlaster.beamScaleX * 6.0f;
+            float giantBeamThick = 6.0f; // Sumbu Y (Ketebalan) agar tidak pipih
+
+            DirectX::XMMATRIX beamS = DirectX::XMMatrixScaling(giantBeamWidth, giantBeamThick, laserLength);
+
+            // Titik tengah bola ditarik ke bawah sebesar setengah panjangnya
+            // Agar ujung atasnya menempel pas di kepala meriam!
+            DirectX::XMMATRIX beamT = DirectX::XMMatrixTranslation(m_testBlaster.pos.x, m_testBlaster.pos.y, m_testBlaster.pos.z - (laserLength * 0.5f));
+
+            DirectX::XMFLOAT4X4 beamMatrix;
+            DirectX::XMStoreFloat4x4(&beamMatrix, beamS * rotMatrix * beamT);
+
+            // Merah transparan saat ngisi (State 2), Putih menyala saat nembak (State 3/4)
+            DirectX::XMFLOAT4 beamColor = (m_testBlaster.state == 2) ?
+                DirectX::XMFLOAT4{ 1.0f, 0.0f, 0.0f, 0.4f } :
+                DirectX::XMFLOAT4{ 1.0f, 1.0f, 1.0f, 1.0f };
+
+            // Render dengan Shader::Basic agar laser tidak memiliki bayangan (Full Glow!)
+            renderer->Draw(ShaderId::Basic, m_placeholderModel, beamColor, beamMatrix);
+        }
+
+        // 3. GAMBAR COLLISION BOX (KOTAK MERAH UNTUK DEBUG)
+        if (m_testBlaster.state == 3) {
+            float laserLength = 120.0f;
+            float beamWidth = m_testBlaster.beamScaleX * 6.0f;
+
+            // Gunakan Skala Kotak (X = Lebar Laser, Y = Tipis, Z = Panjang Laser)
+            DirectX::XMMATRIX debugS = DirectX::XMMatrixScaling(beamWidth, 0.1f, laserLength);
+
+            // Posisikan tepat di lantai (Y = 0.05f agar tidak z-fighting dengan lantai)
+            DirectX::XMMATRIX debugT = DirectX::XMMatrixTranslation(m_testBlaster.pos.x, 0.05f, m_testBlaster.pos.z - (laserLength * 0.5f));
+
+            DirectX::XMFLOAT4X4 debugMatrix;
+            DirectX::XMStoreFloat4x4(&debugMatrix, debugS * debugT);
+
+            // Render Kotak Merah Transparan
+            renderer->Draw(ShaderId::Basic, m_placeholderModel, { 1.0f, 0.0f, 0.0f, 0.4f }, debugMatrix);
         }
     }
 }
@@ -387,4 +514,28 @@ std::vector<Bullet*> NaviPhaseWindowkill::GetProjectiles() {
         }
     }
     return activeBullets;
+}
+
+void NaviPhaseWindowkill::TriggerOrbitalBlaster() {
+    // =========================================================
+    // [FIX MUTLAK 1] LAZY-LOAD MODEL
+    // Pastikan model 100% terisi saat tombol ditekan!
+    // =========================================================
+    if (!m_placeholderModel) {
+        auto device = Graphics::Instance().GetDevice();
+        m_placeholderModel = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_mdl_Ball.glb");
+    }
+
+    m_testBlaster.active = true;
+    m_testBlaster.state = 1;
+    m_testBlaster.timer = 0.0f;
+
+    // =========================================================
+    // [FIX MUTLAK 2] TURUNKAN POSISI Z
+    // Batas atas layar biasanya Z = 13.0f. 
+    // Kita taruh target di Z = 10.0f agar kepala meriam terlihat jelas!
+    // =========================================================
+    m_testBlaster.pos = { 0.0f, 1.0f, 25.0f };       // Jatuh dari atas layar
+    m_testBlaster.targetPos = { 0.0f, 1.0f, 10.0f }; // Mendarat DI DALAM layar
+    m_testBlaster.beamScaleX = 0.0f;
 }

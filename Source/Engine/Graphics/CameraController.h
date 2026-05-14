@@ -121,9 +121,12 @@ public:
     static float ApplyEasing(float t, EasingType type);
 
     void AddTrauma(float amount) {
-        // [FIX] Tambahkan tanda kurung mengapit std::min untuk memblokir Macro Windows!
-        m_trauma = (std::min)(1.0f, m_trauma + amount);
+        // [FIX MUTLAK] Logika MAX, BUKAN Additive!
+        // Jika ada benturan baru, kita hanya mengambil nilai getaran yang paling besar.
+        // Benturan beruntun tidak akan pernah membuat getaran menjadi raksasa!
+        m_trauma = (std::min)(1.0f, (std::max)(m_trauma, amount));
     }
+
     float GetTrauma() const { return m_trauma; }
 
     DirectX::XMFLOAT3 GetShakeOffset() const { return m_shakeOffset; }

@@ -27,6 +27,18 @@ struct BouncingWindowBullet {
     int maxBounces = 8;
 };
 
+struct OrbitalBlaster {
+    bool active = false;
+    int state = 0; // 1: Drop In, 2: Charge (Telegraph), 3: Fire, 4: Retreat
+    float timer = 0.0f;
+
+    DirectX::XMFLOAT3 pos = { 0.0f, 0.0f, 0.0f };
+    DirectX::XMFLOAT3 targetPos = { 0.0f, 0.0f, 0.0f };
+
+    float beamScaleX = 0.0f; // Lebar laser
+    float headScale = 3.0f;  // Ukuran kepala meriam
+};
+
 class NaviPhaseWindowkill : public INaviPhase {
 public:
     NaviPhaseWindowkill();
@@ -72,6 +84,22 @@ public:
     void TriggerBouncingWindows(NaviBoss* boss);
     std::vector<Bullet*> GetProjectiles();
 
+    void TriggerOrbitalBlaster();
+
+    struct OrbitalBlaster {
+        bool active = false;
+        int state = 0; // 1: Drop, 2: Charge, 3: Fire, 4: Retreat
+        float timer = 0.0f;
+
+        DirectX::XMFLOAT3 pos = { 0.0f, 0.0f, 0.0f };
+        DirectX::XMFLOAT3 targetPos = { 0.0f, 0.0f, 0.0f }; // <-- WAJIB ADA
+
+        float beamScaleX = 0.0f;
+        float headScale = 3.0f;  // <-- WAJIB ADA
+    };
+    OrbitalBlaster GetBlaster() const { return m_testBlaster; }
+
+
 private:
     void GenerateButterflyWings();
 
@@ -113,4 +141,7 @@ private:
     //---- bullets ------
     std::vector<BouncingWindowBullet> m_bouncingBullets;
     int m_bounceCounter = 0;
+
+    std::shared_ptr<Model> m_placeholderModel;
+    OrbitalBlaster m_testBlaster; // Untuk dicoba 1 dulu
 };
