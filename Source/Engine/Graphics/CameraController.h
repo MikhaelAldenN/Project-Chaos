@@ -103,9 +103,6 @@ public:
     // Panggil ini saat ledakan, tabrakan, atau impact
     void TriggerShake(const CameraShakeSettings& settings, float intensityMultiplier = 1.0f);
 
-    // Fungsi untuk menambah "Trauma" (bisa ditumpuk/stacking untuk chaos)
-    void AddShakeTrauma(float amount);
-
     // Hentikan shake seketika (misal saat cutscene mulai)
     void StopShake();
 
@@ -127,6 +124,8 @@ public:
         // [FIX] Tambahkan tanda kurung mengapit std::min untuk memblokir Macro Windows!
         m_trauma = (std::min)(1.0f, m_trauma + amount);
     }
+    float GetTrauma() const { return m_trauma; }
+
     DirectX::XMFLOAT3 GetShakeOffset() const { return m_shakeOffset; }
 
 private:

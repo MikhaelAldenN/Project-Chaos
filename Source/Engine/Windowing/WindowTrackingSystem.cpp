@@ -2,6 +2,7 @@
 #include "WindowManager.h"
 #include <cmath>
 #include "PerformanceLogger.h"
+#include <CameraController.h>
 
 using namespace DirectX;
 
@@ -183,7 +184,6 @@ void WindowTrackingSystem::UpdateSingleWindow(float dt, TrackedWindow& tracked)
     // 3. UPDATE POSITION LOGIC
     if (!isBeingDragged && tracked.role == WindowRole::TRACKED_ENTITY)
     {
-        
         DirectX::XMFLOAT3 targetWorldPos = tracked.getTargetPositionFunc();
         targetWorldPos.x += tracked.trackingOffset.x;
         targetWorldPos.y += tracked.trackingOffset.y;
@@ -199,22 +199,45 @@ void WindowTrackingSystem::UpdateSingleWindow(float dt, TrackedWindow& tracked)
         tracked.state.targetX += (destX - tracked.state.targetX) * tPos;
         tracked.state.targetY += (destY - tracked.state.targetY) * tPos;
 
-        // Ganti blok position update (bagian bawah UpdateSingleWindow):
-
         int newX = static_cast<int>(roundf(tracked.state.targetX));
         int newY = static_cast<int>(roundf(tracked.state.targetY));
 
-        // Guard yang sudah ada tetap dipakai, TAMBAHKAN:
-        // Kalau delta sub-pixel (floating point jitter), skip OS call
-        float deltaX = fabsf(tracked.state.targetX - tracked.state.actualX);
-        float deltaY = fabsf(tracked.state.targetY - tracked.state.actualY);
+        // =========================================================
+        // [FIX MUTLAK] OS WINDOW SHAKE (GETARAN FISIK JENDELA)
+        // =========================================================
+        float trauma = CameraController::Instance().GetTrauma();
 
-        if ((newX != tracked.state.actualX || newY != tracked.state.actualY)
-            && (deltaX >= 0.5f || deltaY >= 0.5f))
-        {
-            SDL_SetWindowPosition(tracked.window->GetSDLWindow(), newX, newY);
+        if (trauma > 0.01f) {
+            float shakeIntensity = trauma * trauma; // Pangkat 2 untuk natural falloff
+            float maxShakePixels = 35.0f; // Jarak loncatan maksimal jendela di monitor!
+
+            // RNG dari -1.0 sampai 1.0
+            float randX = ((rand() % 200) / 100.0f) - 1.0f;
+            float randY = ((rand() % 200) / 100.0f) - 1.0f;
+
+            int shakeOffsetX = static_cast<int>(randX * shakeIntensity * maxShakePixels);
+            int shakeOffsetY = static_cast<int>(randY * shakeIntensity * maxShakePixels);
+
+            // Terapkan getaran langsung ke OS Windows!
+            SDL_SetWindowPosition(tracked.window->GetSDLWindow(), newX + shakeOffsetX, newY + shakeOffsetY);
+
+            // PENTING: Biarkan actualX/Y memegang koordinat 'newX' aslinya.
+            // Ini menjamin saat getaran selesai, jendela langsung snap-back ke jalur aslinya!
             tracked.state.actualX = newX;
             tracked.state.actualY = newY;
+        }
+        else {
+            // --- LOGIKA NORMAL GUARD (Tanpa Getaran) ---
+            float deltaX = fabsf(tracked.state.targetX - tracked.state.actualX);
+            float deltaY = fabsf(tracked.state.targetY - tracked.state.actualY);
+
+            if ((newX != tracked.state.actualX || newY != tracked.state.actualY)
+                && (deltaX >= 0.5f || deltaY >= 0.5f))
+            {
+                SDL_SetWindowPosition(tracked.window->GetSDLWindow(), newX, newY);
+                tracked.state.actualX = newX;
+                tracked.state.actualY = newY;
+            }
         }
     }
 

@@ -3,6 +3,7 @@
 #include "NaviPhaseNormal.h" 
 #include "TimeManager.h"
 #include <CameraController.h>
+#include "NaviPhaseWindowkill.h"
 
 using namespace DirectX;
 
@@ -944,17 +945,28 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
 
 void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
 {
-    // [FIX MUTLAK] Cabut pengecekan m_player->IsInvincible() dari sini!
-    // Kita biarkan fungsi tetap jalan agar Bijuudama yang di-parry tetap bisa pecah!
     if (!m_naviBoss || !m_player || m_player->GetHP() <= 0) return;
 
+    std::vector<Bullet*> activeBullets;
     auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_naviBoss->GetCurrentPhase());
-    if (!normalPhase) return;
+    auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_naviBoss->GetCurrentPhase());
+
+    if (normalPhase) {
+        for (auto& b : normalPhase->GetProjectiles()) activeBullets.push_back(b.get());
+    }
+    else if (wkPhase) {
+        activeBullets = wkPhase->GetProjectiles();
+    }
+
+    if (activeBullets.empty()) return;
 
     constexpr float PLAYER_HURTBOX_RADIUS = 0.3f;
     constexpr int BOSS_BULLET_DAMAGE = 10;
 
-    for (auto& bullet : normalPhase->GetProjectiles())
+    // =========================================================
+    // [FIX MUTLAK 1] GUNAKAN 'activeBullets', BUKAN 'normalPhase'!
+    // =========================================================
+    for (Bullet* bullet : activeBullets)
     {
         if (!bullet || !bullet->IsActive()) continue;
 
@@ -975,9 +987,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
         float combinedRadius = PLAYER_HURTBOX_RADIUS + bullet->GetRadius();
         float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, playerPos);
 
-        // =========================================================
         // TIER 2: BIJUUDAMA YANG SUKSES DI-PARRY
-        // =========================================================
         if (bullet->IsParryReturn())
         {
             if (distToPath <= combinedRadius)
@@ -985,7 +995,11 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
                 TimeManager::Instance().TriggerHitStop(0.15f, 0.0f);
                 CameraController::Instance().AddTrauma(0.8f);
 
-                normalPhase->ShatterBijuudama(currentPos, m_naviBoss);
+                // Pastikan shatter hanya dipanggil jika memang normalPhase ada
+                if (normalPhase) {
+                    normalPhase->ShatterBijuudama(currentPos, m_naviBoss);
+                }
+
                 bullet->SetActive(false);
                 AudioManager::Instance().PlaySFX("Data/Sound/SE_Parry.wav", 1.0f);
             }
@@ -997,10 +1011,14 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
         // =========================================================
         if (distToPath <= combinedRadius)
         {
-            // [FIX] Cek kekebalan di sini! Jika sedang I-Frame, peluru hanya nembus (tidak hilang dan tidak damage).
             if (!m_player->IsInvincible()) {
                 m_player->TakeDamage(BOSS_BULLET_DAMAGE);
-                bullet->SetActive(false);
+
+                // [FIX MUTLAK] HANYA hancurkan peluru jika ini dari Fase Normal!
+                // Peluru Windowkill (wkPhase) akan dibiarkan hidup dan terus memantul!
+                if (normalPhase) {
+                    bullet->SetActive(false);
+                }
 
                 if (m_player->GetHP() <= 0)
                 {
@@ -1014,9 +1032,9 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
     }
 
     // =========================================================
-    // [OPTIMISASI MUTLAK] DETEKSI KILL ZONE (ASGORE RAIN)
+    // [FIX MUTLAK 2] PASTIKAN 'normalPhase' VALID SEBELUM CEK HUJAN!
     // =========================================================
-    if (normalPhase->GetRainState() == 2) {
+    if (normalPhase && normalPhase->GetRainState() == 2) {
         DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
         DirectX::XMFLOAT3 rCenter = normalPhase->GetRainCenter();
 
@@ -1026,7 +1044,6 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
         if (pPos.x > (rCenter.x - halfW) && pPos.x < (rCenter.x + halfW) &&
             pPos.z >(rCenter.z - halfD) && pPos.z < (rCenter.z + halfD))
         {
-            // [FIX] Hujan juga harus menghormati waktu kekebalan pemain!
             if (!m_player->IsInvincible()) {
                 m_player->TakeDamage(normalPhase->GetParams().rainDamage);
 

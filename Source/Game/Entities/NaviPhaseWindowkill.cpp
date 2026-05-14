@@ -60,6 +60,8 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     m_wingState = WingState::Expanding;
     m_wingStateTimer = 0.0f;
     GenerateButterflyWings();
+
+    boss->SetPosition({ 0.0f, 0.0f, 0.0f });
 }
 
 void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
@@ -72,6 +74,11 @@ void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
     m_wingSprite.reset(); // Bebaskan tekstur dari VRAM
     m_leftWingData.clear();
     m_rightWingData.clear();
+
+    for (auto& bwb : m_bouncingBullets) {
+        if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(bwb.windowName);
+    }
+    m_bouncingBullets.clear();
 }
 
 // =========================================================
@@ -202,6 +209,64 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
         node.localOffset.y += (node.targetOffset.y - node.localOffset.y) * dt * 2.0f;
         node.localOffset.x += sinf(m_glitchTimer * m_wingFlapSpeed + node.flapOffset) * m_wingFlapIntensity;
     }
+
+    // =========================================================
+    // UPDATE BOUNCING BULLETS & WINDOWS
+    // =========================================================
+    float p2u = boss->GetWindowSystem()->GetPixelToUnitRatio();
+    float limitX = (m_screenW / 2.0f) / p2u;
+    float limitZ = (m_screenH / 2.0f) / p2u;
+
+    bool anyBouncedThisFrame = false;
+
+    for (auto it = m_bouncingBullets.begin(); it != m_bouncingBullets.end(); ) {
+        auto& bwb = *it;
+
+        // =========================================================
+        // [FIX MUTLAK] PENGHAPUSAN JENDELA SAAT KENA PLAYER
+        // Jika peluru dimatikan oleh CollisionManager, hapus windownya!
+        // =========================================================
+        if (!bwb.bullet->IsActive()) {
+            boss->GetWindowSystem()->RemoveTrackedWindow(bwb.windowName);
+            it = m_bouncingBullets.erase(it); // Hapus dari memori vector
+            continue; // Lanjut ke peluru berikutnya
+        }
+
+        bwb.bullet->Update(dt, nullptr);
+
+        DirectX::XMFLOAT3 pos = bwb.bullet->GetMovement()->GetPosition();
+        DirectX::XMFLOAT3 vel = bwb.bullet->GetVelocity();
+        float radius = bwb.bullet->GetRadius();
+
+        // Logika Pantulan
+        if (bwb.bounceCount < bwb.maxBounces) {
+            bool bounced = false;
+            if (pos.x > limitX - radius) { pos.x = limitX - radius; vel.x *= -1.0f; bounced = true; }
+            else if (pos.x < -limitX + radius) { pos.x = -limitX + radius; vel.x *= -1.0f; bounced = true; }
+
+            if (pos.z > limitZ - radius) { pos.z = limitZ - radius; vel.z *= -1.0f; bounced = true; }
+            else if (pos.z < -limitZ + radius) { pos.z = -limitZ + radius; vel.z *= -1.0f; bounced = true; }
+
+            if (bounced) {
+                bwb.bounceCount++;
+                bwb.bullet->ApplyMovement(pos, vel);
+                anyBouncedThisFrame = true;
+            }
+        }
+        else {
+            // Pantulan habis, hapus window saat keluar layar
+            if (abs(pos.x) > limitX + 15.0f || abs(pos.z) > limitZ + 15.0f) {
+                boss->GetWindowSystem()->RemoveTrackedWindow(bwb.windowName);
+                it = m_bouncingBullets.erase(it);
+                continue;
+            }
+        }
+        ++it;
+    }
+
+    if (anyBouncedThisFrame) {
+        CameraController::Instance().AddTrauma(0.2f);
+    }
 }
 
 void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {
@@ -246,4 +311,80 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
             m_wingSprite->Render3DBatch(context, currentCamera, batchData);
         }
     }
+
+    if (isMainCam) {
+        for (auto& bwb : m_bouncingBullets) {
+            if (bwb.bullet->IsActive()) {
+                Graphics::Instance().GetModelRenderer()->Draw(ShaderId::Phong, bwb.bullet->GetModel(), { 1.0f, 0.2f, 0.0f, 1.0f });
+            }
+        }
+    }
+}
+
+void NaviPhaseWindowkill::TriggerBouncingWindows(NaviBoss* boss) {
+    if (!boss || !boss->GetWindowSystem()) return;
+
+    // =========================================================
+    // [FIX MUTLAK] KOREOGRAFI TANPA RNG (DETERMINISTIC)
+    // Peluru 0: Kiri Atas (-45 derajat), Kecepatan Normal
+    // Peluru 1: Kanan Atas (45 derajat), Kecepatan Normal
+    // Peluru 2: Kanan Atas Agak Lebar (65 derajat), Kecepatan Ekstra (Biar memisah!)
+    // =========================================================
+    float fixedAngles[3] = { -DirectX::XM_PIDIV4 - 0.15f, DirectX::XM_PIDIV4, DirectX::XM_PIDIV4 + 0.35f };
+    float fixedSpeeds[3] = { 30.0f, 30.0f, 34.0f };
+
+    DirectX::XMFLOAT3 startPos = boss->GetPosition();
+
+    for (int i = 0; i < 3; ++i) {
+        BouncingWindowBullet bwb;
+        bwb.bullet = std::make_unique<Bullet>();
+        bwb.bounceCount = 0;
+        bwb.maxBounces = 5;
+
+        bwb.bullet->SetRadius(1.6f);
+        bwb.bullet->scale = { 3.5f, 3.5f, 3.5f };
+        bwb.bullet->SetActive(true);
+        bwb.bullet->SetHomingTarget(nullptr);
+        bwb.bullet->SetBossTarget(nullptr);
+
+        // Tidak ada lagi random, langsung ambil dari array!
+        float finalAngle = fixedAngles[i];
+        float finalSpeed = fixedSpeeds[i];
+
+        DirectX::XMFLOAT3 dir = { sinf(finalAngle), 0.0f, cosf(finalAngle) };
+        bwb.bullet->Fire(startPos, dir, finalSpeed);
+
+        m_bounceCounter++;
+        bwb.windowName = "bounce_win_" + std::to_string(m_bounceCounter);
+
+        TrackedWindowConfig cfg;
+        cfg.name = bwb.windowName;
+        cfg.title = "DANGER!";
+        cfg.width = 200;
+        cfg.height = 200;
+        cfg.role = WindowRole::TRACKED_ENTITY;
+        cfg.isTransparent = false;
+        cfg.priority = 2;
+
+        Bullet* bPtr = bwb.bullet.get();
+        boss->GetWindowSystem()->AddTrackedWindow(
+            cfg,
+            [bPtr]() { return bPtr->GetMovement()->GetPosition(); },
+            []() { return DirectX::XMFLOAT2(200.0f, 200.0f); }
+        );
+
+        m_bouncingBullets.push_back(std::move(bwb));
+    }
+
+    CameraController::Instance().AddTrauma(0.2f);
+}
+
+std::vector<Bullet*> NaviPhaseWindowkill::GetProjectiles() {
+    std::vector<Bullet*> activeBullets;
+    for (auto& bwb : m_bouncingBullets) {
+        if (bwb.bullet && bwb.bullet->IsActive()) {
+            activeBullets.push_back(bwb.bullet.get());
+        }
+    }
+    return activeBullets;
 }

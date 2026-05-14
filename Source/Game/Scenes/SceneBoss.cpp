@@ -92,7 +92,7 @@ SceneBoss::SceneBoss()
     m_navi = std::make_unique<NaviBoss>();
     m_navi->Initialize(m_windowSystem.get());
 
-#if 0
+#if 1
     m_navi->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
 #else
     m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>());
@@ -846,7 +846,6 @@ void SceneBoss::DrawGUI()
                 ImGui::SliderFloat("Move Up Speed", &p.bijuudamaAttackMoveSpeed, 1.0f, 15.0f);
                 ImGui::SliderFloat("Return Speed", &p.bijuudamaReturnMoveSpeed, 0.5f, 10.0f);
 
-
                 // [BARU] Slider Shatter / Pecahan
                 ImGui::Separator();
                 ImGui::TextColored(ImVec4(1, 0.5f, 0, 1), "--- Shatter / Parabola Settings ---");
@@ -949,9 +948,23 @@ void SceneBoss::DrawGUI()
                 }
 
             }
-            else {
-                ImGui::Text("Attacks are only available in Normal Phase.");
+            else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "--- PHASE 2: WINDOWKILL ATTACKS ---");
+                ImGui::Separator();
+
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
+
+                if (ImGui::Button("FIRE BOUNCING WINDOWS", ImVec2(-1.0f, 50.0f))) {
+                    wkPhase->TriggerBouncingWindows(m_navi.get());
+                }
+
+                ImGui::PopStyleColor(2);
             }
+            else {
+                ImGui::Text("No active attacks available for current phase.");
+            }
+
             ImGui::EndTabItem();
         }
 

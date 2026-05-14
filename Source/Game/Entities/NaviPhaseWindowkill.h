@@ -5,6 +5,7 @@
 #include <memory>
 #include "BeyondWindow.h"
 #include "Camera.h"
+#include "Bullet.h"
 
 class Sprite;
 
@@ -17,6 +18,13 @@ struct WingNode {
     float spawnDelay = 0.0f;
     float animScale = 0.0f;
     bool isClosing = false;
+};
+
+struct BouncingWindowBullet {
+    std::unique_ptr<Bullet> bullet;
+    std::string windowName;
+    int bounceCount = 0;
+    int maxBounces = 8;
 };
 
 class NaviPhaseWindowkill : public INaviPhase {
@@ -61,6 +69,9 @@ public:
     bool IsFXClickThrough() const { return m_fxWindow ? m_fxWindow->IsClickThrough() : true; }
     Camera* GetFXCamera() const { return m_fxCamera.get(); }
 
+    void TriggerBouncingWindows(NaviBoss* boss);
+    std::vector<Bullet*> GetProjectiles();
+
 private:
     void GenerateButterflyWings();
 
@@ -98,4 +109,8 @@ private:
 
     float m_pixelToUnit = 40.0f;
     float m_wingGlobalScale = 2.5f;
+    
+    //---- bullets ------
+    std::vector<BouncingWindowBullet> m_bouncingBullets;
+    int m_bounceCounter = 0;
 };
