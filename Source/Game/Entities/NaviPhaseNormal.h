@@ -58,12 +58,14 @@ struct NaviBulletParams {
     // ==========================================
     // Parameter Glintstone
     // ==========================================
-    int phalanxCount = 8;               // Jumlah pedang/peluru
+    int phalanxCount = 7;               // Jumlah pedang/peluru
     float phalanxChargeDelay = 0.2f;    // Waktu panggil tiap peluru
-    float phalanxFireDelay = 0.3f;      // Waktu jeda antar tembakan
-    float phalanxSpeed = 35.0f;         // Kecepatan terbang
+    float phalanxHoldDuration = 2.0f;
+    float phalanxFireDelay = 0.0f;      // Waktu jeda antar tembakan
+    float phalanxSpeed = 80.0f;         // Kecepatan terbang
     float phalanxHoverRadius = 4.0f;    // Jarak melayang di sekitar bos
     float phalanxTurnSpeed = 1.5f;      // Homing LEMAH (Supaya player bisa dash!)
+    float phalanxSmoothSpeed = 12.0f;
 
     // ==========================================
     // Parameter Asgore Rain (Area Denial)
@@ -157,7 +159,7 @@ private:
     // ==========================================
     // [NEW] State Glintstone Phalanx
     // ==========================================
-    int m_phalanxState = 0; // 0=Mati, 1=Charging/Panggil, 2=Nembak
+    int m_phalanxState = 0; //0 = Mati, 1 = Charging, 2 = Holding, 3 = Firing
     float m_phalanxTimer = 0.0f;
     int m_phalanxSpawned = 0;
     int m_phalanxFired = 0;
@@ -189,4 +191,7 @@ private:
     float m_cdPhalanx = 6.0f;
     float m_cdRain = 10.0f;
     float m_cdBijuudama = 15.0f;
+
+    // [BARU] Waktu istirahat mutlak antar serangan!
+    float m_aiGlobalCooldown = 0.5f;
 };

@@ -155,23 +155,44 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
         m_phalanxTimer += dt;
         DirectX::XMFLOAT3 bPos = boss->GetPosition();
 
-        // 1. BUAT PELURU MELAYANG (HOVERING) DI BELAKANG BOS
-        // Kita hanya menggeser peluru yang belum ditembakkan!
+        // 1. BUAT PELURU MELAYANG (HOVERING) MENGIKUTI ARAH PLAYER
         for (int i = m_phalanxFired; i < m_phalanxSpawned; ++i) {
             if (m_phalanxBullets[i] && m_phalanxBullets[i]->IsActive()) {
-                // Bentuk melengkung setengah lingkaran (PI)
+
+                // --- A. HITUNG TARGET (Sama seperti sebelumnya) ---
+                DirectX::XMFLOAT3 pPos = m_phalanxTarget->GetPosition();
+                float dx = pPos.x - bPos.x;
+                float dz = pPos.z - bPos.z;
+                float angleToPlayer = atan2f(dx, dz);
+
                 float totalSpread = DirectX::XM_PI;
-                float startAngle = -totalSpread * 0.5f;
-                float angleStep = m_params.phalanxCount > 1 ? totalSpread / (float)(m_params.phalanxCount - 1) : 0.0f;
-                float currentAngle = startAngle + (i * angleStep);
+                float startOffset = -totalSpread * 0.5f;
+                float step = m_params.phalanxCount > 1 ? totalSpread / (float)(m_params.phalanxCount - 1) : 0.0f;
+                float finalBulletAngle = angleToPlayer + (startOffset + (i * step));
 
-                DirectX::XMFLOAT3 hoverPos = bPos;
-                hoverPos.x += sinf(currentAngle) * m_params.phalanxHoverRadius;
-                hoverPos.z += cosf(currentAngle) * m_params.phalanxHoverRadius;
-                hoverPos.y += 1.0f; // Sedikit lebih tinggi dari lantai
+                DirectX::XMFLOAT3 targetHoverPos = bPos;
+                targetHoverPos.x += sinf(finalBulletAngle) * m_params.phalanxHoverRadius;
+                targetHoverPos.z += cosf(finalBulletAngle) * m_params.phalanxHoverRadius;
+                targetHoverPos.y += 1.0f;
 
-                // Paksa pindah tanpa velocity
-                m_phalanxBullets[i]->GetMovement()->SetPosition(hoverPos);
+                // =========================================================
+                // [FIX MUTLAK] EASE OUT / SMOOTHING POSITION
+                // =========================================================
+                // Ambil posisi peluru saat ini
+                DirectX::XMFLOAT3 currentPos = m_phalanxBullets[i]->GetMovement()->GetPosition();
+
+                // Rumus Lerp: current + (target - current) * speed * dt
+                // Ini akan menciptakan efek melambat saat mendekati target (Ease Out)
+                float sSpeed = m_params.phalanxSmoothSpeed;
+                currentPos.x += (targetHoverPos.x - currentPos.x) * sSpeed * dt;
+                currentPos.y += (targetHoverPos.y - currentPos.y) * sSpeed * dt;
+                currentPos.z += (targetHoverPos.z - currentPos.z) * sSpeed * dt;
+
+                // Terapkan posisi yang sudah dihaluskan
+                m_phalanxBullets[i]->GetMovement()->SetPosition(currentPos);
+
+                // Rotasi tetap nge-aim player agar terlihat mengancam
+                m_phalanxBullets[i]->GetMovement()->SetRotationY(DirectX::XMConvertToDegrees(angleToPlayer));
             }
         }
 
@@ -208,8 +229,17 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                 }
             }
         }
-        // 3. FASE 2: FIRING / TEMBAK SATU PER SATU
+
+        // FASE 2: HOLDING (Diam dalam formasi penuh)
         else if (m_phalanxState == 2) {
+            if (m_phalanxTimer >= m_params.phalanxHoldDuration) {
+                m_phalanxState = 3; // Lanjut ke menembak
+                m_phalanxTimer = 0.0f;
+            }
+        }
+
+        // 3. FASE 2: FIRING / TEMBAK SATU PER SATU
+        else if (m_phalanxState == 3) {
             if (m_phalanxTimer >= m_params.phalanxFireDelay) {
                 m_phalanxTimer -= m_params.phalanxFireDelay;
 
@@ -679,64 +709,79 @@ void NaviPhaseNormal::TakeDamage(int damage) {
 void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
     if (!m_aiEnabled || !m_aiTarget) return;
 
-    // 1. Turunkan semua cooldown secara paralel!
-    m_cdRadial -= dt;
-    m_cdFan -= dt;
-    m_cdPhalanx -= dt;
-    m_cdRain -= dt;
-    m_cdBijuudama -= dt;
-
     std::random_device rd;
     std::mt19937 gen(rd());
 
-    // 2. Cek keranjang yang siap meledak (Prioritas dari yang paling mematikan)
+    // =========================================================
+    // [TRACK A] ENVIRONMENTAL HAZARD: ASGORE RAIN
+    // Track ini beroperasi secara mandiri dan BISA JALAN BARENG serangan lain!
+    // =========================================================
+    if (m_cdRain > 0.0f) m_cdRain -= dt;
 
-    // --- ASGORE RAIN (Area Denial) ---
-    if (m_cdRain <= 0.0f) {
+    // Syarat Mutlak: Boleh trigger Rain asalkan bos TIDAK sedang mengecas Bijuudama
+    if (m_cdRain <= 0.0f && !m_isLaserLocked) {
         std::uniform_int_distribution<> distSide(0, 1);
-        TriggerRainAttack(distSide(gen) == 0); // Kiri atau Kanan
+        TriggerRainAttack(distSide(gen) == 0);
 
-        // Reset Cooldown RNG (8 sampai 15 detik)
         std::uniform_real_distribution<float> distCD(8.0f, 15.0f);
         m_cdRain = distCD(gen);
+        // PENTING: Kita tidak memasang Global Cooldown di sini agar bos bisa
+        // langsung nembak serangan lain sebagai Combo!
     }
 
-    // --- BIJUUDAMA (Rhythm Parry) ---
-    if (m_cdBijuudama <= 0.0f) {
-        if (!m_isLaserLocked) { // Jangan tumpuk bijuudama dengan dirinya sendiri
+    // =========================================================
+    // [TRACK B] DIRECT ATTACKS: SERANGAN UTAMA SEKUENSIAL
+    // =========================================================
+    // 1. Cek apakah bos sedang sibuk dengan serangan utama (RAIN DIKELUARKAN DARI SINI!)
+    bool isBusyMain = m_isFiring || m_isFiringFan || (m_phalanxState > 0) || m_isLaserLocked;
+
+    // 2. Jalankan Global Cooldown & Cooldown Utama HANYA jika tidak sibuk
+    if (!isBusyMain) {
+        if (m_aiGlobalCooldown > 0.0f) {
+            m_aiGlobalCooldown -= dt;
+        }
+        else {
+            m_cdRadial -= dt;
+            m_cdFan -= dt;
+            m_cdPhalanx -= dt;
+            m_cdBijuudama -= dt;
+        }
+    }
+
+    // 3. EKSEKUSI SERANGAN UTAMA (Jika bos nganggur & sudah istirahat)
+    if (!isBusyMain && m_aiGlobalCooldown <= 0.0f) {
+
+        // Prioritas 1: Bijuudama
+        // Syarat Mutlak: TIDAK BOLEH trigger Bijuudama jika Asgore Rain sedang aktif!
+        if (m_cdBijuudama <= 0.0f && m_rainState == 0) {
             TriggerBijuudama(m_aiTarget);
             std::uniform_real_distribution<float> distCD(15.0f, 25.0f);
             m_cdBijuudama = distCD(gen);
+            m_aiGlobalCooldown = 1.0f;
         }
-    }
-
-    // --- GLINTSTONE PHALANX (Homing lambat) ---
-    if (m_cdPhalanx <= 0.0f) {
-        if (m_phalanxState == 0) { // Pastikan tangan bos sedang kosong
+        // Prioritas 2: Glintstone Phalanx
+        else if (m_cdPhalanx <= 0.0f) {
             TriggerPhalanx(m_aiTarget);
             std::uniform_real_distribution<float> distCD(6.0f, 10.0f);
             m_cdPhalanx = distCD(gen);
+            m_aiGlobalCooldown = 1.0f;
         }
-    }
-
-    // --- TARGETED FAN WAVE (Shotgun) ---
-    if (m_cdFan <= 0.0f) {
-        if (!m_isFiringFan) {
+        // Prioritas 3: Fan Wave (Shotgun)
+        else if (m_cdFan <= 0.0f) {
             TriggerFanAttack(boss, m_aiTarget->GetPosition());
             std::uniform_real_distribution<float> distCD(4.0f, 8.0f);
             m_cdFan = distCD(gen);
+            m_aiGlobalCooldown = 0.5f;
         }
-    }
-
-    // --- RADIAL BURST (Bullet Hell murni) ---
-    if (m_cdRadial <= 0.0f) {
-        if (!m_isFiring) {
+        // Prioritas 4: Radial Burst
+        else if (m_cdRadial <= 0.0f) {
             std::uniform_int_distribution<> distType(0, 1);
             if (distType(gen) == 0) TriggerSingleBurst();
             else TriggerDoubleBurst();
 
             std::uniform_real_distribution<float> distCD(2.0f, 5.0f);
             m_cdRadial = distCD(gen);
+            m_aiGlobalCooldown = 0.5f;
         }
     }
 }

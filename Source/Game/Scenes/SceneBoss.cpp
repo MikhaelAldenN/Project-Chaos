@@ -818,7 +818,9 @@ void SceneBoss::DrawGUI()
                 ImGui::Separator();
                 ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "--- Phalanx Settings ---");
                 ImGui::SliderInt("Phalanx Count", &p.phalanxCount, 3, 10);
+                ImGui::SliderFloat("Smooth Speed (Spawn)", &p.phalanxSmoothSpeed, 1.0f, 20.0f);
                 ImGui::SliderFloat("Charge Delay", &p.phalanxChargeDelay, 0.05f, 0.5f);
+                ImGui::SliderFloat("Hold Duration", &p.phalanxHoldDuration, 0.0f, 3.0f);
                 ImGui::SliderFloat("Fire Delay", &p.phalanxFireDelay, 0.05f, 0.5f);
                 ImGui::SliderFloat("Phalanx Speed", &p.phalanxSpeed, 10.0f, 80.0f);
                 ImGui::SliderFloat("Phalanx Turn Speed", &p.phalanxTurnSpeed, 0.1f, 10.0f);
