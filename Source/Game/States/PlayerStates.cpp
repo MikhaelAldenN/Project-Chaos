@@ -86,28 +86,34 @@ void PlayerIdle::Update(Player* player, float dt)
                     player->SetAimLocked(true);
                 }
 
-                XMFLOAT3 tPos;
-                float speed = 40.0f; // Kecepatan khusus Counter Bullet
+                DirectX::XMFLOAT3 tPos = bPos; // Default aman
+                float speed = 0.0f;
 
                 if (parryTarget) {
-                    // Jika musuh biasa
+                    // Jika musuh biasa (Teman Anda punya)
                     parryBullet->SetHomingTarget(parryTarget);
                     tPos = parryTarget->GetPosition();
                     speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
                     if (speed < 10.0f) speed = 30.0f;
                 }
                 else if (colMgr->GetNaviBoss()) {
-                    // [FIX] JIKA BIJUUDAMA SUKSES: Tembak ke arah Player dengan kecepatan ekstrem!
-                    tPos = pPos; // Jadikan player sebagai target!
+                    // Jika Bijuudama (Milik Bos)
+                    parryBullet->SetHomingTarget(nullptr);
+                    tPos = pPos; // Tembak ke arah player untuk memicu Shatter!
                     speed = 80.0f;
                 }
-                // Logika Homing Deflection
-                parryBullet->SetHomingTarget(parryTarget);
-                DirectX::XMFLOAT3 tPos{ parryTarget->GetPosition() };
-                DirectX::XMVECTOR vDir = DirectX::XMVector3Normalize(DirectX::XMLoadFloat3(&tPos) - DirectX::XMLoadFloat3(&bPos));
-                float speed = DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
 
-                XMVECTOR vDir = XMVector3Normalize(XMLoadFloat3(&tPos) - XMLoadFloat3(&bPos));
+                // Kalkulasi arah yang aman dari pembagian dengan nol (NaN)
+                float dirX = tPos.x - bPos.x;
+                float dirZ = tPos.z - bPos.z;
+                float distDir = std::sqrt(dirX * dirX + dirZ * dirZ);
+
+                DirectX::XMVECTOR vDir = DirectX::XMVectorSet(0, 0, 1, 0); // Fallback
+                if (distDir > 0.001f) {
+                    vDir = DirectX::XMVectorSet(dirX / distDir, 0.0f, dirZ / distDir, 0.0f);
+                }
+
+                // Logika Homing Deflection
                 XMFLOAT3 newVel;
                 XMStoreFloat3(&newVel, vDir * speed);
                 parryBullet->ApplyMovement(bPos, newVel);
@@ -218,10 +224,29 @@ void PlayerMoving::Update(Player* player, float dt)
                 }
 
                 // Logika Homing Deflection
-                parryBullet->SetHomingTarget(parryTarget);
-                XMFLOAT3 tPos = parryTarget->GetPosition();
-                XMVECTOR vDir = XMVector3Normalize(XMLoadFloat3(&tPos) - XMLoadFloat3(&bPos));
-                float speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
+                DirectX::XMFLOAT3 tPos = bPos;
+                float speed = 0.0f;
+
+                if (parryTarget) {
+                    parryBullet->SetHomingTarget(parryTarget);
+                    tPos = parryTarget->GetPosition();
+                    speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
+                    if (speed < 10.0f) speed = 30.0f;
+                }
+                else if (colMgr->GetNaviBoss()) {
+                    parryBullet->SetHomingTarget(nullptr);
+                    tPos = pPos;
+                    speed = 80.0f;
+                }
+
+                float dirX = tPos.x - bPos.x;
+                float dirZ = tPos.z - bPos.z;
+                float distDir = std::sqrt(dirX * dirX + dirZ * dirZ);
+
+                DirectX::XMVECTOR vDir = DirectX::XMVectorSet(0, 0, 1, 0);
+                if (distDir > 0.001f) {
+                    vDir = DirectX::XMVectorSet(dirX / distDir, 0.0f, dirZ / distDir, 0.0f);
+                }
 
                 XMFLOAT3 newVel;
                 XMStoreFloat3(&newVel, vDir * speed);
