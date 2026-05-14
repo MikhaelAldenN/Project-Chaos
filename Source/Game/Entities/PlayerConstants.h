@@ -39,7 +39,7 @@ namespace PlayerConst
     inline constexpr float ShootDuration = 0.15f;  // State lock duration (s)
 
     // --- Aiming ---
-    inline constexpr float AimMinDistSq = 0.1f;   // Minimum sq-distance to aim target before clamping
+    inline constexpr float AimMinDistSq = 0.0f;   // Minimum sq-distance to aim target before clamping
     inline constexpr float MaxTorsoAngle = 1.5707963f; // XM_PIDIV2 — max upper-body twist (rad)
 
     // --- Projectile (player-fired) ---

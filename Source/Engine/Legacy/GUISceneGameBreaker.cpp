@@ -411,6 +411,21 @@ void GameBreakerGUI::DrawPostProcessTab(SceneGame* scene)
         if (!scene->m_fxState.EnableChromatic) ImGui::PopStyleVar();
         ImGui::Unindent();
     }
+
+    if (ImGui::CollapsingHeader("HDR Bloom", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Indent();
+
+        ImGui::DragFloat("Bloom Threshold", &uber.bloomThreshold, 0.05f, 0.0f, 10.0f);
+        ImGui::DragFloat("Bloom Intensity", &uber.bloomIntensity, 0.05f, 0.0f, 10.0f);
+
+        if (ImGui::Button("Reset Bloom", ImVec2(-1, 0)))
+        {
+            uber.bloomThreshold = 1.0f;
+            uber.bloomIntensity = 1.5f;
+        }
+        ImGui::Unindent();
+    }
 }
 
 // Renamed parameter to SceneGame*
@@ -493,7 +508,7 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGame* scene)
         ImGui::Spacing();
     }
 
-    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "Items");
+    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "ITEMS");
     ImGui::Separator();
     ImGui::Spacing();
 
@@ -520,6 +535,21 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGame* scene)
             }
             ImGui::Unindent();
         }
+    }
+
+    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "BULLET");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    if (scene->m_player)
+    {
+        if (ImGui::CollapsingHeader("Player Bullet Color", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+            ImGui::ColorEdit4("Base Color##PBColor", &scene->m_player->GetPlayerBulletColor()->x, ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float);
+            ImGui::Unindent();
+        }
+        ImGui::Spacing();
     }
 }
 
@@ -1083,6 +1113,219 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGame* scene)
             {
                 scene->m_itemManager->ResetAllAnimations();
             }
+            ImGui::Unindent();
+        }
+    }
+
+    // 4. WEAPON TRANSFORM
+    ImGui::Spacing();
+    if (scene->m_player)
+    {
+        if (ImGui::CollapsingHeader("Weapon Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+
+            // --- The Weapon Dropdown ---
+            static int selectedWeaponIdx = 0;
+            const char* weaponNames[] = { "Crossbow", "Sword" };
+            ImGui::Combo("Select Weapon", &selectedWeaponIdx, weaponNames, IM_ARRAYSIZE(weaponNames));
+
+            Player::WeaponType selectedType = static_cast<Player::WeaponType>(selectedWeaponIdx);
+            Weapon* weapon = scene->m_player->GetWeapon(selectedType);
+
+            if (weapon)
+            {
+                // --- Debug Force Render ---
+                bool isActive = (scene->m_player->GetActiveWeaponType() == selectedType);
+                if (ImGui::Checkbox("Force Equip (Debug View)", &isActive))
+                {
+                    scene->m_player->SetActiveWeapon(isActive ? selectedType : Player::WeaponType::Crossbow);
+
+                    // BUG PREVENTION: Always turn off debug mode if they uncheck the box!
+                    if (!isActive) {
+                        scene->m_player->GetDebugState().forceAnimation = false;
+                        scene->m_player->GetDebugState().disableAimConstraint = false;
+                    }
+                }
+
+                if (isActive)
+                {
+                    // ---> NEW: ANIMATION DEBUGGER <---
+                    ImGui::Indent();
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "ANIMATION DEBUGGER");
+
+                    auto& debugState = scene->m_player->GetDebugState();
+                    ImGui::Checkbox("Disable Aim Twist (Straight Spine)", &debugState.disableAimConstraint);
+
+                    static int debugAnimIdx = 0;
+                    const char* animLabels[] = { "Normal State Machine", "Loop 'Slash'", "Loop 'Parry'" };
+
+                    // IMPORTANT: Replace "Slash" and "Parry" with the EXACT names of your animations 
+                    // exactly as they appear in your model's .glb file!
+                    const char* actualAnimNames[] = { "", "Slash", "Parry" };
+
+                    if (ImGui::Combo("Animation Mode", &debugAnimIdx, animLabels, IM_ARRAYSIZE(animLabels)))
+                    {
+                        if (debugAnimIdx == 0) {
+                            debugState.forceAnimation = false;
+                        }
+                        else {
+                            debugState.forceAnimation = true;
+                            debugState.animationName = actualAnimNames[debugAnimIdx];
+                        }
+                    }
+                    ImGui::Unindent();
+                }
+                ImGui::Separator();
+
+                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "LOCAL OFFSET POSITION");
+                ImGui::DragFloat3("XYZ##WpnPos", &weapon->GetOffsetPos()->x, 0.01f);
+
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "LOCAL OFFSET ROTATION");
+                ImGui::DragFloat3("Pitch/Yaw/Roll##WpnRot", &weapon->GetOffsetRot()->x, 1.0f, -180.0f, 180.0f);
+
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE MULTIPLIER");
+                ImGui::DragFloat3("XYZ##WpnScl", &weapon->GetOffsetScale()->x, 0.01f, 0.1f, 10.0f);
+
+                ImGui::Spacing();
+                ImGui::Separator();
+
+                if (ImGui::Button("Reset Weapon Transform", ImVec2(-1, 30)))
+                {
+                    weapon->ResetOffsets();
+                }
+
+                ImGui::Spacing();
+                if (ImGui::Button("Copy Code to Clipboard", ImVec2(-1, 30)))
+                {
+                    char buffer[512];
+                    const char* enumName = (selectedType == Player::WeaponType::Sword) ? "WeaponType::Sword" : "WeaponType::Crossbow";
+
+                    snprintf(buffer, sizeof(buffer),
+                        "m_weapons[static_cast<size_t>(%s)]->SetLocalOffset(\n"
+                        "{ %.3ff, %.3ff, %.3ff },\n"
+                        "{ %.3ff, %.3ff, %.3ff },\n"
+                        "{ %.3ff, %.3ff, %.3ff }\n"
+                        ");",
+                        enumName,
+                        weapon->GetOffsetPos()->x, weapon->GetOffsetPos()->y, weapon->GetOffsetPos()->z,
+                        weapon->GetOffsetRot()->x, weapon->GetOffsetRot()->y, weapon->GetOffsetRot()->z,
+                        weapon->GetOffsetScale()->x, weapon->GetOffsetScale()->y, weapon->GetOffsetScale()->z
+                    );
+                    ImGui::SetClipboardText(buffer);
+                }
+            }
+            ImGui::Unindent();
+        }
+    }
+
+    // 5. PLAYER BULLET TRANSFORM
+    ImGui::Spacing();
+    if (scene->m_player && scene->m_player->GetPlayerBulletModel())
+    {
+        if (ImGui::CollapsingHeader("Player Bullet Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+            Player* p = scene->m_player.get();
+
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "LOCAL OFFSET POSITION");
+            ImGui::DragFloat3("XYZ##PBPos", &p->GetPlayerBulletOffsetPos()->x, 0.01f);
+
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "LOCAL OFFSET ROTATION");
+            ImGui::DragFloat3("Pitch/Yaw/Roll##PBRot", &p->GetPlayerBulletOffsetRot()->x, 1.0f, -180.0f, 180.0f);
+
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE MULTIPLIER");
+            ImGui::DragFloat3("XYZ##PBScl", &p->GetPlayerBulletOffsetScale()->x, 0.01f, 0.1f, 10.0f);
+
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            if (ImGui::Button("Reset Player Bullet Transform", ImVec2(-1, 30)))
+            {
+                p->ResetPlayerBulletOffsets();
+            }
+
+            ImGui::Spacing();
+            if (ImGui::Button("Copy Bullet Code to Clipboard", ImVec2(-1, 30)))
+            {
+                char buffer[512];
+                snprintf(buffer, sizeof(buffer),
+                    "DirectX::XMFLOAT3 m_playerbulletOffsetPos   { %.3ff, %.3ff, %.3ff };\n"
+                    "DirectX::XMFLOAT3 m_playerbulletOffsetRot   { %.3ff, %.3ff, %.3ff };\n"
+                    "DirectX::XMFLOAT3 m_playerbulletOffsetScale { %.3ff, %.3ff, %.3ff };\n"
+                    "DirectX::XMFLOAT4 m_playerbulletColor       { %.3ff, %.3ff, %.3ff, %.3ff };",
+                    p->GetPlayerBulletOffsetPos()->x, p->GetPlayerBulletOffsetPos()->y, p->GetPlayerBulletOffsetPos()->z,
+                    p->GetPlayerBulletOffsetRot()->x, p->GetPlayerBulletOffsetRot()->y, p->GetPlayerBulletOffsetRot()->z,
+                    p->GetPlayerBulletOffsetScale()->x, p->GetPlayerBulletOffsetScale()->y, p->GetPlayerBulletOffsetScale()->z,
+                    p->GetPlayerBulletColor()->x, p->GetPlayerBulletColor()->y, p->GetPlayerBulletColor()->z, p->GetPlayerBulletColor()->w
+                );
+                ImGui::SetClipboardText(buffer);
+            }
+            ImGui::Unindent();
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 6. CAPE PHYSICS TUNING
+    // ---------------------------------------------------------
+    ImGui::Spacing();
+    if (scene->m_player && scene->m_player->GetCapeSimulator())
+    {
+        if (ImGui::CollapsingHeader("Cape Physics Tuning", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+            CapeSimulator* cape = scene->m_player->GetCapeSimulator();
+
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SPRING DYNAMICS (FEEL)");
+            // Clamped > 1.0f to prevent divide-by-zero or inverted math explosions
+            ImGui::DragFloat("Stiffness", cape->GetStiffness(), 1.0f, 10.0f, 500.0f, "%.1f");
+            ImGui::DragFloat("Damping", cape->GetDamping(), 0.1f, 1.0f, 50.0f, "%.1f");
+
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "MOVEMENT & GRAVITY");
+
+            ImGui::DragFloat("Body Clip Limit", cape->GetBodyClipLimit(), 0.05f, -3.14f, 3.14f, "%.2f");
+            ImGui::DragFloat("Max Sway (Radians)", cape->GetMaxSway(), 0.05f, 0.1f, 3.14f, "%.2f");
+            ImGui::DragFloat("Gravity Angle X", cape->GetGravityAngle(), 0.05f, -1.0f, 2.0f, "%.2f");
+            ImGui::DragFloat("Velocity Sensitivity", cape->GetSwaySensitivity(), 0.005f, 0.0f, 0.2f, "%.3f");
+
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            if (ImGui::Button("Reset Default Cape Physics", ImVec2(-1, 30)))
+            {
+                // AAA Default Safe Values
+                *cape->GetStiffness() = 150.0f;
+                *cape->GetDamping() = 12.0f;
+                *cape->GetMaxSway() = 1.2f;
+                *cape->GetGravityAngle() = 0.4f;
+                *cape->GetSwaySensitivity() = 0.03f;
+            }
+
+            ImGui::Spacing();
+            if (ImGui::Button("Copy Cape Config to Clipboard", ImVec2(-1, 30)))
+            {
+                char buffer[512];
+                snprintf(buffer, sizeof(buffer),
+                    "float m_stiffness{ %.1ff };\n"
+                    "float m_damping{ %.1ff };\n"
+                    "float m_maxSway{ %.2ff };\n"
+					"float m_bodyClipLimit{ %.2ff };\n"
+                    "float m_gravityAngleX{ %.2ff };\n"
+                    "float m_swaySensitivity{ %.3ff };",
+                    *cape->GetStiffness(),
+                    *cape->GetDamping(),
+                    *cape->GetMaxSway(),
+                    *cape->GetGravityAngle(),
+                    *cape->GetSwaySensitivity()
+                );
+                ImGui::SetClipboardText(buffer);
+            }
+
             ImGui::Unindent();
         }
     }

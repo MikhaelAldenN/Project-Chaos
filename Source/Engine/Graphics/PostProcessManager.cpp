@@ -42,7 +42,14 @@ void PostProcessManager::CreateBuffers(int width, int height)
     textureDesc.Height = static_cast<UINT>(height);
     textureDesc.MipLevels = 1;
     textureDesc.ArraySize = 1;
-    textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+    // -------------------------------------------------------------
+    // ---> THE AAA HDR UPGRADE <---
+    // Changed from DXGI_FORMAT_R8G8B8A8_UNORM to R16G16B16A16_FLOAT
+    // This allows colors to exceed 1.0f (Pure White) and become physically emissive!
+    // -------------------------------------------------------------
+    textureDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+
     textureDesc.SampleDesc.Count = 1;
     textureDesc.Usage = D3D11_USAGE_DEFAULT;
     textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
@@ -85,7 +92,8 @@ void PostProcessManager::BeginCapture()
     dc->OMSetRenderTargets(1, &rtv, dsv);
 
     // 3. Clear Screen (Layar Virtual kita)
-    float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f }; // Hitam Transparan
+    // NOTE: Changed alpha to 1.0f to ensure solid black background for Bloom extraction
+    float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     dc->ClearRenderTargetView(rtv, clearColor);
     dc->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 }

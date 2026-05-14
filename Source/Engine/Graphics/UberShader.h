@@ -49,6 +49,8 @@ public:
         float             glitchStrength        = 0.01f;
         float             chromaticAberration   = 0.0f;
         float             time                  = 0.0f;
+        float             bloomThreshold        = 0.87f;
+        float             bloomIntensity        = 1.5f;
 
         // Scanlines
         float             scanlineStrength      = 0.2f;
@@ -94,7 +96,9 @@ private:
         float fineOpacity;
         float fineDensity;
         float fineRotation;
-        float padding[3];
+        float bloomThreshold;
+        float bloomIntensity;
+        float padding[1];
     };
 
     Microsoft::WRL::ComPtr<ID3D11VertexShader>  vertexShader;

@@ -24,6 +24,27 @@ Player::Player()
     model = std::make_shared<Model>(device, "Data/Model/Character/TEST_mdl_Player3.glb");
     scale = { 1.0f, 1.0f, 1.0f };
 
+	// Load weapons and set their local offsets for correct hand positioning
+    m_weapons[static_cast<size_t>(WeaponType::Crossbow)] = std::make_unique<Weapon>(device, "Data/Model/Character/WEAPON_mdl_Crossbow.glb");
+    m_weapons[static_cast<size_t>(WeaponType::Crossbow)]->SetLocalOffset(
+        { 0.000f, 0.000f, 0.000f },
+        { 90.000f, 99.000f, 0.000f },
+        { 0.900f, 0.900f, 0.400f }
+    );
+
+    m_weapons[static_cast<size_t>(WeaponType::Sword)] = std::make_unique<Weapon>(device, "Data/Model/Character/WEAPON_mdl_Sword.glb");
+    m_weapons[static_cast<size_t>(WeaponType::Sword)]->SetLocalOffset(
+        { 0.000f, 0.001f, 0.000f },
+        { 0.000f, 180.000f, 0.000f },
+        { 0.350f, 0.350f, 0.350f }
+    );
+
+    if (model) {
+        m_rightHandBoneIndex = model->GetNodeIndex("hand.r");
+    }
+
+    m_playerbulletModel = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_mdl_Paddle.glb");
+
     animator->Initialize(model);
     animator->SetUpperBodyMaskRoot("body");
     stateMachine->Initialize(std::make_unique<PlayerIdle>(), this);
@@ -37,6 +58,30 @@ Player::Player()
         OutputDebugStringA(msg.c_str());
     }
     OutputDebugStringA("=========================\n\n");
+
+    m_capeSimulator = std::make_unique<CapeSimulator>();
+
+    auto GenerateBoneNames = [](const char* prefix, int startIdx, int endIdx)
+        {
+            std::vector<std::string> names;
+            char buffer[32];
+            for (int i = startIdx; i <= endIdx; ++i)
+            {
+                // %03d automatically adds the zeros: 1 becomes "001", 15 becomes "015"
+                snprintf(buffer, sizeof(buffer), "%s%03d", prefix, i);
+                names.push_back(std::string(buffer));
+            }
+            return names;
+        };
+
+    // Chain 1: Center (001 to 007)
+    m_capeSimulator->AddChain(model, GenerateBoneNames("cape.", 1, 7));
+
+    // Chain 2: Right (008 to 015)
+    m_capeSimulator->AddChain(model, GenerateBoneNames("cape.", 8, 15));
+
+    // Chain 3: Left (016 to 023)
+    m_capeSimulator->AddChain(model, GenerateBoneNames("cape.", 16, 23));
 
     color = { 1.0f, 1.0f, 1.0f, 1.0f };
 }
@@ -60,10 +105,6 @@ void Player::InitPhysics(physx::PxControllerManager* manager, physx::PxMaterial*
     m_physxController = manager->createController(desc);
 }
 
-// ============================================================
-// UPDATE — orchestrator only, no inline logic
-// ============================================================
-
 void Player::Update(float elapsedTime, Camera* camera)
 {
     if (m_invincibilityTimer > 0.0f)
@@ -79,17 +120,56 @@ void Player::Update(float elapsedTime, Camera* camera)
 
     UpdateHorizontalMovement(elapsedTime);
 
-    if (stateMachine) stateMachine->Update(this, elapsedTime);
-    if (animator)     animator->Update(elapsedTime);
+    // -------------------------------------------------------------
+    // ---> DEBUG: BYPASS THE STATE MACHINE FOR WEAPON TUNING <---
+    // -------------------------------------------------------------
+    if (m_debugState.forceAnimation)
+    {
+        // Force the animation on loop, bypassing the State Machine entirely!
+        if (!animator->IsPlaying(m_debugState.animationName))
+        {
+            // Note: We play this on the FULL body, ignoring PlayUpper, 
+            // so you get a perfectly clean stance for tuning!
+            animator->Play(m_debugState.animationName, true, 0.2f);
+        }
+    }
+    else
+    {
+        // Normal Gameplay
+        if (stateMachine) stateMachine->Update(this, elapsedTime);
+    }
+    // -------------------------------------------------------------
+
+    if (animator) animator->Update(elapsedTime);
+
+    // -------------------------------------------------------------
+    // ---> NEW: THE WEAPON STATE MANAGER (Auto-Sheathe) <---
+    // -------------------------------------------------------------
+    // If the player is holding the Sword, but the upper-body attack 
+    // animation has officially finished, automatically revert to the Crossbow.
+    // The !m_debugState check ensures the sword doesn't vanish while you are tuning it in the GUI!
+    if (!m_debugState.forceAnimation && m_activeWeaponType == WeaponType::Sword && !animator->IsUpperPlaying())
+    {
+        SetActiveWeapon(WeaponType::Crossbow);
+        m_aimLocked = false;
+    }
+    // -------------------------------------------------------------
 
     float smoothedYaw = 0.0f;
     bool  shouldAim = false;
     float relativeAngle = 0.0f;
 
     UpdateFootRotation(elapsedTime, smoothedYaw);
-    UpdateAimConstraint(smoothedYaw, shouldAim, relativeAngle);
-    ApplyWorldMatrix(smoothedYaw, shouldAim, relativeAngle);
+    UpdateAimConstraint(elapsedTime, smoothedYaw, shouldAim, relativeAngle);
 
+    // ---> DEBUG: DISABLE SPINE TWIST <---
+    if (m_debugState.disableAimConstraint)
+    {
+        shouldAim = false;
+        relativeAngle = 0.0f;
+    }
+
+    ApplyWorldMatrix(smoothedYaw, shouldAim, relativeAngle);
     UpdateProjectiles(elapsedTime, camera);
 }
 
@@ -178,7 +258,37 @@ void Player::UpdateFootRotation(float dt, float& outSmoothedYaw)
     if (moveInput.x != 0.0f || moveInput.y != 0.0f)
         targetYaw = atan2f(moveInput.x, moveInput.y);
 
-    // Shortest-path angle delta to avoid wrap-around snapping
+    m_isBackpedaling = false;
+
+    XMFLOAT3 pos = movement->GetPosition();
+    float dx = m_aimTarget.x - pos.x;
+    float dz = m_aimTarget.z - pos.z;
+
+    if ((dx * dx + dz * dz) > PlayerConst::AimMinDistSq)
+    {
+        float aimYaw = atan2f(dx, dz);
+        float diff = targetYaw - aimYaw;
+
+        while (diff > XM_PI) diff -= XM_2PI;
+        while (diff < -XM_PI) diff += XM_2PI;
+
+        if (diff > XM_PIDIV2)
+        {
+            diff = XM_PI - diff;
+            targetYaw = aimYaw + diff;
+            m_isBackpedaling = true; // <-- NEW: We are backpedaling!
+        }
+        else if (diff < -XM_PIDIV2)
+        {
+            diff = -XM_PI - diff;
+            targetYaw = aimYaw + diff;
+            m_isBackpedaling = true; // <-- NEW: We are backpedaling!
+        }
+
+        while (targetYaw > XM_PI) targetYaw -= XM_2PI;
+        while (targetYaw < -XM_PI) targetYaw += XM_2PI;
+    }
+
     float angleDiff = targetYaw - currentYaw;
     while (angleDiff > XM_PI) angleDiff -= XM_2PI;
     while (angleDiff < -XM_PI) angleDiff += XM_2PI;
@@ -187,18 +297,17 @@ void Player::UpdateFootRotation(float dt, float& outSmoothedYaw)
     outSmoothedYaw = currentYaw + angleDiff * lerpFactor;
 }
 
-void Player::UpdateAimConstraint(float& inOutSmoothedYaw, bool& outShouldAim, float& outRelativeAngle)
+void Player::UpdateAimConstraint(float dt, float& inOutSmoothedYaw, bool& outShouldAim, float& outRelativeAngle)
 {
     outShouldAim = false;
     outRelativeAngle = 0.0f;
 
     if (!model || !activeCamera) return;
 
-    XMFLOAT3 pos = movement->GetPosition();
+    DirectX::XMFLOAT3 pos = movement->GetPosition();
     float dx = m_aimTarget.x - pos.x;
     float dz = m_aimTarget.z - pos.z;
 
-    // Skip if aim target is too close (avoids atan2 instability)
     if ((dx * dx + dz * dz) <= PlayerConst::AimMinDistSq) return;
 
     outShouldAim = true;
@@ -206,19 +315,31 @@ void Player::UpdateAimConstraint(float& inOutSmoothedYaw, bool& outShouldAim, fl
     float absoluteAngleToMouse = atan2f(dx, dz);
     float relativeAngle = absoluteAngleToMouse - inOutSmoothedYaw;
 
-    while (relativeAngle > XM_PI) relativeAngle -= XM_2PI;
-    while (relativeAngle < -XM_PI) relativeAngle += XM_2PI;
+    while (relativeAngle > DirectX::XM_PI) relativeAngle -= DirectX::XM_2PI;
+    while (relativeAngle < -DirectX::XM_PI) relativeAngle += DirectX::XM_2PI;
 
-    // Clamp torso to ±MaxTorsoAngle; if clamped, pull feet to compensate
-    if (relativeAngle > PlayerConst::MaxTorsoAngle)
+    // -----------------------------------------------------------------
+    // ---> THE FIX: SMOOTH FOOT DRAG (Zero Duplication Math) <---
+    // -----------------------------------------------------------------
+    // Clamp torso to ±MaxTorsoAngle; if clamped, PULL feet smoothly to compensate
+    if (std::abs(relativeAngle) > PlayerConst::MaxTorsoAngle)
     {
-        relativeAngle = PlayerConst::MaxTorsoAngle;
-        inOutSmoothedYaw = absoluteAngleToMouse - relativeAngle;
-    }
-    else if (relativeAngle < -PlayerConst::MaxTorsoAngle)
-    {
-        relativeAngle = -PlayerConst::MaxTorsoAngle;
-        inOutSmoothedYaw = absoluteAngleToMouse - relativeAngle;
+        // 1. Get the direction of the twist (1.0f for right, -1.0f for left)
+        float sign = (relativeAngle > 0.0f) ? 1.0f : -1.0f;
+
+        // 2. Safely clamp the spine twist
+        relativeAngle = PlayerConst::MaxTorsoAngle * sign;
+
+        // 3. Calculate exactly where the feet NEED to be to support this spine twist
+        float targetFootYaw = absoluteAngleToMouse - relativeAngle;
+
+        // 4. Find the shortest path for the feet to rotate
+        float diff = targetFootYaw - inOutSmoothedYaw;
+        while (diff > DirectX::XM_PI) diff -= DirectX::XM_2PI;
+        while (diff < -DirectX::XM_PI) diff += DirectX::XM_2PI;
+
+        // 5. Smoothly drag the feet over time instead of teleporting them!
+        inOutSmoothedYaw += diff * (std::min)(PlayerConst::RotSmoothSpeed * dt, 1.0f);
     }
 
     outRelativeAngle = relativeAngle;
@@ -249,15 +370,58 @@ void Player::ApplyWorldMatrix(float smoothedYaw, bool shouldAim, float relativeA
         if (bodyIndex != -1)
         {
             Model::Node& bodyNode = model->GetNodes()[bodyIndex];
+
+            // Get the Parent's (Hips/Pelvis) Global Matrix
+            XMMATRIX parentGlobal = XMMatrixIdentity();
+            if (bodyNode.parent != nullptr) {
+                parentGlobal = XMLoadFloat4x4(&bodyNode.parent->globalTransform);
+            }
+
+            // Find the "True Sky" inside the tilted Hip space
+            XMVECTOR worldUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+            XMMATRIX parentInverse = XMMatrixInverse(nullptr, parentGlobal);
+            XMVECTOR localUpAxis = XMVector3TransformNormal(worldUp, parentInverse);
+            localUpAxis = XMVector3Normalize(localUpAxis);
+
+            // Create a rotation around that specific calculated axis 
+            XMMATRIX twistMatrix = XMMatrixRotationAxis(localUpAxis, relativeAngle);
+
+            // Apply it to the animation
             XMVECTOR currentLocalRot = XMLoadFloat4(&bodyNode.rotation);
             XMMATRIX localMatrix = XMMatrixRotationQuaternion(currentLocalRot);
-            XMMATRIX twistMatrix = XMMatrixRotationY(relativeAngle);
-            XMVECTOR finalRot = XMQuaternionRotationMatrix(twistMatrix * localMatrix);
+
+            // Multiply Local * Twist
+            XMVECTOR finalRot = XMQuaternionRotationMatrix(localMatrix * twistMatrix);
             XMStoreFloat4(&bodyNode.rotation, finalRot);
         }
     }
 
+    if (m_capeSimulator)
+    {
+        DirectX::XMFLOAT3 trueVelocity = movement->GetVelocity();
+
+        if (trueVelocity.x == 0.0f && trueVelocity.z == 0.0f)
+        {
+            trueVelocity.x = currentSmoothInput.x * moveSpeed;
+            trueVelocity.z = currentSmoothInput.y * moveSpeed;
+        }
+
+        m_capeSimulator->Update(0.016f, trueVelocity);
+    }
+
     if (model) model->UpdateTransform(worldMatrix);
+
+    DirectX::XMFLOAT4X4 attachMatrix = worldMatrix; // Fallback to feet if hand is missing
+    if (m_rightHandBoneIndex != -1 && model->GetNodes().size() > m_rightHandBoneIndex)
+    {
+        attachMatrix = model->GetNodes()[m_rightHandBoneIndex].worldTransform;
+    }
+
+    // Optimization: Range-based for-loop. Updates all weapons so they are ready instantly.
+    for (const auto& weapon : m_weapons)
+    {
+        if (weapon) weapon->UpdateTransform(attachMatrix);
+    }
 }
 
 void Player::UpdateProjectiles(float dt, Camera* camera)
@@ -349,8 +513,50 @@ void Player::FireProjectile()
 void Player::RenderProjectiles(ModelRenderer* renderer)
 {
     for (auto& bullet : m_projectiles)
-        if (bullet->IsActive())
+    {
+        if (!bullet->IsActive()) continue;
+
+        if (m_playerbulletModel)
+        {
+            DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+            DirectX::XMFLOAT3 bVel = bullet->GetVelocity();
+            float yaw = atan2f(bVel.x, bVel.z);
+
+            DirectX::XMMATRIX S = DirectX::XMMatrixScaling(
+                m_playerbulletOffsetScale.x,
+                m_playerbulletOffsetScale.y,
+                m_playerbulletOffsetScale.z
+            );
+
+            DirectX::XMMATRIX R = DirectX::XMMatrixRotationRollPitchYaw(
+                DirectX::XMConvertToRadians(m_playerbulletOffsetRot.x),
+                DirectX::XMConvertToRadians(m_playerbulletOffsetRot.y),
+                DirectX::XMConvertToRadians(m_playerbulletOffsetRot.z)
+            );
+            DirectX::XMMATRIX T = DirectX::XMMatrixTranslation(m_playerbulletOffsetPos.x, m_playerbulletOffsetPos.y, m_playerbulletOffsetPos.z);
+
+            DirectX::XMMATRIX bulletRot = DirectX::XMMatrixRotationY(yaw);
+            DirectX::XMMATRIX bulletTrans = DirectX::XMMatrixTranslation(bPos.x, bPos.y, bPos.z);
+
+            DirectX::XMFLOAT4X4 worldMatrix;
+            DirectX::XMStoreFloat4x4(&worldMatrix, S * R * T * bulletRot * bulletTrans);
+
+            // Draw ONCE using standard Phong! The PostProcessor will see the HDR color and bloom it automatically!
+            renderer->Draw(ShaderId::Basic, m_playerbulletModel, m_playerbulletColor, worldMatrix);
+        }
+        else
+        {
             renderer->Draw(ShaderId::Phong, bullet->GetModel(), { 1.0f, 1.0f, 1.0f, 1.0f });
+        }
+    }
+}
+
+void Player::RenderWeapon(ModelRenderer* renderer)
+{
+    if (Weapon* activeWpn = GetActiveWeapon())
+    {
+        activeWpn->Render(renderer);
+    }
 }
 
 // ============================================================

@@ -46,6 +46,7 @@ void AnimationController::Play(const std::string& name, bool loop, float blendTi
         currentAnimIndex = newIndex;
         timer = 0.0f;
         isLooping = loop;
+        m_playbackSpeed = 1.0f;
     }
 }
 
@@ -54,14 +55,30 @@ void AnimationController::Update(float dt)
     if (!ownerModel || currentAnimIndex == -1) return;
 
     // 1. Update Timer Animasi Utama
-    timer += dt;
     const auto& anims = ownerModel->GetAnimations();
     float duration = anims.at(currentAnimIndex).secondsLength;
 
-    if (timer >= duration)
+    // ---> THE FIX: Guard against Division by Zero <---
+    if (duration > 0.0f)
     {
-        if (isLooping) timer = fmod(timer, duration);
-        else timer = duration;
+        timer += dt * m_playbackSpeed;
+
+        if (isLooping)
+        {
+            // ---> THE FIX: AAA Safe Time Wrapping (No fmod crashes!) <---
+            while (timer < 0.0f) timer += duration;
+            while (timer >= duration) timer -= duration;
+        }
+        else
+        {
+            // Clamp strictly
+            if (timer < 0.0f) timer = 0.0f;
+            if (timer > duration) timer = duration;
+        }
+    }
+    else
+    {
+        timer = 0.0f; // Safe fallback for 0-second animations
     }
 
     // 2. Hitung Pose Animasi Target (Animasi Baru)

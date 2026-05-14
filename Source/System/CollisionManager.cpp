@@ -811,31 +811,57 @@ bool CollisionManager::CheckSphereCollision(const DirectX::XMFLOAT3& posA, const
     return distSq < thresholdSq;
 }
 
-bool CollisionManager::GetTargetInSlashRange(const XMFLOAT3& playerPos, float reach, Enemy** outTarget)
+Enemy* CollisionManager::GetTargetInSlashCone(const DirectX::XMFLOAT3& playerPos, const DirectX::XMFLOAT3& aimDir, float reach, float minDotProduct) const
 {
-    if (!m_enemyManager) return false;
+    if (!m_enemyManager) return nullptr;
 
-    for (auto& enemy : m_enemyManager->GetEnemies())
+    Enemy* bestTarget{ nullptr };
+    float closestDistSq{ (std::numeric_limits<float>::max)() };
+
+    // Range-based for loop. Using const auto& prevents unnecessary deep copies of smart pointers.
+    for (const auto& enemy : m_enemyManager->GetEnemies())
     {
         if (!enemy || !enemy->IsActive()) continue;
 
-        XMFLOAT3 ePos = enemy->GetPosition();
-        float enemyScale = enemy->GetScale().x;
-        float enemyRadius = 1.0f * enemyScale;
+        DirectX::XMFLOAT3 ePos{ enemy->GetPosition() };
+        float enemyScale{ enemy->GetScale().x };
+        float enemyRadius{ 1.0f * enemyScale };
 
         if (enemy->GetType() == EnemyType::Pentagon) enemyRadius = 4.0f * enemyScale;
         else if (enemy->GetType() == EnemyType::Paddle) enemyRadius = 1.2f * enemyScale;
 
-        // Player Body (0.5) + Enemy Body + Reach
-        float exactSlashDistance = 0.5f + enemyRadius + reach;
+        float exactSlashDistance{ 0.5f + enemyRadius + reach };
+        float exactSlashDistSq{ exactSlashDistance * exactSlashDistance };
 
-        if (CheckSphereCollision(playerPos, ePos, exactSlashDistance))
+        float dx{ ePos.x - playerPos.x };
+        float dz{ ePos.z - playerPos.z };
+        float distSq{ (dx * dx) + (dz * dz) };
+
+        // BUG ANTICIPATION 1: Fast fail. Check squared distance first to avoid heavy CPU math (sqrt).
+        if (distSq < exactSlashDistSq && distSq > 0.0001f)
         {
-            if (outTarget) *outTarget = enemy.get();
-            return true;
+            // It is near us! Now we do the heavy math to see if we are aiming AT it.
+            float dist{ std::sqrt(distSq) };
+            float dirX{ dx / dist };
+            float dirZ{ dz / dist };
+
+            // Dot Product calculates the angle between our cursor and the enemy.
+            // 1.0 means looking dead at them. 0.0 means they are 90 degrees to our side.
+            float dot{ (dirX * aimDir.x) + (dirZ * aimDir.z) };
+
+            if (dot >= minDotProduct)
+            {
+                // BUG ANTICIPATION 2: If 3 enemies are stacked, only hit the closest one!
+                if (distSq < closestDistSq)
+                {
+                    closestDistSq = distSq;
+                    bestTarget = enemy.get();
+                }
+            }
         }
     }
-    return false;
+
+    return bestTarget; // Returns nullptr if nothing was aimed at
 }
 
 bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float threshold, Bullet** outBullet, Enemy** outNearestEnemy)
