@@ -50,8 +50,8 @@ struct NaviBulletParams {
     // ==========================================
     // Parameter Shatter Bijuudama
     // ==========================================
-    int shatterMinFragments = 3;
-    int shatterMaxFragments = 5;
+    int shatterMinFragments = 5;
+    int shatterMaxFragments = 8;
     float shatterMinRadius = 0.2f;
     float shatterMaxRadius = 0.8f;
     float shatterMinDuration = 0.5f; // Waktu tempuh (Lebih besar = Lebih lambat)

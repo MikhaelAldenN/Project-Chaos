@@ -870,7 +870,7 @@ void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
     // =========================================================
     // [TRACK B] DIRECT ATTACKS & COMBO
     // =========================================================
-    bool isBusyMain = m_isFiring || m_isFiringFan || (m_phalanxState > 0) || m_isLaserLocked || m_isBijuudamaRecovering;
+    bool isBusyMain = m_isFiring || m_isFiringFan || (m_phalanxState > 0 && m_phalanxState < 5) || m_isLaserLocked || m_isBijuudamaRecovering;
 
     if (!isBusyMain) {
         if (m_aiGlobalCooldown > 0.0f) {
@@ -894,7 +894,7 @@ void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
 
             std::uniform_real_distribution<float> distCD(15.0f, 25.0f);
             m_cdBijuudama = distCD(gen);
-            m_aiGlobalCooldown = 1.0f;
+            m_aiGlobalCooldown = 0.5f;
         }
         // =========================================================
         // Prioritas 2: PHALANX + TOP/BOTTOM RAIN COMBO!
@@ -916,7 +916,7 @@ void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
 
             std::uniform_real_distribution<float> distCD(6.0f, 10.0f);
             m_cdPhalanx = distCD(gen);
-            m_aiGlobalCooldown = 1.0f;
+            m_aiGlobalCooldown = 0.2f;
         }
 
         // Prioritas 3: Fan Wave (Shotgun)
@@ -924,7 +924,7 @@ void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
             TriggerFanAttack(boss, m_aiTarget->GetPosition());
             std::uniform_real_distribution<float> distCD(4.0f, 8.0f);
             m_cdFan = distCD(gen);
-            m_aiGlobalCooldown = 0.5f;
+            m_aiGlobalCooldown = 0.1f;
         }
 
         // Prioritas 4: Radial Burst (SELALU TRIPLE)
@@ -933,7 +933,7 @@ void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
 
             std::uniform_real_distribution<float> distCD(2.0f, 5.0f);
             m_cdRadial = distCD(gen);
-            m_aiGlobalCooldown = 0.5f;
+            m_aiGlobalCooldown = 0.1f;
         }
     }
 }
