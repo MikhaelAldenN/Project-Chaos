@@ -67,6 +67,10 @@ struct NaviBulletParams {
     float phalanxTurnSpeed = 1.5f;      // Homing LEMAH (Supaya player bisa dash!)
     float phalanxSmoothSpeed = 12.0f;
 
+    float phalanxPostFireDelay = 1.0f;    // Delay 1 detik setelah tembakan habis
+    float phalanxAttackMoveSpeed = 2.5f;  // Speed saat meluncur ke samping
+    float phalanxReturnMoveSpeed = 2.5f;  // Speed saat pulang ke tengah (lebih lambat)
+
     // ==========================================
     // Parameter Asgore Rain (Area Denial)
     // ==========================================
@@ -194,4 +198,10 @@ private:
 
     // [BARU] Waktu istirahat mutlak antar serangan!
     float m_aiGlobalCooldown = 0.5f;
+
+    // ==========================================
+    // [NEW] Sistem Pergerakan AI
+    // ==========================================
+    DirectX::XMFLOAT3 m_targetPosition = { 0.0f, 0.0f, 0.0f };
+    float m_moveLerpSpeed = 3.5f; // Kecepatan jendela mengejar target
 };

@@ -824,6 +824,9 @@ void SceneBoss::DrawGUI()
                 ImGui::SliderFloat("Fire Delay", &p.phalanxFireDelay, 0.05f, 0.5f);
                 ImGui::SliderFloat("Phalanx Speed", &p.phalanxSpeed, 10.0f, 80.0f);
                 ImGui::SliderFloat("Phalanx Turn Speed", &p.phalanxTurnSpeed, 0.1f, 10.0f);
+                ImGui::SliderFloat("Post-Fire Delay", &p.phalanxPostFireDelay, 0.0f, 3.0f);
+                ImGui::SliderFloat("Attack Move Speed", &p.phalanxAttackMoveSpeed, 1.0f, 20.0f);
+                ImGui::SliderFloat("Return Move Speed", &p.phalanxReturnMoveSpeed, 0.1f, 10.0f);
 
                 // --- UI BARU UNTUK RHYTHM LASER ---
                 ImGui::Separator();

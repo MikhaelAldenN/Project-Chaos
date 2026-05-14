@@ -99,11 +99,21 @@ void NaviPhaseNormal::TriggerFanAttack(NaviBoss* boss, DirectX::XMFLOAT3 playerP
 
 void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
     if (!boss) return;
-
     // =========================================================
     // --- 0. JALANKAN OTAK AI DIRECTOR ---
     // =========================================================
     UpdateAI(dt, boss);
+
+    // =========================================================
+    // --- 0A. LOGIKA PERGERAKAN JENDELA (LERP) ---
+    // =========================================================
+    DirectX::XMFLOAT3 currentPos = boss->GetPosition();
+
+    // Kejar m_targetPosition secara halus
+    currentPos.x += (m_targetPosition.x - currentPos.x) * m_moveLerpSpeed * dt;
+    currentPos.z += (m_targetPosition.z - currentPos.z) * m_moveLerpSpeed * dt;
+
+    boss->SetPosition(currentPos);
 
     // =========================================================
     // SINKRONISASI UKURAN JENDELA DENGAN ZOOM CAMERA
@@ -265,9 +275,31 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
 
                 // Jika semua sudah tertembak, matikan serangan
                 if (m_phalanxFired >= m_phalanxSpawned) {
-                    m_phalanxState = 0;
+                    m_phalanxState = 4;
+                    m_phalanxTimer = 0.0f;
                     m_phalanxBullets.clear();
                 }
+            }
+        }
+
+        // [BARU] FASE 4: POST-FIRE DELAY (Diam di sisi sebentar)
+        else if (m_phalanxState == 4) {
+            if (m_phalanxTimer >= m_params.phalanxPostFireDelay) {
+                // Selesai jeda, baru tentukan target balik ke tengah
+                m_phalanxState = 5;
+                m_targetPosition = { 0.0f, 0.0f, 0.0f };
+                m_moveLerpSpeed = m_params.phalanxReturnMoveSpeed; // Speed diperlambat
+            }
+        }
+
+        // [BARU] FASE 5: RETURNING (Menunggu sampai benar-benar di tengah)
+        else if (m_phalanxState == 5) {
+            DirectX::XMFLOAT3 pos = boss->GetPosition();
+            // Cek jarak kuadrat ke tengah (0,0,0)
+            float distSq = pos.x * pos.x + pos.z * pos.z;
+            if (distSq < 0.01f) {
+                m_phalanxState = 0; // Benar-benar selesai, AI boleh nyerang lagi
+                m_phalanxBullets.clear();
             }
         }
     }
@@ -669,14 +701,26 @@ void NaviPhaseNormal::ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* bos
 }
 
 void NaviPhaseNormal::TriggerPhalanx(Player* targetPlayer) {
-    // Hanya bisa trigger jika tidak sedang aktif
     if (m_phalanxState == 0 && targetPlayer) {
-        m_phalanxState = 1; // Masuk fase Charging
+        m_phalanxState = 1;
         m_phalanxTimer = 0.0f;
         m_phalanxSpawned = 0;
         m_phalanxFired = 0;
         m_phalanxTarget = targetPlayer;
-        m_phalanxBullets.clear(); // Kosongkan tangan bos
+        m_phalanxBullets.clear();
+
+        // =========================================================
+        // [FIX] REPOSISI KE KIRI / KANAN
+        // =========================================================
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dist(0, 1);
+
+        m_moveLerpSpeed = m_params.phalanxAttackMoveSpeed;
+
+        // Pindah ke X = -15.0f (Kiri) atau 15.0f (Kanan)
+        m_targetPosition.x = (dist(gen) == 0) ? -15.0f : 15.0f;
+        m_targetPosition.z = 0.0f; // Tetap di tengah sumbu Z
     }
 }
 
