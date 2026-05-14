@@ -94,14 +94,39 @@ void NaviPhaseNormal::TriggerFanAttack(NaviBoss* boss, DirectX::XMFLOAT3 playerP
 void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
     if (!boss) return;
     // =========================================================
-    // --- 0. JALANKAN OTAK AI DIRECTOR ---
-    // =========================================================
+        // --- 0. JALANKAN OTAK AI DIRECTOR ---
+        // =========================================================
     UpdateAI(dt, boss);
 
     // =========================================================
-    // --- 0A. LOGIKA PERGERAKAN JENDELA (LERP) ---
+    // --- 0.5. LOGIKA FLOATING (IDLE HOVER) ---
     // =========================================================
-// 1. EASE-IN: Lerp kecepatannya dari 0 menuju Target Kecepatan
+    m_idleHoverTimer += dt;
+
+    // Bos diizinkan melayang santai JIKA tidak sedang mengecas Bijuudama, 
+    // dan bukan di tengah-tengah persiapan/menembak Phalanx.
+    // (Fase 5 Phalanx diizinkan agar bos pulangnya langsung menuju titik melayang!)
+    bool isFloating = false;
+    if ((m_phalanxState == 0 || m_phalanxState == 5) && !m_isLaserLocked && !m_isBijuudamaRecovering) {
+        isFloating = true;
+    }
+
+    if (isFloating) {
+        // Kurva Lissajous: Sumbu X dan Z menggunakan kecepatan putar yang berbeda
+        // Ini menciptakan pola angka 8 yang tidak pernah berulang secara kaku
+        m_targetPosition.x = sinf(m_idleHoverTimer * 0.8f) * 6.0f; // Melayang Kiri-Kanan sejauh 6 unit
+        m_targetPosition.z = cosf(m_idleHoverTimer * 1.1f) * 3.0f; // Melayang Atas-Bawah sejauh 3 unit
+
+        // Jika benar-benar sedang nganggur (bukan dalam perjalanan pulang)
+        if (m_phalanxState == 0) {
+            // Turunkan kecepatan Lerp secara perlahan agar gerakannya terlihat malas & santai
+            m_moveLerpSpeed += (1.5f - m_moveLerpSpeed) * 2.0f * dt;
+        }
+    }
+
+    // =========================================================
+    // --- 0A. LOGIKA PERGERAKAN JENDELA (EASE-IN & EASE-OUT) ---
+    // =========================================================// 1. EASE-IN: Lerp kecepatannya dari 0 menuju Target Kecepatan
     m_currentMoveLerpSpeed += (m_moveLerpSpeed - m_currentMoveLerpSpeed) * m_moveAcceleration * dt;
 
     // 2. EASE-OUT: Lerp posisinya menggunakan kecepatan yang sudah dihaluskan
@@ -301,12 +326,16 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
             }
         }
 
-        // [BARU] FASE 5: RETURNING (Menunggu sampai benar-benar di tengah)
+        // [BARU] FASE 5: RETURNING (Menunggu sampai target tercapai)
         else if (m_phalanxState == 5) {
             DirectX::XMFLOAT3 pos = boss->GetPosition();
-            // Cek jarak kuadrat ke tengah (0,0,0)
-            float distSq = pos.x * pos.x + pos.z * pos.z;
-            if (distSq < 0.01f) {
+
+            // [FIX MUTLAK] Cek jarak ke m_targetPosition, BUKAN ke (0,0,0)!
+            float dx = m_targetPosition.x - pos.x;
+            float dz = m_targetPosition.z - pos.z;
+
+            // Beri toleransi 1.0f agar tidak macet saat mengejar target yang melayang
+            if ((dx * dx + dz * dz) < 1.0f) {
                 m_phalanxState = 0; // Benar-benar selesai, AI boleh nyerang lagi
                 m_phalanxBullets.clear();
             }

@@ -223,7 +223,11 @@ private:
     // [NEW] Sistem Pergerakan AI
     // ==========================================
     DirectX::XMFLOAT3 m_targetPosition = { 0.0f, 0.0f, 0.0f };
-    float m_moveLerpSpeed = 3.5f; // Kecepatan jendela mengejar target
+    float m_moveLerpSpeed = 3.5f;
+
     float m_currentMoveLerpSpeed = 0.0f;
     float m_moveAcceleration = 8.0f;
+
+    // [BARU] Waktu untuk kurva melayang
+    float m_idleHoverTimer = 0.0f;
 };
