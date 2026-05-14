@@ -841,6 +841,11 @@ void SceneBoss::DrawGUI()
                 ImGui::SliderFloat("Visual Multiplier", &p.bijuudamaVisualMultiplier, 1.0f, 10.0f);
                 ImGui::SliderFloat("Spawn Offset Z", &p.bijuudamaSpawnOffsetZ, 0.0f, 10.0f);
                 ImGui::SliderFloat("Shoot Speed", &p.bijuudamaShootSpeed, 10.0f, 120.0f);
+                
+                ImGui::SliderFloat("Post-Fire Delay", &p.bijuudamaPostFireDelay, 0.0f, 3.0f);
+                ImGui::SliderFloat("Move Up Speed", &p.bijuudamaAttackMoveSpeed, 1.0f, 15.0f);
+                ImGui::SliderFloat("Return Speed", &p.bijuudamaReturnMoveSpeed, 0.5f, 10.0f);
+
 
                 // [BARU] Slider Shatter / Pecahan
                 ImGui::Separator();
@@ -888,11 +893,17 @@ void SceneBoss::DrawGUI()
                 ImGui::PopStyleColor();
 
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.3f, 0.0f, 1.0f));
-                if (ImGui::Button("ASGORE RAIN (LEFT HALF)", ImVec2(-1.0f, 35.0f))) {
-                    normalPhase->TriggerRainAttack(true); // True = Kiri
+                if (ImGui::Button("ASGORE RAIN (LEFT)", ImVec2(-1.0f, 30.0f))) {
+                    normalPhase->TriggerRainAttack(true, false); // True = Side Mode, False = Left
                 }
-                if (ImGui::Button("ASGORE RAIN (RIGHT HALF)", ImVec2(-1.0f, 35.0f))) {
-                    normalPhase->TriggerRainAttack(false); // False = Kanan
+                if (ImGui::Button("ASGORE RAIN (RIGHT)", ImVec2(-1.0f, 30.0f))) {
+                    normalPhase->TriggerRainAttack(true, true);  // True = Side Mode, True = Right
+                }
+                if (ImGui::Button("ASGORE RAIN (TOP)", ImVec2(-1.0f, 30.0f))) {
+                    normalPhase->TriggerRainAttack(false, true); // False = Normal Mode, True = Top
+                }
+                if (ImGui::Button("ASGORE RAIN (BOTTOM)", ImVec2(-1.0f, 30.0f))) {
+                    normalPhase->TriggerRainAttack(false, false);// False = Normal Mode, False = Bottom
                 }
                 ImGui::PopStyleColor();
 

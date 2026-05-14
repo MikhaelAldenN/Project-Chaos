@@ -308,24 +308,30 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
     if (m_rainState > 0) {
         m_rainTimer += dt;
 
+        // =========================================================
+        // [FIX MUTLAK] GETARAN PERSISTEN
+        // Kocok layar terus-menerus selama Fase 2 (Hujan Deras) DAN Fase 3 (Reda)!
+        // =========================================================
+        if (m_rainState == 2 || m_rainState == 3) {
+            CameraController::Instance().AddTrauma(1.0f * dt); // Agak dinaikkan biar makin terasa
+        }
+
         if (m_rainState == 1) { // FASE WARNING
             if (m_rainTimer >= m_params.rainWarningDuration) {
                 m_rainState = 2; // Mulai Hujan! (Hitbox Aktif)
                 m_rainTimer = 0.0f;
-                CameraController::Instance().AddTrauma(0.5f);
+                CameraController::Instance().AddTrauma(0.5f); // Ledakan getaran awal
             }
         }
         else if (m_rainState == 2) { // FASE RAINING (Mematikan)
             if (m_rainTimer >= m_params.rainActiveDuration) {
-                // [FIX MUTLAK] Jangan langsung jadi 0 (hilang). 
-                // Masuk ke fase 3 agar sisa hujan bisa menyelesaikan jatuhnya!
                 m_rainState = 3;
                 m_rainTimer = 0.0f;
             }
         }
         else if (m_rainState == 3) { // FASE DISSIPATING (Reda & Aman)
             // Tunggu 1.5 detik agar peluru terakhir benar-benar keluar layar bawah
-            if (m_rainTimer >= 1.5f) {
+            if (m_rainTimer >= 1.0f) {
                 m_rainState = 0; // Hujan benar-benar bersih
             }
         }
@@ -374,6 +380,9 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
         if (m_laserTimer >= m_params.laserDuration) {
             m_isLaserLocked = false;
 
+            m_isBijuudamaRecovering = true;
+            m_bijuudamaRecoveryTimer = 0.0f;
+
             if (m_bijuudamaBall && m_bijuudamaBall->IsActive()) {
                 DirectX::XMFLOAT3 vel = m_bijuudamaBall->GetVelocity();
                 if ((vel.x * vel.x + vel.z * vel.z) < 0.01f) {
@@ -394,6 +403,20 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
             }
             m_bijuudamaBall = nullptr;
             m_laserTimer = 0.0f;
+        }
+    }
+
+    // =========================================================
+// --- 4. RECOVERY BIJUUDAMA (DIAM DI ATAS SEJENAK) ---
+// =========================================================
+    if (m_isBijuudamaRecovering) {
+        m_bijuudamaRecoveryTimer += dt;
+
+        if (m_bijuudamaRecoveryTimer >= m_params.bijuudamaPostFireDelay) {
+            // Waktu napas habis, suruh bos pulang ke tengah dengan lambat
+            m_isBijuudamaRecovering = false;
+            m_targetPosition = { 0.0f, 0.0f, 0.0f };
+            m_moveLerpSpeed = m_params.bijuudamaReturnMoveSpeed;
         }
     }
 
@@ -539,11 +562,13 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
         shapeRenderer->DrawSphere(pPos, currentRadius, shrinkColor);
     }
     // =========================================================
-        // [NEW] RENDER ASGORE RAIN ZONE & PROCEDURAL BULLETS
-        // =========================================================
+    // [NEW] RENDER ASGORE RAIN ZONE & PROCEDURAL BULLETS
+    // =========================================================
     if (m_rainState > 0) {
-        float halfW = m_params.rainWidth * 0.5f;
-        float halfD = m_params.rainDepth * 0.5f;
+        float actualW = GetActualRainWidth();
+        float actualD = GetActualRainDepth();
+        float halfW = actualW * 0.5f;
+        float halfD = actualD * 0.5f;
 
         // 1. GAMBAR WARNING ZONE 2D (HANYA DI FASE 1 / SEBELUM HUJAN)
         if (m_rainState == 1) {
@@ -560,8 +585,8 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
             float screenX = (m_rainCenter.x - camPos.x) * p2u + (screenW / 2.0f);
             float screenY = -(m_rainCenter.z - camPos.z) * p2u + (screenH / 2.0f);
 
-            float width2D = m_params.rainWidth * p2u;
-            float height2D = m_params.rainDepth * p2u;
+            float width2D = actualW * p2u;
+            float height2D = actualD * p2u;
 
             m_zonePrimitive->Rect(
                 screenX, screenY,
@@ -576,29 +601,56 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
         // 2. ILUSI HUJAN PELURU ORGANIK (HANYA DI FASE 2 DERAS & FASE 3 REDA)
         if (m_rainState == 2 || m_rainState == 3) {
             std::mt19937 gen(1337);
-            std::uniform_real_distribution<float> distX(m_rainCenter.x - halfW, m_rainCenter.x + halfW);
             std::uniform_real_distribution<float> distSpeed(50.0f, 90.0f);
             std::uniform_real_distribution<float> distSpawn(0.0f, m_params.rainActiveDuration);
 
-            float startZ = m_rainCenter.z + halfD + 5.0f;
-            float endZ = m_rainCenter.z - halfD - 5.0f;
-
             float currentGlobalTime = (m_rainState == 2) ? m_rainTimer : (m_params.rainActiveDuration + m_rainTimer);
-
             int dropCount = 400;
 
             for (int i = 0; i < dropCount; ++i) {
-                float rx = distX(gen);
                 float speed = distSpeed(gen);
                 float spawnTime = distSpawn(gen);
-
                 float localTime = currentGlobalTime - spawnTime;
 
                 if (localTime >= 0.0f) {
-                    float z = startZ - (localTime * speed);
+                    // [FIX MUTLAK] Logika Sumbu DITUKAR agar mengalir sesuai panjang kotak!
 
-                    if (z >= endZ) {
-                        shapeRenderer->DrawSphere({ rx, 1.0f, z }, 0.4f, { 1.0f, 0.4f, 0.0f, 1.0f });
+                    if (m_rainIsVertical) {
+                        // --- ZONA KIRI / KANAN (SIDE MODE) ---
+                        // Kotak memanjang vertikal, jadi Hujan JATUH DARI ATAS KE BAWAH (Sumbu Z)
+                        std::uniform_real_distribution<float> distX(m_rainCenter.x - halfW, m_rainCenter.x + halfW);
+                        float rx = distX(gen);
+
+                        // Mulai dari luar batas atas layar, mengalir turun (-Z)
+                        float topEdge = m_rainCenter.z + halfD + 5.0f;
+                        float bottomEdge = m_rainCenter.z - halfD;
+                        float z = topEdge - (localTime * speed);
+
+                        // Gambar selama belum melewati batas bawah layar
+                        if (z >= bottomEdge) {
+                            shapeRenderer->DrawSphere({ rx, 1.0f, z }, 0.4f, { 1.0f, 0.4f, 0.0f, 1.0f });
+                        }
+                    }
+                    else {
+                        // --- ZONA ATAS / BAWAH (NORMAL MODE) ---
+                        std::uniform_real_distribution<float> distZ(m_rainCenter.z - halfD, m_rainCenter.z + halfD);
+                        float rz = distZ(gen);
+
+                        // [FIX MUTLAK] Gunakan arah sapuan dari AI!
+                        float dir = m_rainSweepDir;
+
+                        // Jika dir > 0 (Ke Kanan), mulai dari Kiri (-). 
+                        // Jika dir < 0 (Ke Kiri), mulai dari Kanan (+)
+                        float startX = (dir > 0) ? (m_rainCenter.x - halfW - 5.0f) : (m_rainCenter.x + halfW + 5.0f);
+                        float endX = (dir > 0) ? (m_rainCenter.x + halfW) : (m_rainCenter.x - halfW);
+
+                        float x = startX + (localTime * speed * dir);
+
+                        // Gambar selama belum melewati batas layar seberangnya
+                        bool isInside = (dir > 0) ? (x <= endX) : (x >= endX);
+                        if (isInside) {
+                            shapeRenderer->DrawSphere({ x, 1.0f, rz }, 0.4f, { 1.0f, 0.4f, 0.0f, 1.0f });
+                        }
                     }
                 }
             }
@@ -613,6 +665,9 @@ void NaviPhaseNormal::TriggerBijuudama(Player* targetPlayer) {
         m_isLaserLocked = true;
         m_laserTimer = 0.0f;
         m_laserTargetPlayer = targetPlayer;
+
+        m_targetPosition = { 0.0f, 0.0f, 10.0f };
+        m_moveLerpSpeed = m_params.bijuudamaAttackMoveSpeed;
 
         // Cari peluru kosong untuk dijadikan Bijuudama
         for (auto& bullet : m_bulletPool) {
@@ -724,17 +779,27 @@ void NaviPhaseNormal::TriggerPhalanx(Player* targetPlayer) {
     }
 }
 
-void NaviPhaseNormal::TriggerRainAttack(bool onLeftSide) {
+void NaviPhaseNormal::TriggerRainAttack(bool isSideMode, bool isPositiveSide, float sweepDir) {
     if (m_rainState == 0) {
-        m_rainState = 1; // Mulai fase Warning!
+        m_rainState = 1;
         m_rainTimer = 0.0f;
+        m_rainIsVertical = isSideMode;
+        m_rainSweepDir = sweepDir;
 
-        // Tentukan posisi tengah kotak mematikan
-        // Jika layar total lebarnya ~50 (limitX 25), kita taruh tengah kotak di X = -12.5 atau +12.5
-        float offsetX = m_params.rainWidth * 0.5f;
-        m_rainCenter.x = onLeftSide ? -offsetX : offsetX;
-        m_rainCenter.y = 0.0f;
-        m_rainCenter.z = 0.0f; // Tengah layar sumbu Z
+        if (!isSideMode) {
+            // --- HUJAN NORMAL (ATAS / BAWAH) ---
+            // Lebar penuh (80), tinggi dibagi dua (15)
+            // Pusat Z di +/- 7.5f (Setengah dari tinggi area 15)
+            m_rainCenter.x = 0.0f;
+            m_rainCenter.z = isPositiveSide ? 7.5f : -7.5f;
+        }
+        else {
+            // --- HUJAN SAMPING (KIRI / KANAN) ---
+            // Tinggi penuh (45), lebar dibagi dua (25)
+            // Pusat X di +/- 12.5f (Setengah dari lebar area 25)
+            m_rainCenter.x = isPositiveSide ? 12.5f : -12.5f;
+            m_rainCenter.z = 0.0f;
+        }
     }
 }
 
@@ -757,29 +822,36 @@ void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
     std::mt19937 gen(rd());
 
     // =========================================================
-    // [TRACK A] ENVIRONMENTAL HAZARD: ASGORE RAIN
-    // Track ini beroperasi secara mandiri dan BISA JALAN BARENG serangan lain!
+    // [TRACK A] TARGETED SIDE RAIN (Eksklusif Kiri / Kanan)
+    // Serangan ini muncul secara mandiri untuk mengincar posisi X Player
     // =========================================================
     if (m_cdRain > 0.0f) m_cdRain -= dt;
 
-    // Syarat Mutlak: Boleh trigger Rain asalkan bos TIDAK sedang mengecas Bijuudama
-    if (m_cdRain <= 0.0f && !m_isLaserLocked) {
-        std::uniform_int_distribution<> distSide(0, 1);
-        TriggerRainAttack(distSide(gen) == 0);
+    if (m_cdRain <= 0.0f && !m_isLaserLocked && m_phalanxState == 0) {
+        std::uniform_int_distribution<> distSideMode(0, 1);
+        bool useSideMode = (distSideMode(gen) == 0);
+
+        // Acak arah sapuan (1.0f atau -1.0f)
+        float randomSweep = (distSideMode(gen) == 0) ? 1.0f : -1.0f;
+
+        if (useSideMode) {
+            bool isRightSide = (m_aiTarget->GetPosition().x > 0.0f);
+            TriggerRainAttack(true, isRightSide);
+        }
+        else {
+            bool isTopSide = (m_aiTarget->GetPosition().z > 0.0f);
+            TriggerRainAttack(false, isTopSide, randomSweep); // [FIX] Lempar arah acak
+        }
 
         std::uniform_real_distribution<float> distCD(8.0f, 15.0f);
         m_cdRain = distCD(gen);
-        // PENTING: Kita tidak memasang Global Cooldown di sini agar bos bisa
-        // langsung nembak serangan lain sebagai Combo!
     }
 
     // =========================================================
-    // [TRACK B] DIRECT ATTACKS: SERANGAN UTAMA SEKUENSIAL
+    // [TRACK B] DIRECT ATTACKS & COMBO
     // =========================================================
-    // 1. Cek apakah bos sedang sibuk dengan serangan utama (RAIN DIKELUARKAN DARI SINI!)
-    bool isBusyMain = m_isFiring || m_isFiringFan || (m_phalanxState > 0) || m_isLaserLocked;
+    bool isBusyMain = m_isFiring || m_isFiringFan || (m_phalanxState > 0) || m_isLaserLocked || m_isBijuudamaRecovering;
 
-    // 2. Jalankan Global Cooldown & Cooldown Utama HANYA jika tidak sibuk
     if (!isBusyMain) {
         if (m_aiGlobalCooldown > 0.0f) {
             m_aiGlobalCooldown -= dt;
@@ -792,24 +864,36 @@ void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
         }
     }
 
-    // 3. EKSEKUSI SERANGAN UTAMA (Jika bos nganggur & sudah istirahat)
     if (!isBusyMain && m_aiGlobalCooldown <= 0.0f) {
 
-        // Prioritas 1: Bijuudama
-        // Syarat Mutlak: TIDAK BOLEH trigger Bijuudama jika Asgore Rain sedang aktif!
+        // Prioritas 1: Bijuudama (Dilarang bareng hujan jenis apapun)
         if (m_cdBijuudama <= 0.0f && m_rainState == 0) {
             TriggerBijuudama(m_aiTarget);
             std::uniform_real_distribution<float> distCD(15.0f, 25.0f);
             m_cdBijuudama = distCD(gen);
             m_aiGlobalCooldown = 1.0f;
         }
-        // Prioritas 2: Glintstone Phalanx
-        else if (m_cdPhalanx <= 0.0f) {
+        // =========================================================
+        // Prioritas 2: PHALANX + TOP/BOTTOM RAIN COMBO!
+        // Hujan Palang (Horizontal Sweep) sekarang EKSKLUSIF di sini
+        // =========================================================
+        else if (m_cdPhalanx <= 0.0f && m_rainState == 0) {
             TriggerPhalanx(m_aiTarget);
+
+            bool isTopSide = (m_aiTarget->GetPosition().z > 0.0f);
+
+            // [FIX MUTLAK] HUBUNGKAN VISUAL HUJAN DENGAN POSISI BOS!
+            // Jika Navi meluncur ke Kanan (X > 0), hujan datang dari Kanan menyapu ke Kiri (-1.0f)
+            // Jika Navi meluncur ke Kiri (X < 0), hujan datang dari Kiri menyapu ke Kanan (1.0f)
+            float sweepDirection = (m_targetPosition.x > 0.0f) ? -1.0f : 1.0f;
+
+            TriggerRainAttack(false, isTopSide, sweepDirection);
+
             std::uniform_real_distribution<float> distCD(6.0f, 10.0f);
             m_cdPhalanx = distCD(gen);
             m_aiGlobalCooldown = 1.0f;
         }
+
         // Prioritas 3: Fan Wave (Shotgun)
         else if (m_cdFan <= 0.0f) {
             TriggerFanAttack(boss, m_aiTarget->GetPosition());

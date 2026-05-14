@@ -991,15 +991,15 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
         DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
         DirectX::XMFLOAT3 rCenter = normalPhase->GetRainCenter();
 
-        float halfW = normalPhase->GetParams().rainWidth * 0.5f;
-        float halfD = normalPhase->GetParams().rainDepth * 0.5f;
+        // [FIX MUTLAK] Wajib panggil GetActualRain... agar hitbox akurat dengan visual 2D!
+        // Jangan pernah pakai m_params.rainWidth lagi di sini!
+        float halfW = normalPhase->GetActualRainWidth() * 0.5f;
+        float halfD = normalPhase->GetActualRainDepth() * 0.5f;
 
         // Pengecekan Kotak (AABB): Apakah player ada di dalam batas X dan Z area hujan?
         if (pPos.x > (rCenter.x - halfW) && pPos.x < (rCenter.x + halfW) &&
             pPos.z >(rCenter.z - halfD) && pPos.z < (rCenter.z + halfD))
         {
-            // Karena m_player->TakeDamage biasanya sudah punya hit-invincibility (i-frame) bawaan,
-            // dia tidak akan mati instan (terkena damage bertubi-tubi per frame), melainkan terkena damage sesuai interval i-frame.
             m_player->TakeDamage(normalPhase->GetParams().rainDamage);
 
             if (m_player->GetHP() <= 0) {

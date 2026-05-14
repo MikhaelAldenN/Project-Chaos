@@ -43,6 +43,9 @@ struct NaviBulletParams {
     float bijuudamaVisualMultiplier = 4.0f;
     float bijuudamaSpawnOffsetZ = 2.0f;
     float bijuudamaShootSpeed = 45.0f;
+    float bijuudamaAttackMoveSpeed = 5.0f; // Kecepatan meluncur ke atas
+    float bijuudamaReturnMoveSpeed = 2.0f; // Kecepatan balik ke tengah (lebih anggun)
+    float bijuudamaPostFireDelay = 1.0f;
 
     // ==========================================
     // Parameter Shatter Bijuudama
@@ -100,13 +103,19 @@ public:
         m_isLaserLocked = false;
         m_bijuudamaBall = nullptr;
         m_laserTimer = 0.0f;
+        m_isBijuudamaRecovering = true;
+        m_bijuudamaRecoveryTimer = 0.0f;
     }
     bool IsLaserLocked() const { return m_isLaserLocked; }
 
     void TriggerPhalanx(Player* targetPlayer);
-    void TriggerRainAttack(bool onLeftSide);
+    void TriggerRainAttack(bool isVertical, bool isPositiveSide, float sweepDir = 1.0f);
     void ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* boss);
     int GetRainState() const { return m_rainState; }
+    bool IsRainVertical() const { return m_rainIsVertical; }
+    float GetActualRainWidth() const { return m_rainIsVertical ? 25.0f : 80.0f; }
+    float GetActualRainDepth() const { return m_rainIsVertical ? 45.0f : 15.0f; }
+
     DirectX::XMFLOAT3 GetRainCenter() const { return m_rainCenter; }
 
     NaviBulletParams& GetParams() { return m_params; }
@@ -159,6 +168,8 @@ private:
     Player* m_laserTargetPlayer = nullptr; // Pointer aman karena Player dikelola SceneBoss
 
     Bullet* m_bijuudamaBall = nullptr;
+    bool m_isBijuudamaRecovering = false;
+    float m_bijuudamaRecoveryTimer = 0.0f;
 
     // ==========================================
     // [NEW] State Glintstone Phalanx
@@ -176,6 +187,8 @@ private:
     int m_rainState = 0; // 0 = Off, 1 = Warning, 2 = Raining
     float m_rainTimer = 0.0f;
     DirectX::XMFLOAT3 m_rainCenter = { 0,0,0 };
+    bool m_rainIsVertical = false;
+    float m_rainSweepDir = 1.0f;
 
     std::unique_ptr<Primitive> m_zonePrimitive;
 
