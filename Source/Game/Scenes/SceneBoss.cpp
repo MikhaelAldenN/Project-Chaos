@@ -872,21 +872,29 @@ void SceneBoss::DrawGUI()
                 ImGui::PopStyleColor(2);
 
                 // =========================================================
-                // [NEW] TUNING: ORBITAL BLASTER (SANS)
-                // =========================================================
+                                // [NEW] TUNING: ORBITAL BLASTER (SANS)
+                                // =========================================================
                 if (ImGui::CollapsingHeader("Orbital Blaster Config", ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     auto& bp = wkPhase->GetBlasterParams();
 
-                    ImGui::DragFloat("Cannon Scale", &bp.headScale, 0.1f, 1.0f, 10.0f, "%.1f");
-                    ImGui::SliderFloat("Beam Max Width", &bp.beamTargetScaleX, 1.0f, 15.0f);
-                    ImGui::SliderFloat("Beam Width Mult", &bp.beamWidthMult, 1.0f, 20.0f);
+                    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "--- Cannon Head ---");
+                    ImGui::SliderFloat("Cannon Window Size", &bp.cannonWindowSize, 100.0f, 800.0f);
+                    ImGui::SliderFloat("Cannon Visual Scale", &bp.cannonVisualScale, 0.1f, 10.0f);
+                    ImGui::SliderFloat("Cannon Hitbox Radius", &bp.cannonHitboxRadius, 0.1f, 10.0f);
+
+                    ImGui::Separator();
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Laser Beam ---");
+                    ImGui::SliderFloat("Beam Visual Width", &bp.beamVisualWidth, 1.0f, 20.0f);
+                    ImGui::SliderFloat("Beam Hitbox Width", &bp.beamHitboxWidth, 1.0f, 20.0f);
                     ImGui::SliderFloat("Beam Max Length", &bp.beamMaxLength, 50.0f, 500.0f);
+
                     ImGui::Separator();
                     ImGui::SliderFloat("Slide Speed (Down)", &bp.beamSlideSpeed, 1.0f, 50.0f);
                     ImGui::SliderFloat("Grow Speed (Width)", &bp.beamGrowSpeed, 1.0f, 100.0f);
                     ImGui::SliderInt("Damage per Tick", &bp.beamDamage, 1, 100);
                 }
+
 
                 // =========================================================
                 // [NEW] TUNING: BOUNCING WINDOWS

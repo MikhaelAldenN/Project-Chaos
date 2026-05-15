@@ -1061,24 +1061,25 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
         // =========================================================
     if (wkPhase) {
         auto blaster = wkPhase->GetBlaster();
-        const auto& p = wkPhase->GetBlasterParams(); // Memanggil getter yang baru dibuat
+        const auto& p = wkPhase->GetBlasterParams(); // Memanggil getter parameter baru
 
         // Damage HANYA diberikan saat State = 3 (Firing)
         if (blaster.active && blaster.state == 3) {
             DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
 
-            // Hitung Area Laser berdasarkan parameter terpusat
-            float halfWidth = (blaster.beamScaleX * p.beamWidthMult) * 0.5f;
-            float laserLength = p.beamMaxLength;
+            // [FIX] Deklarasikan halfWidth dan laserLength dengan benar
+            float halfWidth = p.beamHitboxWidth * 0.5f;
+            float currentLaserLength = blaster.beamCurrentLength;
 
             float zStart = blaster.pos.z;
-            float zEnd = blaster.pos.z - laserLength;
+            float zEnd = blaster.pos.z - currentLaserLength;
 
+            // Deteksi tabrakan kotak (AABB) dengan laser
             if (pPos.x > (blaster.pos.x - halfWidth) && pPos.x < (blaster.pos.x + halfWidth) &&
                 pPos.z < zStart && pPos.z > zEnd)
             {
                 if (!m_player->IsInvincible()) {
-                    m_player->TakeDamage(p.beamDamage); // Menggunakan damage dari params
+                    m_player->TakeDamage(p.beamDamage); // Gunakan damage dari ImGui
 
                     if (m_player->GetHP() <= 0) {
                         m_player->scale = { 0.0f, 0.0f, 0.0f };

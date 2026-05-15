@@ -6,6 +6,7 @@
 #include "BeyondWindow.h"
 #include "Camera.h"
 #include "Bullet.h"
+#include "Primitive.h"
 
 class Sprite;
 
@@ -77,38 +78,46 @@ public:
 
     struct OrbitalBlaster {
         bool active = false;
-        int state = 0; // 1: Drop, 2: Charge, 3: Fire, 4: Retreat
+        int state = 0;
         float timer = 0.0f;
 
         DirectX::XMFLOAT3 pos = { 0.0f, 0.0f, 0.0f };
         DirectX::XMFLOAT3 targetPos = { 0.0f, 0.0f, 0.0f };
 
         float beamScaleX = 0.0f;
-        float headScale = 2.0f;
+        // HAPUS "float headScale = 2.0f;" dari sini!
 
-        // [FIX] Tambahkan variabel pelacak window dan panjang beam
         std::string windowName = "blaster_cannon_window";
         std::string beamWindowName = "blaster_beam_window";
         float beamCurrentLength = 0.0f;
     };
 
     OrbitalBlaster GetBlaster() const { return m_testBlaster; }
-    
+
+    // ==========================================
+    // PARAMETER ORBITAL BLASTER (REFINED)
+    // ==========================================
     struct BlasterParams {
-        float headScale = 1.0f;         // Ukuran dasar kepala meriam
-        float beamTargetScaleX = 4.0f;  // Seberapa lebar laser membesar saat tembak
-        float beamWidthMult = 1.0f;     // Pengali lebar (Hitbox & Visual)
-        float beamMaxLength = 120.0f;   // Panjang maksimal laser
-        float beamGrowSpeed = 20.0f;    // Kecepatan laser melebar
-        float beamSlideSpeed = 10.0f;   // Kecepatan laser memanjang ke bawah
-        int   beamDamage = 20;          // Damage per tick
+        // Pemisahan Cannon (Kepala Meriam)
+        float cannonWindowSize = 200.0f;  // Ukuran Jendela OS Cannon
+        float cannonVisualScale = 2.0f;   // Ukuran Model 3D Cannon
+        float cannonHitboxRadius = 1.5f;  // Hitbox jika player nabrak meriamnya
+
+        // Pemisahan Laser Beam
+        float beamVisualWidth = 2.0f;     // Lebar visual energi 2D (Cyan)
+        float beamHitboxWidth = 5.0f;     // Lebar hitbox damage (kawat merah)
+        float beamMaxLength = 120.0f;     // Panjang maksimal laser
+
+        float beamGrowSpeed = 20.0f;
+        float beamSlideSpeed = 1.0f;
+        int   beamDamage = 20;
     };
 
     // ==========================================
-        // PARAMETER WINDOW MEMANTUL (REFINED)
-        // ==========================================
+    // PARAMETER WINDOW MEMANTUL (REFINED)
+    // ==========================================
     struct BouncingBulletParams {
-        float speed = 18.0f;
+        float speed = 25.0f;
         int   maxBounces = 8;
         int   spawnCount = 3;
 
@@ -172,4 +181,6 @@ private:
 
     BlasterParams m_blasterParams; // Instance parameter
     BouncingBulletParams m_bouncingParams; // Instance parameter
+
+    std::unique_ptr<Primitive> m_solidRenderer;
 };
