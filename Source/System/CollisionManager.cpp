@@ -186,7 +186,6 @@ void CollisionManager::Initialize(Player* p, Stage* s, EnemyManager* em, ItemMan
 void CollisionManager::Update(float elapsedTime)
 {
     CheckEnemyProjectilesFull(elapsedTime);
-    CheckStageCollision();
     CheckPlayerProjectilesVsEnemies();
     CheckPlayerVsEnemies();
     CheckPlayerVsCheckpointLines();
@@ -403,71 +402,6 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
 
             bullet->ApplyMovement(nextPosFloat, currentVel);
             ++it;
-        }
-    }
-}
-
-void CollisionManager::CheckStageCollision()
-{
-    if (!m_player || !m_stage) return;
-
-    float playerRadius = 0.5f;
-    auto* moveComp = m_player->GetMovement();
-    int iterations = 4;
-
-    for (int iter = 0; iter < iterations; ++iter)
-    {
-        XMFLOAT3 playerPos = moveComp->GetPosition();
-        XMFLOAT3 vel = moveComp->GetVelocity();
-        bool collidedAny = false;
-
-        for (const auto& wall : m_stage->m_debugWalls)
-        {
-            float maxScale = (std::max)(wall.Scale.x, wall.Scale.z);
-            float dx = playerPos.x - wall.Position.x;
-            float dz = playerPos.z - wall.Position.z;
-            float distSq = (dx * dx) + (dz * dz);
-            float checkDist = maxScale + playerRadius + 2.0f;
-            if (distSq > (checkDist * checkDist)) continue;
-
-            XMVECTOR vLocalPos = TransformToLocal(playerPos, wall);
-            XMFLOAT3 localPos;
-            XMStoreFloat3(&localPos, vLocalPos);
-
-            float closestX = (std::max)(-wall.Scale.x, (std::min)(localPos.x, wall.Scale.x));
-            float closestZ = (std::max)(-wall.Scale.z, (std::min)(localPos.z, wall.Scale.z));
-
-            float localDx = localPos.x - closestX;
-            float localDz = localPos.z - closestZ;
-            float localDistSq = (localDx * localDx) + (localDz * localDz);
-
-            if (localDistSq < (playerRadius * playerRadius) && localDistSq > 0.00001f)
-            {
-                float localDist = sqrt(localDistSq);
-                float penetrationDepth = playerRadius - localDist;
-
-                XMVECTOR vLocalNormal = XMVectorSet(localDx / localDist, 0.0f, localDz / localDist, 0.0f);
-                XMVECTOR vWorldNormal = TransformNormalToWorld(vLocalNormal, wall);
-
-                XMVECTOR vPush = XMVectorScale(vWorldNormal, penetrationDepth);
-                XMVECTOR vCurrentPos = XMLoadFloat3(&playerPos);
-                vCurrentPos = XMVectorAdd(vCurrentPos, vPush);
-                XMStoreFloat3(&playerPos, vCurrentPos);
-
-                collidedAny = true;
-
-                XMVECTOR vVel = XMLoadFloat3(&vel);
-                float dot = XMVectorGetX(XMVector3Dot(vVel, vWorldNormal));
-                if (dot < 0.0f) {
-                    vVel = XMVectorSubtract(vVel, XMVectorScale(vWorldNormal, dot));
-                    XMStoreFloat3(&vel, vVel);
-                }
-            }
-        }
-
-        if (collidedAny) {
-            moveComp->SetPosition(playerPos);
-            moveComp->SetVelocity(vel);
         }
     }
 }

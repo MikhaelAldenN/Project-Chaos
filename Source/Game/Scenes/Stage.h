@@ -4,12 +4,21 @@
 #include <cmath>
 #include <DirectXMath.h>
 #include <memory>
+#include "System/Misc.h"
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <PxPhysicsAPI.h>
+#include <cooking/PxCooking.h>
+#include <geometry/PxTriangleMesh.h>
+#include <geometry/PxTriangleMeshGeometry.h>
 #include "System/ModelRenderer.h"
 #include "System/ShapeRenderer.h" 
 #include "System/PrimitiveRenderer.h"
+#pragma comment(lib, "PhysXCooking_64.lib") 
+#pragma comment(lib, "PhysXCommon_64.lib")
+#pragma comment(lib, "PhysXFoundation_64.lib")
+
 
 // ==========================================
 // STAGE CONFIGURATION 
@@ -168,7 +177,7 @@ class Stage
 {
 public:
     Stage(ID3D11Device* device);
-    ~Stage() = default;
+    ~Stage();
 
     void UpdateTransform();
     void Render(ModelRenderer* renderer);
@@ -181,6 +190,10 @@ public:
     void SetWallHighlight(int index) { m_highlightWallIndex = index; }
     void ClearLineHighlight() { m_highlightState.index = -1; }
     void ClearWallHighlight() { m_highlightWallIndex = -1; }
+
+    // Physics Engine Hooks
+    void InitPhysics(physx::PxPhysics* physics, physx::PxScene* scene, physx::PxMaterial* material);
+    void RebuildPhysics();
 
     std::shared_ptr<Model> GetModel() const { return model; }
     const SpatialHashGrid& GetSpatialGrid() const { return m_spatialGrid; }
@@ -209,4 +222,11 @@ private:
 
     SpatialHashGrid m_spatialGrid;
     std::shared_ptr<Model> model;
+
+    physx::PxPhysics* m_physics{ nullptr };
+    physx::PxScene* m_scene{ nullptr };
+    physx::PxMaterial* m_material{ nullptr };
+    physx::PxRigidStatic* m_physxActor{ nullptr };
+
+    std::vector<physx::PxTriangleMesh*> m_collisionMeshes;
 };

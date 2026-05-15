@@ -81,6 +81,7 @@ SceneGame::SceneGame()
     m_player = std::make_unique<Player>();
 
     m_player->InitPhysics(m_controllerManager.get(), m_defaultMaterial.get());
+    m_stage->InitPhysics(m_physics.get(), m_scene.get(), m_defaultMaterial.get());
 
     m_player->SetMoveSpeed(15.0f);
     m_player->SetInputEnabled(true);
@@ -111,7 +112,11 @@ SceneGame::SceneGame()
 SceneGame::~SceneGame()
 {
     CameraController::Instance().ClearCamera();
+
     m_player.reset();
+    m_stage.reset();
+    m_enemyManager.reset();
+    m_itemManager.reset();
 }
 
 void SceneGame::Update(const float elapsedTime)
