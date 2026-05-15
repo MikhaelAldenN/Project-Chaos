@@ -75,7 +75,7 @@ private:
         bool MasterEnabled{ true };
         bool EnableVignette{ false };
         bool EnableLens{ false };
-        bool EnableChromatic{ false };
+        bool EnableChromatic{ true };
         bool EnableCRT{ false };
         bool EnableBloom{ true }; 
         bool EnablePSX{ true };   
