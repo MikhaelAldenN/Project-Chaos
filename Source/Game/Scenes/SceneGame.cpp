@@ -83,8 +83,11 @@ SceneGame::SceneGame()
     m_player->InitPhysics(m_controllerManager.get(), m_defaultMaterial.get());
     m_stage->InitPhysics(m_physics.get(), m_scene.get(), m_defaultMaterial.get());
 
-    m_player->SetMoveSpeed(15.0f);
-    m_player->SetInputEnabled(true);
+    PlayerConfig gameConfig{};            
+    gameConfig.moveSpeed = 8.0f;         
+    gameConfig.dashSpeed = 28.0f;         
+
+    m_player->ApplyConfig(gameConfig);
     m_player->GetMovement()->SetRotationY(DirectX::XM_PI);
 
     m_enemyManager = std::make_unique<EnemyManager>();

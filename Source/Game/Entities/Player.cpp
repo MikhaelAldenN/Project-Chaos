@@ -105,6 +105,18 @@ void Player::InitPhysics(physx::PxControllerManager* manager, physx::PxMaterial*
     m_physxController = manager->createController(desc);
 }
 
+void Player::ApplyConfig(const PlayerConfig& config) noexcept
+{
+    moveSpeed = config.moveSpeed;
+    dashSpeed = config.dashSpeed;
+    dashDuration = config.dashDuration;
+    dashCooldown = config.dashCooldown;
+    acceleration = config.acceleration;
+    deceleration = config.deceleration;
+    gravityEnabled = config.gravityEnabled;
+    invertControls = config.invertControls;
+}
+
 void Player::Update(float elapsedTime, Camera* camera)
 {
     if (m_invincibilityTimer > 0.0f)

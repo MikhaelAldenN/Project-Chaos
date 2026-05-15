@@ -18,6 +18,18 @@ class AnimationController;
 class Camera;
 class CollisionManager;
 
+struct PlayerConfig
+{
+    float moveSpeed{ PlayerConst::MoveSpeed };
+    float dashSpeed{ PlayerConst::DashSpeed };
+    float dashDuration{ PlayerConst::DashDuration };
+    float dashCooldown{ PlayerConst::DashCooldown };
+    float acceleration{ PlayerConst::Acceleration };
+    float deceleration{ PlayerConst::Deceleration };
+    bool  gravityEnabled{ true };
+    bool  invertControls{ false };
+};
+
 class Player : public Character
 {
 public:
@@ -54,11 +66,7 @@ public:
     void SetPosition(const DirectX::XMFLOAT3& pos);
 
     // --- Movement config ---
-    void SetMoveSpeed(float speed) { moveSpeed = speed; }
-    void SetInvertControls(bool invert) { invertControls = invert; }
-    void SetGravityEnabled(bool enable) { gravityEnabled = enable; }
-    void SetDashSpeed(float speed) { dashSpeed = speed; } // Tambahkan ini
-    void SetDashDuration(float duration) { dashDuration = duration; } // Opsional: jika ingin durasi berbeda juga
+    void ApplyConfig(const PlayerConfig& config) noexcept;
 
     // --- Physics init (call once after scene PhysX setup) ---
     // spawnY: initial capsule Y position. SceneGame uses 15.0 (falls to ground).
