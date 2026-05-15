@@ -67,6 +67,12 @@ void UberShader::Draw(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* texture
         cb.bloomThreshold = data.bloomThreshold;
         cb.bloomIntensity = data.bloomIntensity;
 
+        cb.psxEnabled = finalData.psxEnabled ? 1.0f : 0.0f;
+        cb.psxResWidth = (std::max)(1.0f, finalData.psxResWidth); 
+        cb.psxResHeight = (std::max)(1.0f, finalData.psxResHeight);
+        cb.psxColorDepth = (std::max)(1.0f, finalData.psxColorDepth);
+        cb.psxDitherStrength = finalData.psxDitherStrength;
+
         dc->UpdateSubresource(constantBuffer.Get(), 0, 0, &cb, 0, 0);
         currentData = finalData;
     }

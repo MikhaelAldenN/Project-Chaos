@@ -28,7 +28,14 @@ cbuffer UberConstantBuffer : register(b0)
     // --- HDR BLOOM ---
     float bloomThreshold;
     float bloomIntensity;
-    float padding_bloom;
+    
+    // --- PSX SETTINGS ---
+    float psxEnabled;
+    float psxResWidth;
+    float psxResHeight;
+    float psxColorDepth;
+    float psxDitherStrength;
+    float3 padding_psx;
 };
 
 struct VS_OUT
@@ -61,6 +68,14 @@ float2 LensDistortion(float2 uv, float k)
     return v_center + t * f;
 }
 
+// Standard 4x4 Bayer Dither Matrix used in Retro Graphics
+static const float4x4 BayerMatrix = float4x4(
+    0.0 / 16.0, 8.0 / 16.0, 2.0 / 16.0, 10.0 / 16.0,
+    12.0 / 16.0, 4.0 / 16.0, 14.0 / 16.0, 6.0 / 16.0,
+    3.0 / 16.0, 11.0 / 16.0, 1.0 / 16.0, 9.0 / 16.0,
+    15.0 / 16.0, 7.0 / 16.0, 13.0 / 16.0, 5.0 / 16.0
+);
+
 // =========================================================
 // AAA GAUSSIAN BLOOM EXTRACTOR
 // =========================================================
@@ -86,6 +101,10 @@ float3 SampleBloom(float2 uv, float2 texelSize, float radius)
     for (int i = 0; i < 9; i++)
     {
         float3 c = sceneTexture.SampleLevel(samplerState, uv + offsets[i] * texelSize * radius, 0).rgb;
+        if (any(isnan(c)) || any(isinf(c)))
+        {
+            c = float3(0, 0, 0);
+        }
         // Measure real brightness
         float brightness = dot(c, float3(0.2126, 0.7152, 0.0722));
         // Extract only the pixels that are violently bright (brighter than the threshold)
@@ -103,6 +122,17 @@ float4 main(VS_OUT pin) : SV_TARGET
 {
     float2 uv = pin.texcoord;
 
+    // =========================================================
+    // PSX: RESOLUTION CRUNCH (Pixelation)
+    // =========================================================
+    [branch]
+    if (psxEnabled > 0.5f)
+    {
+        float2 psxRes = float2(psxResWidth, psxResHeight);
+        // Floor the UVs to create chunky pixels
+        uv = floor(uv * psxRes) / psxRes;
+    }
+    
     // -----------------------------------------------------
     // STEP 1: GLITCH JITTER (Shake)
     // -----------------------------------------------------
@@ -180,6 +210,11 @@ float4 main(VS_OUT pin) : SV_TARGET
         finalColor.r = sceneTexture.Sample(samplerState, uvR).r;
         finalColor.g = sceneTexture.Sample(samplerState, uvG).g;
         finalColor.b = sceneTexture.Sample(samplerState, uvB).b;
+        
+        if (any(isnan(finalColor)) || any(isinf(finalColor)))
+        {
+            finalColor = float4(0, 0, 0, 1);
+        }
     }
 
     // -----------------------------------------------------
@@ -241,6 +276,30 @@ float4 main(VS_OUT pin) : SV_TARGET
     
     finalColor.rgb = saturate((finalColor.rgb * (2.51f * finalColor.rgb + 0.03f)) /
                               (finalColor.rgb * (2.43f * finalColor.rgb + 0.59f) + 0.14f));
+    
+    // =========================================================
+    // PSX STEP 2: DITHERING & COLOR QUANTIZATION (Banding)
+    // =========================================================
+    [branch]
+    if (psxEnabled > 0.5f)
+    {
+        // 1. Calculate screen coordinate for the dither matrix
+        float2 screenPos = pin.texcoord * float2(psxResWidth, psxResHeight);
+        
+        // 2. Fetch the Bayer matrix value (using modulo to tile it 4x4)
+        int x = int(fmod(screenPos.x, 4.0));
+        int y = int(fmod(screenPos.y, 4.0));
+        float dither = BayerMatrix[x][y];
+        
+        // Center the dither around 0 (-0.5 to 0.5) and apply strength
+        dither = (dither - 0.5f) * psxDitherStrength;
+
+        // 3. Apply 5-bit color crunch (32 levels per channel)
+        // We add the dither *before* we floor the color to mask the harsh bands
+        finalColor.r = floor((finalColor.r + dither / psxColorDepth) * psxColorDepth) / psxColorDepth;
+        finalColor.g = floor((finalColor.g + dither / psxColorDepth) * psxColorDepth) / psxColorDepth;
+        finalColor.b = floor((finalColor.b + dither / psxColorDepth) * psxColorDepth) / psxColorDepth;
+    }
     
     return finalColor;
 }

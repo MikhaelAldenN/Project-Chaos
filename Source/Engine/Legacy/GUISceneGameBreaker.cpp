@@ -416,6 +416,12 @@ void GameBreakerGUI::DrawPostProcessTab(SceneGame* scene)
     {
         ImGui::Indent();
 
+        // Use the centralized State toggle
+        ImGui::Checkbox("ACTIVATE: Bloom", &scene->m_fxState.EnableBloom);
+
+        // Dim the UI if disabled
+        if (!scene->m_fxState.EnableBloom) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
+
         ImGui::DragFloat("Bloom Threshold", &uber.bloomThreshold, 0.05f, 0.0f, 10.0f);
         ImGui::DragFloat("Bloom Intensity", &uber.bloomIntensity, 0.05f, 0.0f, 10.0f);
 
@@ -424,6 +430,25 @@ void GameBreakerGUI::DrawPostProcessTab(SceneGame* scene)
             uber.bloomThreshold = 1.0f;
             uber.bloomIntensity = 1.5f;
         }
+
+        if (!scene->m_fxState.EnableBloom) ImGui::PopStyleVar();
+        ImGui::Unindent();
+    }
+
+    if (ImGui::CollapsingHeader("PSX Retro Filter", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Indent();
+        
+        ImGui::Checkbox("ACTIVATE: PSX Filter", &scene->m_fxState.EnablePSX);
+        
+        if (!scene->m_fxState.EnablePSX) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
+
+        ImGui::SliderFloat("Resolution Width", &uber.psxResWidth, 160.0f, 1920.0f);
+        ImGui::SliderFloat("Resolution Height", &uber.psxResHeight, 120.0f, 1080.0f);
+        ImGui::SliderFloat("Color Depth (Banding)", &uber.psxColorDepth, 2.0f, 255.0f);
+        ImGui::SliderFloat("Dither Strength", &uber.psxDitherStrength, 0.0f, 2.0f);
+
+        if (!scene->m_fxState.EnablePSX) ImGui::PopStyleVar();
         ImGui::Unindent();
     }
 }

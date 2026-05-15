@@ -5,7 +5,7 @@ using namespace DirectX;
 Stage::Stage(ID3D11Device* device)
 {
     // Load the model
-    //model = std::make_shared<Model>(device, StageConfig::MODEL_PATH);
+    model = std::make_shared<Model>(device, StageConfig::MODEL_PATH);
 
     // Apply defaults
     position = StageConfig::DEFAULT_POS;

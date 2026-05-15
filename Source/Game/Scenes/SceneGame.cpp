@@ -219,16 +219,6 @@ void SceneGame::Update(const float elapsedTime)
     CameraController::Instance().Update(elapsedTime);
 
     EffectManager::Instance().Update(elapsedTime);
-
-    m_uberParams.fineOpacity = 1.0f;
-    m_uberParams.fineDensity = m_configFineDensity;
-    m_uberParams.fineRotation = 0.0f;
-    m_uberParams.scanlineStrength = Config::FX_CRT_BASE_STRENGTH;
-    m_uberParams.glitchStrength = 0.0f;
-    m_uberParams.distortion = 0.0f;
-    m_uberParams.chromaticAberration = 0.0f;
-    m_uberParams.smoothness = 0.2f;
-    m_uberParams.intensity = 0.38f;
 }
 
 void SceneGame::Render(float elapsedTime, Camera* camera)
@@ -239,15 +229,27 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
 
     m_postProcess->SetEnabled(m_fxState.MasterEnabled);
 
+    UberShader::UberData& activeData{ m_postProcess->GetData() };
+    activeData = this->m_uberParams; 
+
+    activeData.psxEnabled = (m_fxState.MasterEnabled && m_fxState.EnablePSX);
+
+    if (!m_fxState.EnableVignette)  activeData.intensity = 0.0f;
+    if (!m_fxState.EnableLens) { activeData.glitchStrength = 0.0f; activeData.distortion = 0.0f; }
+    if (!m_fxState.EnableChromatic) activeData.chromaticAberration = 0.0f;
+    if (!m_fxState.EnableCRT) { activeData.scanlineStrength = 0.0f; activeData.fineOpacity = 0.0f; }
+    if (!m_fxState.EnableBloom)     activeData.bloomIntensity = 0.0f;
+
     if (m_fxState.MasterEnabled) {
         m_postProcess->BeginCapture();
     }
     else {
+        // Fallback clear if post-process is bypassed
         ID3D11RenderTargetView* originalRTV{ nullptr };
         ID3D11DepthStencilView* originalDSV{ nullptr };
         dc->OMGetRenderTargets(1, &originalRTV, &originalDSV);
         if (originalRTV) {
-            float clearColor[4]{ 0.0f, 0.0f, 0.2f, 1.0f };
+            float clearColor[4]{ 0.0f, 0.0f, 0.0f, 1.0f }; // Solid black
             dc->ClearRenderTargetView(originalRTV, clearColor);
             originalRTV->Release();
         }
@@ -267,7 +269,7 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
         auto shapeRenderer{ Graphics::Instance().GetShapeRenderer() };
         auto primRenderer{ Graphics::Instance().GetPrimitiveRenderer() };
 
-        primRenderer->DrawGrid(50, 1.0f);
+        //primRenderer->DrawGrid(50, 1.0f);
 
         if (m_itemManager) m_itemManager->RenderDebug(shapeRenderer);
         if (m_stage) m_stage->RenderDebug(shapeRenderer, primRenderer);
@@ -278,14 +280,6 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
     }
 
     if (m_fxState.MasterEnabled) {
-        UberShader::UberData& activeData{ m_postProcess->GetData() };
-        activeData = this->m_uberParams;
-
-        if (!m_fxState.EnableVignette) activeData.intensity = 0.0f;
-        if (!m_fxState.EnableLens) { activeData.glitchStrength = 0.0f; activeData.distortion = 0.0f; }
-        if (!m_fxState.EnableChromatic) { activeData.chromaticAberration = 0.0f; }
-        if (!m_fxState.EnableCRT) { activeData.scanlineStrength = 0.0f; activeData.fineOpacity = 0.0f; }
-
         m_postProcess->EndCapture(elapsedTime);
     }
 }
@@ -296,6 +290,10 @@ void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
     auto dc{ Graphics::Instance().GetDeviceContext() };
     auto modelRenderer{ Graphics::Instance().GetModelRenderer() };
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, &m_lightManager };
+
+    rc.psxEnabled = (m_fxState.MasterEnabled && m_fxState.EnablePSX);
+    rc.psxResWidth = m_uberParams.psxResWidth;
+    rc.psxResHeight = m_uberParams.psxResHeight;
 
     if (m_player)
     {

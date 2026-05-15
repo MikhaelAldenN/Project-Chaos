@@ -16,13 +16,25 @@ PostProcessManager::PostProcessManager()
 
 void PostProcessManager::Initialize(int screenWidth, int screenHeight)
 {
+    m_windowWidth = screenWidth;
+    m_windowHeight = screenHeight;
+    m_currentRTWidth = screenWidth;
+    m_currentRTHeight = screenHeight;
     CreateBuffers(screenWidth, screenHeight);
 }
 
 void PostProcessManager::OnResize(int width, int height)
 {
-    // Recreate buffer saat resize agar resolusi tekstur pas dengan layar
-    CreateBuffers(width, height);
+    m_windowWidth = width;
+    m_windowHeight = height;
+
+    // If PSX filter is off, resize the internal buffer to match the new window
+    if (!m_data.psxEnabled)
+    {
+        m_currentRTWidth = width;
+        m_currentRTHeight = height;
+        CreateBuffers(m_currentRTWidth, m_currentRTHeight);
+    }
 }
 
 void PostProcessManager::CreateBuffers(int width, int height)
@@ -79,20 +91,44 @@ void PostProcessManager::BeginCapture()
 {
     auto dc = Graphics::Instance().GetDeviceContext();
 
-    // 1. Simpan Render Target asli (BackBuffer)
-    // Kita simpan raw pointer sementara. 
-    // CATATAN: Pastikan EndCapture dipanggil di frame yang sama!
+    // -------------------------------------------------------------
+    // DYNAMIC RESOLUTION CHECK
+    // If GUI sliders changed, physically recreate the Render Target!
+    // -------------------------------------------------------------
+    int targetWidth = m_data.psxEnabled ? (std::max)(16, static_cast<int>(m_data.psxResWidth)) : m_windowWidth;
+    int targetHeight = m_data.psxEnabled ? (std::max)(16, static_cast<int>(m_data.psxResHeight)) : m_windowHeight;
+
+    if (targetWidth != m_currentRTWidth || targetHeight != m_currentRTHeight)
+    {
+        m_currentRTWidth = targetWidth;
+        m_currentRTHeight = targetHeight;
+        CreateBuffers(m_currentRTWidth, m_currentRTHeight);
+    }
+
+    // 1. Save original Render Target AND Viewport
     m_originalRTV = nullptr;
     m_originalDSV = nullptr;
     dc->OMGetRenderTargets(1, &m_originalRTV, &m_originalDSV);
 
-    // 2. Switch ke Render Target milik kita (Off-screen)
+    m_originalViewportCount = 1;
+    dc->RSGetViewports(&m_originalViewportCount, &m_originalViewport);
+
+    // 2. Switch to our internal Render Target
     ID3D11RenderTargetView* rtv = m_renderTargetView.Get();
     ID3D11DepthStencilView* dsv = m_depthStencilView.Get();
     dc->OMSetRenderTargets(1, &rtv, dsv);
 
-    // 3. Clear Screen (Layar Virtual kita)
-    // NOTE: Changed alpha to 1.0f to ensure solid black background for Bloom extraction
+    // 3. Shrink the Viewport to match the Render Target!
+    D3D11_VIEWPORT vp{};
+    vp.Width = static_cast<float>(m_currentRTWidth);
+    vp.Height = static_cast<float>(m_currentRTHeight);
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    vp.TopLeftX = 0;
+    vp.TopLeftY = 0;
+    dc->RSSetViewports(1, &vp);
+
+    // 4. Clear Screen
     float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     dc->ClearRenderTargetView(rtv, clearColor);
     dc->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
@@ -102,37 +138,28 @@ void PostProcessManager::EndCapture(float dt)
 {
     auto dc = Graphics::Instance().GetDeviceContext();
 
-    // 1. Kembalikan Render Target ke BackBuffer asli
+    // 1. Restore the original Render Target AND the original 1080p Viewport!
     dc->OMSetRenderTargets(1, &m_originalRTV, m_originalDSV);
+    dc->RSSetViewports(m_originalViewportCount, &m_originalViewport);
 
-    // Jangan lupa release ref count dari GetRenderTargets (COM Rules)
     if (m_originalRTV) { m_originalRTV->Release(); m_originalRTV = nullptr; }
     if (m_originalDSV) { m_originalDSV->Release(); m_originalDSV = nullptr; }
 
-    // Jika fitur dimatikan, kita tidak menggambar apa-apa (Layar jadi hitam)
-    // ATAU: Kita harus menggambar tekstur mentah tanpa shader. 
-    // Untuk safety, kita asumsi selalu draw lewat UberShader tapi dengan param 'enabled=false' kalau perlu.
     if (!m_isEnabled) return;
 
-    // 2. Update Waktu Global
     m_globalTime += dt;
-    // Reset loop agar presisi float terjaga
     if (m_globalTime > 1000.0f) m_globalTime -= 1000.0f;
 
-    // 3. Setup Render State untuk Full Screen Quad
-    // Kita butuh state yang bersih (No Depth Test, No Culling, Opaque)
     auto rs = Graphics::Instance().GetRenderState();
     dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
     dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullNone));
     dc->OMSetBlendState(rs->GetBlendState(BlendState::Opaque), nullptr, 0xFFFFFFFF);
 
-    // 4. Update Parameter Shader
     m_data.time = m_globalTime;
 
-    // 5. Draw
+    // Draw the tiny texture upscaled to the 1080p screen
     m_uberShader->Draw(dc, m_shaderResourceView.Get(), m_data);
 
-    // 6. Cleanup (Unbind SRV agar bisa ditulis lagi di frame depan)
     ID3D11ShaderResourceView* nullSRV[] = { nullptr };
     dc->PSSetShaderResources(0, 1, nullSRV);
 }

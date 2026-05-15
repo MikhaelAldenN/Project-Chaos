@@ -64,5 +64,10 @@ float4 main(VS_OUT pin) : SV_TARGET
 
     color.rgb *= finalLight;
 
+    if (any(isnan(color)) || any(isinf(color)))
+    {
+        return float4(1.0f, 0.0f, 1.0f, 1.0f);
+    }
+    
     return color;
 }

@@ -268,7 +268,8 @@ HRESULT GpuResourceUtils::CreateConstantBuffer(
 	desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	desc.CPUAccessFlags = 0;
 	desc.MiscFlags = 0;
-	desc.ByteWidth = bufferSize;
+	desc.ByteWidth = (bufferSize + 15) & ~15;
+
 	desc.StructureByteStride = 0;
 
 	HRESULT hr = device->CreateBuffer(&desc, 0, constantBuffer);

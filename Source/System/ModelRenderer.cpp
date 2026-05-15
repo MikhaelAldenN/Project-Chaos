@@ -69,6 +69,9 @@ void ModelRenderer::Render(const RenderContext& rc)
         cbScene.cameraPosition.x = eye.x;
         cbScene.cameraPosition.y = eye.y;
         cbScene.cameraPosition.z = eye.z;
+        cbScene.psxEnabled = rc.psxEnabled ? 1.0f : 0.0f;
+        cbScene.psxResWidth = (std::max)(1.0f, rc.psxResWidth);
+        cbScene.psxResHeight = (std::max)(1.0f, rc.psxResHeight);
         dc->UpdateSubresource(sceneConstantBuffer.Get(), 0, 0, &cbScene, 0, 0);
     }
 
@@ -84,7 +87,7 @@ void ModelRenderer::Render(const RenderContext& rc)
     dc->PSSetConstantBuffers(2, 1, objectConstantBuffer.GetAddressOf());
 
     ID3D11SamplerState* samplerStates[] = {
-        rc.renderState->GetSamplerState(SamplerState::LinearWrap)
+        rc.renderState->GetSamplerState(SamplerState::PointClamp)
     };
     dc->PSSetSamplers(0, _countof(samplerStates), samplerStates);
 

@@ -73,10 +73,12 @@ private:
 
     struct PostProcessState {
         bool MasterEnabled{ true };
-        bool EnableVignette{ true };
-        bool EnableLens{ true };
-        bool EnableChromatic{ true };
-        bool EnableCRT{ true };
+        bool EnableVignette{ false };
+        bool EnableLens{ false };
+        bool EnableChromatic{ false };
+        bool EnableCRT{ false };
+        bool EnableBloom{ true }; 
+        bool EnablePSX{ true };   
     };
 
     std::unique_ptr<Player> m_player{};

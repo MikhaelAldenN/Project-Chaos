@@ -29,6 +29,11 @@ public:
     static constexpr float SMOOTHNESS_MIN       = 0.000001f;
     static constexpr float ROUNDNESS_POWER      = 6.0f;
     static constexpr UINT  VERTEX_COUNT         = 3;
+    static constexpr bool  DEFAULT_PSX_ENABLED      { true };
+    static constexpr float DEFAULT_PSX_RES_WIDTH    { 720.0f };
+    static constexpr float DEFAULT_PSX_RES_HEIGHT   { 370.0f };
+    static constexpr float DEFAULT_PSX_COLOR_DEPTH  { 32.0f }; 
+    static constexpr float DEFAULT_PSX_DITHER       { 1.0f };
 
     // =========================================================
     // DATA STRUCTURE - "UberData" (Holds EVERYTHING)
@@ -59,6 +64,13 @@ public:
         float             fineOpacity           = 1.0f;
         float             fineDensity           = 30.0f;
         float             fineRotation          = 0.0f;
+
+		// PSX Emulation
+        bool  psxEnabled        { DEFAULT_PSX_ENABLED };
+        float psxResWidth       { DEFAULT_PSX_RES_WIDTH };
+        float psxResHeight      { DEFAULT_PSX_RES_HEIGHT };
+        float psxColorDepth     { DEFAULT_PSX_COLOR_DEPTH };
+        float psxDitherStrength { DEFAULT_PSX_DITHER };
     };
 
     // =========================================================
@@ -98,7 +110,12 @@ private:
         float fineRotation;
         float bloomThreshold;
         float bloomIntensity;
-        float padding[1];
+        float psxEnabled;
+        float psxResWidth;
+        float psxResHeight;
+        float psxColorDepth;
+        float psxDitherStrength;
+        float padding_psx[3];
     };
 
     Microsoft::WRL::ComPtr<ID3D11VertexShader>  vertexShader;

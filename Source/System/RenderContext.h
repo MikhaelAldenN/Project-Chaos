@@ -16,4 +16,9 @@ struct RenderContext
     // agar alpha channel di render target tetap terisi penuh
     // untuk dibaca saat CPU readback Å® UpdateLayeredWindow.
     bool isTransparentWindow = false;
+
+    // Passing psx data
+    bool psxEnabled = false;
+    float psxResWidth = 320.0f;
+    float psxResHeight = 240.0f;
 };
