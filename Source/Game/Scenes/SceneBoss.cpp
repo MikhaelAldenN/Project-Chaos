@@ -92,7 +92,7 @@ SceneBoss::SceneBoss()
     m_navi = std::make_unique<NaviBoss>();
     m_navi->Initialize(m_windowSystem.get());
 
-#if 0
+#if 1
     m_navi->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
 #else
     m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>());
@@ -428,20 +428,32 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
     if (m_showHitboxes)
     {
         // 1. Gambar Hurtbox Player (Lingkaran Hijau)
-                // Kita kunci di y=1.0f agar terlihat menonjol di badan player
+        // Kita kunci di y=1.0f agar terlihat menonjol di badan player
         if (m_player && m_player->GetHP() > 0) {
             DirectX::XMFLOAT3 pPos = m_player->GetPosition();
             pPos.y = 1.0f;
             shapeRenderer->DrawSphere(pPos, 0.3f, { 0.0f, 1.0f, 0.0f, 1.0f });
         }
 
-        // 2. Gambar Hitbox Peluru Navi (Lingkaran Merah)
+        // 2. Gambar Hitbox Peluru Navi (Lingkaran Merah / Hijau)
         if (m_navi) {
             if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
                 for (auto& bullet : normalPhase->GetProjectiles()) {
                     if (bullet->IsActive()) {
                         DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
                         shapeRenderer->DrawSphere(bPos, bullet->GetRadius(), { 1.0f, 0.0f, 0.0f, 1.0f });
+                    }
+                }
+            }
+            // =========================================================
+            // [FIX MUTLAK] LOGIKA WINDOWKILL DITEMPATKAN DI SINI!
+            // =========================================================
+            else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+                for (Bullet* bullet : wkPhase->GetProjectiles()) {
+                    if (bullet && bullet->IsActive()) {
+                        DirectX::XMFLOAT3 bPos = bullet->GetPosition();
+                        // Warna Hijau Lime agar kontras untuk peluru mantul
+                        shapeRenderer->DrawSphere(bPos, bullet->GetRadius(), { 0.0f, 1.0f, 0.0f, 1.0f });
                     }
                 }
             }
@@ -854,11 +866,47 @@ void SceneBoss::DrawGUI()
                     wkPhase->TriggerBouncingWindows(m_navi.get());
                 }
                 if (ImGui::Button("FIRE ORBITAL LASER (SANS)", ImVec2(-1.0f, 50.0f))) {
-                    wkPhase->TriggerOrbitalBlaster();
+                    // [FIX] Masukkan m_navi.get() ke dalam argumen!
+                    wkPhase->TriggerOrbitalBlaster(m_navi.get());
+                }
+                ImGui::PopStyleColor(2);
+
+                // =========================================================
+                // [NEW] TUNING: ORBITAL BLASTER (SANS)
+                // =========================================================
+                if (ImGui::CollapsingHeader("Orbital Blaster Config", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    auto& bp = wkPhase->GetBlasterParams();
+
+                    ImGui::DragFloat("Cannon Scale", &bp.headScale, 0.1f, 1.0f, 10.0f, "%.1f");
+                    ImGui::SliderFloat("Beam Max Width", &bp.beamTargetScaleX, 1.0f, 15.0f);
+                    ImGui::SliderFloat("Beam Width Mult", &bp.beamWidthMult, 1.0f, 20.0f);
+                    ImGui::SliderFloat("Beam Max Length", &bp.beamMaxLength, 50.0f, 500.0f);
+                    ImGui::Separator();
+                    ImGui::SliderFloat("Slide Speed (Down)", &bp.beamSlideSpeed, 1.0f, 50.0f);
+                    ImGui::SliderFloat("Grow Speed (Width)", &bp.beamGrowSpeed, 1.0f, 100.0f);
+                    ImGui::SliderInt("Damage per Tick", &bp.beamDamage, 1, 100);
                 }
 
-                ImGui::PopStyleColor(2);
+                // =========================================================
+                // [NEW] TUNING: BOUNCING WINDOWS
+                // =========================================================
+                if (ImGui::CollapsingHeader("Bouncing Windows Config", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    auto& bnp = wkPhase->GetBouncingParams();
+
+                    ImGui::SliderInt("Spawn Count", &bnp.spawnCount, 1, 10);
+                    ImGui::SliderFloat("Bullet Speed", &bnp.speed, 5.0f, 100.0f);
+                    ImGui::SliderInt("Max Bounces", &bnp.maxBounces, 1, 30);
+                    ImGui::Separator();
+                    ImGui::DragFloat2("Window Size (W/H)", (float*)&bnp.windowWidth, 1.0f, 100.0f, 1000.0f);
+                    ImGui::Separator();
+                    ImGui::SliderFloat("Visual Scale (Ball)", &bnp.visualScale, 0.1f, 5.0f);
+                    ImGui::SliderFloat("Hitbox Radius", &bnp.hitboxRadius, 0.1f, 10.0f);
+                    ImGui::SliderInt("Impact Damage", &bnp.damage, 1, 50);
+                }
             }
+            
             ImGui::EndTabItem();
         }
 

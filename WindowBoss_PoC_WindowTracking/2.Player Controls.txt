@@ -1,5 +1,0 @@
-Player Control
-
-Movement: W/A/S/D
-Dash: Shift(tap)
-Space: Hit

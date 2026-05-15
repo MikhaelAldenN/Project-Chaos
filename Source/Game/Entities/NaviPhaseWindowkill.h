@@ -27,17 +27,6 @@ struct BouncingWindowBullet {
     int maxBounces = 8;
 };
 
-struct OrbitalBlaster {
-    bool active = false;
-    int state = 0; // 1: Drop In, 2: Charge (Telegraph), 3: Fire, 4: Retreat
-    float timer = 0.0f;
-
-    DirectX::XMFLOAT3 pos = { 0.0f, 0.0f, 0.0f };
-    DirectX::XMFLOAT3 targetPos = { 0.0f, 0.0f, 0.0f };
-
-    float beamScaleX = 0.0f; // Lebar laser
-    float headScale = 3.0f;  // Ukuran kepala meriam
-};
 
 class NaviPhaseWindowkill : public INaviPhase {
 public:
@@ -84,7 +73,7 @@ public:
     void TriggerBouncingWindows(NaviBoss* boss);
     std::vector<Bullet*> GetProjectiles();
 
-    void TriggerOrbitalBlaster();
+    void TriggerOrbitalBlaster(NaviBoss* boss);
 
     struct OrbitalBlaster {
         bool active = false;
@@ -92,14 +81,50 @@ public:
         float timer = 0.0f;
 
         DirectX::XMFLOAT3 pos = { 0.0f, 0.0f, 0.0f };
-        DirectX::XMFLOAT3 targetPos = { 0.0f, 0.0f, 0.0f }; // <-- WAJIB ADA
+        DirectX::XMFLOAT3 targetPos = { 0.0f, 0.0f, 0.0f };
 
         float beamScaleX = 0.0f;
-        float headScale = 3.0f;  // <-- WAJIB ADA
+        float headScale = 2.0f;
+
+        // [FIX] Tambahkan variabel pelacak window dan panjang beam
+        std::string windowName = "blaster_cannon_window";
+        std::string beamWindowName = "blaster_beam_window";
+        float beamCurrentLength = 0.0f;
     };
+
     OrbitalBlaster GetBlaster() const { return m_testBlaster; }
+    
+    struct BlasterParams {
+        float headScale = 1.0f;         // Ukuran dasar kepala meriam
+        float beamTargetScaleX = 4.0f;  // Seberapa lebar laser membesar saat tembak
+        float beamWidthMult = 1.0f;     // Pengali lebar (Hitbox & Visual)
+        float beamMaxLength = 120.0f;   // Panjang maksimal laser
+        float beamGrowSpeed = 20.0f;    // Kecepatan laser melebar
+        float beamSlideSpeed = 10.0f;   // Kecepatan laser memanjang ke bawah
+        int   beamDamage = 20;          // Damage per tick
+    };
 
+    // ==========================================
+        // PARAMETER WINDOW MEMANTUL (REFINED)
+        // ==========================================
+    struct BouncingBulletParams {
+        float speed = 18.0f;
+        int   maxBounces = 8;
+        int   spawnCount = 3;
 
+        // Pemisahan Ukuran Jendela OS
+        float windowWidth = 230.0f;
+        float windowHeight = 230.0f;
+
+        // Pemisahan Visual vs Hitbox
+        float visualScale = 12.0f;    // Ukuran model 3D (bola)
+        float hitboxRadius = 2.0f;   // Radius deteksi tabrakan fisik
+
+        int   damage = 10;
+    };
+
+    BlasterParams& GetBlasterParams() { return m_blasterParams; }
+    BouncingBulletParams& GetBouncingParams() { return m_bouncingParams; }
 private:
     void GenerateButterflyWings();
 
@@ -144,4 +169,7 @@ private:
 
     std::shared_ptr<Model> m_placeholderModel;
     OrbitalBlaster m_testBlaster; // Untuk dicoba 1 dulu
+
+    BlasterParams m_blasterParams; // Instance parameter
+    BouncingBulletParams m_bouncingParams; // Instance parameter
 };

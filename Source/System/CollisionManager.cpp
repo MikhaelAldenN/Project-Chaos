@@ -1057,31 +1057,28 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
     }
 
     // =========================================================
-    // [NEW] DETEKSI DAMAGE LASER (AREA DENIAL)
-    // =========================================================
+        // [FIX MUTLAK] DETEKSI DAMAGE LASER (SINKRON DENGAN PARAMS)
+        // =========================================================
     if (wkPhase) {
         auto blaster = wkPhase->GetBlaster();
+        const auto& p = wkPhase->GetBlasterParams(); // Memanggil getter yang baru dibuat
 
         // Damage HANYA diberikan saat State = 3 (Firing)
         if (blaster.active && blaster.state == 3) {
             DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
 
-            // Hitung Area Laser (Mencontek logika Rain)
-            // Sumbu X: Berdasarkan beamScaleX (dikali 6 seperti di Render)
-            float halfWidth = (blaster.beamScaleX * 6.0f) * 0.5f;
+            // Hitung Area Laser berdasarkan parameter terpusat
+            float halfWidth = (blaster.beamScaleX * p.beamWidthMult) * 0.5f;
+            float laserLength = p.beamMaxLength;
 
-            // Sumbu Z: Laser memanjang dari posisi kepala ke arah negatif Z (belakang)
-            float laserLength = 120.0f;
             float zStart = blaster.pos.z;
             float zEnd = blaster.pos.z - laserLength;
 
-            // Cek apakah Player di dalam kotak laser (XZ Plane)
             if (pPos.x > (blaster.pos.x - halfWidth) && pPos.x < (blaster.pos.x + halfWidth) &&
                 pPos.z < zStart && pPos.z > zEnd)
             {
                 if (!m_player->IsInvincible()) {
-                    // Berikan damage besar karena ini Laser!
-                    m_player->TakeDamage(20);
+                    m_player->TakeDamage(p.beamDamage); // Menggunakan damage dari params
 
                     if (m_player->GetHP() <= 0) {
                         m_player->scale = { 0.0f, 0.0f, 0.0f };

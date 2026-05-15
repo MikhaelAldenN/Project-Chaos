@@ -198,8 +198,8 @@ private:
 
     std::unique_ptr<Primitive> m_zonePrimitive;
 
-    int m_bossMaxHP = 1000;
-    int m_bossHP = 1000;
+    int m_bossMaxHP = 1500;
+    int m_bossHP = 1500;
     float m_hitFlashTimer = 0.0f; // Untuk efek kedip saat kena tembak
 
     bool m_rainIsDual = false;
