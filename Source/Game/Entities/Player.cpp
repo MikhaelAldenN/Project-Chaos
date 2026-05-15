@@ -398,15 +398,26 @@ void Player::ApplyWorldMatrix(float smoothedYaw, bool shouldAim, float relativeA
 
     if (m_capeSimulator)
     {
-        DirectX::XMFLOAT3 trueVelocity = movement->GetVelocity();
+        DirectX::XMFLOAT3 trueVelocity{ movement->GetVelocity() };
 
+        // Fallback to input velocity if true velocity is zero 
         if (trueVelocity.x == 0.0f && trueVelocity.z == 0.0f)
         {
             trueVelocity.x = currentSmoothInput.x * moveSpeed;
             trueVelocity.z = currentSmoothInput.y * moveSpeed;
         }
 
-        m_capeSimulator->Update(0.016f, trueVelocity);
+        const float totalYaw{ smoothedYaw + relativeAngle };
+        const float sinYaw{ std::sin(totalYaw) };
+        const float cosYaw{ std::cos(totalYaw) };
+
+        // 2D Rotation Matrix projection (World -> Local)
+        const float localVz{ (trueVelocity.x * sinYaw) + (trueVelocity.z * cosYaw) };
+        const float localVx{ (trueVelocity.x * cosYaw) - (trueVelocity.z * sinYaw) };
+
+        const DirectX::XMFLOAT3 localVelocity{ localVx, trueVelocity.y, localVz };
+
+        m_capeSimulator->Update(0.016f, localVelocity);
     }
 
     if (model) model->UpdateTransform(worldMatrix);
