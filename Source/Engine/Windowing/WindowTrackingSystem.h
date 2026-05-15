@@ -56,6 +56,9 @@ struct TrackedWindow
     std::function<DirectX::XMFLOAT2()> getTargetSizeFunc = nullptr;
 
     WindowRole role = WindowRole::TRACKED_ENTITY;
+
+    bool isActive = true;
+    bool isTransparent = false;
 };
 
 // =========================================================

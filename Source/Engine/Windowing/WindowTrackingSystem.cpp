@@ -47,10 +47,66 @@ bool WindowTrackingSystem::AddTrackedWindow(
     const TrackedWindowConfig& config,
     std::function<DirectX::XMFLOAT3()> getTargetPos,
     std::function<DirectX::XMFLOAT2()> getTargetSize // Parameter baru
-) 
+)
 {
     auto start = std::chrono::high_resolution_clock::now();
 
+    // =========================================================
+    // [1] CEK POOL: DAUR ULANG WINDOW YANG TIDUR
+    // =========================================================
+    for (auto& tw : m_trackedWindows) {
+        if (!tw->isActive && tw->isTransparent == config.isTransparent) {
+            tw->isActive = true;
+            tw->name = config.name;
+            tw->role = config.role;
+            tw->trackingOffset = config.trackingOffset;
+            tw->getTargetPositionFunc = getTargetPos;
+            tw->getTargetSizeFunc = getTargetSize;
+
+            tw->state.targetW = (float)config.width;
+            tw->state.targetH = (float)config.height;
+            tw->state.actualW = config.width;
+            tw->state.actualH = config.height;
+
+            if (tw->window && tw->window->GetSDLWindow()) {
+                SDL_Window* sdlWin = tw->window->GetSDLWindow();
+                SDL_SetWindowTitle(sdlWin, config.title.c_str());
+                SDL_SetWindowSize(sdlWin, config.width, config.height);
+                tw->window->SetBackgroundAlpha(config.isTransparent ? 0.0f : 1.0f);
+                tw->window->SetPriority(config.priority);
+
+                if (config.fpsLimit > 0.0f) tw->window->SetTargetFPS(config.fpsLimit);
+                if (config.name == "player") tw->window->SetDraggable(false);
+
+                // Set Posisi Awal agar tidak nge-blink dari koordinat -10000
+                if (getTargetPos) {
+                    DirectX::XMFLOAT3 initialPos = getTargetPos();
+                    float screenX, screenY;
+                    WorldToScreenPos(initialPos, screenX, screenY);
+                    tw->state.targetX = screenX - (config.width * 0.5f);
+                    tw->state.targetY = screenY - (config.height * 0.5f);
+                    tw->state.actualX = static_cast<int>(roundf(tw->state.targetX));
+                    tw->state.actualY = static_cast<int>(roundf(tw->state.targetY));
+                    SDL_SetWindowPosition(sdlWin, tw->state.actualX, tw->state.actualY);
+                }
+
+                SDL_ShowWindow(sdlWin); // Bangunkan window!
+            }
+
+            m_windowLookup[config.name] = tw.get(); // Masukkan kembali ke lookup
+            WindowManager::Instance().MarkPriorityDirty();
+
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<float, std::milli> duration = end - start;
+            PerformanceLogger::Instance().LogWindowAction("Pooled", config.name, duration.count());
+
+            return true;
+        }
+    }
+
+    // =========================================================
+    // [2] JIKA POOL KOSONG: BUAT BARU (Kode Lama Anda Lanjut Di Sini)
+    // =========================================================
     // 1. Create Window via Singleton Manager
     Beyond::Window* window = WindowManager::Instance().CreateGameWindow(
         config.title.c_str(),
@@ -79,6 +135,7 @@ bool WindowTrackingSystem::AddTrackedWindow(
 
     // 3. Setup Tracked Object
     auto tracked = std::make_unique<TrackedWindow>();
+    tracked->isTransparent = config.isTransparent; // [NEW] Catat jenisnya di sini
     tracked->name = config.name;
     tracked->window = window;
     tracked->role = config.role;
@@ -138,6 +195,7 @@ void WindowTrackingSystem::Update(float dt)
     // 2. Update Semua Window
     for (auto& tracked : m_trackedWindows)
     {
+        if (!tracked->isActive) continue;
         UpdateSingleWindow(dt, *tracked);
     }
 }
@@ -326,22 +384,22 @@ void WindowTrackingSystem::RemoveTrackedWindow(const std::string& name)
 
     TrackedWindow* trackedInfo = it->second;
 
-    // 2. Hancurkan Window Fisik via WindowManager
-    if (trackedInfo && trackedInfo->window)
+    // 2. [POOLING LOGIC] Sembunyikan window fisik, jangan dihancurkan!
+    if (trackedInfo && trackedInfo->window && trackedInfo->window->GetSDLWindow())
     {
-        WindowManager::Instance().DestroyWindow(trackedInfo->window);
+        SDL_Window* sdlWin = trackedInfo->window->GetSDLWindow();
+        SDL_HideWindow(sdlWin);
+        SDL_SetWindowPosition(sdlWin, -10000, -10000); // Lempar jauh dari layar
+
+        trackedInfo->isActive = false;
+        trackedInfo->name = "POOL_" + name; // Ganti nama agar tidak bentrok
     }
 
-    // 3. Hapus dari Map Lookup DULUAN (Penting!)
+    // 3. Hapus dari Map Lookup saja agar ID-nya bisa dipakai lagi
     m_windowLookup.erase(it);
 
-    // 4. Hapus dari Vector (yang memegang ownership/unique_ptr)
-    m_trackedWindows.erase(
-        std::remove_if(m_trackedWindows.begin(), m_trackedWindows.end(),
-            [&name](const std::unique_ptr<TrackedWindow>& ptr) {
-                return ptr->name == name;
-            }),
-        m_trackedWindows.end());
+    // CATATAN: Kita TIDAK melakukan erase pada m_trackedWindows 
+    // agar objeknya tetap hidup sebagai pool.
 }
 
 void WindowTrackingSystem::RegisterWindow(Beyond::Window* window, WindowRole role, std::shared_ptr<Camera> camera)

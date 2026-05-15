@@ -360,6 +360,7 @@ void SceneBoss::Update(float elapsedTime)
     {
         for (auto& tracked : m_windowSystem->GetWindows())
         {
+            if (!tracked->isActive) continue;
             if (!tracked->camera || tracked->camera == m_mainCamera) continue;
 
             tracked->camera->SetPosition(m_mainCamera->GetPosition());
@@ -392,6 +393,8 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
     {
         for (const auto& tracked : m_windowSystem->GetWindows())
         {
+            if (!tracked->isActive) continue;
+
             if (tracked->camera.get() == camera &&
                 tracked->window &&
                 tracked->window->IsTransparent())
@@ -475,43 +478,46 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
 
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, nullptr };
     rc.isTransparentWindow = isTransparentWindow;
-
     // --- 1. DETEKSI KAMERA SAYAP (CAMERA FILTERING) ---
     bool isWingCamera = false;
     if (m_navi) {
-        // Tanya ke sistem: "Apakah fase saat ini adalah Windowkill?"
         if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
-            // Jika iya, ambil kameranya!
             isWingCamera = (camera == wkPhase->GetFXCamera());
         }
     }
 
-    // --- 2. RENDER ENTITAS UMUM (Hanya jika BUKAN kamera sayap) ---
-    if (!isWingCamera)
-    {
-        if (m_player)
-        {
+    // A. RENDER PELURU (Selalu di semua jendela agar terlihat menembus layar)
+    if (m_player) {
+        m_player->RenderProjectiles(modelRenderer);
+    }
+
+    // B. RENDER TUBUH PEMAIN (Kondisional)
+    if (m_player) {
+        // [FIX] Logika baru: 
+        // 1. Jika mode transparan AKTIF -> Render HANYA di Wing/FX Camera
+        // 2. Jika mode transparan MATI  -> Render HANYA di Main/Portal Camera
+        bool shouldRenderHere = m_playerWindowTransparent ? isWingCamera : !isWingCamera;
+
+        if (shouldRenderHere) {
             const XMFLOAT3 pPos = m_player->GetPosition();
-            if (camera->CheckSphere(pPos.x, pPos.y, pPos.z, 1.5f))
-            {
+            if (camera->CheckSphere(pPos.x, pPos.y, pPos.z, 1.5f)) {
                 m_player->Render(modelRenderer);
             }
-            m_player->RenderProjectiles(modelRenderer);
         }
+    }
 
+    // C. RENDER MUSUH & ITEM (Hanya di jendela fisik/portal, jangan di SFX)
+    if (!isWingCamera) {
         if (m_enemyManager) m_enemyManager->Render(modelRenderer);
         if (m_itemManager) m_itemManager->Render(modelRenderer);
     }
 
     // --- 3. RENDER NAVI ---
-    // Navi dipanggil di semua kamera, tetapi di dalam NaviBoss::Render 
-    // sudah ada filter internal agar bagian badannya tidak tertukar.
     if (m_navi) m_navi->Render(dc, camera);
 
     modelRenderer->Render(rc);
-
-    PerformanceLogger::Instance().StopTimer(PerfBucket::Render3D);
 }
+
 
 // =========================================================
 // GUI
@@ -534,6 +540,20 @@ void SceneBoss::DrawGUI()
         // ---------------------------------------------------------
         if (ImGui::BeginTabItem("System & Engine"))
         {
+            // =========================================================
+                // [NEW] PEMANTAU WINDOW POOLING
+                // =========================================================
+            int activeWins = 0;
+            int sleepingWins = 0;
+            for (const auto& tw : m_windowSystem->GetWindows()) {
+                if (tw->isActive) activeWins++;
+                else sleepingWins++;
+            }
+
+            ImGui::Separator();
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Active OS Windows: %d", activeWins);
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Pooled (Sleeping) Windows: %d", sleepingWins);
+
             if (ImGui::CollapsingHeader("System Metrics & Time", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 const float fps = ImGui::GetIO().Framerate;
@@ -569,37 +589,15 @@ void SceneBoss::DrawGUI()
                 }
 
                 if (ImGui::Checkbox("[Player] Toggle Transparent", &m_playerWindowTransparent)) {
-                    // Logika transparansi (biarkan sesuai aslinya)
-                    m_windowSystem->RemoveTrackedWindow("player");
-                    TrackedWindowConfig config;
-                    config.name = "player"; config.title = "Player";
-                    config.width = 300; config.height = 300; config.priority = 1;
-                    config.isTransparent = m_playerWindowTransparent;
-
-                    m_windowSystem->AddTrackedWindow(config,
-                        [this]() -> DirectX::XMFLOAT3 {
-                            if (!m_player) return DirectX::XMFLOAT3(0, 0, 0);
-                            auto pPos = m_player->GetPosition();
-                            return DirectX::XMFLOAT3(pPos.x + m_stretchOffset.x, 0.0f, pPos.z + m_stretchOffset.y);
-                        },
-                        [this]() -> DirectX::XMFLOAT2 {
-                            return DirectX::XMFLOAT2(k_defaultWinSize + m_currentStretch.x, k_defaultWinSize + m_currentStretch.y);
-                        });
-
-                    TrackedWindow* playerWin = m_windowSystem->GetTrackedWindow("player");
-                    if (playerWin && playerWin->window) {
-                        if (m_playerWindowTransparent) {
-                            playerWin->window->SetClickThrough(true);
-                            playerWin->window->SetBorderVisible(false);
-                            playerWin->window->SetDraggable(false);
-                            playerWin->window->SetBackgroundAlpha(0.0f);
-                        }
-                        else {
-                            SDL_SetWindowResizable(playerWin->window->GetSDLWindow(), true);
-                            SDL_SetWindowBordered(playerWin->window->GetSDLWindow(), true);
-                            playerWin->window->SetDraggable(false);
-                            playerWin->window->SetBackgroundAlpha(1.0f);
-                        }
+                    if (m_playerWindowTransparent) {
+                        // Jika transparan, hapus jendela tracking-nya dari OS
+                        m_windowSystem->RemoveTrackedWindow("player");
+                        AddLog("Player Window: Removed (Rendering to SFX Layer)");
+                    }
+                    else {
+                        // Jika normal, munculkan kembali jendela tracking-nya
+                        InitializeSubWindows();
+                        AddLog("Player Window: Restored");
                     }
                     WindowManager::Instance().EnforceWindowPriorities();
                 }
@@ -859,6 +857,17 @@ void SceneBoss::DrawGUI()
                 ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "--- PHASE 2: WINDOWKILL ATTACKS ---");
                 ImGui::Separator();
 
+                const float fps = ImGui::GetIO().Framerate;
+                ImVec4 fpsColor = (fps < 40.0f) ? ImVec4(1, 0, 0, 1) : (fps < 50.0f) ? ImVec4(1, 1, 0, 1) : ImVec4(0, 1, 0, 1);
+                ImGui::TextColored(fpsColor, "FPS: %.1f (%.2f ms) [cap: 60]", fps, 1000.0f / fps);
+
+                static float s_frametimes[90] = {};
+                static int   s_offset = 0;
+                s_frametimes[s_offset] = 1000.0f / fps;
+                s_offset = (s_offset + 1) % IM_ARRAYSIZE(s_frametimes);
+                ImGui::PlotLines("Frametime", s_frametimes, IM_ARRAYSIZE(s_frametimes), s_offset, nullptr, 0.0f, 33.0f, ImVec2(0, 50));
+
+
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
 
@@ -888,6 +897,11 @@ void SceneBoss::DrawGUI()
                     ImGui::SliderFloat("Beam Visual Width", &bp.beamVisualWidth, 1.0f, 20.0f);
                     ImGui::SliderFloat("Beam Hitbox Width", &bp.beamHitboxWidth, 1.0f, 20.0f);
                     ImGui::SliderFloat("Beam Max Length", &bp.beamMaxLength, 50.0f, 500.0f);
+
+                    ImGui::Separator();
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "--- Timing ---");
+                    ImGui::SliderFloat("Charge Delay (Telegraph)", &bp.chargeDelay, 0.1f, 3.0f, "%.2f sec");
+                    ImGui::SliderFloat("Fire Duration", &bp.fireDuration, 0.1f, 3.0f, "%.2f sec");
 
                     ImGui::Separator();
                     ImGui::SliderFloat("Slide Speed (Down)", &bp.beamSlideSpeed, 1.0f, 50.0f);

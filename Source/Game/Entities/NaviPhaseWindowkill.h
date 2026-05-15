@@ -98,23 +98,26 @@ public:
     // PARAMETER ORBITAL BLASTER (REFINED)
     // ==========================================
     struct BlasterParams {
-        float cannonWindowSize = 250.0f;
+        float cannonWindowSize = 200.0f;
         float cannonVisualScale = 2.0f;
         float cannonHitboxRadius = 1.5f;
         float cannonShakeIntensity = 0.4f;
 
-        float beamVisualWidth = 6.0f;
-        float beamHitboxWidth = 5.0f;
+        float beamVisualWidth = 2.0f;
+        float beamHitboxWidth = 3.0f;
         float beamMaxLength = 120.0f;
         float beamGrowSpeed = 20.0f;
         float beamSlideSpeed = 10.0f;
         int   beamDamage = 20;
 
+        float chargeDelay = 1.0f;  // Waktu laser tipis (peringatan) sebelum menembak
+        float fireDuration = 0.8f;
+
         // ==========================================
         // [NEW] PARAMETER POLA SERANGAN (PATTERN)
         // ==========================================
-        int   spawnCount = 5;         // Jumlah meriam yang muncul
-        float spawnDelay = 0.2f;      // Jeda antar meriam (0 = bersamaan)
+        int   spawnCount = 4;         // Jumlah meriam yang muncul
+        float spawnDelay = 0.5f;      // Jeda antar meriam (0 = bersamaan)
         float spawnSpreadX = 40.0f;   // Jarak total dari ujung kiri ke kanan
     };
     BlasterParams& GetBlasterParams() { return m_blasterParams; }

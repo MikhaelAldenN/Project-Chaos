@@ -376,34 +376,47 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
             }
             else if (b->state == 2) { // CHARGE
                 // [FIX] Gunakan baseX agar getaran tidak membuat meriam bergeser (drift)
-                b->pos.x = b->baseX + ((rand() % 100) / 100.0f - 0.5f) * m_blasterParams.cannonShakeIntensity;
                 b->beamScaleX = 0.2f;
                 b->beamCurrentLength += (m_blasterParams.beamMaxLength - b->beamCurrentLength) * m_blasterParams.beamSlideSpeed * dt;
 
-                if (b->timer >= 0.6f) {
+                if (b->timer >= m_blasterParams.chargeDelay) {
                     b->state = 3; b->timer = 0.0f;
                     CameraController::Instance().AddTrauma(0.6f);
                 }
             }
+
             else if (b->state == 3) { // FIRE
                 b->pos.x = b->baseX; // Kunci ke titik asli
                 b->beamScaleX += (m_blasterParams.beamVisualWidth - b->beamScaleX) * m_blasterParams.beamGrowSpeed * dt;
                 CameraController::Instance().AddTrauma(0.1f);
 
-                if (b->timer >= 0.8f) {
+                if (b->timer >= m_blasterParams.fireDuration) {
                     b->state = 4; b->timer = 0.0f;
-                    b->pos.z = -10000.0f; // Buang window laser
-                    if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(b->beamWindowName);
+                    // Jendela sengaja dibiarkan hidup untuk animasi mengecil
                 }
             }
-            else if (b->state == 4) { // RETREAT
+            else if (b->state == 4) {
+                // 1. Animasi visual: Kecilkan lebar laser (Visual & Hitbox)
                 b->beamScaleX -= dt * 25.0f;
                 if (b->beamScaleX < 0.0f) b->beamScaleX = 0.0f;
+
+                // 2. [NEW] Animasi Window: Hapus window hanya jika laser sudah sangat tipis
+                if (b->beamScaleX <= 0.1f) {
+                    if (boss && boss->GetWindowSystem() && boss->GetWindowSystem()->GetTrackedWindow(b->beamWindowName)) {
+                        // Buang ke luar layar dulu agar tidak terlihat animasi "jatuh" bawaan Windows
+                        b->pos.z = -10000.0f;
+                        boss->GetWindowSystem()->RemoveTrackedWindow(b->beamWindowName);
+                    }
+                }
+
+                // 3. Meriam mundur terbang ke atas
                 b->pos.z += 40.0f * dt;
 
                 if (b->timer >= 0.3f) {
                     b->active = false;
-                    if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(b->windowName);
+                    if (boss && boss->GetWindowSystem()) {
+                        boss->GetWindowSystem()->RemoveTrackedWindow(b->windowName); // Hapus meriam
+                    }
                 }
             }
             ++it;
@@ -425,7 +438,7 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
 
     // 1. RENDER SAYAP (Sistem Sprite 3D)
     // Sayap adalah objek 3D, jadi otomatis muncul di semua window portal!
-    if (isFXCam || isMainCam) {
+    if (isFXCam) {
         std::vector<Sprite::Sprite3DBatchData> batchData;
         DirectX::XMFLOAT3 bossPos = boss->GetPosition();
 
