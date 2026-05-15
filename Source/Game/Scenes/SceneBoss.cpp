@@ -893,6 +893,11 @@ void SceneBoss::DrawGUI()
                     ImGui::SliderFloat("Slide Speed (Down)", &bp.beamSlideSpeed, 1.0f, 50.0f);
                     ImGui::SliderFloat("Grow Speed (Width)", &bp.beamGrowSpeed, 1.0f, 100.0f);
                     ImGui::SliderInt("Damage per Tick", &bp.beamDamage, 1, 100);
+
+                    ImGui::TextColored(ImVec4(1.0f, 0.5f, 1.0f, 1.0f), "--- Spawn Pattern ---");
+                    ImGui::SliderInt("Spawn Count", &bp.spawnCount, 1, 15);
+                    ImGui::SliderFloat("Spawn Delay", &bp.spawnDelay, 0.0f, 1.0f, "%.2f sec");
+                    ImGui::SliderFloat("Spawn Spread (Width)", &bp.spawnSpreadX, 10.0f, 100.0f);
                 }
 
 

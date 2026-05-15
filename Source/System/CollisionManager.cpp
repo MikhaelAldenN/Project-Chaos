@@ -1057,34 +1057,36 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
     }
 
     // =========================================================
-        // [FIX MUTLAK] DETEKSI DAMAGE LASER (SINKRON DENGAN PARAMS)
+        // [FIX MUTLAK] DETEKSI DAMAGE SEMUA LASER AKTIF
         // =========================================================
     if (wkPhase) {
-        auto blaster = wkPhase->GetBlaster();
-        const auto& p = wkPhase->GetBlasterParams(); // Memanggil getter parameter baru
+        const auto& blasters = wkPhase->GetBlasters(); // Ambil array blasters
+        const auto& p = wkPhase->GetBlasterParams();
 
-        // Damage HANYA diberikan saat State = 3 (Firing)
-        if (blaster.active && blaster.state == 3) {
-            DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
+        for (auto& bPtr : blasters) {
+            auto& blaster = *bPtr;
 
-            // [FIX] Deklarasikan halfWidth dan laserLength dengan benar
-            float halfWidth = p.beamHitboxWidth * 0.5f;
-            float currentLaserLength = blaster.beamCurrentLength;
+            if (blaster.active && blaster.state == 3) {
+                DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
 
-            float zStart = blaster.pos.z;
-            float zEnd = blaster.pos.z - currentLaserLength;
+                float halfWidth = p.beamHitboxWidth * 0.5f;
+                float currentLaserLength = blaster.beamCurrentLength;
 
-            // Deteksi tabrakan kotak (AABB) dengan laser
-            if (pPos.x > (blaster.pos.x - halfWidth) && pPos.x < (blaster.pos.x + halfWidth) &&
-                pPos.z < zStart && pPos.z > zEnd)
-            {
-                if (!m_player->IsInvincible()) {
-                    m_player->TakeDamage(p.beamDamage); // Gunakan damage dari ImGui
+                float zStart = blaster.pos.z;
+                float zEnd = blaster.pos.z - currentLaserLength;
 
-                    if (m_player->GetHP() <= 0) {
-                        m_player->scale = { 0.0f, 0.0f, 0.0f };
-                        m_player->SetInputEnabled(false);
-                        m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
+                // Cek Hitbox Laser
+                if (pPos.x > (blaster.pos.x - halfWidth) && pPos.x < (blaster.pos.x + halfWidth) &&
+                    pPos.z < zStart && pPos.z > zEnd)
+                {
+                    if (!m_player->IsInvincible()) {
+                        m_player->TakeDamage(p.beamDamage);
+
+                        if (m_player->GetHP() <= 0) {
+                            m_player->scale = { 0.0f, 0.0f, 0.0f };
+                            m_player->SetInputEnabled(false);
+                            m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
+                        }
                     }
                 }
             }

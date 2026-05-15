@@ -81,14 +81,14 @@ public:
         int state = 0;
         float timer = 0.0f;
 
+        // [NEW] Tambahkan baseX untuk mengingat titik asalnya sebelum digetarkan
+        float baseX = 0.0f;
         DirectX::XMFLOAT3 pos = { 0.0f, 0.0f, 0.0f };
         DirectX::XMFLOAT3 targetPos = { 0.0f, 0.0f, 0.0f };
 
         float beamScaleX = 0.0f;
-        // HAPUS "float headScale = 2.0f;" dari sini!
-
-        std::string windowName = "blaster_cannon_window";
-        std::string beamWindowName = "blaster_beam_window";
+        std::string windowName;
+        std::string beamWindowName;
         float beamCurrentLength = 0.0f;
     };
 
@@ -98,20 +98,27 @@ public:
     // PARAMETER ORBITAL BLASTER (REFINED)
     // ==========================================
     struct BlasterParams {
-        // Pemisahan Cannon (Kepala Meriam)
-        float cannonWindowSize = 200.0f;  // Ukuran Jendela OS Cannon
-        float cannonVisualScale = 2.0f;   // Ukuran Model 3D Cannon
-        float cannonHitboxRadius = 1.5f;  // Hitbox jika player nabrak meriamnya
+        float cannonWindowSize = 250.0f;
+        float cannonVisualScale = 2.0f;
+        float cannonHitboxRadius = 1.5f;
+        float cannonShakeIntensity = 0.4f;
 
-        // Pemisahan Laser Beam
-        float beamVisualWidth = 2.0f;     // Lebar visual energi 2D (Cyan)
-        float beamHitboxWidth = 5.0f;     // Lebar hitbox damage (kawat merah)
-        float beamMaxLength = 120.0f;     // Panjang maksimal laser
-
+        float beamVisualWidth = 6.0f;
+        float beamHitboxWidth = 5.0f;
+        float beamMaxLength = 120.0f;
         float beamGrowSpeed = 20.0f;
-        float beamSlideSpeed = 1.0f;
+        float beamSlideSpeed = 10.0f;
         int   beamDamage = 20;
+
+        // ==========================================
+        // [NEW] PARAMETER POLA SERANGAN (PATTERN)
+        // ==========================================
+        int   spawnCount = 5;         // Jumlah meriam yang muncul
+        float spawnDelay = 0.2f;      // Jeda antar meriam (0 = bersamaan)
+        float spawnSpreadX = 40.0f;   // Jarak total dari ujung kiri ke kanan
     };
+    BlasterParams& GetBlasterParams() { return m_blasterParams; }
+    const std::vector<std::shared_ptr<OrbitalBlaster>>& GetBlasters() const { return m_blasters; }
 
     // ==========================================
     // PARAMETER WINDOW MEMANTUL (REFINED)
@@ -132,7 +139,6 @@ public:
         int   damage = 10;
     };
 
-    BlasterParams& GetBlasterParams() { return m_blasterParams; }
     BouncingBulletParams& GetBouncingParams() { return m_bouncingParams; }
 private:
     void GenerateButterflyWings();
@@ -183,4 +189,9 @@ private:
     BouncingBulletParams m_bouncingParams; // Instance parameter
 
     std::unique_ptr<Primitive> m_solidRenderer;
+
+    std::vector<std::shared_ptr<OrbitalBlaster>> m_blasters;
+    bool  m_isSpawningBlasters = false;
+    int   m_blastersSpawned = 0;
+    float m_blasterSpawnTimer = 0.0f;
 };

@@ -86,14 +86,13 @@ void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
     // =========================================================
         // [FIX] BERSIHKAN JUGA WINDOW MERIAM JIKA SEDANG AKTIF!
         // =========================================================
-    if (m_testBlaster.active) {
+    for (auto& b : m_blasters) {
         if (boss && boss->GetWindowSystem()) {
-            // Hapus kedua jendela sekaligus
-            boss->GetWindowSystem()->RemoveTrackedWindow(m_testBlaster.beamWindowName);
-            boss->GetWindowSystem()->RemoveTrackedWindow(m_testBlaster.windowName);
+            boss->GetWindowSystem()->RemoveTrackedWindow(b->beamWindowName);
+            boss->GetWindowSystem()->RemoveTrackedWindow(b->windowName);
         }
-        m_testBlaster.active = false;
     }
+    m_blasters.clear();
 }
 
 // =========================================================
@@ -287,81 +286,135 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
     }
 
     // =========================================================
-    // [NEW] UPDATE ORBITAL BLASTER (SANS LASER)
+        // 1. LOGIKA SPAWNER BLASTER BERUNTUN
+        // =========================================================
+    if (m_isSpawningBlasters) {
+        m_blasterSpawnTimer += dt;
+
+        // Loop ini akan menembak beruntun jika delay = 0
+        while (m_isSpawningBlasters && m_blasterSpawnTimer >= m_blasterParams.spawnDelay) {
+            if (m_blasterParams.spawnDelay > 0.0f) m_blasterSpawnTimer -= m_blasterParams.spawnDelay;
+            else m_blasterSpawnTimer = 1.0f; // Mencegah infinite loop jika delay 0
+
+            auto blaster = std::make_shared<OrbitalBlaster>();
+            blaster->active = true;
+            blaster->state = 1;
+            blaster->timer = 0.0f;
+
+            // Hitung Posisi X (Kiri ke Kanan)
+            float startX = -m_blasterParams.spawnSpreadX * 0.5f;
+            float stepX = (m_blasterParams.spawnCount > 1) ? (m_blasterParams.spawnSpreadX / (m_blasterParams.spawnCount - 1)) : 0.0f;
+
+            blaster->baseX = startX + (stepX * m_blastersSpawned); // Simpan posisi asli
+            blaster->pos = { blaster->baseX, 1.0f, 25.0f };
+            blaster->targetPos = { blaster->baseX, 1.0f, 10.0f };
+            blaster->beamScaleX = 0.0f;
+            blaster->beamCurrentLength = 0.0f;
+
+            int uniqueID = rand() % 100000;
+            blaster->beamWindowName = "blaster_beam_" + std::to_string(uniqueID);
+            blaster->windowName = "blaster_cannon_" + std::to_string(uniqueID);
+
+            // A. SPAWN LASER WINDOW
+            TrackedWindowConfig beamCfg;
+            beamCfg.name = blaster->beamWindowName;
+            beamCfg.title = "!!! BEAM REACHING !!!";
+            beamCfg.isTransparent = false;
+            beamCfg.priority = 1;
+
+            boss->GetWindowSystem()->AddTrackedWindow(beamCfg,
+                [ptr = blaster.get()]() {
+                    if (ptr->state < 2) return DirectX::XMFLOAT3(ptr->pos.x, ptr->pos.y, -10000.0f);
+                    return ptr->pos;
+                },
+                [ptr = blaster.get(), this, boss]() {
+                    if (ptr->state < 2) return DirectX::XMFLOAT2(1.0f, 1.0f);
+                    float p2u = boss->GetWindowSystem()->GetPixelToUnitRatio();
+                    float w = max(50.0f, (ptr->beamScaleX + 1.5f) * p2u);
+                    float h = max(1.0f, ptr->beamCurrentLength * p2u);
+                    return DirectX::XMFLOAT2(w, h);
+                }
+            );
+
+            // B. SPAWN CANNON WINDOW
+            TrackedWindowConfig cfg;
+            cfg.name = blaster->windowName;
+            cfg.title = "DANGER: ORBITAL CANNON";
+            cfg.width = (int)m_blasterParams.cannonWindowSize;
+            cfg.height = (int)m_blasterParams.cannonWindowSize;
+            cfg.role = WindowRole::TRACKED_ENTITY;
+            cfg.isTransparent = false;
+            cfg.priority = 10;
+
+            boss->GetWindowSystem()->AddTrackedWindow(cfg,
+                [ptr = blaster.get()]() { return ptr->pos; },
+                [this]() { return DirectX::XMFLOAT2(m_blasterParams.cannonWindowSize, m_blasterParams.cannonWindowSize); }
+            );
+
+            m_blasters.push_back(blaster);
+            m_blastersSpawned++;
+
+            if (m_blastersSpawned >= m_blasterParams.spawnCount) m_isSpawningBlasters = false;
+        }
+    }
+
     // =========================================================
-    if (m_testBlaster.active) {
-        m_testBlaster.timer += dt;
+    // 2. UPDATE PERILAKU SEMUA BLASTER AKTIF
+    // =========================================================
+    for (auto it = m_blasters.begin(); it != m_blasters.end(); ) {
+        auto& b = *it;
 
-        // STATE 1: DROP IN (Jatuh ke posisi tembak)
-        if (m_testBlaster.state == 1) {
-            // Lerp super mulus dengan kecepatan tinggi (Ease Out)
-            m_testBlaster.pos.z += (m_testBlaster.targetPos.z - m_testBlaster.pos.z) * 12.0f * dt;
+        if (b->active) {
+            b->timer += dt;
 
-            if (m_testBlaster.timer >= 0.4f) {
-                m_testBlaster.state = 2; // Masuk ke mode bidik
-                m_testBlaster.timer = 0.0f;
-                AudioManager::Instance().PlaySFX("Data/Sound/SE_Charge.wav", 0.5f); // Opsional
-            }
-        }
-        // STATE 2: CHARGING / TELEGRAPH (Garis Peringatan & Window Sliding)
-        else if (m_testBlaster.state == 2) {
-            m_testBlaster.pos.x = ((rand() % 100) / 100.0f - 0.5f) * 0.1f; // Getaran kepala
-            m_testBlaster.beamScaleX = 0.2f; // Tipis (Peringatan)
-
-            // Laser memanjang ke bawah dengan cepat
-            float targetLength = m_blasterParams.beamMaxLength;
-            m_testBlaster.beamCurrentLength += (targetLength - m_testBlaster.beamCurrentLength) * m_blasterParams.beamSlideSpeed * dt;
-
-            // [HAPUS] Logika ws->AddTrackedWindow(beamCfg) sudah dihapus dari sini!
-
-            if (m_testBlaster.timer >= 0.6f) {
-                m_testBlaster.state = 3;
-                m_testBlaster.timer = 0.0f;
-                CameraController::Instance().AddTrauma(0.6f);
-            }
-        }
-
-        // STATE 3: FIRING (Laser Raksasa!)
-        else if (m_testBlaster.state == 3) {
-            m_testBlaster.pos.x = 0.0f;
-
-            // [FIX] Gunakan beamVisualWidth sebagai batas maksimal lebar laser!
-            m_testBlaster.beamScaleX += (m_blasterParams.beamVisualWidth - m_testBlaster.beamScaleX) * m_blasterParams.beamGrowSpeed * dt;
-            CameraController::Instance().AddTrauma(0.1f);
-
-            if (m_testBlaster.timer >= 0.8f) { // Tembak selama 0.8 detik
-                m_testBlaster.state = 4;
-                m_testBlaster.timer = 0.0f;
-
-                m_testBlaster.pos.z = -10000.0f;
-
-                // =========================================================
-                // [FIX] MATIKAN WINDOW LASER SECARA INSTAN DI SINI!
-                // Ini mencegah window merosot saat meriam mundur di State 4
-                // =========================================================
-                if (boss && boss->GetWindowSystem()) {
-                    boss->GetWindowSystem()->RemoveTrackedWindow(m_testBlaster.beamWindowName);
+            if (b->state == 1) { // DROP IN
+                b->pos.z += (b->targetPos.z - b->pos.z) * 12.0f * dt;
+                if (b->timer >= 0.4f) {
+                    b->state = 2; b->timer = 0.0f;
+                    AudioManager::Instance().PlaySFX("Data/Sound/SE_Charge.wav", 0.3f);
                 }
             }
-        }
-        // STATE 4: RETREAT (Hilang)
-        else if (m_testBlaster.state == 4) {
-            m_testBlaster.beamScaleX -= dt * 25.0f; // Laser 2D menciut super cepat
-            if (m_testBlaster.beamScaleX < 0.0f) m_testBlaster.beamScaleX = 0.0f;
+            else if (b->state == 2) { // CHARGE
+                // [FIX] Gunakan baseX agar getaran tidak membuat meriam bergeser (drift)
+                b->pos.x = b->baseX + ((rand() % 100) / 100.0f - 0.5f) * m_blasterParams.cannonShakeIntensity;
+                b->beamScaleX = 0.2f;
+                b->beamCurrentLength += (m_blasterParams.beamMaxLength - b->beamCurrentLength) * m_blasterParams.beamSlideSpeed * dt;
 
-            m_testBlaster.pos.z += 40.0f * dt; // Kepala meriam terbang ke atas
-
-            if (m_testBlaster.timer >= 0.3f) {
-                m_testBlaster.active = false; // Siklus selesai
-
-                // Hanya hapus Cannon di sini (Laser sudah dihapus di atas)
-                if (boss && boss->GetWindowSystem()) {
-                    boss->GetWindowSystem()->RemoveTrackedWindow(m_testBlaster.windowName);
+                if (b->timer >= 0.6f) {
+                    b->state = 3; b->timer = 0.0f;
+                    CameraController::Instance().AddTrauma(0.6f);
                 }
             }
+            else if (b->state == 3) { // FIRE
+                b->pos.x = b->baseX; // Kunci ke titik asli
+                b->beamScaleX += (m_blasterParams.beamVisualWidth - b->beamScaleX) * m_blasterParams.beamGrowSpeed * dt;
+                CameraController::Instance().AddTrauma(0.1f);
+
+                if (b->timer >= 0.8f) {
+                    b->state = 4; b->timer = 0.0f;
+                    b->pos.z = -10000.0f; // Buang window laser
+                    if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(b->beamWindowName);
+                }
+            }
+            else if (b->state == 4) { // RETREAT
+                b->beamScaleX -= dt * 25.0f;
+                if (b->beamScaleX < 0.0f) b->beamScaleX = 0.0f;
+                b->pos.z += 40.0f * dt;
+
+                if (b->timer >= 0.3f) {
+                    b->active = false;
+                    if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(b->windowName);
+                }
+            }
+            ++it;
+        }
+        else {
+            // Jika sudah tidak aktif, hapus dari memori
+            it = m_blasters.erase(it);
         }
     }
 }
+
 
 void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {
     if (!currentCamera || !m_wingSprite || !boss) return;
@@ -416,10 +469,10 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
     }
 
     // =========================================================
-    // 2. RENDER ORBITAL BLASTER (CANNON & LASER)
-    // [FIX] Kita hapus isMainCam agar muncul di SEMUA window!
-    // =========================================================
-    if (m_testBlaster.active) {
+        // 2. RENDER SEMUA ORBITAL BLASTER AKTIF
+        // =========================================================
+    for (auto& b : m_blasters) {
+        if (!b->active) continue;
 
         // A. GAMBAR KEPALA MERIAM (Model 3D)
         if (m_placeholderModel && !m_placeholderModel->GetNodes().empty()) {
@@ -428,8 +481,7 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
             DirectX::XMFLOAT4X4 identity;
             DirectX::XMStoreFloat4x4(&identity, DirectX::XMMatrixIdentity());
 
-            rootNode.position = m_testBlaster.pos;
-            // [FIX] Skala 3D meriam menggunakan cannonVisualScale
+            rootNode.position = b->pos; // Gunakan b->pos
             float cScale = m_blasterParams.cannonVisualScale;
             rootNode.scale = { cScale, cScale, cScale };
             m_placeholderModel->UpdateTransform(identity);
@@ -437,31 +489,23 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
         }
 
         // B. GAMBAR LASER BEAM (Solid 2D Primitive)
-        // Agar laser 2D muncul di portal, kita harus geser koordinatnya sesuai posisi Window OS!
-        if (m_testBlaster.beamScaleX > 0.0f && m_solidRenderer) {
+        if (b->beamScaleX > 0.0f && m_solidRenderer) {
             float p2u = boss->GetWindowSystem()->GetPixelToUnitRatio();
             float startX, startY, endY;
 
-            // Ambil posisi layar absolut (Desktop)
-            boss->GetWindowSystem()->WorldToScreenPos(m_testBlaster.pos, startX, startY);
-            DirectX::XMFLOAT3 endPos = m_testBlaster.pos;
-            endPos.z -= m_testBlaster.beamCurrentLength;
+            boss->GetWindowSystem()->WorldToScreenPos(b->pos, startX, startY);
+            DirectX::XMFLOAT3 endPos = b->pos;
+            endPos.z -= b->beamCurrentLength;
             float dummyX;
             boss->GetWindowSystem()->WorldToScreenPos(endPos, dummyX, endY);
 
-            // Kompensasi Kamera (Shake & Position)
             DirectX::XMFLOAT3 camPos = currentCamera->GetPosition();
             startX -= (camPos.x * p2u);
             startY += (camPos.z * p2u);
             endY += (camPos.z * p2u);
 
-            // ---------------------------------------------------------
-            // [PRO-LOGIC] OFFSET BERDASARKAN POSISI WINDOW OS
-            // ---------------------------------------------------------
-            // Cari tahu jendela mana yang sedang dirender saat ini
             for (auto& tw : boss->GetWindowSystem()->GetWindows()) {
                 if (tw->camera.get() == currentCamera) {
-                    // Geser koordinat laser agar relatif terhadap pojok kiri atas jendela ini!
                     startX -= (float)tw->state.actualX;
                     startY -= (float)tw->state.actualY;
                     endY -= (float)tw->state.actualY;
@@ -469,20 +513,16 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
                 }
             }
 
-            float pixelWidth = m_testBlaster.beamScaleX * p2u;
+            float pixelWidth = b->beamScaleX * p2u; // Gunakan b->beamScaleX
             float pixelHeight = endY - startY;
 
-            DirectX::XMFLOAT4 color = (m_testBlaster.state == 2) ?
+            DirectX::XMFLOAT4 color = (b->state == 2) ?
                 DirectX::XMFLOAT4{ 1,0,0,0.5f } : DirectX::XMFLOAT4{ 0,1,1,0.9f };
 
             m_solidRenderer->Rect(startX, startY, pixelWidth, pixelHeight, pixelWidth * 0.5f, 0.0f, 0.0f, color.x, color.y, color.z, color.w);
             m_solidRenderer->Render(context);
         }
     }
-
-    // HITBOX BOUNCING BULLET HILANG DARI SINI? 
-    // Jangan khawatir! Hitbox sekarang sudah dirender secara terpusat di SceneBoss.cpp 
-    // agar sinkron dengan checkbox "Show Hitboxes" dan muncul di semua jendela secara otomatis.
 }
 
 
@@ -551,60 +591,8 @@ void NaviPhaseWindowkill::TriggerOrbitalBlaster(NaviBoss* boss) {
         m_placeholderModel = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_mdl_Ball.glb");
     }
 
-    m_testBlaster.active = true;
-    m_testBlaster.state = 1;
-    m_testBlaster.timer = 0.0f;
-    m_testBlaster.pos = { 0.0f, 1.0f, 25.0f };
-    m_testBlaster.targetPos = { 0.0f, 1.0f, 10.0f };
-    m_testBlaster.beamScaleX = 0.0f;
-    m_testBlaster.beamCurrentLength = 0.0f; // [FIX] Pastikan mulai dari 0
-
-    // 1. SPAWN LASER WINDOW DULUAN 
-    m_testBlaster.beamWindowName = "blaster_beam_window";
-    TrackedWindowConfig beamCfg;
-    beamCfg.name = m_testBlaster.beamWindowName;
-    beamCfg.title = "!!! BEAM REACHING !!!";
-    beamCfg.isTransparent = false;
-    beamCfg.priority = 1;
-
-    boss->GetWindowSystem()->AddTrackedWindow(beamCfg,
-        [this]() {
-            if (m_testBlaster.state < 2) {
-                DirectX::XMFLOAT3 hiddenPos = m_testBlaster.pos;
-                hiddenPos.z = -10000.0f;
-                return hiddenPos;
-            }
-            return m_testBlaster.pos;
-        },
-        [this, boss]() {
-            if (m_testBlaster.state < 2) return DirectX::XMFLOAT2(1.0f, 1.0f);
-
-            float p2u = boss->GetWindowSystem()->GetPixelToUnitRatio();
-            // [FIX] Lebar window laser menyesuaikan visual laser + margin ekstra agar tidak kepotong border OS
-            float w = max(50.0f, (m_testBlaster.beamScaleX + 1.5f) * p2u);
-            float h = max(1.0f, m_testBlaster.beamCurrentLength * p2u);
-            return DirectX::XMFLOAT2(w, h);
-        }
-    );
-
-    // 2. SPAWN CANNON WINDOW KEDUA
-    m_testBlaster.windowName = "blaster_cannon_window";
-    TrackedWindowConfig cfg;
-    cfg.name = m_testBlaster.windowName;
-    cfg.title = "DANGER: ORBITAL CANNON";
-    // [FIX] Gunakan parameter khusus window untuk meriam
-    cfg.width = (int)m_blasterParams.cannonWindowSize;
-    cfg.height = (int)m_blasterParams.cannonWindowSize;
-    cfg.role = WindowRole::TRACKED_ENTITY;
-    cfg.isTransparent = false;
-    cfg.priority = 10;
-
-    boss->GetWindowSystem()->AddTrackedWindow(cfg,
-        [this]() { return m_testBlaster.pos; },
-        [this]() {
-            // [FIX] Lambda ukuran window mengembalikan ukuran statis dari ImGui
-            float size = m_blasterParams.cannonWindowSize;
-            return DirectX::XMFLOAT2(size, size);
-        }
-    );
+    // Aktifkan sistem spawner!
+    m_isSpawningBlasters = true;
+    m_blastersSpawned = 0;
+    m_blasterSpawnTimer = m_blasterParams.spawnDelay; // Paksa agar langsung spawn yang pertama
 }
