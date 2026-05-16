@@ -64,7 +64,7 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     m_wingStateTimer = 0.0f;
     GenerateButterflyWings();
 
-    boss->SetPosition({ 0.0f, 0.0f, 0.0f });
+    boss->SetPosition({ 0.0f, 0.0f, 7.0f });
 }
 
 void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
@@ -93,6 +93,11 @@ void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
         }
     }
     m_blasters.clear();
+
+    for (auto& bw : m_boomerangs) {
+        if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(bw.windowName);
+    }
+    m_boomerangs.clear();
 }
 
 // =========================================================
@@ -153,6 +158,26 @@ void NaviPhaseWindowkill::GenerateButterflyWings() {
 
 void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
     m_glitchTimer += dt;
+    
+    // =========================================================
+    // [NEW] GERAKAN MENGAMBANG (IDLE HOVER) BOS NAVI
+    // =========================================================
+    if (boss) {
+        float centerX = 0.0f;
+        float centerZ = 7.0f;
+
+        // Atur seberapa jauh bos boleh menyimpang dari titik tengah
+        float rangeX = 2.0f;
+        float rangeZ = 1.0f;
+
+        // Kombinasi sin dan cos dengan pengali waktu yang berbeda 
+        // agar polanya tidak membentuk lingkaran sempurna yang membosankan.
+        float newX = centerX + sinf(m_glitchTimer * 0.6f) * rangeX;
+        float newZ = centerZ + cosf(m_glitchTimer * 0.4f) * rangeZ;
+
+        // Terapkan posisi baru! (Sumbu Y tetap 0 agar tidak naik-turun)
+        boss->SetPosition({ newX, 0.0f, newZ });
+    }
 
     if (m_wingState == WingState::Expanding) {
         m_wingStateTimer += dt;
@@ -283,6 +308,129 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
 
     if (anyBouncedThisFrame) {
         CameraController::Instance().AddTrauma(0.3f);
+    }
+
+    // =========================================================
+        // 1. SPAWNER BOOMERANG BERUNTUN
+        // =========================================================
+    if (m_isSpawningBoomerangs) {
+        m_boomerangSpawnTimer += dt;
+
+        while (m_isSpawningBoomerangs && m_boomerangSpawnTimer >= m_boomerangParams.spawnDelay) {
+            if (m_boomerangParams.spawnDelay > 0.0f) m_boomerangSpawnTimer -= m_boomerangParams.spawnDelay;
+            else m_boomerangSpawnTimer = 1.0f;
+
+            BoomerangWindowBullet bw;
+            bw.bullet = std::make_unique<Bullet>();
+            bw.bullet->SetRadius(m_boomerangParams.hitboxRadius);
+            bw.bullet->scale = { m_boomerangParams.visualScale, m_boomerangParams.visualScale, m_boomerangParams.visualScale };
+
+            float p2u = boss->GetWindowSystem()->GetPixelToUnitRatio();
+            float limitX = (m_screenW / 2.0f) / p2u;
+            float limitZ = (m_screenH / 2.0f) / p2u;
+
+            // Tentukan arah acak (Kiri atau Kanan) untuk setiap Boomerang
+            bw.spawnSide = (rand() % 2 == 0) ? 1 : -1;
+            bw.startX = bw.spawnSide * (limitX + 8.0f); // Mulai dari luar layar
+
+            // Target titik putar (Sekitar tengah layar agar ada ruang untuk overshoot)
+            bw.targetX = bw.startX - (bw.spawnSide * m_boomerangParams.maxTravelDistance);
+
+            // =========================================================
+             // [FIX] LOGIKA PEMBATASAN AREA LAYER (FULL VS HALF-BOTTOM)
+             // =========================================================
+            float randomZ = 0.0f;
+            if (m_boomerangParams.spawnBottomHalfOnly) {
+                // Sumbu Z negatif memproyeksikan objek ke area setengah bawah monitor Anda
+                randomZ = -((rand() % 100) / 100.0f) * (limitZ - 3.0f);
+            }
+            else {
+                // Seluruh area monitor (Z positif atas, Z negatif bawah)
+                randomZ = ((rand() % 200) / 100.0f - 1.0f) * (limitZ - 3.0f);
+            }
+
+            // Atur posisi awal objek dengan koordinat Z yang baru digenerate
+            DirectX::XMFLOAT3 startPos = { bw.startX, 1.0f, randomZ };
+
+            // Set Target Kecepatan awal (Masuk lurus)
+            bw.targetVelX = -1.0f * bw.spawnSide * m_boomerangParams.speed;
+
+            // Tembakkan dengan kecepatan awal penuh
+            DirectX::XMFLOAT3 startDir = { bw.targetVelX > 0 ? 1.0f : -1.0f, 0.0f, 0.0f };
+            bw.bullet->Fire(startPos, startDir, m_boomerangParams.speed);
+
+            bw.windowName = "boomerang_win_" + std::to_string(rand() % 100000);
+
+            TrackedWindowConfig cfg;
+            cfg.name = bw.windowName;
+            cfg.title = "BOOMERANG WARNING";
+            cfg.width = (int)m_boomerangParams.windowSize;
+            cfg.height = (int)m_boomerangParams.windowSize;
+            cfg.isTransparent = false;
+            cfg.priority = 8;
+
+            boss->GetWindowSystem()->AddTrackedWindow(cfg,
+                [ptr = bw.bullet.get()]() { return ptr->GetPosition(); },
+                [this]() { return DirectX::XMFLOAT2(m_boomerangParams.windowSize, m_boomerangParams.windowSize); }
+            );
+
+            m_boomerangs.push_back(std::move(bw));
+            m_boomerangsSpawned++;
+
+            CameraController::Instance().AddTrauma(0.1f);
+
+            if (m_boomerangsSpawned >= m_boomerangParams.spawnCount) m_isSpawningBoomerangs = false;
+        }
+    }
+
+    // =========================================================
+    // 2. UPDATE GERAK BOOMERANG (DENGAN LERP & EASE-IN/OUT)
+    // =========================================================
+    for (auto it = m_boomerangs.begin(); it != m_boomerangs.end(); ) {
+        auto& bw = *it;
+
+        if (!bw.bullet->IsActive()) {
+            boss->GetWindowSystem()->RemoveTrackedWindow(bw.windowName);
+            it = m_boomerangs.erase(it);
+            continue;
+        }
+
+        bw.bullet->SetRadius(m_boomerangParams.hitboxRadius);
+        float vs = m_boomerangParams.visualScale;
+        bw.bullet->scale = { vs, vs, vs };
+
+        // [MAGIC FIX] Smooth Velocity Lerp!
+        DirectX::XMFLOAT3 vel = bw.bullet->GetVelocity();
+        // Kecepatan peluru secara dinamis mendekati targetVelX dengan kehalusan `turnSpeed`
+        vel.x += (bw.targetVelX - vel.x) * m_boomerangParams.turnSpeed * dt;
+
+        bw.bullet->ApplyMovement(bw.bullet->GetMovement()->GetPosition(), vel);
+        bw.bullet->Update(dt, nullptr);
+
+        DirectX::XMFLOAT3 pos = bw.bullet->GetMovement()->GetPosition();
+
+        if (bw.state == 0) { // MODE MASUK
+            // Saat mendekati titik target putar balik
+            if ((bw.spawnSide == 1 && pos.x <= bw.targetX) ||
+                (bw.spawnSide == -1 && pos.x >= bw.targetX))
+            {
+                bw.state = 1;
+                // Set target kecepatan menjadi BERLAWANAN! 
+                // (Ini akan membuat bumerang melambat sendiri secara halus, berhenti sejenak (overshoot), lalu ngebut mundur)
+                bw.targetVelX = bw.spawnSide * m_boomerangParams.speed;
+            }
+        }
+        else if (bw.state == 1) { // MODE KELUAR
+            // Cek apakah sudah kembali ke titik awal di luar layar
+            if ((bw.spawnSide == 1 && pos.x >= bw.startX) ||
+                (bw.spawnSide == -1 && pos.x <= bw.startX))
+            {
+                boss->GetWindowSystem()->RemoveTrackedWindow(bw.windowName);
+                it = m_boomerangs.erase(it);
+                continue;
+            }
+        }
+        ++it;
     }
 
     // =========================================================
@@ -481,6 +629,14 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
         }
     }
 
+    for (auto& bw : m_boomerangs) {
+        if (bw.bullet && bw.bullet->IsActive()) {
+            auto modelRenderer = Graphics::Instance().GetModelRenderer();
+            // Warna Ungu Gelap untuk membedakan Boomerang
+            modelRenderer->Draw(ShaderId::Phong, bw.bullet->GetModel(), { 0.6f, 0.0f, 0.8f, 1.0f });
+        }
+    }
+
     // =========================================================
         // 2. RENDER SEMUA ORBITAL BLASTER AKTIF
         // =========================================================
@@ -542,23 +698,40 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
 void NaviPhaseWindowkill::TriggerBouncingWindows(NaviBoss* boss) {
     if (!boss || !boss->GetWindowSystem()) return;
 
+    // =========================================================
+    // [NEW] PATTERN: Ke Atas (Z+), 2 Kanan (X+), 1 Kiri (X-)
+    // Sudut 0-90 adalah Kanan Atas, 90-180 adalah Kiri Atas.
+    // =========================================================
+    float patternAngles[3] = {
+        DirectX::XMConvertToRadians(35.0f),  // Peluru 1: Kanan Atas (Agak landai)
+        DirectX::XMConvertToRadians(75.0f),  // Peluru 2: Kanan Atas (Curam ke atas)
+        DirectX::XMConvertToRadians(130.0f)  // Peluru 3: Kiri Atas (Tidak simetris dengan kanan)
+    };
+
     for (int i = 0; i < m_bouncingParams.spawnCount; i++) {
         BouncingWindowBullet bwb;
         bwb.bullet = std::make_unique<Bullet>();
 
         // 1. SET HITBOX (FISIK)
-        // Menggunakan hitboxRadius untuk perhitungan tabrakan
         bwb.bullet->SetRadius(m_bouncingParams.hitboxRadius);
 
         // 2. SET MODEL SCALE (VISUAL)
-        // Menggunakan visualScale untuk ukuran bola di dalam game
         float vs = m_bouncingParams.visualScale;
         bwb.bullet->scale = { vs, vs, vs };
-
         bwb.maxBounces = m_bouncingParams.maxBounces;
 
-        // Logika Gerak
-        float angle = (float)(rand() % 360);
+        // =========================================================
+        // [FIX] TERAPKAN POLA ARAH TEMBAKAN
+        // =========================================================
+        // Ambil sudut dari array. Jika spawnCount > 3, polanya akan berulang (modulo 3)
+        float angle = patternAngles[i % 3];
+
+        // Opsional: Beri sedikit deviasi acak (+/- 5 derajat) JIKA peluru lebih dari 3 
+        // agar tembakan ke-4 dst tidak menumpuk persis di garis yang sama
+        if (i >= 3) {
+            angle += DirectX::XMConvertToRadians((float)((rand() % 10) - 5));
+        }
+
         DirectX::XMFLOAT3 dir = { cosf(angle), 0, sinf(angle) };
         bwb.bullet->Fire(boss->GetPosition(), dir, m_bouncingParams.speed);
 
@@ -572,9 +745,6 @@ void NaviPhaseWindowkill::TriggerBouncingWindows(NaviBoss* boss) {
         cfg.height = (int)m_bouncingParams.windowHeight;
         cfg.isTransparent = false;
 
-        // =========================================================
-        // [FIX MUTLAK 1] TAMBAHKAN LAMBDA UNTUK GET TARGET SIZE
-        // =========================================================
         boss->GetWindowSystem()->AddTrackedWindow(cfg,
             [ptr = bwb.bullet.get()]() { return ptr->GetPosition(); },
             [this]() { return DirectX::XMFLOAT2(m_bouncingParams.windowWidth, m_bouncingParams.windowHeight); }
@@ -585,12 +755,17 @@ void NaviPhaseWindowkill::TriggerBouncingWindows(NaviBoss* boss) {
 
     CameraController::Instance().AddTrauma(0.2f);
 }
-
 std::vector<Bullet*> NaviPhaseWindowkill::GetProjectiles() {
     std::vector<Bullet*> activeBullets;
     for (auto& bwb : m_bouncingBullets) {
         if (bwb.bullet && bwb.bullet->IsActive()) {
             activeBullets.push_back(bwb.bullet.get());
+        }
+    }
+    // [NEW] Daftarkan Boomerang ke wasit CollisionManager!
+    for (auto& bw : m_boomerangs) {
+        if (bw.bullet && bw.bullet->IsActive()) {
+            activeBullets.push_back(bw.bullet.get());
         }
     }
     return activeBullets;
@@ -608,4 +783,13 @@ void NaviPhaseWindowkill::TriggerOrbitalBlaster(NaviBoss* boss) {
     m_isSpawningBlasters = true;
     m_blastersSpawned = 0;
     m_blasterSpawnTimer = m_blasterParams.spawnDelay; // Paksa agar langsung spawn yang pertama
+}
+
+void NaviPhaseWindowkill::TriggerBoomerang(NaviBoss* boss) {
+    if (!boss || !boss->GetWindowSystem()) return;
+
+    // Aktifkan sistem spawner beruntun!
+    m_isSpawningBoomerangs = true;
+    m_boomerangsSpawned = 0;
+    m_boomerangSpawnTimer = m_boomerangParams.spawnDelay; // Paksa spawn yang pertama
 }

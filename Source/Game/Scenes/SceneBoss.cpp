@@ -541,8 +541,8 @@ void SceneBoss::DrawGUI()
         if (ImGui::BeginTabItem("System & Engine"))
         {
             // =========================================================
-                // [NEW] PEMANTAU WINDOW POOLING
-                // =========================================================
+            // [NEW] PEMANTAU WINDOW POOLING
+            // =========================================================
             int activeWins = 0;
             int sleepingWins = 0;
             for (const auto& tw : m_windowSystem->GetWindows()) {
@@ -857,86 +857,153 @@ void SceneBoss::DrawGUI()
                 ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "--- PHASE 2: WINDOWKILL ATTACKS ---");
                 ImGui::Separator();
 
-                const float fps = ImGui::GetIO().Framerate;
-                ImVec4 fpsColor = (fps < 40.0f) ? ImVec4(1, 0, 0, 1) : (fps < 50.0f) ? ImVec4(1, 1, 0, 1) : ImVec4(0, 1, 0, 1);
-                ImGui::TextColored(fpsColor, "FPS: %.1f (%.2f ms) [cap: 60]", fps, 1000.0f / fps);
+                // =========================================================
+                // [NEW] PEMANTAU WINDOW POOLING
+                // =========================================================
 
-                static float s_frametimes[90] = {};
-                static int   s_offset = 0;
-                s_frametimes[s_offset] = 1000.0f / fps;
-                s_offset = (s_offset + 1) % IM_ARRAYSIZE(s_frametimes);
-                ImGui::PlotLines("Frametime", s_frametimes, IM_ARRAYSIZE(s_frametimes), s_offset, nullptr, 0.0f, 33.0f, ImVec2(0, 50));
+                if (ImGui::CollapsingHeader("System Metrics & Time", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    const float fps = ImGui::GetIO().Framerate;
+                    ImVec4 fpsColor = (fps < 40.0f) ? ImVec4(1, 0, 0, 1) : (fps < 50.0f) ? ImVec4(1, 1, 0, 1) : ImVec4(0, 1, 0, 1);
+                    ImGui::TextColored(fpsColor, "FPS: %.1f (%.2f ms) [cap: 60]", fps, 1000.0f / fps);
 
+                    static float s_frametimes[90] = {};
+                    static int   s_offset = 0;
+                    s_frametimes[s_offset] = 1000.0f / fps;
+                    s_offset = (s_offset + 1) % IM_ARRAYSIZE(s_frametimes);
+                    ImGui::PlotLines("Frametime", s_frametimes, IM_ARRAYSIZE(s_frametimes), s_offset, nullptr, 0.0f, 33.0f, ImVec2(0, 50));
+
+                    int activeWins = 0;
+                    int sleepingWins = 0;
+                    for (const auto& tw : m_windowSystem->GetWindows()) {
+                        if (tw->isActive) activeWins++;
+                        else sleepingWins++;
+                    }
+
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Active OS Windows: %d", activeWins);
+                    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Pooled (Sleeping) Windows: %d", sleepingWins);
+
+
+                    ImGui::Separator();
+                    ImGui::SliderFloat("Time Scale", &m_timeScale, 0.1f, 3.0f, "%.1fx");
+                    if (ImGui::Button("Reset Time (1.0x)")) m_timeScale = 1.0f;
+                }
+
+
+                // =========================================================
+                // 1. ORBITAL LASER
+                // =========================================================
+                ImGui::PushID("OrbitalLaserBlock"); // Isolasi ID agar slider tidak bentrok
 
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
-
-                if (ImGui::Button("FIRE BOUNCING WINDOWS", ImVec2(-1.0f, 50.0f))) {
-                    wkPhase->TriggerBouncingWindows(m_navi.get());
-                }
-                if (ImGui::Button("FIRE ORBITAL LASER (SANS)", ImVec2(-1.0f, 50.0f))) {
-                    // [FIX] Masukkan m_navi.get() ke dalam argumen!
+                if (ImGui::Button("FIRE ORBITAL LASER", ImVec2(-1.0f, 40.0f))) {
                     wkPhase->TriggerOrbitalBlaster(m_navi.get());
                 }
                 ImGui::PopStyleColor(2);
 
-                // =========================================================
-                                // [NEW] TUNING: ORBITAL BLASTER (SANS)
-                                // =========================================================
-                if (ImGui::CollapsingHeader("Orbital Blaster Config", ImGuiTreeNodeFlags_DefaultOpen))
+                if (ImGui::CollapsingHeader("Orbital Laser Configuration")) // Hapus DefaultOpen
                 {
                     auto& bp = wkPhase->GetBlasterParams();
 
-                    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "--- Cannon Head ---");
-                    ImGui::SliderFloat("Cannon Window Size", &bp.cannonWindowSize, 100.0f, 800.0f);
-                    ImGui::SliderFloat("Cannon Visual Scale", &bp.cannonVisualScale, 0.1f, 10.0f);
-                    ImGui::SliderFloat("Cannon Hitbox Radius", &bp.cannonHitboxRadius, 0.1f, 10.0f);
+                    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "[ Cannon Head ]");
+                    ImGui::SliderFloat("OS Window Size", &bp.cannonWindowSize, 100.0f, 800.0f);
+                    ImGui::SliderFloat("Visual Scale 3D", &bp.cannonVisualScale, 0.1f, 10.0f);
+                    ImGui::SliderFloat("Hitbox Radius", &bp.cannonHitboxRadius, 0.1f, 10.0f);
+                    ImGui::SliderFloat("Window Shake Intensity", &bp.cannonShakeIntensity, 0.0f, 5.0f);
 
                     ImGui::Separator();
-                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "--- Laser Beam ---");
-                    ImGui::SliderFloat("Beam Visual Width", &bp.beamVisualWidth, 1.0f, 20.0f);
-                    ImGui::SliderFloat("Beam Hitbox Width", &bp.beamHitboxWidth, 1.0f, 20.0f);
-                    ImGui::SliderFloat("Beam Max Length", &bp.beamMaxLength, 50.0f, 500.0f);
-
-                    ImGui::Separator();
-                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "--- Timing ---");
-                    ImGui::SliderFloat("Charge Delay (Telegraph)", &bp.chargeDelay, 0.1f, 3.0f, "%.2f sec");
-                    ImGui::SliderFloat("Fire Duration", &bp.fireDuration, 0.1f, 3.0f, "%.2f sec");
-
-                    ImGui::Separator();
-                    ImGui::SliderFloat("Slide Speed (Down)", &bp.beamSlideSpeed, 1.0f, 50.0f);
-                    ImGui::SliderFloat("Grow Speed (Width)", &bp.beamGrowSpeed, 1.0f, 100.0f);
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "[ Laser Beam (2D) ]");
+                    ImGui::SliderFloat("Visual Width", &bp.beamVisualWidth, 1.0f, 20.0f);
+                    ImGui::SliderFloat("Hitbox Width", &bp.beamHitboxWidth, 1.0f, 20.0f);
+                    ImGui::SliderFloat("Max Length", &bp.beamMaxLength, 50.0f, 500.0f);
+                    ImGui::SliderFloat("Grow Speed", &bp.beamGrowSpeed, 1.0f, 100.0f);
+                    ImGui::SliderFloat("Slide Speed", &bp.beamSlideSpeed, 1.0f, 50.0f);
                     ImGui::SliderInt("Damage per Tick", &bp.beamDamage, 1, 100);
 
-                    ImGui::TextColored(ImVec4(1.0f, 0.5f, 1.0f, 1.0f), "--- Spawn Pattern ---");
+                    ImGui::Separator();
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "[ Attack Timing & Pattern ]");
                     ImGui::SliderInt("Spawn Count", &bp.spawnCount, 1, 15);
                     ImGui::SliderFloat("Spawn Delay", &bp.spawnDelay, 0.0f, 1.0f, "%.2f sec");
                     ImGui::SliderFloat("Spawn Spread (Width)", &bp.spawnSpreadX, 10.0f, 100.0f);
+                    ImGui::SliderFloat("Charge Delay (Telegraph)", &bp.chargeDelay, 0.1f, 3.0f, "%.2f sec");
+                    ImGui::SliderFloat("Fire Duration", &bp.fireDuration, 0.1f, 3.0f, "%.2f sec");
                 }
+                ImGui::PopID();
 
+                ImGui::Separator();
 
                 // =========================================================
-                // [NEW] TUNING: BOUNCING WINDOWS
+                // 2. BOUNCING WINDOWS
                 // =========================================================
-                if (ImGui::CollapsingHeader("Bouncing Windows Config", ImGuiTreeNodeFlags_DefaultOpen))
+                ImGui::PushID("BouncingWindowsBlock");
+
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
+                if (ImGui::Button("FIRE BOUNCING WINDOWS", ImVec2(-1.0f, 40.0f))) {
+                    wkPhase->TriggerBouncingWindows(m_navi.get());
+                }
+                ImGui::PopStyleColor(2);
+
+                if (ImGui::CollapsingHeader("Bouncing Windows Configuration"))
                 {
                     auto& bnp = wkPhase->GetBouncingParams();
 
+                    ImGui::TextColored(ImVec4(1.0f, 0.5f, 1.0f, 1.0f), "[ Spawn & Behavior ]");
                     ImGui::SliderInt("Spawn Count", &bnp.spawnCount, 1, 10);
-                    ImGui::SliderFloat("Bullet Speed", &bnp.speed, 5.0f, 100.0f);
+                    ImGui::SliderFloat("Movement Speed", &bnp.speed, 5.0f, 100.0f);
                     ImGui::SliderInt("Max Bounces", &bnp.maxBounces, 1, 30);
-                    ImGui::Separator();
-                    ImGui::DragFloat2("Window Size (W/H)", (float*)&bnp.windowWidth, 1.0f, 100.0f, 1000.0f);
-                    ImGui::Separator();
-                    ImGui::SliderFloat("Visual Scale (Ball)", &bnp.visualScale, 0.1f, 5.0f);
-                    ImGui::SliderFloat("Hitbox Radius", &bnp.hitboxRadius, 0.1f, 10.0f);
                     ImGui::SliderInt("Impact Damage", &bnp.damage, 1, 50);
-                }
-            }
-            
-            ImGui::EndTabItem();
-        }
 
+                    ImGui::Separator();
+                    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "[ Window & Hitbox ]");
+                    ImGui::DragFloat2("OS Window Size (W/H)", (float*)&bnp.windowWidth, 1.0f, 100.0f, 1000.0f);
+                    ImGui::SliderFloat("Visual Scale 3D", &bnp.visualScale, 0.1f, 5.0f);
+                    ImGui::SliderFloat("Hitbox Radius", &bnp.hitboxRadius, 0.1f, 10.0f);
+                }
+                ImGui::PopID();
+
+                ImGui::Separator();
+
+                // =========================================================
+                // 3. BOOMERANG WINDOWS
+                // =========================================================
+                ImGui::PushID("BoomerangBlock");
+
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
+                if (ImGui::Button("FIRE BOOMERANG WINDOW", ImVec2(-1.0f, 40.0f))) {
+                    wkPhase->TriggerBoomerang(m_navi.get());
+                }
+                ImGui::PopStyleColor(2);
+
+                if (ImGui::CollapsingHeader("Boomerang Configuration"))
+                {
+                    auto& bmp = wkPhase->GetBoomerangParams();
+
+                    ImGui::TextColored(ImVec4(1.0f, 0.5f, 1.0f, 1.0f), "[ Spawn Pattern ]");
+                    ImGui::SliderInt("Spawn Count", &bmp.spawnCount, 1, 20);
+                    ImGui::SliderFloat("Spawn Delay", &bmp.spawnDelay, 0.0f, 2.0f, "%.2f sec");
+
+                    // [NEW] Checkbox untuk mengunci area spawn di bawah layar
+                    ImGui::Checkbox("Spawn Bottom Half Only", &bmp.spawnBottomHalfOnly);
+
+                    ImGui::Separator();
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "[ Physics & Lerp ]");
+                    ImGui::SliderFloat("Boomerang Speed", &bmp.speed, 10.0f, 100.0f);
+
+                    // [NEW] Slider untuk mengatur batas jangkauan bumerang meluncur
+                    ImGui::SliderFloat("Max Travel Distance", &bmp.maxTravelDistance, 10.0f, 120.0f, "%.1f units");
+                    ImGui::SliderFloat("Turn Smoothness", &bmp.turnSpeed, 1.0f, 20.0f, "%.1f");
+                    ImGui::Separator();
+                    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "[ Window & Hitbox ]");
+                    ImGui::SliderFloat("Window Size", &bmp.windowSize, 100.0f, 500.0f);
+                    ImGui::SliderFloat("Boomerang Scale", &bmp.visualScale, 0.1f, 20.0f);
+                    ImGui::SliderFloat("Hitbox Radius", &bmp.hitboxRadius, 0.1f, 10.0f);
+                }
+                ImGui::PopID();
+            }
+    }
         // ---------------------------------------------------------
         // TAB 4: TERMINAL
         // ---------------------------------------------------------

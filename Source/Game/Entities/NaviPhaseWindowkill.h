@@ -28,6 +28,15 @@ struct BouncingWindowBullet {
     int maxBounces = 8;
 };
 
+struct BoomerangWindowBullet {
+    std::unique_ptr<Bullet> bullet;
+    std::string windowName;
+    int state = 0;         // 0 = Masuk ke layar, 1 = Putar balik
+    int spawnSide = 1;     // 1 = Kanan, -1 = Kiri
+    float startX = 0.0f;   // Titik awal offscreen
+    float targetX = 0.0f;  // Titik putar balik (2/3 layar)]
+    float targetVelX = 0.0f;
+};
 
 class NaviPhaseWindowkill : public INaviPhase {
 public:
@@ -127,8 +136,8 @@ public:
     // PARAMETER WINDOW MEMANTUL (REFINED)
     // ==========================================
     struct BouncingBulletParams {
-        float speed = 25.0f;
-        int   maxBounces = 8;
+        float speed = 35.0f;
+        int   maxBounces = 5;
         int   spawnCount = 3;
 
         // Pemisahan Ukuran Jendela OS
@@ -143,6 +152,28 @@ public:
     };
 
     BouncingBulletParams& GetBouncingParams() { return m_bouncingParams; }
+
+    struct BoomerangParams {
+        float speed = 40.0f;
+        float windowSize = 150.0f;
+        float visualScale = 5.0f;
+        float hitboxRadius = 1.0f;
+
+        int   spawnCount = 5;
+        float spawnDelay = 1.0f;
+        float turnSpeed = 3.0f;
+
+        // =========================================================
+        // [NEW] PARAMETER KONTROL JARAK & AREA SCREEN
+        // =========================================================
+        float maxTravelDistance = 35.0f;   // Seberapa jauh bumerang melaju sebelum ngerem
+        bool  spawnBottomHalfOnly = true; // true = Hanya setengah bawah monitor, false = Seluruh layar
+    };
+
+    BoomerangParams& GetBoomerangParams() { return m_boomerangParams; }
+    void TriggerBoomerang(NaviBoss* boss);
+
+
 private:
     void GenerateButterflyWings();
 
@@ -197,4 +228,11 @@ private:
     bool  m_isSpawningBlasters = false;
     int   m_blastersSpawned = 0;
     float m_blasterSpawnTimer = 0.0f;
+
+    std::vector<BoomerangWindowBullet> m_boomerangs;
+    BoomerangParams m_boomerangParams;
+
+    bool  m_isSpawningBoomerangs = false;
+    int   m_boomerangsSpawned = 0;
+    float m_boomerangSpawnTimer = 0.0f;
 };
