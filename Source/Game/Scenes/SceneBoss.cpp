@@ -951,6 +951,7 @@ void SceneBoss::DrawGUI()
 
                     ImGui::TextColored(ImVec4(1.0f, 0.5f, 1.0f, 1.0f), "[ Spawn & Behavior ]");
                     ImGui::SliderInt("Spawn Count", &bnp.spawnCount, 1, 10);
+                    ImGui::SliderFloat("Spawn Delay", &bnp.spawnDelay, 0.0f, 1.0f, "%.2f sec");
                     ImGui::SliderFloat("Movement Speed", &bnp.speed, 5.0f, 100.0f);
                     ImGui::SliderInt("Max Bounces", &bnp.maxBounces, 1, 30);
                     ImGui::SliderInt("Impact Damage", &bnp.damage, 1, 50);

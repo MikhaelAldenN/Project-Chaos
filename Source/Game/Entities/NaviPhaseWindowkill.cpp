@@ -308,6 +308,80 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
 
     if (anyBouncedThisFrame) {
         CameraController::Instance().AddTrauma(0.3f);
+        std::string dashSounds[] = {
+            "Data/Sound/SE_Boss_Bouncing_Thud_01.wav",
+            "Data/Sound/SE_Boss_Bouncing_Thud_02.wav",
+            "Data/Sound/SE_Boss_Bouncing_Thud_03.wav"
+        };
+
+        // 2. Pilih index secara acak (0, 1, atau 2)
+        int randomIndex = rand() % 3;
+
+        // 3. Mainkan suaranya lewat AudioManager
+        // Kita gunakan volume 0.5f agar tidak terlalu memekakkan telinga
+        AudioManager::Instance().PlaySFX(dashSounds[randomIndex], 0.2f);
+
+
+    }
+
+    // =========================================================
+    // SPAWNER BOUNCING WINDOWS BERUNTUN (DENGAN POLA ASIMETRIS)
+    // =========================================================
+    if (m_isSpawningBouncing) {
+        m_bouncingSpawnTimer += dt;
+
+        while (m_isSpawningBouncing && m_bouncingSpawnTimer >= m_bouncingParams.spawnDelay) {
+            if (m_bouncingParams.spawnDelay > 0.0f) m_bouncingSpawnTimer -= m_bouncingParams.spawnDelay;
+            else m_bouncingSpawnTimer = 1.0f;
+
+            // 1. Array Pola Asimetris (2 Kanan, 1 Kiri)
+            float patternAngles[3] = {
+                DirectX::XMConvertToRadians(35.0f),
+                DirectX::XMConvertToRadians(75.0f),
+                DirectX::XMConvertToRadians(145.0f)
+            };
+
+            BouncingWindowBullet bwb;
+            bwb.bullet = std::make_unique<Bullet>();
+            bwb.bullet->SetRadius(m_bouncingParams.hitboxRadius);
+            float vs = m_bouncingParams.visualScale;
+            bwb.bullet->scale = { vs, vs, vs };
+            bwb.maxBounces = m_bouncingParams.maxBounces;
+
+            // 2. Ambil sudut sesuai urutan peluru yang sedang di-spawn
+            float angle = patternAngles[m_bouncingSpawned % 3];
+            if (m_bouncingSpawned >= 3) {
+                angle += DirectX::XMConvertToRadians((float)((rand() % 10) - 5));
+            }
+
+            DirectX::XMFLOAT3 dir = { cosf(angle), 0, sinf(angle) };
+            bwb.bullet->Fire(boss->GetPosition(), dir, m_bouncingParams.speed);
+
+            bwb.windowName = "bouncing_win_" + std::to_string(rand() % 100000);
+
+            TrackedWindowConfig cfg;
+            cfg.name = bwb.windowName;
+            cfg.title = "PROJECTILE";
+            cfg.width = (int)m_bouncingParams.windowWidth;
+            cfg.height = (int)m_bouncingParams.windowHeight;
+            cfg.isTransparent = false;
+
+            boss->GetWindowSystem()->AddTrackedWindow(cfg,
+                [ptr = bwb.bullet.get()]() { return ptr->GetPosition(); },
+                [this]() { return DirectX::XMFLOAT2(m_bouncingParams.windowWidth, m_bouncingParams.windowHeight); }
+            );
+
+            m_bouncingBullets.push_back(std::move(bwb));
+            m_bouncingSpawned++;
+
+            // =========================================================
+            // [JUICE] EFEK AUDIO & SHAKE SETIAP KALI SATU PELURU KELUAR!
+            // =========================================================
+            CameraController::Instance().AddTrauma(0.2f);
+            AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Bouncing_Shoot.wav", 0.1f); // Sesuaikan nama file audio Anda
+
+            if (m_bouncingSpawned >= m_bouncingParams.spawnCount) m_isSpawningBouncing = false;
+        }
     }
 
     // =========================================================
@@ -519,7 +593,7 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
                 b->pos.z += (b->targetPos.z - b->pos.z) * 12.0f * dt;
                 if (b->timer >= 0.4f) {
                     b->state = 2; b->timer = 0.0f;
-                    AudioManager::Instance().PlaySFX("Data/Sound/SE_Charge.wav", 0.3f);
+                    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Laser_Charge.wav", 0.1f);
                 }
             }
             else if (b->state == 2) { // CHARGE
@@ -530,6 +604,8 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
                 if (b->timer >= m_blasterParams.chargeDelay) {
                     b->state = 3; b->timer = 0.0f;
                     CameraController::Instance().AddTrauma(0.6f);
+                    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Laser_Shoot.wav", 0.2f);
+
                 }
             }
 
@@ -698,63 +774,12 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
 void NaviPhaseWindowkill::TriggerBouncingWindows(NaviBoss* boss) {
     if (!boss || !boss->GetWindowSystem()) return;
 
-    // =========================================================
-    // [NEW] PATTERN: Ke Atas (Z+), 2 Kanan (X+), 1 Kiri (X-)
-    // Sudut 0-90 adalah Kanan Atas, 90-180 adalah Kiri Atas.
-    // =========================================================
-    float patternAngles[3] = {
-        DirectX::XMConvertToRadians(35.0f),  // Peluru 1: Kanan Atas (Agak landai)
-        DirectX::XMConvertToRadians(75.0f),  // Peluru 2: Kanan Atas (Curam ke atas)
-        DirectX::XMConvertToRadians(130.0f)  // Peluru 3: Kiri Atas (Tidak simetris dengan kanan)
-    };
-
-    for (int i = 0; i < m_bouncingParams.spawnCount; i++) {
-        BouncingWindowBullet bwb;
-        bwb.bullet = std::make_unique<Bullet>();
-
-        // 1. SET HITBOX (FISIK)
-        bwb.bullet->SetRadius(m_bouncingParams.hitboxRadius);
-
-        // 2. SET MODEL SCALE (VISUAL)
-        float vs = m_bouncingParams.visualScale;
-        bwb.bullet->scale = { vs, vs, vs };
-        bwb.maxBounces = m_bouncingParams.maxBounces;
-
-        // =========================================================
-        // [FIX] TERAPKAN POLA ARAH TEMBAKAN
-        // =========================================================
-        // Ambil sudut dari array. Jika spawnCount > 3, polanya akan berulang (modulo 3)
-        float angle = patternAngles[i % 3];
-
-        // Opsional: Beri sedikit deviasi acak (+/- 5 derajat) JIKA peluru lebih dari 3 
-        // agar tembakan ke-4 dst tidak menumpuk persis di garis yang sama
-        if (i >= 3) {
-            angle += DirectX::XMConvertToRadians((float)((rand() % 10) - 5));
-        }
-
-        DirectX::XMFLOAT3 dir = { cosf(angle), 0, sinf(angle) };
-        bwb.bullet->Fire(boss->GetPosition(), dir, m_bouncingParams.speed);
-
-        // 3. SET WINDOW SIZE (MANUAL & INDEPENDEN)
-        bwb.windowName = "bouncing_win_" + std::to_string(rand() % 10000);
-
-        TrackedWindowConfig cfg;
-        cfg.name = bwb.windowName;
-        cfg.title = "PROJECTILE";
-        cfg.width = (int)m_bouncingParams.windowWidth;
-        cfg.height = (int)m_bouncingParams.windowHeight;
-        cfg.isTransparent = false;
-
-        boss->GetWindowSystem()->AddTrackedWindow(cfg,
-            [ptr = bwb.bullet.get()]() { return ptr->GetPosition(); },
-            [this]() { return DirectX::XMFLOAT2(m_bouncingParams.windowWidth, m_bouncingParams.windowHeight); }
-        );
-
-        m_bouncingBullets.push_back(std::move(bwb));
-    }
-
-    CameraController::Instance().AddTrauma(0.2f);
+    // Hidupkan sistem spawner beruntun!
+    m_isSpawningBouncing = true;
+    m_bouncingSpawned = 0;
+    m_bouncingSpawnTimer = m_bouncingParams.spawnDelay; // Paksa spawn peluru pertama instan
 }
+
 std::vector<Bullet*> NaviPhaseWindowkill::GetProjectiles() {
     std::vector<Bullet*> activeBullets;
     for (auto& bwb : m_bouncingBullets) {

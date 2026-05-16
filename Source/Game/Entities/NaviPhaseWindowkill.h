@@ -140,6 +140,8 @@ public:
         int   maxBounces = 5;
         int   spawnCount = 3;
 
+        float spawnDelay = 0.2f;
+
         // Pemisahan Ukuran Jendela OS
         float windowWidth = 230.0f;
         float windowHeight = 230.0f;
@@ -235,4 +237,8 @@ private:
     bool  m_isSpawningBoomerangs = false;
     int   m_boomerangsSpawned = 0;
     float m_boomerangSpawnTimer = 0.0f;
+
+    bool  m_isSpawningBouncing = false;
+    int   m_bouncingSpawned = 0;
+    float m_bouncingSpawnTimer = 0.0f;
 };
