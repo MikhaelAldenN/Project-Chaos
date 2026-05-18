@@ -315,7 +315,7 @@ void Enemy::TakeDamage(int damage)
     m_blinkTimer = BLINK_DURATION; // Trigger blink effect
 
 	// Play visual effect
-    EffectManager::Instance().Play("Data/Effect/Hit.efk", GetPosition(), 1.5f);
+    EffectManager::Instance().Play("Data/Effect/Hit.efk", GetPosition(), 1.0f);
 
     if (m_hp <= 0)
     {
