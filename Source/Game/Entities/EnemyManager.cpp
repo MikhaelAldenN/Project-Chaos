@@ -123,7 +123,7 @@ void EnemyManager::Render(ModelRenderer* renderer, Camera* camera)
 
         if (isBodyVisible)
         {
-            renderer->Draw(ShaderId::Phong, enemy->GetModel(), enemy->color);
+            renderer->Draw(ShaderId::Phong, enemy->GetModel(), enemy->GetRenderColor());
         }
 
         // Projectiles tetap dirender terpisah (selalu render)
@@ -148,7 +148,7 @@ void EnemyManager::RespawnEnemyAs(size_t index, AttackType attack, MoveDir dir, 
     EnemySpawnConfig config;
     config.Position = e->GetPosition();
     config.Rotation = e->GetRotation();
-    config.Color = e->color;
+    config.Color = e->GetBaseColor();
     config.Type = e->GetType();
     config.AttackBehavior = attack;
     config.Direction = dir;

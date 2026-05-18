@@ -43,7 +43,9 @@ public:
 
     DirectX::XMFLOAT3 GetPosition() const;
     DirectX::XMFLOAT3 GetRotation() const;
-    DirectX::XMFLOAT4 color;
+    [[nodiscard]] DirectX::XMFLOAT4 GetRenderColor() const;
+    [[nodiscard]] DirectX::XMFLOAT4 GetBaseColor() const { return m_baseColor; }
+    [[nodiscard]] DirectX::XMFLOAT4& GetMutableBaseColor() { return m_baseColor; }
     DirectX::XMFLOAT3 GetOriginalPosition() const { return originalPosition; }
     DirectX::XMFLOAT3 GetOriginalRotation() const { return originalRotation; }
 
@@ -104,6 +106,11 @@ private:
 
     bool m_isActive = false;
     MoveDir m_moveDir;
+
+    DirectX::XMFLOAT4 m_baseColor{ 1.0f, 1.0f, 1.0f, 1.0f }; 
+
+    float m_blinkTimer{ 0.0f };
+    static constexpr float BLINK_DURATION{ 0.1f };
 
     DirectX::XMFLOAT4 m_projectileColor = { 1.0f, 1.0f, 1.0f, 1.0f };
     DirectX::XMFLOAT3 m_scale = { 1.0f, 1.0f, 1.0f };

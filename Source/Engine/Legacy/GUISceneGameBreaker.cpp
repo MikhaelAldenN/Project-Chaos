@@ -498,7 +498,7 @@ void GameBreakerGUI::DrawObjectColorTab(SceneGame* scene)
             auto DrawEnemyColor = [](Enemy* e, int index, const char* label)
                 {
                     ImGui::PushID(index);
-                    ImGui::ColorEdit4(label, &e->color.x);
+                    ImGui::ColorEdit4(label, &e->GetMutableBaseColor().x);
                     ImGui::PopID();
                 };
 

@@ -77,42 +77,46 @@ static const float4x4 BayerMatrix = float4x4(
 );
 
 // =========================================================
-// AAA GAUSSIAN BLOOM EXTRACTOR
+// AAA SINGLE-PASS VOGEL BLOOM 
 // =========================================================
-float3 SampleBloom(float2 uv, float2 texelSize, float radius)
+float3 SampleBloom(float2 uv, float2 texelSize, float maxRadius)
 {
-    // A highly optimized 9-tap Gaussian approximation filter
-    float2 offsets[9] =
-    {
-        float2(-1, -1), float2(0, -1), float2(1, -1),
-        float2(-1, 0), float2(0, 0), float2(1, 0),
-        float2(-1, 1), float2(0, 1), float2(1, 1)
-    };
-    float weights[9] =
-    {
-        0.0625, 0.125, 0.0625,
-        0.125, 0.25, 0.125,
-        0.0625, 0.125, 0.0625
-    };
-    
     float3 bloom = 0;
-    
+    float totalWeight = 0;
+
+    // 32-tap Vogel Spiral for an organic, circular blur without rigid boxes
+    const int TAPS = 32;
+    const float GOLDEN_ANGLE = 2.39996323;
+
     [unroll]
-    for (int i = 0; i < 9; i++)
+    for (int i = 0; i < TAPS; i++)
     {
-        float3 c = sceneTexture.SampleLevel(samplerState, uv + offsets[i] * texelSize * radius, 0).rgb;
+        // 'r' goes from 0.0 to 1.0 organically
+        float r = sqrt(float(i) + 0.5f) / sqrt(float(TAPS));
+        float theta = float(i) * GOLDEN_ANGLE;
+        
+        // Calculate the circular offset
+        float2 offset = float2(cos(theta), sin(theta)) * (r * maxRadius);
+        
+        float3 c = sceneTexture.SampleLevel(samplerState, uv + offset * texelSize, 0).rgb;
+        
         if (any(isnan(c)) || any(isinf(c)))
-        {
-            c = float3(0, 0, 0);
-        }
+            c = 0;
+        
         // Measure real brightness
         float brightness = dot(c, float3(0.2126, 0.7152, 0.0722));
-        // Extract only the pixels that are violently bright (brighter than the threshold)
+        
+        // Extract only the pixels that are violently bright
         float contribution = max(0.0f, brightness - bloomThreshold);
         
-        bloom += (c * (contribution / max(brightness, 0.0001f))) * weights[i];
+        // Apply a Gaussian bell curve weight so the edges fade out smoothly
+        float weight = exp(-r * r * 3.0f);
+        
+        bloom += (c * (contribution / max(brightness, 0.0001f))) * weight;
+        totalWeight += weight;
     }
-    return bloom;
+    
+    return bloom / totalWeight;
 }
 
 // =========================================================
@@ -251,19 +255,13 @@ float4 main(VS_OUT pin) : SV_TARGET
     }
     
     // =========================================================
-    // STEP 6: APPLY GAUSSIAN BLOOM
+    // STEP 6: APPLY VOGEL BLOOM
     // =========================================================
     float2 texelSize = 1.0f / float2(width, height);
-    float3 bloomColor = 0;
+
+    float3 bloomColor = SampleBloom(uvG, texelSize, 15.0f);
     
-    bloomColor += SampleBloom(uvG, texelSize, 2.0f);
-    bloomColor += SampleBloom(uvG, texelSize, 6.0f);
-    bloomColor += SampleBloom(uvG, texelSize, 12.0f);
-
     finalColor.rgb += (bloomColor * bloomIntensity);
-
-    // Apply Vignette Mask over the bloom
-    finalColor.rgb = lerp(v_color.rgb, finalColor.rgb, mask);
     
     // =========================================================
     // STEP 7: ACES FILMIC TONEMAPPING (HDR -> LDR)

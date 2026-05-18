@@ -564,8 +564,7 @@ void Player::RenderProjectiles(ModelRenderer* renderer)
             DirectX::XMFLOAT4X4 worldMatrix;
             DirectX::XMStoreFloat4x4(&worldMatrix, S * R * T * bulletRot * bulletTrans);
 
-            // Draw ONCE using standard Phong! The PostProcessor will see the HDR color and bloom it automatically!
-            renderer->Draw(ShaderId::Basic, m_playerbulletModel, m_playerbulletColor, worldMatrix);
+            renderer->Draw(ShaderId::Phong, m_playerbulletModel, m_playerbulletColor, worldMatrix);
         }
         else
         {

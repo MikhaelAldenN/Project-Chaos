@@ -19,7 +19,7 @@ Enemy::Enemy(ID3D11Device* device, const char* filePath, XMFLOAT3 startPos, XMFL
     movement->SetRotation(startRot);
     originalPosition = startPos;
     originalRotation = startRot;
-    this->color = startColor;
+    m_baseColor = startColor;
     m_patrolMinX = startPos.x + minX;
     m_patrolMaxX = startPos.x + maxX;
     m_patrolMinZ = startPos.z + minZ;
@@ -43,6 +43,11 @@ Enemy::~Enemy() {}
 
 void Enemy::Update(float elapsedTime, Camera* camera)
 {
+    if (m_blinkTimer > 0.0f)
+    {
+        m_blinkTimer = (std::max)(0.0f, m_blinkTimer - elapsedTime);
+    }
+
     if (m_type == EnemyType::Pentagon)
     {
         XMFLOAT3 rot = movement->GetRotation();
@@ -267,6 +272,16 @@ void Enemy::RenderDebugProjectiles(ShapeRenderer* renderer)
     }
 }
 
+DirectX::XMFLOAT4 Enemy::GetRenderColor() const
+{
+    if (m_blinkTimer > 0.0f)
+    {
+        return { 5.0f, 5.0f, 5.0f, 1.0f };
+    }
+
+    return m_baseColor;
+}
+
 void Enemy::SetPatrolLimitsX(float minOffset, float maxOffset)
 {
     m_patrolMinX = originalPosition.x + minOffset;
@@ -297,6 +312,7 @@ void Enemy::TakeDamage(int damage)
     if (!m_isActive || m_hp <= 0) return;
 
     m_hp -= damage;
+    m_blinkTimer = BLINK_DURATION; // Trigger blink effect
 
 	// Play visual effect
     EffectManager::Instance().Play("Data/Effect/Hit.efk", GetPosition(), 1.5f);

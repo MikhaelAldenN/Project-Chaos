@@ -54,8 +54,8 @@ public:
         float             glitchStrength        = 0.01f;
         float             chromaticAberration   = 0.00351f;
         float             time                  = 0.0f;
-        float             bloomThreshold        = 0.87f;
-        float             bloomIntensity        = 1.5f;
+        float             bloomThreshold        = 0.300f;
+        float             bloomIntensity        = 0.150f;
 
         // Scanlines
         float             scanlineStrength      = 0.2f;
