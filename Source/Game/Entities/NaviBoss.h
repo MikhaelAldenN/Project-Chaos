@@ -5,6 +5,7 @@
 #include "BeyondWindow.h"
 #include "Camera.h"
 #include "INaviPhase.h" // Interface yang kita buat di Tahap 1
+#include <string>
 
 class WindowTrackingSystem;
 class Sprite;
@@ -30,6 +31,7 @@ public:
 
     // --- Lifecycle ---
     void Initialize(WindowTrackingSystem* windowSystem);
+    void SpawnHeadWindow(); // [NEW] Dipanggil saat event dialog masuk baris kedua
     void Update(float dt);
     void Render(ID3D11DeviceContext* context, Camera* currentCamera);
 
@@ -59,13 +61,25 @@ public:
 
     void SetBaseWindowSize(float w, float h) { m_baseWindowSize = { w, h }; }
     void SetWindowSize(float w, float h) { m_windowSize = { w, h }; }
+    void SetWindowTitle(const std::string& newTitle);
+    const std::string& GetWindowTitle() const { return m_currentTitle; }
 
     void InitializeFaceGrid(ID3D11Device* device);
     void UpdateFaceGlitch(float dt);
     void RenderFaceGrid(ID3D11DeviceContext* context, Camera* currentCamera);
 
     FaceParams& GetFaceParams() { return m_faceParams; }
+
+    // --- Visibility Controls ---
+    void SetFaceSpriteVisible(bool visible) { m_isFaceSpriteVisible = visible; }
+    void SetGridGrowthLimit(float limit) { m_currentGridLimit = limit; }
+    float GetGridGrowthLimit() const { return m_currentGridLimit; }
+
 private:
+    // Tambahkan variabel state ini di bagian private
+    bool m_isOSWindowVisible = true;
+    bool m_isFaceSpriteVisible = true;
+
     // --- System Reference ---
     WindowTrackingSystem* m_windowSystem = nullptr;
 
@@ -110,4 +124,10 @@ private:
 
     FaceParams m_faceParams;
     // (Hapus m_faceGlitchTimer dan m_faceGlitchInterval dari sini!)};
+
+    float m_currentGridLimit = 1.0f;
+
+    HWND m_hHeadWindow = nullptr;
+    std::string m_currentTitle = "mat_grass.png";
+    std::vector<std::string> m_glitchTitles;
 };

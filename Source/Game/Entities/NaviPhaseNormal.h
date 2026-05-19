@@ -239,5 +239,8 @@ private:
     float m_rainSFXTimer = 0.0f;
     const float RAIN_SFX_LOOP_DURATION = 0.8f;
 
+    bool m_isOpeningEvent = true; // Flag untuk menandai event pembukaan
+    bool m_hasSpawnedWindow = false;
+
     std::unique_ptr<UIDialogueBox> m_dialogueBox;
 };

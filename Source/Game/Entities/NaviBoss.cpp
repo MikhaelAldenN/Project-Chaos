@@ -2,6 +2,8 @@
 #include "WindowTrackingSystem.h"
 #include "System/Graphics.h"
 #include "System/Sprite.h"
+#include <SDL3/SDL.h> // Wajib ditambahkan di atas untuk manipulasi OS Window
+#include <algorithm>
 
 using namespace DirectX;
 
@@ -14,8 +16,29 @@ void NaviBoss::Initialize(WindowTrackingSystem* windowSystem) {
     m_windowSystem = windowSystem;
     auto device = Graphics::Instance().GetDevice();
 
-    // Setup Kepala Utama (Core) yang selalu ada
-    TrackedWindowConfig headCfg = { "navi_head", "N.A.V.I - Core", (int)m_windowSize.x, (int)m_windowSize.y, 2 };
+    m_faceSprite = std::make_unique<Sprite>(device, "Data/Sprite/Boss/Sprite_Boss_Face_01.png");
+    InitializeFaceGrid(device);
+
+    // [NEW] Daftarkan variasi nama material yang mudah ditambah/dikurangi di masa depan
+    m_glitchTitles = {
+        "mat_grass.png",
+        "mat_stone.png",
+        "mat_water.png",
+        "mat_wood.png",
+        "mat_metal.png",
+        "mat_glass.png",
+        "mat_magma.png",
+        "mat_obsidian.png",
+        "mat_error_null.png",
+        "mat_fallback.png"
+    };
+}
+
+void NaviBoss::SpawnHeadWindow() {
+    if (!m_windowSystem) return;
+
+    // Gunakan m_currentTitle (default: "mat_grass.png") sebagai nama awal window
+    TrackedWindowConfig headCfg = { "navi_head", m_currentTitle, (int)m_windowSize.x, (int)m_windowSize.y, 2 };
     headCfg.role = WindowRole::TRACKED_ENTITY;
     m_windowSystem->AddTrackedWindow(headCfg, [this]() { return m_position; }, [this]() { return m_windowSize; });
 
@@ -24,12 +47,34 @@ void NaviBoss::Initialize(WindowTrackingSystem* windowSystem) {
         m_naviWindow = headWin->window;
         m_naviCamera = headWin->camera;
         m_naviWindow->SetDraggable(false);
+        m_naviWindow->SetClickThrough(true);
     }
-    m_faceSprite = std::make_unique<Sprite>(device, "Data/Sprite/Boss/Sprite_Boss_Face_01.png");
 
-    InitializeFaceGrid(device);
-    // CATATAN: Kita tidak memanggil Initialize Phase di sini. 
-    // SceneBoss yang akan menentukan fase mana yang mulai duluan via ChangePhase().
+    // Cari window berdasarkan title awal dan KUNCI handle-nya ke m_hHeadWindow
+    m_hHeadWindow = FindWindowA(nullptr, m_currentTitle.c_str());
+    if (m_hHeadWindow) {
+        LONG style = GetWindowLong(m_hHeadWindow, GWL_STYLE);
+        style &= ~(WS_MAXIMIZEBOX | WS_MINIMIZEBOX);
+        SetWindowLong(m_hHeadWindow, GWL_STYLE, style);
+
+        HMENU hMenu = GetSystemMenu(m_hHeadWindow, FALSE);
+        if (hMenu) {
+            EnableMenuItem(hMenu, SC_CLOSE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED);
+        }
+
+        LONG exStyle = GetWindowLong(m_hHeadWindow, GWL_EXSTYLE);
+        exStyle |= WS_EX_LAYERED | WS_EX_TRANSPARENT;
+        SetWindowLong(m_hHeadWindow, GWL_EXSTYLE, exStyle);
+
+        SetWindowPos(m_hHeadWindow, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_FRAMECHANGED);
+    }
+}
+
+void NaviBoss::SetWindowTitle(const std::string& newTitle) {
+    m_currentTitle = newTitle;
+    if (m_hHeadWindow) {
+        SetWindowTextA(m_hHeadWindow, m_currentTitle.c_str());
+    }
 }
 
 void NaviBoss::ChangePhase(std::unique_ptr<INaviPhase> newPhase) {
@@ -67,41 +112,32 @@ void NaviBoss::Update(float dt) {
 void NaviBoss::Render(ID3D11DeviceContext* context, Camera* currentCamera) {
     if (!currentCamera) return;
 
-    // =========================================================
-    // [FIX MUTLAK] CAMERA FILTERING WAJAH BOS
-    // Pastikan tekstur ubin dan wajah UTAMA hanya digambar jika 
-    // kamera yang sedang memproses saat ini adalah milik window "navi_head"!
-    // =========================================================
     if (currentCamera == m_naviCamera.get())
     {
-        // 1. RENDER MATRIKS 8x8 DULUAN (Sebagai Alas / Lapisan Dasar)
-        RenderFaceGrid(context, currentCamera);
+        // Render fondasai ubin matriks glitch (Selama m_naviWindow valid / hidup)
+        if (m_naviWindow) {
+            RenderFaceGrid(context, currentCamera);
+        }
 
-        // 2. RENDER UTAMA WAJAH (Mata, Mulut, Ekspresi) DI ATAS GRID
-        if (m_faceSprite && m_naviWindow) {
+        // Render tekstur wajah utama di layer atasnya hanya jika flag visibilitas diizinkan
+        if (m_isFaceSpriteVisible && m_faceSprite && m_naviWindow) {
             float unitW = m_windowSize.x / m_pixelToUnit;
             float unitH = m_windowSize.y / m_pixelToUnit;
 
             m_faceSprite->Render(
                 context, currentCamera,
-                m_position.x,
-                m_position.y + 0.02f,
-                m_position.z,
+                m_position.x, m_position.y + 0.02f, m_position.z,
                 unitW, unitH, DirectX::XMConvertToRadians(90.0f), 0.0f, 0.0f,
                 1.0f, 1.0f, 1.0f, 1.0f
             );
         }
     }
 
-    // =========================================================
-    // 3. OPER TUGAS MENGGAMBAR EFEK FASE (SAYAP, LASER, DLL)
-    // Sengaja ditaruh di LUAR blok if kamera agar efek serangan/sayap 
-    // tetap bisa dirender di window SFX layar penuh atau window portal lain!
-    // =========================================================
     if (m_currentPhase) {
         m_currentPhase->Render(context, currentCamera, this);
     }
 }
+
 void NaviBoss::InitializeFaceGrid(ID3D11Device* device) {
     m_faceTextures.clear();
 
@@ -137,15 +173,13 @@ void NaviBoss::UpdateFaceGlitch(float dt) {
     m_breathTimer += dt;
     if (m_faceTextures.empty() || !m_faceParams.enableGlitch) return;
 
+    bool triggerTitleChange = false;
+
     for (int r = 0; r < FACE_GRID_SIZE; ++r) {
         for (int c = 0; c < FACE_GRID_SIZE; ++c) {
             auto& tile = m_faceGrid[r][c];
             tile.timer += dt;
 
-            // =========================================================
-            // [NEW] EFEK FLICKER INSTAN (KEDIP CEPAT)
-            // Mengecek peluang setiap frame. Jika tembus, ganti tekstur sedetik!
-            // =========================================================
             if (m_faceParams.flickerChance > 0.0f && ((rand() % 10000) / 100.0f) < m_faceParams.flickerChance) {
                 tile.texIdx = rand() % m_faceTextures.size();
             }
@@ -164,21 +198,27 @@ void NaviBoss::UpdateFaceGlitch(float dt) {
                     tile.size = 1;
                 }
 
-                // =========================================================
-                // [NEW] EFEK GLITCH BRIGHTNESS & WARNA RGB
-                // =========================================================
                 if ((rand() % 100) < m_faceParams.colorGlitchChance) {
-                    // Beri nilai acak antara 0.2 hingga 0.9 agar lebih redup (di bawah 1.0)
-                    // Karena RGB-nya beda-beda, kadang jadi merah gelap, cyan kotor, dll!
-                    tile.color.x = 0.2f + ((rand() % 70) / 100.0f); // Red
-                    tile.color.y = 0.2f + ((rand() % 70) / 100.0f); // Green
-                    tile.color.z = 0.2f + ((rand() % 70) / 100.0f); // Blue
+                    tile.color.x = 0.2f + ((rand() % 70) / 100.0f);
+                    tile.color.y = 0.2f + ((rand() % 70) / 100.0f);
+                    tile.color.z = 0.2f + ((rand() % 70) / 100.0f);
                 }
                 else {
-                    // Kembalikan ke warna normal (putih terang)
                     tile.color = { 1.0f, 1.0f, 1.0f };
                 }
+
+                // Jika ada ubin yang berganti siklus intervalnya, tandai bahwa ritme glitch sedang berjalan
+                triggerTitleChange = true;
             }
+        }
+    }
+
+    // [NEW] Sinkronisasi Judul: Jika ritme ubin bergerak, berikan peluang acak untuk mengacak judul material
+    if (triggerTitleChange && !m_glitchTitles.empty()) {
+        // Peluang 8% agar pergantian judul bar tidak terlalu merusak performa OS akibat penggantian teks yang terlalu rapat
+        if ((rand() % 100) < 8) {
+            int randIdx = rand() % m_glitchTitles.size();
+            SetWindowTitle(m_glitchTitles[randIdx]);
         }
     }
 }
@@ -187,77 +227,36 @@ void NaviBoss::RenderFaceGrid(ID3D11DeviceContext* context, Camera* currentCamer
     if (!currentCamera || m_faceTextures.empty()) return;
 
     DirectX::XMFLOAT3 bossPos = this->GetPosition();
-
-    // =========================================================
-        // [FIX MUTLAK] SINKRONISASI UKURAN 1:1 DENGAN WINDOW BOSS
-        // Tidak perlu hitung ulang gelombang sin/cos!
-        // Kita ambil langsung ukuran fisik yang digunakan oleh Window 
-        // =========================================================
-
-        // Ini akan mengambil ukuran OS Window yang sedang mengembang/mengempis (contoh: 400 / 40 = 10.0)
     float currentWindowUnitSize = m_windowSize.x / m_pixelToUnit;
-
-    // Kita gunakan faceTotalSize (default 5.0) dari ImGui sebagai persen skala.
-    // Jika slider di ImGui diset ke 5.0, ukurannya 100% pas menutupi window.
-    // Jika slider di ImGui diturunkan, ubin akan sedikit lebih kecil dari window.
     float dynamicFaceSize = currentWindowUnitSize * (m_faceParams.faceTotalSize / 5.0f);
 
-    float baseTileSize = dynamicFaceSize / FACE_GRID_SIZE;
+    // [DYNAMIC DENSITY HACK] Tentukan berapa baris/kolom pecahan yang aktif saat ini (1 s/d 8)
+    int currentLimit = std::clamp((int)m_currentGridLimit, 1, FACE_GRID_SIZE);
+
+    // Ukuran ubin membesar secara matematis jika pembaginya (currentLimit) masih kecil
+    float baseTileSize = dynamicFaceSize / currentLimit;
     float startOffset = -dynamicFaceSize * 0.5f + baseTileSize * 0.5f;
 
-    // =========================================================
-    // MANAJEMEN TUMPANG TINDIH 2x2 (Tetap sama seperti kemarin)
-    // =========================================================
-    bool skipRender[FACE_GRID_SIZE][FACE_GRID_SIZE] = { false };
-
-    for (int r = 0; r < FACE_GRID_SIZE; ++r) {
-        for (int c = 0; c < FACE_GRID_SIZE; ++c) {
-            if (skipRender[r][c]) continue;
-
-            if (m_faceGrid[r][c].size == 2) {
-                if (!skipRender[r + 1][c] && !skipRender[r][c + 1] && !skipRender[r + 1][c + 1]) {
-                    skipRender[r + 1][c] = true;
-                    skipRender[r][c + 1] = true;
-                    skipRender[r + 1][c + 1] = true;
-                }
-                else {
-                    m_faceGrid[r][c].size = 1;
-                }
-            }
-        }
-    }
-
-    // =========================================================
-    // PROSES PERULANGAN BATCH DATA GPU
-    // =========================================================
     for (size_t texIdx = 0; texIdx < m_faceTextures.size(); ++texIdx) {
         std::vector<Sprite::Sprite3DBatchData> batchData;
 
-        for (int r = 0; r < FACE_GRID_SIZE; ++r) {
-            for (int c = 0; c < FACE_GRID_SIZE; ++c) {
-                if (skipRender[r][c]) continue;
+        for (int r = 0; r < currentLimit; ++r) {
+            for (int c = 0; c < currentLimit; ++c) {
 
-                auto& tile = m_faceGrid[r][c];
+                // Petakan koordinat looping dinamis secara proporsional ke indeks data grid 8x8 asli
+                int srcR = (r * FACE_GRID_SIZE) / currentLimit;
+                int srcC = (c * FACE_GRID_SIZE) / currentLimit;
+                auto& tile = m_faceGrid[srcR][srcC];
 
                 if (tile.texIdx == static_cast<int>(texIdx)) {
                     float offsetX = startOffset + (c * baseTileSize);
                     float offsetZ = startOffset + (r * baseTileSize);
 
-                    float w = baseTileSize;
-                    float h = baseTileSize;
-
-                    if (tile.size == 2) {
-                        w = baseTileSize * 2.0f;
-                        h = baseTileSize * 2.0f;
-                        offsetX += baseTileSize * 0.5f;
-                        offsetZ += baseTileSize * 0.5f;
-                    }
-
                     batchData.push_back({
                         bossPos.x + offsetX,
                         bossPos.y + 0.01f,
                         bossPos.z + offsetZ,
-                        w, h, 0.0f, 0.0f, 0.0f, 0.0f,
+                        baseTileSize, baseTileSize, 0.0f, 0.0f, 0.0f, 0.0f,
                         DirectX::XMConvertToRadians(90.0f), 0.0f, 0.0f,
                         tile.color.x, tile.color.y, tile.color.z, 1.0f
                         });

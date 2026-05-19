@@ -72,10 +72,17 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
 
     // Picu percakapan awal
     m_dialogueBox->StartDialogue({
-        "...",
-        "ƒVƒl",
-        "DIE"
-        });
+            "Oops! I think I deleted my own model.",
+            "Wait a second...",
+            "Is this better?"
+    });
+
+    m_isOpeningEvent = true;
+
+    if (boss) {
+        boss->SetGridGrowthLimit(1.0f);     // Atur densitas awal paling minimum (1x1)
+        boss->SetFaceSpriteVisible(false); // Sembunyikan tekstur wajah inti
+    }
 }
 
 void NaviPhaseNormal::TriggerTripleBurst() {
@@ -107,10 +114,52 @@ void NaviPhaseNormal::TriggerFanAttack(NaviBoss* boss, DirectX::XMFLOAT3 playerP
 void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
     if (!boss) return;
 
-    if (m_dialogueBox && m_dialogueBox->IsActive()) {
-        m_dialogueBox->Update(dt);
-        return; // MENGHENTIKAN EKSUSI KE BAWAH! Boss diam total sampai dialog selesai.
+    // =========================================================
+        // [REFACTOR] SEQUENCER PEMBUKAAN BOSS SCENE
+        // =========================================================
+    if (m_isOpeningEvent) {
+        if (m_dialogueBox && m_dialogueBox->IsActive()) {
+            m_dialogueBox->Update(dt);
+
+            int diagIdx = m_dialogueBox->GetCurrentDialogueIndex();
+
+            if (diagIdx == 0) {
+                // Teks 1: Model terhapus -> Window Boss belum diciptakan sama sekali
+                boss->SetWindowTitle("mat_grass.png");
+                boss->SetGridGrowthLimit(1.0f);
+                boss->SetFaceSpriteVisible(false);
+            }
+            else if (diagIdx == 1) {
+                // Teks 2: "Wait a second..." -> SPAWN WINDOW SECARA REAL-TIME!
+                if (!m_hasSpawnedWindow) {
+                    boss->SpawnHeadWindow();
+                    m_hasSpawnedWindow = true; // Kunci agar tidak melakukan re-spawn berulang-ulang
+                }
+
+                // ANIMASI MATRIKS: Densitas ubin memecah perlahan dari 1.0f menuju 8.0f penuh
+                float currentLimit = boss->GetGridGrowthLimit();
+                if (currentLimit < 8.0f) {
+                    currentLimit += dt * 3.5f; // Naik linear (Butuh waktu sekitar 2 detik untuk mencapai 8x8)
+                    if (currentLimit > 8.0f) currentLimit = 8.0f;
+                    boss->SetGridGrowthLimit(currentLimit);
+                }
+
+                boss->SetFaceSpriteVisible(false); // Wajah utama belum dipasang
+            }
+            else if (diagIdx == 2) {
+                // Teks 3: "Is this better?" -> Matriks sudah pecah sempurna, nyalakan Wajah Utama!
+                boss->SetGridGrowthLimit(8.0f); // Paksa ke kondisi batas maksimum
+                boss->SetFaceSpriteVisible(true);
+            }
+
+            return; // BLOKIR LOGIKA GAME / AI DIRECTOR SELAMA DIALOG BERLANGSUNG!
+        }
+        else {
+            // Skenario pembukaan selesai, lepas kendali AI Boss Fight!
+            m_isOpeningEvent = false;
+        }
     }
+
 
     // =========================================================
         // --- 0. JALANKAN OTAK AI DIRECTOR ---

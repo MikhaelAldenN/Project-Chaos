@@ -1,44 +1,38 @@
 #include "UIDialogueBox.h"
 #include "System/Graphics.h"
 #include "System/Input.h"
-#include <windows.h> // Untuk GetSystemMetrics
+#include <windows.h>
 
 UIDialogueBox::UIDialogueBox() {}
 
 void UIDialogueBox::Initialize()
 {
     auto device = Graphics::Instance().GetDevice();
-
-    // Load aset yang diminta
     m_panelSprite = std::make_unique<Sprite>(device, "Data/Sprite/UI/Sprite_DialogueBox.png");
     m_font = std::make_unique<BitmapFont>("Data/Font/IBM_VGA_32px_0.png", "Data/Font/IBM_VGA_32px.fnt");
 }
 
 void UIDialogueBox::StartDialogue(const std::vector<std::string>& dialogues)
 {
-    // Bersihkan antrean lama (jika ada)
-    std::queue<std::string> empty;
-    std::swap(m_dialogueQueue, empty);
+    m_dialogues = dialogues;
+    m_currentIndex = -1; // Akan menjadi 0 saat AdvanceDialogue dipanggil
 
-    for (const auto& d : dialogues) {
-        m_dialogueQueue.push(d);
-    }
-
-    if (!m_dialogueQueue.empty()) {
+    if (!m_dialogues.empty()) {
         AdvanceDialogue();
     }
 }
 
 void UIDialogueBox::AdvanceDialogue()
 {
-    if (m_dialogueQueue.empty()) {
+    m_currentIndex++;
+
+    // Jika indeks sudah melebihi jumlah dialog, sembunyikan
+    if (m_currentIndex >= static_cast<int>(m_dialogues.size())) {
         m_state = State::Hidden;
         return;
     }
 
-    m_currentLine = m_dialogueQueue.front();
-    m_dialogueQueue.pop();
-
+    m_currentLine = m_dialogues[m_currentIndex];
     m_displayedText = "";
     m_charIndex = 0;
     m_typeTimer = 0.0f;
@@ -49,7 +43,6 @@ void UIDialogueBox::Update(float dt)
 {
     if (m_state == State::Hidden) return;
 
-    // Mengambil input dari singleton Input dan mengecek trigger tombol Spasi
     bool isConfirmPressed = Input::Instance().GetKeyboard().IsTriggered(VK_SPACE);
 
     if (m_state == State::Typing)
@@ -66,7 +59,6 @@ void UIDialogueBox::Update(float dt)
             }
         }
 
-        // Fitur Skip: Jika pemain menekan Spasi saat teks sedang mengetik
         if (isConfirmPressed) {
             m_displayedText = m_currentLine;
             m_charIndex = static_cast<int>(m_currentLine.length());
@@ -75,7 +67,6 @@ void UIDialogueBox::Update(float dt)
     }
     else if (m_state == State::WaitingForInput)
     {
-        // Lanjut ke dialog berikutnya jika Spasi ditekan
         if (isConfirmPressed) {
             AdvanceDialogue();
         }
@@ -95,8 +86,8 @@ void UIDialogueBox::Render(ID3D11DeviceContext* dc)
     float screenW = static_cast<float>(GetSystemMetrics(SM_CXSCREEN));
     float screenH = static_cast<float>(GetSystemMetrics(SM_CYSCREEN));
 
-    float panelW = 1200.0f; // Bisa disesuaikan dengan ukuran desain UI-mu
-    float panelH = 200.0f;
+    float panelW = 847.0f; // Bisa disesuaikan dengan ukuran desain UI-mu
+    float panelH = 198.0f;
     float panelX = (screenW - panelW) * 0.5f;
     float panelY = screenH - panelH - 60.0f; // Jarak 60 pixel dari bawah layar
 
