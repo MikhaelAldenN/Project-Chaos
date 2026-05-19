@@ -71,6 +71,37 @@ public:
         float psxResHeight      { DEFAULT_PSX_RES_HEIGHT };
         float psxColorDepth     { DEFAULT_PSX_COLOR_DEPTH };
         float psxDitherStrength { DEFAULT_PSX_DITHER };
+
+        bool operator==(const UberData& other) const
+        {
+            auto IsEqual = [](float a, float b) { return std::abs(a - b) < 0.0001f; };
+
+            return enabled == other.enabled &&
+                IsEqual(color.x, other.color.x) && IsEqual(color.y, other.color.y) && IsEqual(color.z, other.color.z) &&
+                IsEqual(center.x, other.center.x) && IsEqual(center.y, other.center.y) &&
+                IsEqual(intensity, other.intensity) &&
+                IsEqual(smoothness, other.smoothness) &&
+                rounded == other.rounded &&
+                IsEqual(roundness, other.roundness) &&
+                IsEqual(blurStrength, other.blurStrength) &&
+                IsEqual(distortion, other.distortion) &&
+                IsEqual(glitchStrength, other.glitchStrength) &&
+                IsEqual(chromaticAberration, other.chromaticAberration) &&
+                IsEqual(time, other.time) &&
+                IsEqual(bloomThreshold, other.bloomThreshold) &&
+                IsEqual(bloomIntensity, other.bloomIntensity) &&
+                IsEqual(scanlineStrength, other.scanlineStrength) &&
+                IsEqual(scanlineSpeed, other.scanlineSpeed) &&
+                IsEqual(scanlineSize, other.scanlineSize) &&
+                IsEqual(fineOpacity, other.fineOpacity) &&
+                IsEqual(fineDensity, other.fineDensity) &&
+                IsEqual(fineRotation, other.fineRotation) &&
+                psxEnabled == other.psxEnabled &&
+                IsEqual(psxResWidth, other.psxResWidth) &&
+                IsEqual(psxResHeight, other.psxResHeight) &&
+                IsEqual(psxColorDepth, other.psxColorDepth) &&
+                IsEqual(psxDitherStrength, other.psxDitherStrength);
+        }
     };
 
     // =========================================================

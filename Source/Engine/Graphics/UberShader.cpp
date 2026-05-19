@@ -40,7 +40,7 @@ void UberShader::Draw(ID3D11DeviceContext* dc, ID3D11ShaderResourceView* texture
     // --------------------------------------------------------
     // OPTIMIZATION: Update GPU Buffer only if data changed
     // --------------------------------------------------------
-    if (memcmp(&finalData, &currentData, sizeof(UberData)) != 0)
+    if (!(currentData == finalData))
     {
         CbUber cb = {};
         cb.color = finalData.color;

@@ -77,42 +77,34 @@ static const float4x4 BayerMatrix = float4x4(
 );
 
 // =========================================================
-// AAA SINGLE-PASS VOGEL BLOOM 
+// AAA SINGLE-PASS VOGEL BLOOM (Optimized for 1080p Upscaling)
 // =========================================================
 float3 SampleBloom(float2 uv, float2 texelSize, float maxRadius)
 {
     float3 bloom = 0;
     float totalWeight = 0;
 
-    // 32-tap Vogel Spiral for an organic, circular blur without rigid boxes
-    const int TAPS = 32;
+    // OPTIMIZATION 1: Reduced to 16 taps. On an upscaled low-res buffer, 
+    // 16 taps provides a perfectly smooth Gaussian curve with half the GPU cost.
+    const int TAPS = 16;
     const float GOLDEN_ANGLE = 2.39996323;
 
     [unroll]
     for (int i = 0; i < TAPS; i++)
     {
-        // 'r' goes from 0.0 to 1.0 organically
         float r = sqrt(float(i) + 0.5f) / sqrt(float(TAPS));
         float theta = float(i) * GOLDEN_ANGLE;
         
-        // Calculate the circular offset
         float2 offset = float2(cos(theta), sin(theta)) * (r * maxRadius);
-        
         float3 c = sceneTexture.SampleLevel(samplerState, uv + offset * texelSize, 0).rgb;
-        
-        if (any(isnan(c)) || any(isinf(c)))
-            c = 0;
-        
-        // Measure real brightness
+
+        // Fast brightness approximation
         float brightness = dot(c, float3(0.2126, 0.7152, 0.0722));
-        
-        // Extract only the pixels that are violently bright
         float contribution = max(0.0f, brightness - bloomThreshold);
-        
-        // Apply a Gaussian bell curve weight so the edges fade out smoothly
         float weight = exp(-r * r * 3.0f);
         
-        bloom += (c * (contribution / max(brightness, 0.0001f))) * weight;
+        // Add a tiny 0.0001f to avoid Divide-By-Zero inside the loop
+        bloom += (c * (contribution / (brightness + 0.0001f))) * weight;
         totalWeight += weight;
     }
     
