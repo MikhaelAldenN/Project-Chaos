@@ -17,15 +17,15 @@ struct NaviBulletParams {
     float speed = 20.0f;
     int count = 24;
     float fireRate = 1.5f;
-    float burstDelay = 0.25f;
+    float burstDelay = 0.156f;
     DirectX::XMFLOAT4 color = { 1.0f, 0.2f, 0.2f, 1.0f };
     float despawnDist = 60.0f;
 
     // Parameter Targeted Fan Burst (Shotgun)
     int fanLines = 4;
-    int fanWaves = 5;
-    float fanWaveDelay = 0.15f;
-    float fanSpreadAngle = 0.2f;
+    int fanWaves = 4;
+    float fanWaveDelay = 0.176;
+    float fanSpreadAngle = 0.183f;
 
     // ==========================================
     // Parameter Rhythm Laser

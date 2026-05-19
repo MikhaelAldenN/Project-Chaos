@@ -9,6 +9,20 @@
 class WindowTrackingSystem;
 class Sprite;
 
+struct FaceParams {
+    float minInterval = 1.0f;
+    float maxInterval = 2.0f;
+    float chance2x2 = 30.0f;
+    float faceTotalSize = 5.0f;
+    bool  enableGlitch = true;
+
+    // ==========================================
+    // [NEW] EFEK FLICKER & WARNA NGACO
+    // ==========================================
+    float flickerChance = 1.5f;       // Peluang ubin berkedip instan per-frame (0% - 10%)
+    float colorGlitchChance = 25.0f;  // Peluang RGB berubah redup/ngaco saat interval ganti (0% - 100%)
+};
+
 class NaviBoss {
 public:
     NaviBoss();
@@ -46,6 +60,11 @@ public:
     void SetBaseWindowSize(float w, float h) { m_baseWindowSize = { w, h }; }
     void SetWindowSize(float w, float h) { m_windowSize = { w, h }; }
 
+    void InitializeFaceGrid(ID3D11Device* device);
+    void UpdateFaceGlitch(float dt);
+    void RenderFaceGrid(ID3D11DeviceContext* context, Camera* currentCamera);
+
+    FaceParams& GetFaceParams() { return m_faceParams; }
 private:
     // --- System Reference ---
     WindowTrackingSystem* m_windowSystem = nullptr;
@@ -68,4 +87,27 @@ private:
     float m_breathIntensity = 14.0f;
     float m_glitchTimer = 0.0f;
     float m_pixelToUnit = 40.0f;
+    float m_breathTimer = 0.0f;
+
+    void RandomizeFaceGrid();
+
+    // ==========================================
+        // DATA WAJAH (GLITCH MATRIX)
+        // ==========================================
+    static constexpr int FACE_GRID_SIZE = 8;
+    std::vector<std::unique_ptr<Sprite>> m_faceTextures;
+
+    // [NEW] Struct untuk menyimpan data individual setiap kotak
+    struct FaceTile {
+        int texIdx = 0;
+        float timer = 0.0f;
+        float interval = 0.1f; // Kecepatan berubahnya kotak ini
+        int size = 1;          // 1 = 1x1 (Normal), 2 = 2x2 (Besar)
+        DirectX::XMFLOAT3 color = { 1.0f, 1.0f, 1.0f };
+    };
+
+    FaceTile m_faceGrid[FACE_GRID_SIZE][FACE_GRID_SIZE];
+
+    FaceParams m_faceParams;
+    // (Hapus m_faceGlitchTimer dan m_faceGlitchInterval dari sini!)};
 };

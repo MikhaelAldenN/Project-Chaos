@@ -707,6 +707,33 @@ void SceneBoss::DrawGUI()
                     if (ImGui::Button("Re-play Expand Animation", ImVec2(-1.0f, 30.0f))) wkPhase->ReplayAnimation();
                 }
             }
+
+            // =========================================================
+            // [NEW] PANEL KONTROL: MATRIKS WAJAH DIGITAL
+            // =========================================================
+            ImGui::PushID("GlitchMatrixFaceSection"); // Isolasi ID agar Slider aman
+            if (ImGui::CollapsingHeader("Glitch Matrix Face Configuration")) // Default Tertutup
+            {
+                auto& fp = m_navi->GetFaceParams();
+
+                ImGui::Checkbox("Enable Matrix Animation (Glitch)", &fp.enableGlitch);
+                ImGui::SliderFloat("Total Render Size", &fp.faceTotalSize, 1.0f, 15.0f, "%.1f units");
+
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "[ Refresh Rate Speeds ]");
+                ImGui::SliderFloat("Min Swap Delay", &fp.minInterval, 0.01f, 1.0f, "%.2f sec");
+                ImGui::SliderFloat("Max Swap Delay", &fp.maxInterval, 0.01f, 2.0f, "%.2f sec");
+
+                // Proteksi matematika: Menjaga agar batas minimal tidak mendahului maksimal
+                if (fp.minInterval > fp.maxInterval) fp.minInterval = fp.maxInterval;
+
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(1.0f, 0.5f, 1.0f, 1.0f), "[ Artifact Mutation ]");
+                ImGui::SliderFloat("2x2 Mega Chunk Chance", &fp.chance2x2, 0.0f, 100.0f, "%.1f %%");
+                ImGui::SliderFloat("Instant Flicker Chance", &fp.flickerChance, 0.0f, 15.0f, "%.2f %%");
+                ImGui::SliderFloat("Color Glitch Chance", &fp.colorGlitchChance, 0.0f, 100.0f, "%.1f %%");
+            }
+            ImGui::PopID();
             ImGui::EndTabItem();
         }
 
