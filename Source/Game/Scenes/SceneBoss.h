@@ -129,4 +129,6 @@ private:
     // Terminal log (capped at 50 lines)
     std::vector<std::string> m_debugLogs;
 
+    DirectX::XMFLOAT4 m_clearColor = { 0.0f, 0.0f, 0.0f, 1.0f }; // Default: Abu-abu Gelap (R, G, B, A)
+
 };

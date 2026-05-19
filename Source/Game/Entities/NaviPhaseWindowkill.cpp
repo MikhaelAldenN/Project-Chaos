@@ -65,6 +65,8 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     GenerateButterflyWings();
 
     boss->SetPosition({ 0.0f, 0.0f, 7.0f });
+    boss->GetFaceParams().gridResolution = 16;
+    boss->InitializeFaceGrid(Graphics::Instance().GetDevice());
 }
 
 void NaviPhaseWindowkill::Exit(NaviBoss* boss) {

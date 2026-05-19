@@ -405,6 +405,35 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
         }
     }
 
+    // =========================================================
+    // [NEW] OVERRIDE CLEAR COLOR UNTUK JENDELA NON-TRANSPARAN
+    // =========================================================
+    if (!isTransparentWindow)
+    {
+        ID3D11RenderTargetView* currentRTV = nullptr;
+        ID3D11DepthStencilView* currentDSV = nullptr;
+
+        // Ambil Render Target dan Depth Stencil yang saat ini sedang diikat oleh WindowManager
+        dc->OMGetRenderTargets(1, &currentRTV, &currentDSV);
+
+        if (currentRTV)
+        {
+            // Bersihkan ulang menggunakan warna kustom dari SceneBoss
+            float clearColor[4] = { m_clearColor.x, m_clearColor.y, m_clearColor.z, m_clearColor.w };
+            dc->ClearRenderTargetView(currentRTV, clearColor);
+
+            // Wajib di-release karena OMGetRenderTargets menaikkan tingkat referensi (COM AddRef)
+            currentRTV->Release();
+        }
+
+        if (currentDSV)
+        {
+            // Bersihkan ulang depth buffer agar kalkulasi depth 3D tidak rusak
+            dc->ClearDepthStencilView(currentDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+            currentDSV->Release();
+        }
+    }
+
     // Transparent windows need TransparentWindow blend state so the alpha
     // channel is preserved for UpdateLayeredWindow. Normal windows use
     // standard alpha blending.

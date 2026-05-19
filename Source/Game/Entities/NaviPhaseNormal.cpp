@@ -4,60 +4,52 @@
 #include "NaviBoss.h"
 #include "WindowManager.h"
 #include "System/Graphics.h"
-#include <SDL3/SDL.h>
-
 #include "System/Input.h"
+#include "System/AudioManager.h"
 #include "Player.h"
 #include "StateMachine.h"
 #include "PlayerStates.h"
-
 #include "WindowTrackingSystem.h"
+#include "CameraController.h"
+#include <SDL3/SDL.h>
+#include <random>
 
-#include <random> // Pastikan ini ada di atas!
-#include <CameraController.h>
+using namespace DirectX;
 
-#include "System/AudioManager.h"
+// ============================================================
+// Enter - Called once when this phase becomes active.
+// ============================================================
 
 void NaviPhaseNormal::Enter(NaviBoss* boss) {
     int screenW = GetSystemMetrics(SM_CXSCREEN);
     int screenH = GetSystemMetrics(SM_CYSCREEN);
 
+    // --- Configure main game window ---
     Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
     if (mainWindow && mainWindow->GetSDLWindow()) {
         SDL_Window* sdlWin = mainWindow->GetSDLWindow();
 
-        // =========================================================
-        // [FIX 1] LUCUTI KASTA MAIN WINDOW!
-        // Set Priority ke 50 (Rakyat Biasa) agar WindowManager 
-        // membuangnya ke HWND_NOTOPMOST!
-        // =========================================================
+        // Demote main window so boss window can sit above it
         mainWindow->SetPriority(50);
-
         SDL_SetWindowAlwaysOnTop(sdlWin, false);
         SDL_SetWindowBordered(sdlWin, false);
         SDL_SetWindowPosition(sdlWin, 0, 0);
 
-        // =========================================================
-        // [FIX 2] HACK "FULLSCREEN OPTIMIZATION" WINDOWS OS!
-        // Tambahkan +1 pixel pada tinggi (Height) layar.
-        // Mata pemain tidak akan menyadari 1 pixel ini yang tersembunyi di bawah taskbar,
-        // TAPI Windows OS akan mengira ini bukan "Exclusive Fullscreen" dan 
-        // akan mematuhi aturan Z-Order kita!
-        // =========================================================
+        // +1px height hack: prevents Windows from treating this as an
+        // exclusive fullscreen window, keeping our Z-order control intact
         SDL_SetWindowSize(sdlWin, screenW, screenH + 1);
     }
 
+    // Boss window stays at the top of the Z-order hierarchy
     if (boss->GetMainWindow()) {
-        // Navi Boss tetap di Kasta Dewa (0)
         boss->GetMainWindow()->SetPriority(0);
-
-        // Memicu WindowManager untuk menata ulang Z-Order
         WindowManager::Instance().MarkPriorityDirty();
     }
 
-    // Matikan Breathing (Intensity = 0.0f) agar Navi statik
+    // Disable breathing so boss is static during the opening event
     boss->SetCoreBreathParams(1.0f, 0.0f);
 
+    // --- Pre-allocate bullet pool ---
     m_bulletPool.clear();
     m_bulletPool.reserve(200);
     for (int i = 0; i < 200; ++i) {
@@ -66,314 +58,255 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
         m_bulletPool.push_back(std::move(b));
     }
 
+    // --- Primitives & UI ---
     m_zonePrimitive = std::make_unique<Primitive>(Graphics::Instance().GetDevice());
 
-    // --- INISIALISASI UI DI SINI ---
     m_dialogueBox = std::make_unique<UIDialogueBox>();
     m_dialogueBox->Initialize();
 
-    // Picu percakapan awal
+    // Opening dialogue lines (Japanese; intentional)
     m_dialogueBox->StartDialogue({
-            "やばっ！ウチのモデル消しちゃったんだけど〜ウケるwww",
-            "ちょい待ち〜〜",
-            "てか、これでどう！？盛れてる？"
+        "やばっ！ウチのモデル消しちゃったんだけど〜ウケるwww",
+        "ちょい待ち〜〜",
+        "てか、これでどう！？盛れてる？"
         });
 
     m_isOpeningEvent = true;
 
+    // Start face grid hidden with minimal density
     if (boss) {
-        boss->SetGridGrowthLimit(1.0f);     // Atur densitas awal paling minimum (1x1)
-        boss->SetFaceSpriteVisible(false); // Sembunyikan tekstur wajah inti
+        boss->SetGridGrowthLimit(1.0f);
+        boss->SetFaceSpriteVisible(false);
     }
 }
 
-void NaviPhaseNormal::TriggerTripleBurst() {
-    if (!m_isFiring && !m_isFiringFan) {
-        m_isFiring = true;
-        m_burstsFired = 0;
-        m_burstSequenceTimer = 0.0f;
-    }
+// ============================================================
+// Exit
+// ============================================================
+
+void NaviPhaseNormal::Exit(NaviBoss* boss) {
+    m_bulletPool.clear();
 }
 
-// =========================================================
-// [NEW] LOGIKA PENGUNCIAN TARGET (LOCK-ON)
-// =========================================================
-void NaviPhaseNormal::TriggerFanAttack(NaviBoss* boss, DirectX::XMFLOAT3 playerPos) {
-    if (!m_isFiring && !m_isFiringFan) {
-        m_isFiringFan = true;
-        m_fanWavesFired = 0;
-        m_fanTimer = m_params.fanWaveDelay; // Dibuat penuh agar langsung menembak di frame 1
-
-        DirectX::XMFLOAT3 bossPos = boss->GetPosition();
-        float dx = playerPos.x - bossPos.x;
-        float dz = playerPos.z - bossPos.z;
-
-        // Kunci sudut arah player pada saat tombol ditekan
-        m_lockedBaseAngle = atan2f(dx, dz);
-    }
-}
+// ============================================================
+// Update
+// ============================================================
 
 void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
     if (!boss) return;
 
-    // =========================================================
-        // [REFACTOR] SEQUENCER PEMBUKAAN BOSS SCENE
-        // =========================================================
+    // --- Opening Sequence (blocks AI until dialogue ends) ---
     if (m_isOpeningEvent) {
         if (m_dialogueBox && m_dialogueBox->IsActive()) {
             m_dialogueBox->Update(dt);
-
             int diagIdx = m_dialogueBox->GetCurrentDialogueIndex();
 
             if (diagIdx == 0) {
-                // Teks 1: Model terhapus -> Window Boss belum diciptakan sama sekali
+                // Line 1: "I deleted the model lol" — window not spawned yet
                 boss->SetWindowTitle("mat_grass.png");
                 boss->SetGridGrowthLimit(1.0f);
                 boss->SetFaceSpriteVisible(false);
             }
             else if (diagIdx == 1) {
-                // Teks 2: "Wait a second..." -> SPAWN WINDOW SECARA REAL-TIME!
+                // Line 2: "Wait a sec..." — spawn boss window and animate grid in
                 if (!m_hasSpawnedWindow) {
                     boss->SpawnHeadWindow();
-                    m_hasSpawnedWindow = true; // Kunci agar tidak melakukan re-spawn berulang-ulang
+                    m_hasSpawnedWindow = true;
                 }
 
-                // ANIMASI MATRIKS: Densitas ubin memecah perlahan dari 1.0f menuju 8.0f penuh
+                // Animate grid density from 1 → 8 over ~2 seconds
                 float currentLimit = boss->GetGridGrowthLimit();
                 if (currentLimit < 8.0f) {
-                    currentLimit += dt * 3.5f; // Naik linear (Butuh waktu sekitar 2 detik untuk mencapai 8x8)
-                    if (currentLimit > 8.0f) currentLimit = 8.0f;
+                    currentLimit = min(currentLimit + dt * 3.5f, 8.0f);
                     boss->SetGridGrowthLimit(currentLimit);
                 }
-
-                boss->SetFaceSpriteVisible(false); // Wajah utama belum dipasang
+                boss->SetFaceSpriteVisible(false);
             }
             else if (diagIdx == 2) {
-                // Teks 3: "Is this better?" -> Matriks sudah pecah sempurna, nyalakan Wajah Utama!
-                boss->SetGridGrowthLimit(8.0f); // Paksa ke kondisi batas maksimum
+                // Line 3: "Is this better?" — grid fully visible, face revealed
+                boss->SetGridGrowthLimit(8.0f);
                 boss->SetFaceSpriteVisible(true);
             }
 
-            return; // BLOKIR LOGIKA GAME / AI DIRECTOR SELAMA DIALOG BERLANGSUNG!
+            return; // Block all gameplay logic during dialogue
         }
         else {
-            // Skenario pembukaan selesai, lepas kendali AI Boss Fight!
+            // Dialogue finished — hand control to the AI director
             m_isOpeningEvent = false;
         }
     }
 
-
-    // =========================================================
-        // --- 0. JALANKAN OTAK AI DIRECTOR ---
-        // =========================================================
+    // --------------------------------------------------------
+    // AI Director
+    // --------------------------------------------------------
     UpdateAI(dt, boss);
 
-    // =========================================================
-    // --- 0.5. LOGIKA FLOATING (IDLE HOVER) ---
-    // =========================================================
+    // --------------------------------------------------------
+    // Idle Hover (Lissajous figure-8 float)
+    // --------------------------------------------------------
     m_idleHoverTimer += dt;
 
-    // Bos diizinkan melayang santai JIKA tidak sedang mengecas Bijuudama, 
-    // dan bukan di tengah-tengah persiapan/menembak Phalanx.
-    // (Fase 5 Phalanx diizinkan agar bos pulangnya langsung menuju titik melayang!)
-    bool isFloating = false;
-    if ((m_phalanxState == 0 || m_phalanxState == 5) && !m_isLaserLocked && !m_isBijuudamaRecovering) {
-        isFloating = true;
-    }
+    // Boss floats freely when not locked into an attack state
+    bool isFloating = (m_phalanxState == 0 || m_phalanxState == 5)
+        && !m_isLaserLocked
+        && !m_isBijuudamaRecovering;
 
     if (isFloating) {
-        // Kurva Lissajous: Sumbu X dan Z menggunakan kecepatan putar yang berbeda
-        // Ini menciptakan pola angka 8 yang tidak pernah berulang secara kaku
-        m_targetPosition.x = sinf(m_idleHoverTimer * 0.8f) * 6.0f; // Melayang Kiri-Kanan sejauh 6 unit
-        m_targetPosition.z = cosf(m_idleHoverTimer * 1.1f) * 3.0f; // Melayang Atas-Bawah sejauh 3 unit
+        m_targetPosition.x = sinf(m_idleHoverTimer * 0.8f) * 6.0f;
+        m_targetPosition.z = cosf(m_idleHoverTimer * 1.1f) * 3.0f;
 
-        // Jika benar-benar sedang nganggur (bukan dalam perjalanan pulang)
-        if (m_phalanxState == 0) {
-            // Turunkan kecepatan Lerp secara perlahan agar gerakannya terlihat malas & santai
-            m_moveLerpSpeed += (1.5f - m_moveLerpSpeed) * 2.0f * dt;
-        }
+        if (m_phalanxState == 0)
+            m_moveLerpSpeed += (1.5f - m_moveLerpSpeed) * 2.0f * dt; // Ease toward lazy drift
     }
 
-    // =========================================================
-    // --- 0A. LOGIKA PERGERAKAN JENDELA (EASE-IN & EASE-OUT) ---
-    // =========================================================// 1. EASE-IN: Lerp kecepatannya dari 0 menuju Target Kecepatan
+    // --------------------------------------------------------
+    // Window Movement (Ease-In / Ease-Out)
+    // --------------------------------------------------------
+    // Smooth the lerp speed itself for an ease-in effect
     m_currentMoveLerpSpeed += (m_moveLerpSpeed - m_currentMoveLerpSpeed) * m_moveAcceleration * dt;
 
-    // 2. EASE-OUT: Lerp posisinya menggunakan kecepatan yang sudah dihaluskan
+    // Apply smoothed lerp to position
     DirectX::XMFLOAT3 currentPos = boss->GetPosition();
     currentPos.x += (m_targetPosition.x - currentPos.x) * m_currentMoveLerpSpeed * dt;
     currentPos.z += (m_targetPosition.z - currentPos.z) * m_currentMoveLerpSpeed * dt;
-    
     boss->SetPosition(currentPos);
 
-    // =========================================================
-    // SINKRONISASI UKURAN JENDELA DENGAN ZOOM CAMERA
-    // =========================================================
+    // --------------------------------------------------------
+    // Sync Window Size to Camera Zoom
+    // --------------------------------------------------------
     auto* ws = boss->GetWindowSystem();
     if (ws) {
-        float currentP2U = ws->GetPixelToUnitRatio();
-        
-        // [FIX 5] Ukuran 6.0f unit biasanya lebih pas untuk komposisi wajah Navi
-        // saat kamera sedang melakukan zoom-in.
-        float newSize = 5.0f * currentP2U; 
-        
+        float newSize = 5.0f * ws->GetPixelToUnitRatio();
         boss->SetBaseWindowSize(newSize, newSize);
         boss->SetWindowSize(newSize, newSize);
     }
 
-    // --- 1A. Logika Radial Burst (TRIPLE BURST) ---
+    // --------------------------------------------------------
+    // Attack: Radial Burst (Triple)
+    // --------------------------------------------------------
     if (m_isFiring) {
-        // Tembakan Pertama (Instan)
         if (m_burstsFired == 0) {
             FireRadialBurst(boss, 0.0f);
             m_burstsFired++;
         }
-        // Tembakan Kedua dan Ketiga (Dengan Delay)
         else if (m_burstsFired < 3) {
             m_burstSequenceTimer += dt;
             if (m_burstSequenceTimer >= m_params.burstDelay) {
-                m_burstSequenceTimer = 0.0f; // Reset timer!
+                m_burstSequenceTimer = 0.0f;
 
-                // [JUICE] Selang-seling offset rotasi agar membentuk jaring maut!
-                float step = DirectX::XM_2PI / (float)m_params.count;
-                // Tembakan ke-2 (index 1) di-offset. Tembakan ke-3 (index 2) kembali lurus.
+                // Alternate half-step offsets to create an interlocking pattern
+                float step = XM_2PI / (float)m_params.count;
                 float offset = (m_burstsFired % 2 == 1) ? (step * 0.5f) : 0.0f;
 
                 FireRadialBurst(boss, offset);
-                m_burstsFired++;
-
-                if (m_burstsFired >= 3) {
-                    m_isFiring = false; // Matikan serangan setelah 3 gelombang
-                }
+                if (++m_burstsFired >= 3)
+                    m_isFiring = false;
             }
         }
     }
 
-    // --- 1B. Logika Targeted Fan Burst ---
+    // --------------------------------------------------------
+    // Attack: Targeted Fan Burst (Shotgun)
+    // --------------------------------------------------------
     if (m_isFiringFan) {
         m_fanTimer += dt;
         if (m_fanTimer >= m_params.fanWaveDelay) {
             m_fanTimer = 0.0f;
-            FireFanWave(boss); // Muntahkan 1 baris peluru
-            m_fanWavesFired++;
-
-            if (m_fanWavesFired >= m_params.fanWaves) {
-                m_isFiringFan = false; // Berhenti jika sudah 5x
-            }
+            FireFanWave(boss);
+            if (++m_fanWavesFired >= m_params.fanWaves)
+                m_isFiringFan = false;
         }
     }
 
-    // --- 1C. Logika Glintstone Phalanx ---
+    // --------------------------------------------------------
+    // Attack: Glintstone Phalanx
+    // --------------------------------------------------------
     if (m_phalanxState > 0) {
         m_phalanxTimer += dt;
         DirectX::XMFLOAT3 bPos = boss->GetPosition();
 
-        // 1. BUAT PELURU MELAYANG (HOVERING) MENGIKUTI ARAH PLAYER
+        // Keep un-fired bullets orbiting the boss, aimed at the player
         for (int i = m_phalanxFired; i < m_phalanxSpawned; ++i) {
-            if (m_phalanxBullets[i] && m_phalanxBullets[i]->IsActive()) {
+            if (!m_phalanxBullets[i] || !m_phalanxBullets[i]->IsActive()) continue;
 
-                // --- A. HITUNG TARGET (Sama seperti sebelumnya) ---
-                DirectX::XMFLOAT3 pPos = m_phalanxTarget->GetPosition();
-                float dx = pPos.x - bPos.x;
-                float dz = pPos.z - bPos.z;
-                float angleToPlayer = atan2f(dx, dz);
+            DirectX::XMFLOAT3 pPos = m_phalanxTarget->GetPosition();
+            float dx = pPos.x - bPos.x;
+            float dz = pPos.z - bPos.z;
+            float angleToPlayer = atan2f(dx, dz);
 
-                float totalSpread = DirectX::XM_PI;
-                float startOffset = -totalSpread * 0.5f;
-                float step = m_params.phalanxCount > 1 ? totalSpread / (float)(m_params.phalanxCount - 1) : 0.0f;
-                float finalBulletAngle = angleToPlayer + (startOffset + (i * step));
+            float totalSpread = XM_PI;
+            float startOffset = -totalSpread * 0.5f;
+            float step = m_params.phalanxCount > 1 ? totalSpread / (float)(m_params.phalanxCount - 1) : 0.0f;
+            float bulletAngle = angleToPlayer + startOffset + (i * step);
 
-                DirectX::XMFLOAT3 targetHoverPos = bPos;
-                targetHoverPos.x += sinf(finalBulletAngle) * m_params.phalanxHoverRadius;
-                targetHoverPos.z += cosf(finalBulletAngle) * m_params.phalanxHoverRadius;
-                targetHoverPos.y += 1.0f;
+            DirectX::XMFLOAT3 targetHoverPos = bPos;
+            targetHoverPos.x += sinf(bulletAngle) * m_params.phalanxHoverRadius;
+            targetHoverPos.z += cosf(bulletAngle) * m_params.phalanxHoverRadius;
+            targetHoverPos.y += 1.0f;
 
-                // =========================================================
-                // [FIX MUTLAK] EASE OUT / SMOOTHING POSITION
-                // =========================================================
-                // Ambil posisi peluru saat ini
-                DirectX::XMFLOAT3 currentPos = m_phalanxBullets[i]->GetMovement()->GetPosition();
-
-                // Rumus Lerp: current + (target - current) * speed * dt
-                // Ini akan menciptakan efek melambat saat mendekati target (Ease Out)
-                float sSpeed = m_params.phalanxSmoothSpeed;
-                currentPos.x += (targetHoverPos.x - currentPos.x) * sSpeed * dt;
-                currentPos.y += (targetHoverPos.y - currentPos.y) * sSpeed * dt;
-                currentPos.z += (targetHoverPos.z - currentPos.z) * sSpeed * dt;
-
-                // Terapkan posisi yang sudah dihaluskan
-                m_phalanxBullets[i]->GetMovement()->SetPosition(currentPos);
-
-                // Rotasi tetap nge-aim player agar terlihat mengancam
-                m_phalanxBullets[i]->GetMovement()->SetRotationY(DirectX::XMConvertToDegrees(angleToPlayer));
-            }
+            // Smooth bullet toward its orbit slot (ease-out)
+            DirectX::XMFLOAT3 bletPos = m_phalanxBullets[i]->GetMovement()->GetPosition();
+            float sSpeed = m_params.phalanxSmoothSpeed;
+            bletPos.x += (targetHoverPos.x - bletPos.x) * sSpeed * dt;
+            bletPos.y += (targetHoverPos.y - bletPos.y) * sSpeed * dt;
+            bletPos.z += (targetHoverPos.z - bletPos.z) * sSpeed * dt;
+            m_phalanxBullets[i]->GetMovement()->SetPosition(bletPos);
+            m_phalanxBullets[i]->GetMovement()->SetRotationY(XMConvertToDegrees(angleToPlayer));
         }
 
-        // 2. FASE 1: CHARGING / MUNCUL SATU PER SATU
+        // State 1: Charging — wait for boss to reach its side position, then summon bullets
         if (m_phalanxState == 1) {
             float dx = m_targetPosition.x - bPos.x;
             float dz = m_targetPosition.z - bPos.z;
 
             if ((dx * dx + dz * dz) > 1.0f) {
-                m_phalanxTimer = 0.0f; // Reset timer terus selama belum sampai
+                m_phalanxTimer = 0.0f; // Not at position yet; keep waiting
             }
             else {
-                // =========================================================
-                // PANGGIL HUJAN PALANG TEPAT SAAT BOS MENDARAT!
-                // =========================================================
+                // Trigger rain the moment boss lands on its side
                 if (m_phalanxTarget) {
                     bool isTopSide = (m_phalanxTarget->GetPosition().z > 0.0f);
-                    float sweepDirection = (m_targetPosition.x > 0.0f) ? -1.0f : 1.0f;
-                    TriggerRainAttack(false, isTopSide, sweepDirection);
+                    float sweepDir = (m_targetPosition.x > 0.0f) ? -1.0f : 1.0f;
+                    TriggerRainAttack(false, isTopSide, sweepDir);
                 }
 
+                // Spawn one bullet per charge tick
                 if (m_phalanxTimer >= m_params.phalanxChargeDelay) {
                     m_phalanxTimer -= m_params.phalanxChargeDelay;
 
                     for (auto& bullet : m_bulletPool) {
                         if (!bullet->IsActive()) {
                             bullet->SetActive(true);
-                            bullet->ApplyMovement(bPos, { 0,0,0 });
+                            bullet->ApplyMovement(bPos, { 0, 0, 0 });
                             bullet->SetHomingTarget(nullptr);
                             bullet->SetBossTarget(nullptr);
                             bullet->SetParabolic(false);
                             bullet->SetParryReturn(false);
-
                             bullet->SetRadius(0.35f);
                             bullet->scale = { 2.0f, 2.0f, 2.0f };
                             bullet->SetTurnSpeed(m_params.phalanxTurnSpeed);
-
                             m_phalanxBullets.push_back(bullet.get());
-
                             AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Phalanx_Ready.wav", 0.1f * m_params.sfxVolumeMultiplier);
-
                             m_phalanxSpawned++;
                             break;
                         }
                     }
 
-                    // Jika sudah full peluru, ganti state jadi FASE 2
                     if (m_phalanxSpawned >= m_params.phalanxCount) {
                         m_phalanxState = 2;
                         m_phalanxTimer = 0.0f;
                     }
                 }
             }
-        } // <--- [FIX MUTLAK] PENJARA FASE 1 DITUTUP DI SINI!
-
-        // =========================================================
-        // FASE 2, 3, 4, 5 SEKARANG BEBAS DAN BERDIRI SENDIRI!
-        // =========================================================
-
-        // FASE 2: HOLDING (Diam dalam formasi penuh)
+        }
+        // State 2: Holding — all bullets orbiting, waiting before fire
         else if (m_phalanxState == 2) {
             if (m_phalanxTimer >= m_params.phalanxHoldDuration) {
-                m_phalanxState = 3; // Lanjut ke menembak
+                m_phalanxState = 3;
                 m_phalanxTimer = 0.0f;
             }
         }
-
-        // 3. FASE 3: FIRING / TEMBAK SATU PER SATU
+        // State 3: Firing — launch one bullet at a time toward player
         else if (m_phalanxState == 3) {
             if (m_phalanxTimer >= m_params.phalanxFireDelay) {
                 m_phalanxTimer -= m_params.phalanxFireDelay;
@@ -387,18 +320,15 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                         DirectX::XMFLOAT3 pPos = m_phalanxTarget->GetPosition();
                         float dx = pPos.x - myPos.x;
                         float dz = pPos.z - myPos.z;
-                        float dist = std::sqrt(dx * dx + dz * dz);
+                        float dist = sqrtf(dx * dx + dz * dz);
 
-                        DirectX::XMFLOAT3 dir = { 0,0,1 };
-                        if (dist > 0.001f) dir = { dx / dist, 0.0f, dz / dist };
-
+                        DirectX::XMFLOAT3 dir = (dist > 0.001f) ? DirectX::XMFLOAT3{ dx / dist, 0.0f, dz / dist } : DirectX::XMFLOAT3{ 0, 0, 1 };
                         b->Fire(myPos, dir, m_params.phalanxSpeed);
                     }
                     AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Phalanx_Shoot.wav", 0.1f * m_params.sfxVolumeMultiplier);
                     m_phalanxFired++;
                 }
 
-                // Jika semua sudah tertembak, lanjut Fase 4
                 if (m_phalanxFired >= m_phalanxSpawned) {
                     m_phalanxState = 4;
                     m_phalanxTimer = 0.0f;
@@ -406,8 +336,7 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                 }
             }
         }
-
-        // [BARU] FASE 4: POST-FIRE DELAY (Diam di sisi sebentar)
+        // State 4: Post-fire pause before returning to center
         else if (m_phalanxState == 4) {
             if (m_phalanxTimer >= m_params.phalanxPostFireDelay) {
                 m_phalanxState = 5;
@@ -416,180 +345,142 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                 m_currentMoveLerpSpeed = 0.0f;
             }
         }
-
-        // [BARU] FASE 5: RETURNING (Menunggu sampai target tercapai)
+        // State 5: Returning to center
         else if (m_phalanxState == 5) {
             DirectX::XMFLOAT3 pos = boss->GetPosition();
             float dx = m_targetPosition.x - pos.x;
             float dz = m_targetPosition.z - pos.z;
-
             if ((dx * dx + dz * dz) < 1.0f) {
                 m_phalanxState = 0;
                 m_phalanxBullets.clear();
             }
         }
     }
-    
 
-    // --- 1D. Logika Asgore Rain (Area Denial) ---
+    // --------------------------------------------------------
+    // Attack: Asgore Rain (Area Denial)
+    // --------------------------------------------------------
     if (m_rainState > 0) {
         m_rainTimer += dt;
 
-        // =========================================================
-        // [FIX MUTLAK] GETARAN PERSISTEN
-        // Kocok layar terus-menerus selama Fase 2 (Hujan Deras) DAN Fase 3 (Reda)!
-        // =========================================================
-        if (m_rainState == 2 || m_rainState == 3) {
-            CameraController::Instance().AddTrauma(1.0f * dt); // Agak dinaikkan biar makin terasa
-        }
+        // Continuous screen shake during active and dissipating rain
+        if (m_rainState == 2 || m_rainState == 3)
+            CameraController::Instance().AddTrauma(1.0f * dt);
 
-        if (m_rainState == 1) { // FASE WARNING
+        if (m_rainState == 1) { // Warning phase
             if (m_rainTimer >= m_params.rainWarningDuration) {
-                m_rainState = 2; // Mulai Hujan! (Hitbox Aktif)
+                m_rainState = 2;
                 m_rainTimer = 0.0f;
-                CameraController::Instance().AddTrauma(0.5f); // Ledakan getaran awal
+                CameraController::Instance().AddTrauma(0.5f);
 
-                // =========================================================
-                // [FIX MUTLAK] MENGHANCURKAN DELAY AWAL 1.3 DETIK
-                // =========================================================
-                // 1. Tembakkan 1 suara secara INSTAN sebagai "Pecah Telur" pembukaan hujan
+                // Play first rain sound immediately, then prime the loop timer
                 AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Rain_01.wav", 0.07f * m_params.sfxVolumeMultiplier);
-
-                // 2. "Hack" metronomnya dengan memalsukan waktu!
-                // Setel timer langsung ke batas maksimalnya. Dengan ini, pada frame
-                // berikutnya loop delay kita akan LANGSUNG terpicu tanpa harus 
-                // menunggu 0.8 detik pertama!
-                m_rainSFXTimer = RAIN_SFX_LOOP_DURATION;
-                // =========================================================
+                m_rainSFXTimer = RAIN_SFX_LOOP_DURATION; // Force immediate second trigger next frame
             }
         }
-        else if (m_rainState == 2) { // FASE RAINING (Mematikan)
-
-            // =========================================================
-            // [FIX MUTLAK] RHYTHMIC RAIN SFX LOOP (PINDAHAN DARI RENDER!)
-            // =========================================================
-            m_rainSFXTimer += dt; // SEKARANG AMAN KARENA ADA 'dt'!
-
+        else if (m_rainState == 2) { // Active rain
+            m_rainSFXTimer += dt;
             if (m_rainSFXTimer >= RAIN_SFX_LOOP_DURATION) {
-
-                // Siapkan daftar 3 suara acak
+                // Play 3 randomly-delayed rain sounds for an organic feel
                 std::string rainSounds[] = {
                     "Data/Sound/SE_Boss_Rain_01.wav",
                     "Data/Sound/SE_Boss_Rain_02.wav",
                     "Data/Sound/SE_Boss_Rain_03.wav"
                 };
-
                 for (int i = 0; i < 3; ++i) {
-                    float randomDelay = 0.5f + ((rand() % 301) / 1000.0f);
-                    int randomIndex = rand() % 3; // Pilih salah satu dari 3 suara
-
-                    // Mainkan suara yang terpilih dengan volume rendah
-                    AudioManager::Instance().PlaySFXDelayed(rainSounds[randomIndex], 0.07f * m_params.sfxVolumeMultiplier, randomDelay);
+                    float delay = 0.5f + ((rand() % 301) / 1000.0f);
+                    AudioManager::Instance().PlaySFXDelayed(rainSounds[rand() % 3], 0.07f * m_params.sfxVolumeMultiplier, delay);
                 }
-                m_rainSFXTimer = 0.0f; // Reset timer untuk siklus berikutnya
+                m_rainSFXTimer = 0.0f;
             }
-            // =========================================================
 
             if (m_rainTimer >= m_params.rainActiveDuration) {
                 m_rainState = 3;
                 m_rainTimer = 0.0f;
             }
         }
-        else if (m_rainState == 3) { // FASE DISSIPATING (Reda & Aman)
-            m_rainSFXTimer = 0.0f; // Matikan timer suara saat mereda
-
-            // Tunggu 1.5 detik agar peluru terakhir benar-benar keluar layar bawah
-            if (m_rainTimer >= 1.0f) {
-                m_rainState = 0; // Hujan benar-benar bersih
-            }
+        else if (m_rainState == 3) { // Dissipating
+            m_rainSFXTimer = 0.0f;
+            if (m_rainTimer >= 1.0f)
+                m_rainState = 0;
         }
     }
     else {
-        // Jaga-jaga: Pastikan timer suara benar-benar reset saat hujan mati
         m_rainSFXTimer = 0.0f;
     }
-    
 
+    // --------------------------------------------------------
+    // Attack: Bijuudama (Rhythm Laser Charge Ball)
+    // --------------------------------------------------------
     if (m_isLaserLocked && m_laserTargetPlayer) {
         DirectX::XMFLOAT3 bPos = boss->GetPosition();
-
         float dx = m_targetPosition.x - bPos.x;
         float dz = m_targetPosition.z - bPos.z;
 
+        // Boss hasn't reached charge position yet; hide ball and pause timer
         if ((dx * dx + dz * dz) > 1.0f) {
-            m_laserTimer = 0.0f; // Reset timer pengisian
-            if (m_bijuudamaBall) m_bijuudamaBall->SetActive(false); // Sembunyikan bola dulu
+            m_laserTimer = 0.0f;
+            if (m_bijuudamaBall) m_bijuudamaBall->SetActive(false);
         }
-
         else {
-            if (m_laserTimer == 0.0f) {
-                // Mainkan suara charging yang panjang!
+            // Play charge audio once when reaching position
+            if (m_laserTimer == 0.0f)
                 AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Bijuudama_Charge.wav", 0.1f * m_params.sfxVolumeMultiplier);
-            }
 
+            // Trigger dual rain pillars for the charge phase
             TriggerRainAttack(true, false, 1.0f, true);
-            // Jika sudah sampai, pastikan bola aktif kembali
-            if (m_bijuudamaBall && !m_bijuudamaBall->IsActive()) m_bijuudamaBall->SetActive(true);
+
+            if (m_bijuudamaBall && !m_bijuudamaBall->IsActive())
+                m_bijuudamaBall->SetActive(true);
 
             m_laserTimer += dt;
             DirectX::XMFLOAT3 pPos = m_laserTargetPlayer->GetPosition();
 
-            // --- 1. UPDATE FISIK BOLA BIJUUDAMA ---
+            // Grow the ball while stationary
             if (m_bijuudamaBall && m_bijuudamaBall->IsActive()) {
                 DirectX::XMFLOAT3 vel = m_bijuudamaBall->GetVelocity();
                 if ((vel.x * vel.x + vel.z * vel.z) < 0.01f) {
-
-                    // [TIDAK HARDCODE] Tempel bola di depan mulut Boss
                     DirectX::XMFLOAT3 offsetPos = bPos;
                     offsetPos.z -= m_params.bijuudamaSpawnOffsetZ;
                     m_bijuudamaBall->GetMovement()->SetPosition(offsetPos);
 
-                    // [TIDAK HARDCODE] Kalkulasi Hitbox vs Visual
                     float progress = min(1.0f, m_laserTimer / m_params.laserDuration);
+                    float currentHitbox = m_params.bijuudamaBaseHitbox + (m_params.bijuudamaMaxHitboxGrow * progress);
+                    m_bijuudamaBall->SetRadius(currentHitbox);
 
-                    float currentHitboxRadius = m_params.bijuudamaBaseHitbox + (m_params.bijuudamaMaxHitboxGrow * progress);
-                    m_bijuudamaBall->SetRadius(currentHitboxRadius);
-
-                    float visualScale = currentHitboxRadius * m_params.bijuudamaVisualMultiplier;
+                    float visualScale = currentHitbox * m_params.bijuudamaVisualMultiplier;
                     m_bijuudamaBall->scale = { visualScale, visualScale, visualScale };
                 }
             }
 
-            // --- 2. VISUAL TIMING RING (Tetap ada di Player) ---
+            // Visual timing ring (drawn in Update, not Render, to avoid shader state issues)
             auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
-            float t = m_laserTimer / m_params.laserDuration;
-            if (t > 1.0f) t = 1.0f;
-            float currentRingRadius = m_params.laserStartRadius + (m_params.laserTargetRadius - m_params.laserStartRadius) * t;
+            float t = min(1.0f, m_laserTimer / m_params.laserDuration);
+            float ringRadius = m_params.laserStartRadius + (m_params.laserTargetRadius - m_params.laserStartRadius) * t;
 
-            DirectX::XMFLOAT4 ringColor = { 1.0f, 0.0f, 0.0f, 1.0f }; // Merah (Belum pas)
-            float timeDiff = std::abs(m_laserTimer - m_params.laserDuration);
-            if (timeDiff <= m_params.laserParryWindow) {
-                ringColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // Putih Menyala! (PARRY SEKARANG!)
-            }
-            shapeRenderer->DrawSphere(pPos, currentRingRadius, ringColor);
+            DirectX::XMFLOAT4 ringColor = { 1.0f, 0.0f, 0.0f, 1.0f }; // Red = not yet
+            if (fabsf(m_laserTimer - m_params.laserDuration) <= m_params.laserParryWindow)
+                ringColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // White = parry window open
 
-            // --- 3. RESOLUSI: WAKTU CHARGE HABIS ---
+            shapeRenderer->DrawSphere(pPos, ringRadius, ringColor);
+
+            // Resolve: charge timer expired — fire the ball
             if (m_laserTimer >= m_params.laserDuration) {
                 m_isLaserLocked = false;
-
                 m_isBijuudamaRecovering = true;
                 m_bijuudamaRecoveryTimer = 0.0f;
 
                 if (m_bijuudamaBall && m_bijuudamaBall->IsActive()) {
                     DirectX::XMFLOAT3 vel = m_bijuudamaBall->GetVelocity();
                     if ((vel.x * vel.x + vel.z * vel.z) < 0.01f) {
-
-                        float dx = pPos.x - bPos.x;
-                        float dz = pPos.z - bPos.z;
-                        float dist = std::sqrt(dx * dx + dz * dz);
-
+                        float ddx = pPos.x - bPos.x;
+                        float ddz = pPos.z - bPos.z;
+                        float dist = sqrtf(ddx * ddx + ddz * ddz);
                         if (dist > 0.001f) {
-                            // [TIDAK HARDCODE] Kecepatan tembak
                             float sSpeed = m_params.bijuudamaShootSpeed;
-                            DirectX::XMFLOAT3 shootVel = { (dx / dist) * sSpeed, 0.0f, (dz / dist) * sSpeed };
-                            DirectX::XMFLOAT3 currentPos = m_bijuudamaBall->GetMovement()->GetPosition();
-
-                            m_bijuudamaBall->ApplyMovement(currentPos, shootVel);
+                            DirectX::XMFLOAT3 shootVel = { (ddx / dist) * sSpeed, 0.0f, (ddz / dist) * sSpeed };
+                            DirectX::XMFLOAT3 ballPos = m_bijuudamaBall->GetMovement()->GetPosition();
+                            m_bijuudamaBall->ApplyMovement(ballPos, shootVel);
                             AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Bijuudama_Shoot.wav", 0.2f * m_params.sfxVolumeMultiplier);
                         }
                     }
@@ -600,14 +491,10 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
         }
     }
 
-    // =========================================================
-// --- 4. RECOVERY BIJUUDAMA (DIAM DI ATAS SEJENAK) ---
-// =========================================================
+    // Post-bijuudama recovery: boss hovers at top briefly, then returns to center
     if (m_isBijuudamaRecovering) {
         m_bijuudamaRecoveryTimer += dt;
-
         if (m_bijuudamaRecoveryTimer >= m_params.bijuudamaPostFireDelay) {
-            // Waktu napas habis, suruh bos pulang ke tengah dengan lambat
             m_isBijuudamaRecovering = false;
             m_targetPosition = { 0.0f, 0.0f, 0.0f };
             m_moveLerpSpeed = m_params.bijuudamaReturnMoveSpeed;
@@ -615,269 +502,190 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
         }
     }
 
-// --- 2. Update & Recycle (DYNAMIC SCREEN BOUNDS) ---
-    float limitX = 30.0f; // Fallback
-    float limitZ = 20.0f; // Fallback
+    // --------------------------------------------------------
+    // Bullet Pool — Update & Recycle (dynamic screen bounds)
+    // --------------------------------------------------------
+    float limitX = 30.0f;
+    float limitZ = 20.0f;
 
     if (ws) {
-        // Ambil rasio piksel terbaru yang sudah dipengaruhi Zoom dari SceneBoss
         float p2u = ws->GetPixelToUnitRatio();
-        int screenW = GetSystemMetrics(SM_CXSCREEN);
-        int screenH = GetSystemMetrics(SM_CYSCREEN);
-
-        // Hitung batas dunia berdasarkan resolusi layar OS saat ini
-        // Ditambah padding agar peluru tidak "pop-out" secara kasar
-        limitX = ((screenW / 2.0f) / p2u) + m_params.screenDespawnPadding;
-        limitZ = ((screenH / 2.0f) / p2u) + m_params.screenDespawnPadding;
+        int   sW = GetSystemMetrics(SM_CXSCREEN);
+        int   sH = GetSystemMetrics(SM_CYSCREEN);
+        limitX = ((sW * 0.5f) / p2u) + m_params.screenDespawnPadding;
+        limitZ = ((sH * 0.5f) / p2u) + m_params.screenDespawnPadding;
     }
 
     for (auto& bullet : m_bulletPool) {
         if (!bullet->IsActive()) continue;
-
-        // Jalankan pergerakan peluru
         bullet->Update(dt, nullptr);
 
-        DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
-
-        // [OPTIMISASI MUTLAK] 
-        // Jika peluru berada di luar kotak layar, langsung balikin ke Pool!
-        // Ini akan otomatis menghentikan Phalanx yang mencoba memutar balik dari luar layar.
-        if (bPos.x < -limitX || bPos.x > limitX || bPos.z < -limitZ || bPos.z > limitZ) {
+        DirectX::XMFLOAT3 bp = bullet->GetMovement()->GetPosition();
+        if (bp.x < -limitX || bp.x > limitX || bp.z < -limitZ || bp.z > limitZ)
             bullet->SetActive(false);
-        }
     }
 }
 
-// =========================================================
-// [NEW] MATEMATIKA FAN / SHOTGUN SPREAD
-// =========================================================
-void NaviPhaseNormal::FireFanWave(NaviBoss* boss) {
-    int lines = m_params.fanLines;
-    float spread = m_params.fanSpreadAngle;
-
-    // Cari sudut paling ujung kiri (Start Angle) agar seimbang di tengah
-    float startAngle = m_lockedBaseAngle - ((lines - 1) * spread / 2.0f);
-
-    int firedCount = 0;
-    for (auto& bullet : m_bulletPool) {
-        if (!bullet->IsActive()) {
-
-            // =========================================================
-            // [FIX] MANDIKAN PELURU SEBELUM JADI PELURU NORMAL!
-            // =========================================================
-            bullet->SetRadius(0.25f);
-            bullet->scale = { 1.0f, 1.0f, 1.0f };
-            bullet->SetHomingTarget(nullptr);
-            bullet->SetBossTarget(nullptr);
-            bullet->SetParabolic(false);
-            bullet->SetTurnSpeed(8.0f);
-
-            float currentAngle = startAngle + (firedCount * spread);
-            DirectX::XMFLOAT3 dir = { sinf(currentAngle), 0.0f, cosf(currentAngle) };
-
-            bullet->Fire(boss->GetPosition(), dir, m_params.speed);
-
-            firedCount++;
-            if (firedCount >= lines) break; // Berhenti jika sudah menembak 3-4 peluru
-        }
-    }
-
-    // Masukkan ke antrean!
-    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Shoot.wav", 0.2f * m_params.sfxVolumeMultiplier);
-}
-
-void NaviPhaseNormal::FireRadialBurst(NaviBoss* boss, float angleOffset) {
-    int firedCount = 0;
-    float angleStep = DirectX::XM_2PI / (float)m_params.count;
-    for (auto& bullet : m_bulletPool) {
-        if (!bullet->IsActive()) {
-
-            // =========================================================
-            // [FIX] MANDIKAN PELURU SEBELUM JADI PELURU NORMAL!
-            // =========================================================
-            bullet->SetRadius(0.25f);                     // Hitbox standar peluru kecil
-            bullet->scale = { 1.0f, 1.0f, 1.0f };         // Skala visual standar
-            bullet->SetHomingTarget(nullptr);             // Hapus pelacak player
-            bullet->SetBossTarget(nullptr);               // Hapus pelacak bos (Shatter)
-            bullet->SetParabolic(false);                  // Matikan mode melengkung
-            bullet->SetParryReturn(false);
-            bullet->SetTurnSpeed(8.0f);
-
-            float angle = (firedCount * angleStep) + angleOffset;
-            bullet->Fire(boss->GetPosition(), { sinf(angle), 0.0f, cosf(angle) }, m_params.speed);
-            if (++firedCount >= m_params.count) break;
-        }
-    }
-
-    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Shoot.wav", 0.2f * m_params.sfxVolumeMultiplier);
-}
-
+// ============================================================
+// Render
+// ============================================================
 
 void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {
     if (!currentCamera) return;
+
     auto renderer = Graphics::Instance().GetModelRenderer();
     auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
 
+    // --- Render all active bullets ---
     for (auto& bullet : m_bulletPool) {
-        if (bullet->IsActive()) {
-            DirectX::XMFLOAT3 vel = bullet->GetVelocity();
-            float speedSq = vel.x * vel.x + vel.z * vel.z;
+        if (!bullet->IsActive()) continue;
 
-            DirectX::XMFLOAT4 renderColor = m_params.color;
+        DirectX::XMFLOAT3 vel = bullet->GetVelocity();
+        float speedSq = vel.x * vel.x + vel.z * vel.z;
 
-            if (bullet.get() == m_bijuudamaBall || bullet->GetBossTarget() != nullptr) {
-                renderColor = m_params.bijuudamaColor; // Tetap Merah!
-            }
-            // Jika peluru biasa yang dipantulkan (Kecepatan tinggi), baru ubah jadi Cyan
-            else if (speedSq > 900.0f) {
-                renderColor = { 1.0f, 0.0f, 0.0f, 1.0f };
-            }
+        DirectX::XMFLOAT4 renderColor = m_params.color;
 
-            renderer->Draw(ShaderId::Phong, bullet->GetModel(), renderColor);
-        }
+        if (bullet.get() == m_bijuudamaBall || bullet->GetBossTarget() != nullptr)
+            renderColor = m_params.bijuudamaColor;       // Bijuudama ball or shatter fragments
+        else if (speedSq > 900.0f)
+            renderColor = { 1.0f, 0.0f, 0.0f, 1.0f };  // Parried bullet moving fast
+
+        renderer->Draw(ShaderId::Phong, bullet->GetModel(), renderColor);
     }
 
-    // =========================================================
-    // [NEW] RENDER VISUAL RITME LASER (BOLA MENYUSUT)
-    // =========================================================
+    // --- Render Bijuudama shrinking sphere (Rhythm Laser visual) ---
     if (m_isLaserLocked && m_laserTargetPlayer) {
         DirectX::XMFLOAT3 pPos = m_laserTargetPlayer->GetPosition();
-        pPos.y += 1.0f; // Setinggi dada player
+        pPos.y += 1.0f; // Chest height
 
-        // A. Gambar Bola Target (Kecil, Cyan)
+        // Small cyan target dot
         shapeRenderer->DrawSphere(pPos, m_params.laserTargetRadius, { 0.0f, 1.0f, 1.0f, 1.0f });
 
-        // B. Hitung ukuran Bola Menyusut (Interpolasi / Lerp manual)
-        float t = m_laserTimer / m_params.laserDuration;
-        if (t > 1.0f) t = 1.0f;
-        float currentRadius = m_params.laserStartRadius + (m_params.laserTargetRadius - m_params.laserStartRadius) * t;
+        // Larger shrinking sphere (red → white in parry window)
+        float t = min(1.0f, m_laserTimer / m_params.laserDuration);
+        float shrinkRadius = m_params.laserStartRadius + (m_params.laserTargetRadius - m_params.laserStartRadius) * t;
 
-        // C. Visual Feedback Timing (Bola menyusut berubah putih jika masuk zona Parry!)
-        DirectX::XMFLOAT4 shrinkColor = { 1.0f, 0.0f, 0.0f, 1.0f }; // Merah (Belum pas)
-        float timeDiff = std::abs(m_laserTimer - m_params.laserDuration);
-        if (timeDiff <= m_params.laserParryWindow) {
-            shrinkColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // Putih Menyala! (TEKAN SPACE SEKARANG!)
-        }
+        DirectX::XMFLOAT4 shrinkColor = { 1.0f, 0.0f, 0.0f, 1.0f };
+        if (fabsf(m_laserTimer - m_params.laserDuration) <= m_params.laserParryWindow)
+            shrinkColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
-        shapeRenderer->DrawSphere(pPos, currentRadius, shrinkColor);
+        shapeRenderer->DrawSphere(pPos, shrinkRadius, shrinkColor);
     }
-    // =========================================================
-    // [NEW] RENDER ASGORE RAIN ZONE & PROCEDURAL BULLETS
-    // =========================================================
+
+    // --- Render Asgore Rain Zone ---
     if (m_rainState > 0) {
         float actualW = GetActualRainWidth();
         float actualD = GetActualRainDepth();
         float halfW = actualW * 0.5f;
         float halfD = actualD * 0.5f;
 
-        // 1. GAMBAR WARNING ZONE 2D (HANYA DI FASE 1 / SEBELUM HUJAN)
+        // Warning phase: blinking red rectangle on the ground
         if (m_rainState == 1) {
             float blink = (sinf(m_rainTimer * 20.0f) + 1.0f) * 0.5f;
             float alpha = 0.2f + (blink * 0.4f);
 
             float p2u = boss->GetWindowSystem()->GetPixelToUnitRatio();
-            int screenW = GetSystemMetrics(SM_CXSCREEN);
-            int screenH = GetSystemMetrics(SM_CYSCREEN);
+            int   screenW = GetSystemMetrics(SM_CXSCREEN);
+            int   screenH = GetSystemMetrics(SM_CYSCREEN);
             DirectX::XMFLOAT3 camPos = currentCamera->GetPosition();
 
             float width2D = actualW * p2u;
             float height2D = actualD * p2u;
 
-            // Fungsi mini (Lambda) untuk menggambar kotak merah
             auto drawWarningRect = [&](DirectX::XMFLOAT3 centerPos) {
-                float screenX = (centerPos.x - camPos.x) * p2u + (screenW / 2.0f);
-                float screenY = -(centerPos.z - camPos.z) * p2u + (screenH / 2.0f);
+                float screenX = (centerPos.x - camPos.x) * p2u + (screenW * 0.5f);
+                float screenY = -(centerPos.z - camPos.z) * p2u + (screenH * 0.5f);
                 m_zonePrimitive->Rect(screenX, screenY, width2D, height2D, width2D * 0.5f, height2D * 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, alpha);
                 };
 
-            // Gambar kotak utama (Kiri)
             drawWarningRect(m_rainCenter);
-            // Jika mode Dual aktif, gambar juga kotak kedua (Kanan)!
             if (m_rainIsDual) drawWarningRect(m_rainCenter2);
-
             m_zonePrimitive->Render(context);
         }
 
-        // 2. ILUSI HUJAN PELURU ORGANIK (HANYA DI FASE 2 DERAS & FASE 3 REDA)
+        // Active / dissipating: procedural bullet rain (deterministic via fixed seed)
         if (m_rainState == 2 || m_rainState == 3) {
             std::mt19937 gen(1337);
             std::uniform_real_distribution<float> distSpeed(50.0f, 90.0f);
             std::uniform_real_distribution<float> distSpawn(0.0f, m_params.rainActiveDuration);
 
-            float currentGlobalTime = (m_rainState == 2) ? m_rainTimer : (m_params.rainActiveDuration + m_rainTimer);
+            float currentGlobalTime = (m_rainState == 2)
+                ? m_rainTimer
+                : (m_params.rainActiveDuration + m_rainTimer);
+
             int dropCount = m_rainIsDual ? 800 : 400;
 
             for (int i = 0; i < dropCount; ++i) {
                 float speed = distSpeed(gen);
                 float spawnTime = distSpawn(gen);
                 float localTime = currentGlobalTime - spawnTime;
+                if (localTime < 0.0f) continue;
 
-                if (localTime >= 0.0f) {
-
-                    if (m_rainIsDual) {
-                        // --- DUAL MODE (KIRI KANAN SEKALIGUS) ---
-                        // Bagi rata: peluru genap jatuh di kiri, peluru ganjil jatuh di kanan
-                        DirectX::XMFLOAT3 activeCenter = (i % 2 == 0) ? m_rainCenter : m_rainCenter2;
-                        std::uniform_real_distribution<float> distX(activeCenter.x - halfW, activeCenter.x + halfW);
-
-                        float rx = distX(gen);
-                        float topEdge = activeCenter.z + halfD + 5.0f;
-                        float bottomEdge = activeCenter.z - halfD;
-                        float z = topEdge - (localTime * speed);
-
-                        if (z >= bottomEdge) {
-                            shapeRenderer->DrawSphere({ rx, 1.0f, z }, 0.4f, { 1.0f, 0.4f, 0.0f, 1.0f });
-                        }
-                    }
-                    else if (m_rainIsVertical) {
-                        // --- ZONA KIRI / KANAN (SIDE MODE) ---
-                        // Kotak memanjang vertikal, jadi Hujan JATUH DARI ATAS KE BAWAH (Sumbu Z)
-                        std::uniform_real_distribution<float> distX(m_rainCenter.x - halfW, m_rainCenter.x + halfW);
-                        float rx = distX(gen);
-
-                        // Mulai dari luar batas atas layar, mengalir turun (-Z)
-                        float topEdge = m_rainCenter.z + halfD + 5.0f;
-                        float bottomEdge = m_rainCenter.z - halfD;
-                        float z = topEdge - (localTime * speed);
-
-                        // Gambar selama belum melewati batas bawah layar
-                        if (z >= bottomEdge) {
-                            shapeRenderer->DrawSphere({ rx, 1.0f, z }, 0.4f, { 1.0f, 0.4f, 0.0f, 1.0f });
-                        }
-                    }
-                    else {
-                        // --- ZONA ATAS / BAWAH (NORMAL MODE) ---
-                        std::uniform_real_distribution<float> distZ(m_rainCenter.z - halfD, m_rainCenter.z + halfD);
-                        float rz = distZ(gen);
-
-                        // [FIX MUTLAK] Gunakan arah sapuan dari AI!
-                        float dir = m_rainSweepDir;
-
-                        // Jika dir > 0 (Ke Kanan), mulai dari Kiri (-). 
-                        // Jika dir < 0 (Ke Kiri), mulai dari Kanan (+)
-                        float startX = (dir > 0) ? (m_rainCenter.x - halfW - 5.0f) : (m_rainCenter.x + halfW + 5.0f);
-                        float endX = (dir > 0) ? (m_rainCenter.x + halfW) : (m_rainCenter.x - halfW);
-
-                        float x = startX + (localTime * speed * dir);
-
-                        // Gambar selama belum melewati batas layar seberangnya
-                        bool isInside = (dir > 0) ? (x <= endX) : (x >= endX);
-                        if (isInside) {
-                            shapeRenderer->DrawSphere({ x, 1.0f, rz }, 0.4f, { 1.0f, 0.4f, 0.0f, 1.0f });
-                        }
-                    }
+                if (m_rainIsDual) {
+                    // Alternate drops between left and right pillars
+                    DirectX::XMFLOAT3 activeCenter = (i % 2 == 0) ? m_rainCenter : m_rainCenter2;
+                    std::uniform_real_distribution<float> distX(activeCenter.x - halfW, activeCenter.x + halfW);
+                    float rx = distX(gen);
+                    float topEdge = activeCenter.z + halfD + 5.0f;
+                    float bottomEdge = activeCenter.z - halfD;
+                    float z = topEdge - (localTime * speed);
+                    if (z >= bottomEdge)
+                        shapeRenderer->DrawSphere({ rx, 1.0f, z }, 0.4f, { 1.0f, 0.4f, 0.0f, 1.0f });
+                }
+                else if (m_rainIsVertical) {
+                    // Vertical zone: drops fall top-to-bottom along Z
+                    std::uniform_real_distribution<float> distX(m_rainCenter.x - halfW, m_rainCenter.x + halfW);
+                    float rx = distX(gen);
+                    float topEdge = m_rainCenter.z + halfD + 5.0f;
+                    float bottomEdge = m_rainCenter.z - halfD;
+                    float z = topEdge - (localTime * speed);
+                    if (z >= bottomEdge)
+                        shapeRenderer->DrawSphere({ rx, 1.0f, z }, 0.4f, { 1.0f, 0.4f, 0.0f, 1.0f });
+                }
+                else {
+                    // Horizontal zone: drops sweep left-to-right or right-to-left
+                    std::uniform_real_distribution<float> distZ(m_rainCenter.z - halfD, m_rainCenter.z + halfD);
+                    float rz = distZ(gen);
+                    float dir = m_rainSweepDir;
+                    float startX = (dir > 0) ? (m_rainCenter.x - halfW - 5.0f) : (m_rainCenter.x + halfW + 5.0f);
+                    float endX = (dir > 0) ? (m_rainCenter.x + halfW) : (m_rainCenter.x - halfW);
+                    float x = startX + (localTime * speed * dir);
+                    bool  inside = (dir > 0) ? (x <= endX) : (x >= endX);
+                    if (inside)
+                        shapeRenderer->DrawSphere({ x, 1.0f, rz }, 0.4f, { 1.0f, 0.4f, 0.0f, 1.0f });
                 }
             }
         }
     }
 
-    // --- RENDER UI DI PALING BAWAH (PALING ATAS SECARA Z-ORDER) ---
-    if (m_dialogueBox && m_dialogueBox->IsActive()) {
+    // --- UI (rendered last, on top of everything) ---
+    if (m_dialogueBox && m_dialogueBox->IsActive())
         m_dialogueBox->Render(context);
+}
+
+// ============================================================
+// Attack Triggers
+// ============================================================
+
+void NaviPhaseNormal::TriggerTripleBurst() {
+    if (!m_isFiring && !m_isFiringFan) {
+        m_isFiring = true;
+        m_burstsFired = 0;
+        m_burstSequenceTimer = 0.0f;
     }
 }
 
-void NaviPhaseNormal::Exit(NaviBoss* boss) { m_bulletPool.clear(); }
+void NaviPhaseNormal::TriggerFanAttack(NaviBoss* boss, DirectX::XMFLOAT3 playerPos) {
+    if (!m_isFiring && !m_isFiringFan) {
+        m_isFiringFan = true;
+        m_fanWavesFired = 0;
+        m_fanTimer = m_params.fanWaveDelay; // Full timer so first wave fires immediately
+
+        // Lock the aim angle to the player's position at trigger time
+        DirectX::XMFLOAT3 bossPos = boss->GetPosition();
+        m_lockedBaseAngle = atan2f(playerPos.x - bossPos.x, playerPos.z - bossPos.z);
+    }
+}
 
 void NaviPhaseNormal::TriggerBijuudama(Player* targetPlayer) {
     if (!m_isLaserLocked && targetPlayer) {
@@ -885,93 +693,32 @@ void NaviPhaseNormal::TriggerBijuudama(Player* targetPlayer) {
         m_laserTimer = 0.0f;
         m_laserTargetPlayer = targetPlayer;
 
+        // Boss slides to top center to charge
         m_targetPosition = { 0.0f, 0.0f, 10.0f };
         m_moveLerpSpeed = m_params.bijuudamaAttackMoveSpeed;
         m_currentMoveLerpSpeed = 0.0f;
 
-        // Cari peluru kosong untuk dijadikan Bijuudama
+        // Claim a bullet from the pool for the ball
         for (auto& bullet : m_bulletPool) {
             if (!bullet->IsActive()) {
                 bullet->SetActive(true);
 
-                // =========================================================
-                // [CRITICAL FIX] PEMBERSIHAN OBJECT POOL
-                // =========================================================
-                // 1. Gunakan ApplyMovement agar internal Bullet::velocity benar-benar menjadi 0
+                // Full reset to clear any leftover state from previous use
                 bullet->ApplyMovement({ 0.0f, -1000.0f, 0.0f }, { 0.0f, 0.0f, 0.0f });
-
-                // 2. Bersihkan sisa memori State
                 bullet->SetHomingTarget(nullptr);
                 bullet->SetBossTarget(nullptr);
                 bullet->SetParabolic(false);
-                bullet->SetParryReturn(false); // <--- [FIX] WAJIB TAMBAHKAN INI!
+                bullet->SetParryReturn(false);
                 bullet->SetTurnSpeed(8.0f);
 
-                // 3. Reset ukuran Hitbox dan Skala Visual 3D
                 float baseHitbox = m_params.bijuudamaBaseHitbox;
                 float baseVisual = baseHitbox * m_params.bijuudamaVisualMultiplier;
-
                 bullet->SetRadius(baseHitbox);
                 bullet->scale = { baseVisual, baseVisual, baseVisual };
 
                 m_bijuudamaBall = bullet.get();
                 break;
             }
-        }
-    }
-}
-
-void NaviPhaseNormal::ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* boss) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-
-    std::uniform_int_distribution<> distCount(m_params.shatterMinFragments, m_params.shatterMaxFragments);
-    std::uniform_real_distribution<float> distSize(m_params.shatterMinRadius, m_params.shatterMaxRadius);
-    std::uniform_real_distribution<float> distDur(m_params.shatterMinDuration, m_params.shatterMaxDuration);
-    // Sudut sebaran lengkungan (90 derajat ke kiri sampai 90 derajat ke kanan)
-    std::uniform_real_distribution<float> distAngle(-DirectX::XM_PIDIV2, DirectX::XM_PIDIV2);
-
-    int fragments = distCount(gen);
-    int spawned = 0;
-
-    DirectX::XMFLOAT3 bossPos = boss->GetPosition();
-    float dx = bossPos.x - parryPos.x;
-    float dz = bossPos.z - parryPos.z;
-    float baseAngle = atan2f(dx, dz); // Sudut lurus ke arah bos
-
-    for (auto& bullet : m_bulletPool) {
-        if (!bullet->IsActive()) {
-            bullet->SetActive(true);
-
-            // 1. Reset Internal State & Aktifkan Parabola
-            bullet->ApplyMovement(parryPos, { 0,0,0 });
-            bullet->SetBossTarget(boss);
-            bullet->SetParabolic(true);
-            bullet->SetParryReturn(false);
-            bullet->SetTurnSpeed(8.0f);
-
-            // 2. Set Ukuran
-            float r = distSize(gen);
-            bullet->SetRadius(r);
-            bullet->scale = { r * 3.0f, r * 3.0f, r * 3.0f };
-
-            // 3. Kalkulasi Titik Kontrol (Control Point Bezier)
-            // Lempar titik kontrol sejauh parameter curve offset ke arah serong
-            float spreadAngle = baseAngle + distAngle(gen);
-            float curveDist = m_params.shatterCurveOffset;
-
-            DirectX::XMFLOAT3 ctrlPoint = {
-                parryPos.x + (sinf(spreadAngle) * curveDist),
-                parryPos.y,
-                parryPos.z + (cosf(spreadAngle) * curveDist)
-            };
-
-            // 4. Jalankan Parabola
-            bullet->SetParabolaParams(parryPos, ctrlPoint, distDur(gen));
-            AudioManager::Instance().PlaySFX("Data/Sound/SE_Player_Parry_Boss.wav", 0.015f * m_params.sfxVolumeMultiplier);
-
-            spawned++;
-            if (spawned >= fragments) break;
         }
     }
 }
@@ -985,96 +732,116 @@ void NaviPhaseNormal::TriggerPhalanx(Player* targetPlayer) {
         m_phalanxTarget = targetPlayer;
         m_phalanxBullets.clear();
 
-        // =========================================================
-        // [FIX] REPOSISI KE KIRI / KANAN
-        // =========================================================
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<> dist(0, 1);
-
+        // Randomly pick left or right side
+        std::mt19937 gen(std::random_device{}());
+        m_targetPosition.x = (std::uniform_int_distribution<>(0, 1)(gen) == 0) ? -15.0f : 15.0f;
+        m_targetPosition.z = 0.0f;
         m_moveLerpSpeed = m_params.phalanxAttackMoveSpeed;
         m_currentMoveLerpSpeed = 0.0f;
-
-        // Pindah ke X = -15.0f (Kiri) atau 15.0f (Kanan)
-        m_targetPosition.x = (dist(gen) == 0) ? -15.0f : 15.0f;
-        m_targetPosition.z = 0.0f; // Tetap di tengah sumbu Z
     }
 }
 
 void NaviPhaseNormal::TriggerRainAttack(bool isSideMode, bool isPositiveSide, float sweepDir, bool isDual) {
-    if (m_rainState == 0) {
-        m_rainState = 1;
-        m_rainTimer = 0.0f;
-        m_rainIsVertical = isSideMode;
-        m_rainSweepDir = sweepDir;
-        m_rainIsDual = isDual; // [NEW] Aktifkan mode ganda
+    if (m_rainState != 0) return;
 
-        if (isDual) {
-            // --- DUAL MODE (KIRI & KANAN SEKALIGUS) ---
-            m_rainCenter.x = -16.0f;  // Pilar Kiri
-            m_rainCenter.z = 0.0f;
-            m_rainCenter2.x = 16.0f; // Pilar Kanan
-            m_rainCenter2.z = 0.0f;
-        }
-        else if (!isSideMode) {
-            // --- ZONA ATAS / BAWAH (NORMAL MODE) ---
-            m_rainCenter.x = 0.0f;
-            m_rainCenter.z = isPositiveSide ? 7.5f : -7.5f;
-        }
-        else {
-            // --- ZONA KIRI / KANAN (SIDE MODE) ---
-            m_rainCenter.x = isPositiveSide ? 12.5f : -12.5f;
-            m_rainCenter.z = 0.0f;
-        }
+    m_rainState = 1;
+    m_rainTimer = 0.0f;
+    m_rainIsVertical = isSideMode;
+    m_rainSweepDir = sweepDir;
+    m_rainIsDual = isDual;
+
+    if (isDual) {
+        // Two vertical pillars, left and right
+        m_rainCenter = { -16.0f, 0.0f, 0.0f };
+        m_rainCenter2 = { 16.0f, 0.0f, 0.0f };
+    }
+    else if (!isSideMode) {
+        // Horizontal zone at top or bottom
+        m_rainCenter = { 0.0f, 0.0f, isPositiveSide ? 7.5f : -7.5f };
+    }
+    else {
+        // Vertical zone at left or right
+        m_rainCenter = { isPositiveSide ? 12.5f : -12.5f, 0.0f, 0.0f };
     }
 }
 
 void NaviPhaseNormal::TakeDamage(int damage) {
-    if (m_bossHP <= 0) return; // Sudah mati
+    if (m_bossHP <= 0) return;
+    m_bossHP = max(0, m_bossHP - damage);
+    m_hitFlashTimer = 0.05f;
 
-    m_bossHP -= damage;
-    if (m_bossHP < 0) m_bossHP = 0;
-
-    m_hitFlashTimer = 0.05f; // Timer untuk efek visual (jika ada)
-
-    // [JUICE] Berikan getaran super mikro setiap kali peluru mengenai kaca jendela bos!
+    // Micro-shake on hit feedback
     CameraController::Instance().AddTrauma(0.3f);
-
     AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Hit.wav", 0.1f * m_params.sfxVolumeMultiplier);
-
 }
+
+void NaviPhaseNormal::ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* boss) {
+    std::mt19937 gen(std::random_device{}());
+    std::uniform_int_distribution<>  distCount(m_params.shatterMinFragments, m_params.shatterMaxFragments);
+    std::uniform_real_distribution<float> distSize(m_params.shatterMinRadius, m_params.shatterMaxRadius);
+    std::uniform_real_distribution<float> distDur(m_params.shatterMinDuration, m_params.shatterMaxDuration);
+    std::uniform_real_distribution<float> distAngle(-XM_PIDIV2, XM_PIDIV2);
+
+    int fragments = distCount(gen);
+    int spawned = 0;
+
+    DirectX::XMFLOAT3 bossPos = boss->GetPosition();
+    float baseAngle = atan2f(bossPos.x - parryPos.x, bossPos.z - parryPos.z);
+
+    for (auto& bullet : m_bulletPool) {
+        if (!bullet->IsActive()) {
+            bullet->SetActive(true);
+            bullet->ApplyMovement(parryPos, { 0, 0, 0 });
+            bullet->SetBossTarget(boss);
+            bullet->SetParabolic(true);
+            bullet->SetParryReturn(false);
+            bullet->SetTurnSpeed(8.0f);
+
+            float r = distSize(gen);
+            bullet->SetRadius(r);
+            bullet->scale = { r * 3.0f, r * 3.0f, r * 3.0f };
+
+            // Bezier control point: fan out from parry position toward boss
+            float spreadAngle = baseAngle + distAngle(gen);
+            DirectX::XMFLOAT3 ctrlPoint = {
+                parryPos.x + sinf(spreadAngle) * m_params.shatterCurveOffset,
+                parryPos.y,
+                parryPos.z + cosf(spreadAngle) * m_params.shatterCurveOffset
+            };
+
+            bullet->SetParabolaParams(parryPos, ctrlPoint, distDur(gen));
+            AudioManager::Instance().PlaySFX("Data/Sound/SE_Player_Parry_Boss.wav", 0.015f * m_params.sfxVolumeMultiplier);
+
+            if (++spawned >= fragments) break;
+        }
+    }
+}
+
+// ============================================================
+// AI Director
+// ============================================================
 
 void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
     if (!m_aiEnabled || !m_aiTarget) return;
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    std::mt19937 gen(std::random_device{}());
 
-    // =========================================================
-    // [TRACK A] SIDE RAIN (Mengincar Posisi X Player)
-    // =========================================================
-    if (m_cdRain > 0.0f) m_cdRain -= dt;
-
+    // --- Track A: Side Rain (runs independently of main attacks) ---
+    m_cdRain -= dt;
     if (m_cdRain <= 0.0f && !m_isLaserLocked && m_phalanxState == 0) {
-        // NGECENG PLAYER: Cek player ada di kiri atau kanan
         bool isRightSide = (m_aiTarget->GetPosition().x > 0.0f);
-
-        // [FIX] Gunakan 'true' agar yang muncul adalah hujan Kiri/Kanan
         TriggerRainAttack(true, isRightSide);
-
-        std::uniform_real_distribution<float> distCD(8.0f, 15.0f);
-        m_cdRain = distCD(gen);
+        m_cdRain = std::uniform_real_distribution<float>(8.0f, 15.0f)(gen);
     }
 
-    // =========================================================
-    // [TRACK B] DIRECT ATTACKS & COMBO
-    // =========================================================
-    bool isBusyMain = m_isFiring || m_isFiringFan || (m_phalanxState > 0 && m_phalanxState < 5) || m_isLaserLocked || m_isBijuudamaRecovering;
+    // --- Track B: Primary Attacks (priority queue, one at a time) ---
+    bool isBusy = m_isFiring || m_isFiringFan
+        || (m_phalanxState > 0 && m_phalanxState < 5)
+        || m_isLaserLocked || m_isBijuudamaRecovering;
 
-    if (!isBusyMain) {
-        if (m_aiGlobalCooldown > 0.0f) {
+    if (!isBusy) {
+        if (m_aiGlobalCooldown > 0.0f)
             m_aiGlobalCooldown -= dt;
-        }
         else {
             m_cdRadial -= dt;
             m_cdFan -= dt;
@@ -1083,42 +850,83 @@ void NaviPhaseNormal::UpdateAI(float dt, NaviBoss* boss) {
         }
     }
 
-    if (!isBusyMain && m_aiGlobalCooldown <= 0.0f) {
-
-        // Prioritas 1: Bijuudama + DUAL RAIN COMBO!
+    if (!isBusy && m_aiGlobalCooldown <= 0.0f) {
         if (m_cdBijuudama <= 0.0f && m_rainState == 0) {
+            // Priority 1: Bijuudama
             TriggerBijuudama(m_aiTarget);
-            // [FIX] TriggerRainAttack dihapus dari sini!
-
-            std::uniform_real_distribution<float> distCD(15.0f, 25.0f);
-            m_cdBijuudama = distCD(gen);
+            m_cdBijuudama = std::uniform_real_distribution<float>(15.0f, 25.0f)(gen);
             m_aiGlobalCooldown = 0.5f;
         }
-        // Prioritas 2: Glintstone Phalanx + TOP/BOTTOM RAIN COMBO!
         else if (m_cdPhalanx <= 0.0f && m_rainState == 0) {
+            // Priority 2: Glintstone Phalanx
             TriggerPhalanx(m_aiTarget);
-            // [FIX] TriggerRainAttack & Kalkulasi Posisi dihapus dari sini!
-
-            std::uniform_real_distribution<float> distCD(6.0f, 10.0f);
-            m_cdPhalanx = distCD(gen);
+            m_cdPhalanx = std::uniform_real_distribution<float>(6.0f, 10.0f)(gen);
             m_aiGlobalCooldown = 0.2f;
         }
-
-        // Prioritas 3: Fan Wave (Shotgun)
         else if (m_cdFan <= 0.0f) {
+            // Priority 3: Fan Wave (Shotgun)
             TriggerFanAttack(boss, m_aiTarget->GetPosition());
-            std::uniform_real_distribution<float> distCD(4.0f, 8.0f);
-            m_cdFan = distCD(gen);
+            m_cdFan = std::uniform_real_distribution<float>(4.0f, 8.0f)(gen);
             m_aiGlobalCooldown = 0.1f;
         }
-
-        // Prioritas 4: Radial Burst (SELALU TRIPLE)
         else if (m_cdRadial <= 0.0f) {
+            // Priority 4: Radial Burst (always fires as a triple)
             TriggerTripleBurst();
-
-            std::uniform_real_distribution<float> distCD(2.0f, 5.0f);
-            m_cdRadial = distCD(gen);
+            m_cdRadial = std::uniform_real_distribution<float>(2.0f, 5.0f)(gen);
             m_aiGlobalCooldown = 0.1f;
         }
     }
+}
+
+// ============================================================
+// Internal Fire Helpers
+// ============================================================
+
+void NaviPhaseNormal::FireRadialBurst(NaviBoss* boss, float angleOffset) {
+    int   firedCount = 0;
+    float angleStep = XM_2PI / (float)m_params.count;
+
+    for (auto& bullet : m_bulletPool) {
+        if (!bullet->IsActive()) {
+            // Reset to standard bullet state before firing
+            bullet->SetRadius(0.25f);
+            bullet->scale = { 1.0f, 1.0f, 1.0f };
+            bullet->SetHomingTarget(nullptr);
+            bullet->SetBossTarget(nullptr);
+            bullet->SetParabolic(false);
+            bullet->SetParryReturn(false);
+            bullet->SetTurnSpeed(8.0f);
+
+            float angle = (firedCount * angleStep) + angleOffset;
+            bullet->Fire(boss->GetPosition(), { sinf(angle), 0.0f, cosf(angle) }, m_params.speed);
+            if (++firedCount >= m_params.count) break;
+        }
+    }
+
+    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Shoot.wav", 0.2f * m_params.sfxVolumeMultiplier);
+}
+
+void NaviPhaseNormal::FireFanWave(NaviBoss* boss) {
+    int   lines = m_params.fanLines;
+    float spread = m_params.fanSpreadAngle;
+    float startAngle = m_lockedBaseAngle - ((lines - 1) * spread * 0.5f);
+    int   firedCount = 0;
+
+    for (auto& bullet : m_bulletPool) {
+        if (!bullet->IsActive()) {
+            // Reset to standard bullet state before firing
+            bullet->SetRadius(0.25f);
+            bullet->scale = { 1.0f, 1.0f, 1.0f };
+            bullet->SetHomingTarget(nullptr);
+            bullet->SetBossTarget(nullptr);
+            bullet->SetParabolic(false);
+            bullet->SetTurnSpeed(8.0f);
+
+            float angle = startAngle + (firedCount * spread);
+            bullet->Fire(boss->GetPosition(), { sinf(angle), 0.0f, cosf(angle) }, m_params.speed);
+            if (++firedCount >= lines) break;
+        }
+    }
+
+    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Shoot.wav", 0.2f * m_params.sfxVolumeMultiplier);
 }
