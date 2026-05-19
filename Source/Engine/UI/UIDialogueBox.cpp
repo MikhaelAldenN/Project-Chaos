@@ -9,7 +9,15 @@ void UIDialogueBox::Initialize()
 {
     auto device = Graphics::Instance().GetDevice();
     m_panelSprite = std::make_unique<Sprite>(device, "Data/Sprite/UI/Sprite_DialogueBox.png");
-    m_font = std::make_unique<BitmapFont>("Data/Font/IBM_VGA_32px_0.png", "Data/Font/IBM_VGA_32px.fnt");
+
+    // Daftarkan Unicode Codepoint Kanji Jepang yang kamu ketik di naskah dialogmu
+    // Žn = 0x59CB, Ž€ = 0x6B7B
+    //std::vector<uint32_t> requiredKanji = { 0x59CB, 0x6B7B };
+    std::vector<uint32_t> requiredKanji = { 0x6D88, 0x5F85, 0x76DB };
+
+    m_font = std::make_unique<FontTTF>();
+    // Inisialisasi file font ttf langsung dengan ukuran pixel tajam (misal 24px atau 32px)
+    m_font->Initialize("Data/Font/zpix.ttf", 28.0f, requiredKanji);
 }
 
 void UIDialogueBox::StartDialogue(const std::vector<std::string>& dialogues)
@@ -51,8 +59,19 @@ void UIDialogueBox::Update(float dt)
         if (m_typeTimer >= m_typeDelay) {
             m_typeTimer = 0.0f;
             if (m_charIndex < m_currentLine.length()) {
-                m_displayedText += m_currentLine[m_charIndex];
-                m_charIndex++;
+
+                // [FIX] Cek panjang Byte huruf UTF-8 agar mesin tik tidak patah-patah
+                unsigned char c = m_currentLine[m_charIndex];
+                int charLength = 1;
+                if ((c & 0xE0) == 0xC0) charLength = 2;
+                else if ((c & 0xF0) == 0xE0) charLength = 3; // Huruf Jepang (Hiragana/Katakana/Kanji) selalu 3 byte
+                else if ((c & 0xF8) == 0xF0) charLength = 4;
+
+                // Masukkan seluruh Byte karakter utuh ke layar
+                for (int i = 0; i < charLength && m_charIndex < m_currentLine.length(); ++i) {
+                    m_displayedText += m_currentLine[m_charIndex];
+                    m_charIndex++;
+                }
             }
             else {
                 m_state = State::WaitingForInput;
@@ -104,5 +123,6 @@ void UIDialogueBox::Render(ID3D11DeviceContext* dc)
     float textMarginY = 40.0f;
     float textScale = 1.0f;
 
-    m_font->Draw(m_displayedText, panelX + textMarginX, panelY + textMarginY, textScale, 1.0f, 1.0f, 1.0f, 1.0f);
+    m_font->Draw(m_displayedText, panelX + textMarginX, panelY + textMarginY, 1.0f, { 1.0f, 1.0f, 1.0f, 1.0f });
+
 }

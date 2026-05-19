@@ -7,6 +7,7 @@
 
 #include "System/Sprite.h"
 #include "BitmapFont.h"
+#include "FontTTF.h"
 
 class UIDialogueBox
 {
@@ -36,7 +37,8 @@ private:
 
 private:
     std::unique_ptr<Sprite>     m_panelSprite;
-    std::unique_ptr<BitmapFont> m_font;
+    //std::unique_ptr<BitmapFont> m_font;
+    std::unique_ptr<FontTTF> m_font;
 
     State m_state = State::Hidden;
 

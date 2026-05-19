@@ -1,3 +1,5 @@
+﻿#pragma execution_character_set("utf-8")
+
 #include "NaviPhaseNormal.h"
 #include "NaviBoss.h"
 #include "WindowManager.h"
@@ -72,10 +74,10 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
 
     // Picu percakapan awal
     m_dialogueBox->StartDialogue({
-            "Oops! I think I deleted my own model.",
-            "Wait a second...",
-            "Is this better?"
-    });
+            "やばっ！ウチのモデル消しちゃったんだけど〜ウケるwww",
+            "ちょい待ち〜〜",
+            "てか、これでどう！？盛れてる？"
+        });
 
     m_isOpeningEvent = true;
 

@@ -309,6 +309,9 @@
     <ClCompile Include="Source\Engine\UI\UIDialogueBox.cpp">
       <Filter>Source\Engine\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Engine\Graphics\FontTTF.cpp">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -618,6 +621,12 @@
     <ClInclude Include="Source\Game\Entities\Weapon.h" />
     <ClInclude Include="Source\Engine\UI\UIDialogueBox.h">
       <Filter>Source\Engine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Graphics\FontTTF.h">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Graphics\stb_truetype.h">
+      <Filter>Source\Engine\Graphics</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
