@@ -153,9 +153,9 @@
     <ClInclude Include="Source\Engine\UI\UIButtonPrimitive.h" />
     <ClInclude Include="Source\Engine\UI\UIButtonSprite.h" />
     <ClInclude Include="Source\Engine\UI\UIComponents.h" />
+    <ClInclude Include="Source\Engine\UI\UIDialogueBox.h" />
     <ClInclude Include="Source\Engine\UI\UIImpactDisplay.h" />
     <ClInclude Include="Source\Engine\UI\UILabel.h" />
-    <ClInclude Include="Source\Engine\UI\UIPanel.h" />
     <ClInclude Include="Source\Engine\VFX\AnimationController.h" />
     <ClInclude Include="Source\Engine\VFX\CinematicDirector.h" />
     <ClInclude Include="Source\Engine\VFX\EffectManager.h" />
@@ -251,6 +251,7 @@
     <ClCompile Include="Source\Engine\UI\CursorBlock.cpp" />
     <ClCompile Include="Source\Engine\UI\TUIBuilder.cpp" />
     <ClCompile Include="Source\Engine\UI\UIComponents.cpp" />
+    <ClCompile Include="Source\Engine\UI\UIDialogueBox.cpp" />
     <ClCompile Include="Source\Engine\UI\UIImpactDisplay.cpp" />
     <ClCompile Include="Source\Engine\UI\UIPanel.cpp" />
     <ClCompile Include="Source\Engine\VFX\AnimationController.cpp" />

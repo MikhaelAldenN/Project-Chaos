@@ -65,6 +65,17 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
     }
 
     m_zonePrimitive = std::make_unique<Primitive>(Graphics::Instance().GetDevice());
+
+    // --- INISIALISASI UI DI SINI ---
+    m_dialogueBox = std::make_unique<UIDialogueBox>();
+    m_dialogueBox->Initialize();
+
+    // Picu percakapan awal
+    m_dialogueBox->StartDialogue({
+        "...",
+        "ƒVƒl",
+        "DIE"
+        });
 }
 
 void NaviPhaseNormal::TriggerTripleBurst() {
@@ -95,6 +106,12 @@ void NaviPhaseNormal::TriggerFanAttack(NaviBoss* boss, DirectX::XMFLOAT3 playerP
 
 void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
     if (!boss) return;
+
+    if (m_dialogueBox && m_dialogueBox->IsActive()) {
+        m_dialogueBox->Update(dt);
+        return; // MENGHENTIKAN EKSUSI KE BAWAH! Boss diam total sampai dialog selesai.
+    }
+
     // =========================================================
         // --- 0. JALANKAN OTAK AI DIRECTOR ---
         // =========================================================
@@ -801,6 +818,11 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
                 }
             }
         }
+    }
+
+    // --- RENDER UI DI PALING BAWAH (PALING ATAS SECARA Z-ORDER) ---
+    if (m_dialogueBox && m_dialogueBox->IsActive()) {
+        m_dialogueBox->Render(context);
     }
 }
 

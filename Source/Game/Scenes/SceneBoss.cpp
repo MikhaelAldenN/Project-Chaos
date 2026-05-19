@@ -92,7 +92,7 @@ SceneBoss::SceneBoss()
     m_navi = std::make_unique<NaviBoss>();
     m_navi->Initialize(m_windowSystem.get());
 
-#if 1
+#if 0
     m_navi->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
 #else
     m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>());

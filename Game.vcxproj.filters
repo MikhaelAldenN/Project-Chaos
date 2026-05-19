@@ -306,6 +306,9 @@
     <ClCompile Include="Source\Engine\Helpers\CapeSimulator.cpp">
       <Filter>Source\Engine\Helpers</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Engine\UI\UIDialogueBox.cpp">
+      <Filter>Source\Engine\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -491,9 +494,6 @@
     <ClInclude Include="Source\Engine\UI\UILabel.h">
       <Filter>Source\Engine\UI</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\UI\UIPanel.h">
-      <Filter>Source\Engine\UI</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Game\Entities\Boss.h">
       <Filter>Source\Game\Entities</Filter>
     </ClInclude>
@@ -610,6 +610,14 @@
     </ClInclude>
     <ClInclude Include="Source\Game\Entities\NaviPhaseNormal.h">
       <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Helpers\CapeSimulator.h" />
+    <ClInclude Include="Source\Engine\Helpers\TimeManager.h" />
+    <ClInclude Include="Source\Engine\VFX\EffectManager.h" />
+    <ClInclude Include="Source\Game\Entities\NaviAlly.h" />
+    <ClInclude Include="Source\Game\Entities\Weapon.h" />
+    <ClInclude Include="Source\Engine\UI\UIDialogueBox.h">
+      <Filter>Source\Engine\UI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
