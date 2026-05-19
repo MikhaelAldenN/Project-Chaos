@@ -6,30 +6,8 @@ Enemy::Enemy(ID3D11Device* device, const char* filePath, XMFLOAT3 startPos, XMFL
     XMFLOAT4 startColor, EnemyType type, AttackType attackType,
     float minX, float maxX, float minZ, float maxZ, MoveDir dir)
 {
-    m_model = std::make_shared<Model>(device, filePath);
-    model = m_model;
-    m_type = type;
-    m_attackType = attackType;
-
-    if (m_type == EnemyType::Pentagon) m_scale = { 150.0f, 150.0f, 150.0f };
-    else m_scale = { 1.0f, 1.0f, 1.0f };
-
-
-    movement->SetPosition(startPos);
-    movement->SetRotation(startRot);
-    originalPosition = startPos;
-    originalRotation = startRot;
-    m_baseColor = startColor;
-    m_patrolMinX = startPos.x + minX;
-    m_patrolMaxX = startPos.x + maxX;
-    m_patrolMinZ = startPos.z + minZ;
-    m_patrolMaxZ = startPos.z + maxZ;
-    m_randomTargetPos = startPos;
-    if (dir == MoveDir::Right)      m_currentSpeed = -m_baseMoveSpeed;
-    else if (dir == MoveDir::Left)  m_currentSpeed = m_baseMoveSpeed;
-    else                            m_currentSpeed = 0.0f;
-    m_moveDir = dir;
-    m_isActive = true;
+    // Delegate all setup to Reinitialize to keep logic in ONE place
+    Reinitialize(device, filePath, startPos, startRot, startColor, type, attackType, minX, maxX, minZ, maxZ, dir);
 }
 
 float Enemy::GetRandomFloat(float min, float max)
@@ -243,6 +221,47 @@ DirectX::XMFLOAT3 Enemy::GetForwardVector() const
     float y = -sinf(pitchRad);
     float z = cosf(yawRad) * cosf(pitchRad);
     return { x, y, z };
+}
+
+void Enemy::Reinitialize(ID3D11Device* device, const char* filePath, const DirectX::XMFLOAT3& startPos,
+    const DirectX::XMFLOAT3& startRot, const DirectX::XMFLOAT4& startColor,
+    EnemyType type, AttackType attackType, const float minX, const float maxX,
+    const float minZ, const float maxZ, const MoveDir dir)
+{
+    // Reassign the model (std::shared_ptr handles cleanup of the old model automatically)
+    m_model = std::make_shared<Model>(device, filePath);
+    model = m_model;
+
+    // Reset Core Identity
+    m_type = type;
+    m_attackType = attackType;
+    m_baseColor = startColor;
+    m_scale = (m_type == EnemyType::Pentagon) ? DirectX::XMFLOAT3{ 150.0f, 150.0f, 150.0f } : DirectX::XMFLOAT3{ 1.0f, 1.0f, 1.0f };
+
+    // Reset Transforms & Patrols
+    movement->SetPosition(startPos);
+    movement->SetRotation(startRot);
+    originalPosition = startPos;
+    originalRotation = startRot;
+
+    m_patrolMinX = startPos.x + minX;
+    m_patrolMaxX = startPos.x + maxX;
+    m_patrolMinZ = startPos.z + minZ;
+    m_patrolMaxZ = startPos.z + maxZ;
+    m_randomTargetPos = startPos;
+    m_moveDir = dir;
+
+    if (dir == MoveDir::Right)      m_currentSpeed = -m_baseMoveSpeed;
+    else if (dir == MoveDir::Left)  m_currentSpeed = m_baseMoveSpeed;
+    else                            m_currentSpeed = 0.0f;
+
+    // 4. Clean up the "Zombie" state from its previous life
+    m_projectiles.clear(); // Destroy old bullets
+    m_attackTimer = 0.0f;
+    m_blinkTimer = 0.0f;
+    m_hp = 30; // Or whatever default/config HP you want
+    m_isHighlighted = false;
+    m_isActive = true;
 }
 
 void Enemy::RenderProjectiles(ModelRenderer* renderer)

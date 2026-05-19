@@ -58,43 +58,74 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
         break;
     }
 
-    auto newEnemy{ std::make_unique<Enemy>(
-        device,
-        modelPath,
-        config.Position,
-        config.Rotation,
-        config.Color,           
-        config.Type,
-        config.AttackBehavior,
-        config.MinX,
-        config.MaxX,
-        config.MinZ,
-        config.MaxZ,
-        config.Direction
-    ) };
+    if (!m_enemyPool.empty())
+    {
+        // FAST PATH: Pull from the pool. Zero runtime memory allocation.
+        std::unique_ptr<Enemy> pooledEnemy{ std::move(m_enemyPool.back()) };
+        m_enemyPool.pop_back();
 
-    newEnemy->SetScale(finalScale);
-    newEnemy->SetBaseMoveSpeed(config.BaseSpeed);
-    newEnemy->SetMaxHP(config.MaxHP);
+        pooledEnemy->Reinitialize(
+            device, modelPath, config.Position, config.Rotation, config.Color,
+            config.Type, config.AttackBehavior, config.MinX, config.MaxX,
+            config.MinZ, config.MaxZ, config.Direction
+        );
 
-    m_enemies.push_back(std::move(newEnemy));
+        pooledEnemy->SetScale(finalScale);
+        pooledEnemy->SetBaseMoveSpeed(config.BaseSpeed);
+        pooledEnemy->SetMaxHP(config.MaxHP);
+
+        m_enemies.push_back(std::move(pooledEnemy));
+    }
+    else
+    {
+        // SLOW PATH: Allocate new memory (Only happens during initial engine warmup)
+        auto newEnemy{ std::make_unique<Enemy>(
+            device, modelPath, config.Position, config.Rotation, config.Color,
+            config.Type, config.AttackBehavior, config.MinX, config.MaxX,
+            config.MinZ, config.MaxZ, config.Direction
+        ) };
+
+        newEnemy->SetScale(finalScale);
+        newEnemy->SetBaseMoveSpeed(config.BaseSpeed);
+        newEnemy->SetMaxHP(config.MaxHP);
+
+        m_enemies.push_back(std::move(newEnemy));
+    }
 }
 
-void EnemyManager::Update(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack)
+void EnemyManager::Update(const float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, const bool allowAttack)
 {
-    auto it = m_enemies.begin();
-    while (it != m_enemies.end())
+    for (size_t i{ 0 }; i < m_enemies.size(); ) // Notice: No ++i here!
     {
-        if (!(*it)->IsActive())
+        // We use a reference to avoid copying the unique_ptr
+        auto& currentEnemy{ m_enemies[i] };
+
+        if (!currentEnemy->IsActive())
         {
-            it = m_enemies.erase(it);
+            // Move the dead enemy to the graveyard pool
+            m_enemyPool.push_back(std::move(currentEnemy));
+
+            // SWAP-AND-POP: Overwrite this dead slot with the LAST active enemy in the vector.
+            // This prevents the slow O(N) memory shift of std::vector::erase.
+            if (i != m_enemies.size() - 1)
+            {
+                m_enemies[i] = std::move(m_enemies.back());
+            }
+
+            // Destroy the now-duplicate last element
+            m_enemies.pop_back();
+
+            // DO NOT increment 'i' here! The enemy we just swapped into the 'i' slot 
+            // still needs to be updated this frame.
         }
         else
         {
-            (*it)->Update(elapsedTime, camera);
-            (*it)->UpdateTracking(elapsedTime, camera, playerPos, allowAttack);
+            // Enemy is alive. Update it.
+            currentEnemy->Update(elapsedTime, camera);
+            currentEnemy->UpdateTracking(elapsedTime, camera, playerPos, allowAttack);
 
-            ++it; 
+            // Move to the next element
+            ++i;
         }
     }
 }

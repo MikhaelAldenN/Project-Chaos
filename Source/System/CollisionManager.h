@@ -23,6 +23,21 @@ class Boss;
 class NaviAlly;
 class NaviBoss;
 
+// Axis-Aligned Bounding Box for rapid broad-phase rejection
+struct AABB
+{
+    DirectX::XMFLOAT3 minPoint{};
+    DirectX::XMFLOAT3 maxPoint{};
+};
+
+// inline and noexcept allow the compiler to heavily optimize this (zero-cost abstraction).
+[[nodiscard]] inline bool CheckAABBIntersection(const AABB& a, const AABB& b) noexcept
+{
+    return (a.minPoint.x <= b.maxPoint.x && a.maxPoint.x >= b.minPoint.x) &&
+        (a.minPoint.y <= b.maxPoint.y && a.maxPoint.y >= b.minPoint.y) &&
+        (a.minPoint.z <= b.maxPoint.z && a.maxPoint.z >= b.minPoint.z);
+}
+
 class CollisionManager
 {
 public:
@@ -51,7 +66,7 @@ private:
     void CheckPlayerVsCheckpointLines();
     void CheckPlayerVsEnemies();
     void CheckPlayerVsItems();
-    void CheckPlayerProjectilesVsEnemies();
+    void CheckPlayerProjectilesVsEnemies(float elapsedTime);
     void CheckPlayerVsTriggerLines();
     void CheckPlayerVsVoidLines();
     bool CheckSphereCollision(const DirectX::XMFLOAT3& posA, const DirectX::XMFLOAT3& posB, float threshold);

@@ -157,6 +157,21 @@ static float DistancePointToLineSegment2D(const DirectX::XMFLOAT3& A, const Dire
     return std::sqrt((dx * dx) + (dz * dz));
 }
 
+[[nodiscard]] inline AABB CreateSweptAABB(const DirectX::XMFLOAT3& startPos,
+    const DirectX::XMFLOAT3& endPos,
+    const float radius) noexcept
+{
+    return AABB{
+        { (std::min)(startPos.x, endPos.x) - radius,
+          (std::min)(startPos.y, endPos.y) - radius,
+          (std::min)(startPos.z, endPos.z) - radius },
+
+        { (std::max)(startPos.x, endPos.x) + radius,
+          (std::max)(startPos.y, endPos.y) + radius,
+          (std::max)(startPos.z, endPos.z) + radius }
+    };
+}
+
 // =========================================================
 // INITIALIZATION OVERLOADS
 // =========================================================
@@ -186,7 +201,7 @@ void CollisionManager::Initialize(Player* p, Stage* s, EnemyManager* em, ItemMan
 void CollisionManager::Update(float elapsedTime)
 {
     CheckEnemyProjectilesFull(elapsedTime);
-    CheckPlayerProjectilesVsEnemies();
+    CheckPlayerProjectilesVsEnemies(elapsedTime);
     CheckPlayerVsEnemies();
     CheckPlayerVsCheckpointLines();
     CheckPlayerVsTriggerLines();
@@ -610,34 +625,60 @@ void CollisionManager::CheckPlayerVsItems()
     }
 }
 
-void CollisionManager::CheckPlayerProjectilesVsEnemies()
+void CollisionManager::CheckPlayerProjectilesVsEnemies(const float elapsedTime)
 {
+    // Bug Anticipation: Always check pointers before dereferencing in a hot loop.
     if (!m_player || !m_enemyManager) return;
 
-    auto& projectiles = m_player->GetProjectiles();
-    auto& enemies = m_enemyManager->GetEnemies();
+    auto& projectiles{ m_player->GetProjectiles() };
+    const auto& enemies{ m_enemyManager->GetEnemies() }; // const auto& to prevent copying the vector
 
-    constexpr int PLAYER_BULLET_DAMAGE = 10;
-    constexpr float BULLET_HITBOX_RADIUS = 1.0f;
+    constexpr int PLAYER_BULLET_DAMAGE{ 10 };
+    constexpr float BULLET_HITBOX_RADIUS{ 1.0f };
 
     for (auto& bullet : projectiles)
     {
         if (!bullet || !bullet->IsActive()) continue;
 
-        DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+        const DirectX::XMFLOAT3 currentPos{ bullet->GetMovement()->GetPosition() };
+        const DirectX::XMFLOAT3 velocity{ bullet->GetVelocity() };
 
-        for (auto& enemy : enemies)
+        // Calculate where the bullet was last frame
+        const DirectX::XMFLOAT3 prevPos{
+            currentPos.x - (velocity.x * elapsedTime),
+            currentPos.y - (velocity.y * elapsedTime),
+            currentPos.z - (velocity.z * elapsedTime)
+        };
+
+        // 1. Generate the Swept AABB for the bullet
+        const AABB bulletAABB{ CreateSweptAABB(prevPos, currentPos, BULLET_HITBOX_RADIUS) };
+
+        for (const auto& enemy : enemies)
         {
             if (!enemy || !enemy->IsActive()) continue;
 
-            DirectX::XMFLOAT3 ePos = enemy->GetPosition();
+            const DirectX::XMFLOAT3 ePos{ enemy->GetPosition() };
+            const float enemyRadius{ GetEnemyPushRadius(enemy.get()) };
 
-            if (CheckSphereCollision(bPos, ePos, BULLET_HITBOX_RADIUS))
+            // 2. Generate the static AABB for the enemy
+            const AABB enemyAABB{
+                { ePos.x - enemyRadius, ePos.y - enemyRadius, ePos.z - enemyRadius },
+                { ePos.x + enemyRadius, ePos.y + enemyRadius, ePos.z + enemyRadius }
+            };
+
+            // 3. BROAD-PHASE: Are they even close? 
+            // This is a simple float comparison. It costs almost nothing.
+            if (!CheckAABBIntersection(bulletAABB, enemyAABB))
+            {
+                continue; // Skip the expensive math entirely!
+            }
+
+            // 4. NARROW-PHASE: The expensive exact math (Only runs if broad-phase passes)
+            if (CheckSphereCollision(currentPos, ePos, BULLET_HITBOX_RADIUS + enemyRadius))
             {
                 enemy->TakeDamage(PLAYER_BULLET_DAMAGE);
                 bullet->SetActive(false);
-
-                break;
+                break; // Stop checking this bullet against other enemies
             }
         }
     }

@@ -189,39 +189,62 @@ void SceneGame::Update(const float elapsedTime)
     if (m_collisionManager) m_collisionManager->Update(elapsedTime);
 
 	// Furi style cinematic combat camera 
-    float targetZoom = 0.0f; 
+    static float targetZoom{ 0.0f };
+    static int   frameCounter{ 0 };
+    static const Enemy* cachedClosestEnemy{ nullptr };
 
-    if (m_enemyManager && m_player)
+    // SEARCH PHASE: Only run once every 10 frames (~6 times per second at 60fps)
+    if (frameCounter++ % 10 == 0)
     {
-        float closestDistSq = 999999.0f;
-        DirectX::XMFLOAT3 pPos = m_player->GetPosition();
-
-        // Find the closest active enemy
-        for (const auto& enemy : m_enemyManager->GetEnemies())
+        if (m_enemyManager && m_player)
         {
-            if (!enemy->IsActive()) continue;
+            float closestDistSq{ 999999.0f };
+            const DirectX::XMFLOAT3 pPos{ m_player->GetPosition() };
+            const Enemy* currentClosest{ nullptr };
 
-            DirectX::XMFLOAT3 ePos = enemy->GetPosition();
-            float dx = pPos.x - ePos.x;
-            float dz = pPos.z - ePos.z;
-            float distSq = dx * dx + dz * dz;
+            // O(N) Search happens here, but ONLY 10% of the time.
+            for (const auto& enemy : m_enemyManager->GetEnemies())
+            {
+                if (!enemy || !enemy->IsActive()) continue;
 
-            if (distSq < closestDistSq) {
-                closestDistSq = distSq;
+                const DirectX::XMFLOAT3 ePos{ enemy->GetPosition() };
+                const float dx{ pPos.x - ePos.x };
+                const float dz{ pPos.z - ePos.z };
+                const float distSq{ (dx * dx) + (dz * dz) };
+
+                if (distSq < closestDistSq)
+                {
+                    closestDistSq = distSq;
+                    currentClosest = enemy.get();
+                }
+            }
+
+            // Update our cached pointer
+            cachedClosestEnemy = currentClosest;
+
+            // Update the zoom target only during the search frame
+            if (cachedClosestEnemy)
+            {
+                constexpr float combatRadius{ 25.0f };
+                constexpr float maxZoomIn{ -8.0f };
+
+                const float dist{ std::sqrt(closestDistSq) };
+                const float intensity{ std::clamp(1.0f - (dist / combatRadius), 0.0f, 1.0f) };
+                targetZoom = maxZoomIn * intensity;
+            }
+            else
+            {
+                targetZoom = 0.0f;
             }
         }
+    }
 
-        // Evaluate Combat Tension
-        float combatRadius = 25.0f; // How close the enemy needs to be to trigger zoom
-        float maxZoomIn = -8.0f;    // How much lower the camera drops (-8 units down)
-
-        if (closestDistSq < (combatRadius * combatRadius))
-        {
-            float dist = std::sqrt(closestDistSq);
-            float intensity = 1.0f - (dist / combatRadius);
-
-            targetZoom = maxZoomIn * intensity;
-        }
+    // VALIDATION PHASE: Run every frame to prevent Dangling Pointers
+    // If the enemy we found 5 frames ago died, we must reset zoom immediately.
+    if (cachedClosestEnemy && !cachedClosestEnemy->IsActive())
+    {
+        cachedClosestEnemy = nullptr;
+        targetZoom = 0.0f;
     }
 
     CameraController::Instance().SetDynamicZoomOffset(targetZoom);

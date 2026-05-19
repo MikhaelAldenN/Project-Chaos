@@ -38,6 +38,10 @@ public:
     void SetPatrolLimitsZ(float minOffset, float maxOffset);
     void SetPosition(const DirectX::XMFLOAT3& pos);
     void SetRotation(const DirectX::XMFLOAT3& rot);
+    void Reinitialize(ID3D11Device* device, const char* filePath, const DirectX::XMFLOAT3& startPos,
+        const DirectX::XMFLOAT3& startRot, const DirectX::XMFLOAT4& startColor,
+        EnemyType type, AttackType attackType, float minX, float maxX,
+        float minZ, float maxZ, MoveDir dir);
     void RenderDebugProjectiles(ShapeRenderer* renderer);
     void RenderProjectiles(ModelRenderer* renderer);
 
