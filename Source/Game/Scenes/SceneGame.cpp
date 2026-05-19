@@ -80,6 +80,7 @@ SceneGame::SceneGame()
     
     m_player = std::make_unique<Player>();
 
+    m_player->SetPosition({ 0.0f, 2.0f, 0.0f });
     m_player->InitPhysics(m_controllerManager.get(), m_defaultMaterial.get());
     m_stage->InitPhysics(m_physics.get(), m_scene.get(), m_defaultMaterial.get());
 

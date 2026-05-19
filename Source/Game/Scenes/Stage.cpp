@@ -138,6 +138,39 @@ void Stage::RebuildPhysics()
         }
     }
 
+    // Invisible Physx barriers for void line
+    for (const auto& line : m_linesVoid)
+    {
+        const float halfLength{ line.Scale.x * 0.5f };
+        const float halfHeight{ 50.0f }; 
+        const float halfDepth{ 0.05f };   
+
+        physx::PxBoxGeometry invisibleWallGeom(halfLength, halfHeight, halfDepth);
+        physx::PxShape* wallShape{ m_physics->createShape(invisibleWallGeom, *m_material) };
+
+        if (wallShape)
+        {
+            DirectX::XMVECTOR qRot{ DirectX::XMQuaternionRotationRollPitchYaw(
+                DirectX::XMConvertToRadians(line.Rotation.x),
+                DirectX::XMConvertToRadians(line.Rotation.y),
+                DirectX::XMConvertToRadians(line.Rotation.z)
+            ) };
+
+            DirectX::XMFLOAT4 qF;
+            DirectX::XMStoreFloat4(&qF, qRot);
+
+            physx::PxQuat pxQuat(qF.x, qF.y, qF.z, qF.w);
+            physx::PxVec3 pxPos(line.Position.x, line.Position.y, line.Position.z);
+
+            physx::PxTransform localPose(pxPos, pxQuat);
+            wallShape->setLocalPose(localPose);
+
+            m_physxActor->attachShape(*wallShape);
+
+            wallShape->release();
+        }
+    }
+
     // Add the fully constructed stage to the active scene simulation
     m_scene->addActor(*m_physxActor);
 }
