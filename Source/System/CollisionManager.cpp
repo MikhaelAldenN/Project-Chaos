@@ -406,11 +406,23 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
     }
 }
 
+float CollisionManager::GetEnemyPushRadius(const Enemy* enemy) const
+{
+    float scale = enemy->GetScale().x;
+
+    switch (enemy->GetType())
+    {
+    case EnemyType::Pentagon:   return 4.0f * scale;
+    case EnemyType::Paddle:     return 0.8f * scale;
+    case EnemyType::FakeBoss:   return 1.9f * scale;
+    default:                    return 1.2f * scale; 
+    }
+}
+
 void CollisionManager::CheckPlayerVsEnemies()
 {
     if (!m_player || !m_enemyManager) return;
 
-    // Use references (&) to prevent copying heavy arrays into local memory
     auto& enemies = m_enemyManager->GetEnemies();
     DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
     DirectX::XMFLOAT3 playerVel = m_player->GetMovement()->GetVelocity();
@@ -418,53 +430,36 @@ void CollisionManager::CheckPlayerVsEnemies()
     constexpr float PLAYER_RADIUS = 0.25f;
     bool collidedAny = false;
 
-    for (auto& enemy : enemies)
+    for (const auto& enemy : enemies)
     {
-        // EARLY EXIT: Skip empty pointers and dead enemies
         if (!enemy || !enemy->IsActive()) continue;
 
         DirectX::XMFLOAT3 ePos = enemy->GetPosition();
 
-        // DYNAMIC HITBOXES
-        // If you make an enemy 2x bigger, its physical wall becomes 2x bigger automatically.
-        float enemyScale = enemy->GetScale().x;
-        float enemyRadius = 0.1f * enemyScale;
-
-        if (enemy->GetType() == EnemyType::Pentagon) enemyRadius = 4.0f * enemyScale;
-        else if (enemy->GetType() == EnemyType::Paddle) enemyRadius = 0.8f * enemyScale;
-
+        // Use our new centralized function!
+        float enemyRadius = GetEnemyPushRadius(enemy.get());
         float combinedRadius = PLAYER_RADIUS + enemyRadius;
 
         float dx = playerPos.x - ePos.x;
         float dz = playerPos.z - ePos.z;
         float distSq = (dx * dx) + (dz * dz);
 
-        // Check if player is penetrating the enemy's radius
         if (distSq < (combinedRadius * combinedRadius))
         {
             float dist = std::sqrt(distSq);
 
-            // BUG PREVENTION: The Divide-By-Zero Guard
-            if (dist < 0.0001f)
+            if (dist < 0.0001f) // Divide-By-Zero Guard
             {
-                dx = 1.0f;
-                dz = 0.0f;
-                dist = 1.0f;
+                dx = 1.0f; dz = 0.0f; dist = 1.0f;
             }
 
-            // Calculate exactly how deep the player is inside the enemy
             float overlap = combinedRadius - dist;
-
-            // Push the player backward out of the enemy
-            float pushX = (dx / dist) * overlap;
-            float pushZ = (dz / dist) * overlap;
-
-            playerPos.x += pushX;
-            playerPos.z += pushZ;
+            playerPos.x += (dx / dist) * overlap;
+            playerPos.z += (dz / dist) * overlap;
 
             collidedAny = true;
 
-            // BUG PREVENTION: The "Sticky Wall" Fix
+            // "Sticky Wall" Velocity Fix
             DirectX::XMVECTOR vVel = DirectX::XMLoadFloat3(&playerVel);
             DirectX::XMVECTOR vNormal = DirectX::XMVectorSet(dx / dist, 0.0f, dz / dist, 0.0f);
 
@@ -477,7 +472,6 @@ void CollisionManager::CheckPlayerVsEnemies()
         }
     }
 
-    // Only update the player's transform if a collision actually happened
     if (collidedAny)
     {
         m_player->SetPosition(playerPos);

@@ -49,7 +49,7 @@ struct EnemySpawnConfig
     float MinZ = 0.0f; 
     float MaxZ = 0.0f; 
 
-    DirectX::XMFLOAT3 Scale = { 1.0f, 1.0f, 1.0f };
+    DirectX::XMFLOAT3 Scale = { 0.5f, 0.5f, 0.5f };
     float BaseSpeed = 2.0f;         
 
     int MaxHP = 30;
@@ -81,22 +81,22 @@ namespace EnemyLevelData
     static const std::vector<EnemySpawnConfig> Spawns =
     {
         // 1. NONE: Just stands there, doesn't shoot or move.
-        { { -16.0f, 0.0f, 15.0f }, Rot::Backward, None, EnemyType::MushroomNone, AttackType::None },
-        { { -22.0f, 0.0f, 15.0f }, Rot::Forward, None, EnemyType::MushroomStatic, AttackType::None },
-        { { -27.0f, 0.0f, 15.0f }, Rot::Forward, None, EnemyType::MushroomTracking, AttackType::None },
-        { { -32.0f, 0.0f, 15.0f }, Rot::Backward, None, EnemyType::FakeBoss, AttackType::None },
+        { { 20.9f, 1.1f, 40.2f }, Rot::Backward, None, EnemyType::MushroomNone, AttackType::None },
+        { { 22.0f, 1.1f, 40.2f }, Rot::Forward, None, EnemyType::MushroomStatic, AttackType::None },
+        { { 27.0f, 1.1f, 40.2f }, Rot::Forward, None, EnemyType::MushroomTracking, AttackType::None },
+        { { 32.0f, 1.1f, 40.2f }, Rot::Backward, None, EnemyType::FakeBoss, AttackType::None },
 
         // 2. STATIC: Stands completely still, but shoots at the player.
-        { { -8.0f, 0.0f, 15.0f }, Rot::Backward, Blue, EnemyType::MushroomStatic, AttackType::Static },
+        //{ { -8.0f, 1.1f, 15.0f }, Rot::Backward, Blue, EnemyType::MushroomStatic, AttackType::Static },
 
         // 3. TRACKING: Slowly chases the player around the map and shoots.
-        { { 0.0f, 0.0f, 15.0f }, Rot::Backward, Blue, EnemyType::MushroomTracking, AttackType::Tracking },
+        //{ { 0.0f, 1.1f, 15.0f }, Rot::Backward, Blue, EnemyType::MushroomTracking, AttackType::Tracking },
 
         // 4. TRACKING HORIZONTAL: Patrols left and right (offset -4 to +4) and shoots.
-        { { 8.0f, 1.3f, 15.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Left, -4.0f, 4.0f },
+        //{ { 8.0f, 1.3f, 15.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Left, -4.0f, 4.0f },
 
         // 5. TRACKING RANDOM: Wanders randomly inside a specific box area and shoots.
-        { { 16.0f, 1.3f, 15.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingRandom, MoveDir::None, -4.0f, 4.0f, -4.0f, 4.0f }
+        //{ { 16.0f, 1.3f, 15.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingRandom, MoveDir::None, -4.0f, 4.0f, -4.0f, 4.0f }
 
     };
 }

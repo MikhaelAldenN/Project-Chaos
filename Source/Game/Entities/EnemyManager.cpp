@@ -19,6 +19,7 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
 {
     ID3D11Device* device = Graphics::Instance().GetDevice();
     const char* modelPath{ nullptr };
+    DirectX::XMFLOAT3 finalScale{ config.Scale };
 
     // ---> Behavior-Driven Model Selection <---
     switch (config.Type)
@@ -37,6 +38,10 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
 
     case EnemyType::FakeBoss:
         modelPath = "Data/Model/Character/ENEMY_mdl_EnemyFakeBoss.glb";
+        if (finalScale.x == 0.5f && finalScale.y == 0.5f && finalScale.z == 0.5f)
+        {
+            finalScale = { 2.0f, 2.0f, 2.0f };
+        }
         break;
 
     case EnemyType::Ball:
@@ -68,7 +73,7 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
         config.Direction
     ) };
 
-    newEnemy->SetScale(config.Scale);
+    newEnemy->SetScale(finalScale);
     newEnemy->SetBaseMoveSpeed(config.BaseSpeed);
     newEnemy->SetMaxHP(config.MaxHP);
 

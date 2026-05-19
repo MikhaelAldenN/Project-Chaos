@@ -283,6 +283,28 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
         if (m_stage) m_stage->RenderDebug(shapeRenderer, primRenderer);
         if (m_enemyManager) m_enemyManager->RenderDebug(shapeRenderer);
 
+		// Player hitbox (green), Enemy hitboxes (red)
+        //if (m_player)
+        //{
+        //    DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
+        //    constexpr float PLAYER_RADIUS = 0.25f;
+        //    shapeRenderer->DrawSphere(pPos, PLAYER_RADIUS, { 0.0f, 1.0f, 0.0f, 1.0f });
+        //}
+        //if (m_enemyManager && m_collisionManager)
+        //{
+        //    for (const auto& enemy : m_enemyManager->GetEnemies())
+        //    {
+        //        if (!enemy || !enemy->IsActive()) continue;
+
+        //        DirectX::XMFLOAT3 ePos = enemy->GetPosition();
+
+        //        // Ask the collision manager how big this specific enemy's hitbox is
+        //        float radius = m_collisionManager->GetEnemyPushRadius(enemy.get());
+
+        //        shapeRenderer->DrawSphere(ePos, radius, { 1.0f, 0.0f, 0.0f, 0.5f });
+        //    }
+        //}
+
         shapeRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection());
         primRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection(), D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
     }
