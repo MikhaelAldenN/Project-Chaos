@@ -802,6 +802,35 @@ void SceneBoss::DrawGUI()
         {
             ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "=== BOSS MASTER CONTROLS ===");
 
+            // --- 2 HEALTHBAR TRACKER ---
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "=== MASTER HEALTH STATUS ===");
+
+            // 1. Health Bar Player
+            int pHP = m_player->GetHP();
+            float pHpProgress = pHP / 100.0f;
+            ImVec4 pBarColor = { (1.0f - pHpProgress), pHpProgress, 0.0f, 1.0f };
+            ImGui::Text("Player HP: %d / 100", pHP);
+            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, pBarColor);
+            ImGui::ProgressBar(pHpProgress, ImVec2(-1.0f, 18.0f));
+            ImGui::PopStyleColor();
+
+            // 2. Health Bar Boss (Mengambil data real-time dari AI Director)
+            if (m_navi) {
+                if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+                    int bHP = normalPhase->GetHP();
+                    int bMaxHP = normalPhase->GetMaxHP();
+                    float bHpProgress = (bMaxHP > 0) ? (float)bHP / bMaxHP : 0.0f;
+                    ImGui::Text("Boss HP (Tracked): %d / %d", bHP, bMaxHP);
+                    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+                    ImGui::ProgressBar(bHpProgress, ImVec2(-1.0f, 18.0f));
+                    ImGui::PopStyleColor();
+                }
+                else {
+                    ImGui::Text("Boss HP (Tracked): [Windowkill Phase Active]");
+                }
+            }
+            ImGui::Separator();
+
             // --- TOMBOL HEAL & RESPAWN BOSS ---
             if (ImGui::Button("Heal Boss to Full", ImVec2(180.0f, 30.0f))) {
                 if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
@@ -896,6 +925,7 @@ void SceneBoss::DrawGUI()
                     ImGui::SliderFloat("Radial Bullet Speed", &p.radialSpeed, 1.0f, 100.0f);
                     ImGui::SliderInt("Radial Burst Count", &p.count, 4, 128);
                     ImGui::SliderFloat("Burst Delay", &p.burstDelay, 0.01f, 1.0f);
+                    ImGui::SliderInt("Radial Bullet Damage", &p.radialDamage, 1, 100);
                 }
 
                 if (ImGui::CollapsingHeader("Targeted Fan Burst (Shotgun)")) {
@@ -904,6 +934,7 @@ void SceneBoss::DrawGUI()
                     ImGui::SliderInt("Fan Waves (Repeats)", &p.fanWaves, 1, 10);
                     ImGui::SliderFloat("Wave Delay", &p.fanWaveDelay, 0.05f, 1.0f);
                     ImGui::SliderFloat("Spread Angle", &p.fanSpreadAngle, 0.05f, 0.5f);
+                    ImGui::SliderInt("Fan Bullet Damage", &p.fanDamage, 1, 100);
                 }
 
                 // [追加] 雨 (Asgore Rain) 用の調整パネル
@@ -912,6 +943,7 @@ void SceneBoss::DrawGUI()
                     ImGui::SliderFloat("Max Fall Speed", &p.rainMaxSpeed, 10.0f, 150.0f);
                     ImGui::SliderFloat("Warning Duration", &p.rainWarningDuration, 0.5f, 5.0f);
                     ImGui::SliderFloat("Active Duration", &p.rainActiveDuration, 0.5f, 10.0f);
+                    ImGui::SliderInt("Rain Contact Damage", &p.rainDamage, 1, 50);
                 }
 
                 if (ImGui::CollapsingHeader("Glintstone Phalanx")) {
@@ -924,6 +956,7 @@ void SceneBoss::DrawGUI()
                     ImGui::SliderFloat("Turn Tracking", &p.phalanxTurnSpeed, 0.1f, 10.0f);
                     ImGui::SliderFloat("Hover Move Speed", &p.phalanxAttackMoveSpeed, 1.0f, 20.0f);
                     ImGui::SliderFloat("Return Speed", &p.phalanxReturnMoveSpeed, 0.1f, 10.0f);
+                    ImGui::SliderInt("Blade Damage", &p.phalanxDamage, 1, 150);
                 }
 
                 if (ImGui::CollapsingHeader("Bijuudama & Rhythm Laser")) {
@@ -933,6 +966,7 @@ void SceneBoss::DrawGUI()
                     ImGui::SliderFloat("Max Grow Amount", &p.bijuudamaMaxHitboxGrow, 0.0f, 10.0f);
                     ImGui::SliderFloat("Shoot Speed", &p.bijuudamaShootSpeed, 10.0f, 120.0f);
                     ImGui::SliderFloat("Post-Fire Delay", &p.bijuudamaPostFireDelay, 0.0f, 3.0f);
+                    ImGui::SliderInt("Laser Ring Damage", &p.laserDamage, 1, 100);
                 }
 
                 if (ImGui::CollapsingHeader("Shatter / Parabola Dynamics")) {
@@ -1113,8 +1147,16 @@ void SceneBoss::DrawGUI()
             if (ImGui::Button("Respawn Player", ImVec2(180.0f, 30.0f))) {
                 m_player->SetMaxHP(100);
                 m_player->scale = { 1.0f, 1.0f, 1.0f };
-                m_player->SetPosition(0.0f, 0.0f, -8.0f); // Posisi default spawn awal game
-                AddLog("Player resurrected and repositioned.");
+                m_player->SetPosition(0.0f, 0.0f, -8.0f);
+
+                // === FIX MUTLAK: Reset Input & Kembalikan State ke Idle ===
+                m_player->SetInputEnabled(true);
+                m_player->SetAimLocked(false);
+                if (m_player->GetStateMachine()) {
+                    m_player->GetStateMachine()->Initialize(std::make_unique<PlayerIdle>(), m_player.get());
+                }
+
+                AddLog("Player resurrected, input unlocked, and state reset to Idle.");
             }
             ImGui::Separator();
 

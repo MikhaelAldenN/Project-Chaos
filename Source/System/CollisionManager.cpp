@@ -691,7 +691,7 @@ void CollisionManager::CheckPlayerProjectilesVsEnemies()
     auto& projectiles = m_player->GetProjectiles();
     auto& enemies = m_enemyManager->GetEnemies();
 
-    constexpr int PLAYER_BULLET_DAMAGE = 10;
+    //constexpr int PLAYER_BULLET_DAMAGE = 10;
     constexpr float BULLET_HITBOX_RADIUS = 1.0f;
 
     for (auto& bullet : projectiles)
@@ -708,7 +708,7 @@ void CollisionManager::CheckPlayerProjectilesVsEnemies()
 
             if (CheckSphereCollision(bPos, ePos, BULLET_HITBOX_RADIUS))
             {
-                enemy->TakeDamage(PLAYER_BULLET_DAMAGE);
+                enemy->TakeDamage(bullet->GetDamage());
                 bullet->SetActive(false);
 
                 break;
@@ -962,7 +962,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
     if (activeBullets.empty()) return;
 
     constexpr float PLAYER_HURTBOX_RADIUS = 0.3f;
-    constexpr int BOSS_BULLET_DAMAGE = 10;
+    //constexpr int BOSS_BULLET_DAMAGE = 10;
 
     // =========================================================
     // [FIX MUTLAK 1] GUNAKAN 'activeBullets', BUKAN 'normalPhase'!
@@ -1029,7 +1029,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
         if (distToPath <= combinedRadius)
         {
             if (!m_player->IsInvincible()) {
-                m_player->TakeDamage(BOSS_BULLET_DAMAGE);
+                m_player->TakeDamage(bullet->GetDamage());
 
                 // [FIX MUTLAK] HANYA hancurkan peluru jika ini dari Fase Normal!
                 // Peluru Windowkill (wkPhase) akan dibiarkan hidup dan terus memantul!
@@ -1148,7 +1148,7 @@ void CollisionManager::CheckNaviBossProjectilesVsBoss(float elapsedTime)
                 // Panggil TakeDamage langsung ke Fase-nya agar sinkron 
                 // dengan UI Bar, Efek Suara, dan Flash Damage!
                 // =========================================================
-                normalPhase->TakeDamage(15, bPos);
+                normalPhase->TakeDamage(bullet->GetDamage(), bPos);
 
                 // 3. [JUICE] Berikan micro-shake untuk SETIAP kepingan yang menabrak
                 CameraController::Instance().AddTrauma(0.15f);

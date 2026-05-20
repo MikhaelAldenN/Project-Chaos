@@ -492,10 +492,8 @@ void Player::FireProjectile()
     {
         if (!bullet->IsActive())
         {
-            // RECYCLE IT! 
             bullet->Fire(spawnPos, fwd, m_bulletSpeed);
-
-            // EARLY EXIT: We saved the CPU from allocating new memory!
+            bullet->SetDamage(m_bulletDamage); // [BARU] Terapkan damage dinamis di sini
             return;
         }
     }
@@ -503,7 +501,8 @@ void Player::FireProjectile()
     // If we get here, it means EVERY bullet we own is currently flying on-screen.
     // ONLY THEN do we allocate new memory.
     auto newBullet = std::make_unique<Bullet>();
-    newBullet->Fire(spawnPos, fwd, PlayerConst::BulletSpeed);
+    newBullet->Fire(spawnPos, fwd, m_bulletSpeed);
+    newBullet->SetDamage(m_bulletDamage); // [BARU] Terapkan damage dinamis di sini
     m_projectiles.push_back(std::move(newBullet));
 
     // Prevent memory leaks. If the pool gets ridiculously large, pop the oldest.
@@ -693,8 +692,10 @@ void Player::DrawDebugGUI()
         }
 
         ImGui::Separator();
+        ImGui::Separator();
         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "[ Crossbow Bullet ]");
         ImGui::DragFloat("Bullet Speed", &m_bulletSpeed, 0.5f, 1.0f, 150.0f, "%.1f");
+        ImGui::SliderInt("Bullet Damage", &m_bulletDamage, 1, 500); // [BARU] Slider Damage Player
         ImGui::ColorEdit4("Bullet Tint Color", (float*)&m_playerbulletColor);
 
         if (ImGui::TreeNode("Bullet Model Transform (Offset)"))

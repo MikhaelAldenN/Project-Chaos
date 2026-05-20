@@ -211,9 +211,12 @@ private:
     DirectX::XMFLOAT3 m_playerbulletOffsetScale{ 20.000f, 20.000f, 70.000f };
     DirectX::XMFLOAT4 m_playerbulletColor{ 1.000f, 1.000f, 1.000f, 1.000f };
     std::deque<std::unique_ptr<Bullet>> m_projectiles;
+    float m_bulletSpeed = PlayerConst::BulletSpeed;
+
+    // [BARU] Tambahkan ini untuk menyimpan damage peluru player
+    int m_bulletDamage = 10;
 
     // [BARU] Tambahkan ini agar kecepatan peluru bisa diatur via GUI
-    float m_bulletSpeed = PlayerConst::BulletSpeed;
 
     CollisionManager* m_collisionManager = nullptr;
 

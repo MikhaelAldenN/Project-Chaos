@@ -54,6 +54,9 @@ public:
     void SetParryReturn(bool val) { m_isParryReturn = val; }
     bool IsParryReturn() const { return m_isParryReturn; }
 
+    void SetDamage(int damage) { m_damage = damage; }
+    int GetDamage() const { return m_damage; }
+
 private:
     NaviBoss* m_bossTarget = nullptr;
 
@@ -72,5 +75,5 @@ private:
     Character* m_homingTarget = nullptr;
     float m_turnSpeed = 8.0f;
 
-
+    int m_damage = 10;
 };

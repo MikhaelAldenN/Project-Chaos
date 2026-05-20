@@ -386,6 +386,7 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                             bullet->SetRadius(0.35f);
                             bullet->scale = { 2.0f, 2.0f, 2.0f };
                             bullet->SetTurnSpeed(m_params.phalanxTurnSpeed);
+                            bullet->SetDamage(m_params.phalanxDamage);
                             m_phalanxBullets.push_back(bullet.get());
                             AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Phalanx_Ready.wav", 0.1f * m_params.sfxVolumeMultiplier);
                             m_phalanxSpawned++;
@@ -854,6 +855,7 @@ void NaviPhaseNormal::TriggerBijuudama(Player* targetPlayer) {
                 float baseVisual = baseHitbox * m_params.bijuudamaVisualMultiplier;
                 bullet->SetRadius(baseHitbox);
                 bullet->scale = { baseVisual, baseVisual, baseVisual };
+                bullet->SetDamage(m_params.bijuudamaBallDamage);
 
                 m_bijuudamaBall = bullet.get();
                 break;
@@ -1039,8 +1041,12 @@ void NaviPhaseNormal::FireRadialBurst(NaviBoss* boss, float angleOffset) {
             bullet->SetParryReturn(false);
             bullet->SetTurnSpeed(8.0f);
 
+            // [PENTING] Set Damage SEBELUM memanggil Fire!
+            bullet->SetDamage(m_params.radialDamage);
+
             float angle = (firedCount * angleStep) + angleOffset;
             bullet->Fire(boss->GetPosition(), { sinf(angle), 0.0f, cosf(angle) }, m_params.radialSpeed);
+
             if (++firedCount >= m_params.count) break;
         }
     }
@@ -1066,6 +1072,7 @@ void NaviPhaseNormal::FireFanWave(NaviBoss* boss) {
 
             float angle = startAngle + (firedCount * spread);
             bullet->Fire(boss->GetPosition(), { sinf(angle), 0.0f, cosf(angle) }, m_params.fanSpeed);
+            bullet->SetDamage(m_params.fanDamage); // [BARU] Pasang damage radial
             if (++firedCount >= lines) break;
         }
     }

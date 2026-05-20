@@ -20,19 +20,21 @@ struct NaviBulletParams {
     float bgmVolumeMultiplier = 1.0f;
 
     // ----- Radial Burst -----
-    float radialSpeed = 20.0f; // [変更] speed から radialSpeed に名前変更
+    float radialSpeed = 20.0f;
     int   count = 24;
     float fireRate = 1.5f;
     float burstDelay = 0.156f;
+    int   radialDamage = 10; // [BARU] Damage pola lingkaran
     DirectX::XMFLOAT4 color = { 1.0f, 0.2f, 0.2f, 1.0f };
     float despawnDist = 60.0f;
 
     // ----- Targeted Fan Burst (Shotgun) -----
-    float fanSpeed = 25.0f;    // [追加] Fan Burst 専用の弾速
+    float fanSpeed = 25.0f;
     int   fanLines = 4;
     int   fanWaves = 4;
     float fanWaveDelay = 0.176f;
     float fanSpreadAngle = 0.183f;
+    int   fanDamage = 15; // [BARU] Damage pola shotgun
 
     // ----- Rhythm Laser (Bijuudama charge indicator) -----
     float laserDuration = 4.0f;
@@ -48,40 +50,42 @@ struct NaviBulletParams {
     float bijuudamaVisualMultiplier = 4.0f;
     float bijuudamaSpawnOffsetZ = 2.0f;
     float bijuudamaShootSpeed = 45.0f;
-    float bijuudamaAttackMoveSpeed = 3.0f; // Boss slide speed during charge
-    float bijuudamaReturnMoveSpeed = 2.0f; // Boss return speed after fire
+    float bijuudamaAttackMoveSpeed = 3.0f;
+    float bijuudamaReturnMoveSpeed = 2.0f;
     float bijuudamaPostFireDelay = 1.0f;
+    int   bijuudamaBallDamage = 40; // [BARU] Damage hantaman bola raksasa
 
     // ----- Shatter Bijuudama (Parry burst fragments) -----
     int   shatterMinFragments = 5;
     int   shatterMaxFragments = 8;
     float shatterMinRadius = 0.2f;
     float shatterMaxRadius = 0.8f;
-    float shatterMinDuration = 0.5f; // Travel time (higher = slower)
+    float shatterMinDuration = 0.5f;
     float shatterMaxDuration = 0.7f;
-    float shatterCurveOffset = 11.0f; // Parabola width / arc strength
+    float shatterCurveOffset = 11.0f;
 
     // ----- Glintstone Phalanx (Orbiting homing swords) -----
     int   phalanxCount = 7;
-    float phalanxChargeDelay = 0.2f;  // Delay between each bullet summon
+    float phalanxChargeDelay = 0.2f;
     float phalanxHoldDuration = 2.0f;
-    float phalanxFireDelay = 0.0f;  // Delay between each shot
+    float phalanxFireDelay = 0.0f;
     float phalanxSpeed = 80.0f;
-    float phalanxHoverRadius = 4.0f;  // Orbit distance from boss
-    float phalanxTurnSpeed = 1.5f;  // Weak homing (so player can dash)
+    float phalanxHoverRadius = 4.0f;
+    float phalanxTurnSpeed = 1.5f;
     float phalanxSmoothSpeed = 12.0f;
     float phalanxPostFireDelay = 1.0f;
     float phalanxAttackMoveSpeed = 2.0f;
     float phalanxReturnMoveSpeed = 2.0f;
+    int   phalanxDamage = 25; // [BARU] Damage pedang melayang
 
     // ----- Asgore Rain (Area Denial) -----
-    float rainMinSpeed = 50.0f; // [追加] 雨の最小落下速度
-    float rainMaxSpeed = 90.0f; // [追加] 雨の最大落下速度
+    float rainMinSpeed = 50.0f;
+    float rainMaxSpeed = 90.0f;
     float rainWarningDuration = 1.5f;
     float rainActiveDuration = 2.0f;
     float rainWidth = 25.0f;
     float rainDepth = 40.0f;
-    int   rainDamage = 1;
+    int   rainDamage = 2; // Sudah ada bawaan
 };
 
 // ============================================================
