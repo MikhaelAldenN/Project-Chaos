@@ -87,7 +87,7 @@ struct NaviBulletParams {
 // ============================================================
 class NaviPhaseNormal : public INaviPhase {
 public:
-    NaviPhaseNormal() = default;
+    NaviPhaseNormal(Player* target = nullptr);
     ~NaviPhaseNormal() override = default;
 
     // ----- INaviPhase Interface -----

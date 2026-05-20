@@ -27,6 +27,8 @@ void PlayerIdle::Enter(Player* player)
 
 void PlayerIdle::Update(Player* player, float dt)
 {
+    if (!player->IsInputEnabled()) return;
+
     // --- 1. Cek Transisi Dash (Bypass Cooldown jika Uncapped!) ---
     if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && (player->canDash || player->IsPowerUncapped()))
     {
@@ -165,122 +167,125 @@ void PlayerMoving::Update(Player* player, float dt)
         player->GetAnimator()->SetPlaybackSpeed(1.0f);  // Play forward
     }
 
-    // --- 1. Cek Transisi Dash (Bypass Cooldown jika Uncapped!) ---
-    if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && (player->canDash || player->IsPowerUncapped()))
+    if (player->IsInputEnabled())
     {
-        player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerDash>());
-        return;
-    }
-
-    // --- 2. Cek Logika Serangan ---
-    // Jika Uncapped -> IsPressed (Tahan tombol untuk Full-Auto)
-    // Jika Capped -> IsTriggered (Harus klik satu-satu / Semi-Auto)
-    bool isShootInput = player->IsPowerUncapped() ?
-        Input::Instance().GetKeyboard().IsPress(VK_SPACE) :
-        Input::Instance().GetKeyboard().IsTriggered(VK_SPACE);
-
-    // --- 2. Cek Logika Serangan (Identik dengan Idle) ---
-    // --- Logika Attack Baru ---
-    if (isShootInput)
-    {
-        CollisionManager* colMgr = player->GetCollisionManager();
-        if (colMgr)
+        // --- 1. Cek Transisi Dash (Bypass Cooldown jika Uncapped!) ---
+        if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && (player->canDash || player->IsPowerUncapped()))
         {
-            // 1. Calculate Instantaneous Cursor Direction
-            DirectX::XMFLOAT3 pPos{ player->GetMovement()->GetPosition() };
-            DirectX::XMFLOAT3 aimPos{ player->GetAimTarget() };
+            player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerDash>());
+            return;
+        }
 
-            float aimDx{ aimPos.x - pPos.x };
-            float aimDz{ aimPos.z - pPos.z };
-            float aimDistSq{ (aimDx * aimDx) + (aimDz * aimDz) };
+        // --- 2. Cek Logika Serangan ---
+        // Jika Uncapped -> IsPressed (Tahan tombol untuk Full-Auto)
+        // Jika Capped -> IsTriggered (Harus klik satu-satu / Semi-Auto)
+        bool isShootInput = player->IsPowerUncapped() ?
+            Input::Instance().GetKeyboard().IsPress(VK_SPACE) :
+            Input::Instance().GetKeyboard().IsTriggered(VK_SPACE);
 
-            DirectX::XMFLOAT3 aimDir{ 0.0f, 0.0f, 1.0f }; // Fallback forward direction
-
-            // Prevent Divide-by-Zero if cursor is exactly under the player's feet
-            if (aimDistSq > 0.0001f)
+        // --- 2. Cek Logika Serangan (Identik dengan Idle) ---
+        // --- Logika Attack Baru ---
+        if (isShootInput)
+        {
+            CollisionManager* colMgr = player->GetCollisionManager();
+            if (colMgr)
             {
-                float aimDist{ std::sqrt(aimDistSq) };
-                aimDir = { aimDx / aimDist, 0.0f, aimDz / aimDist };
-            }
+                // 1. Calculate Instantaneous Cursor Direction
+                DirectX::XMFLOAT3 pPos{ player->GetMovement()->GetPosition() };
+                DirectX::XMFLOAT3 aimPos{ player->GetAimTarget() };
 
-            // 2. Slash Priority (Cone Check)
-            Enemy* slashTarget = colMgr->GetTargetInSlashCone(pPos, aimDir, 0.8f, 0.85f);
-            if (slashTarget)
-            {
-                // NO SNAPPING! We lock the player strictly to their cursor trajectory. 
-                player->SetLastValidInput({ aimDir.x, aimDir.z });
-                player->GetMovement()->SetRotationY(DirectX::XMConvertToDegrees(std::atan2(aimDir.x, aimDir.z)));
-                player->SetAimLocked(true);
+                float aimDx{ aimPos.x - pPos.x };
+                float aimDz{ aimPos.z - pPos.z };
+                float aimDistSq{ (aimDx * aimDx) + (aimDz * aimDz) };
 
-                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerSlash>());
-                slashTarget->TakeDamage(30);
-                return;
-            }
+                DirectX::XMFLOAT3 aimDir{ 0.0f, 0.0f, 1.0f }; // Fallback forward direction
 
-            // 3. Parry Priority
-            Bullet* parryBullet{ nullptr };
-            Enemy* parryTarget{ nullptr };
-            if (colMgr->GetParryableProjectile(pPos, 2.0f, &parryBullet, &parryTarget))
-            {
-                DirectX::XMFLOAT3 bPos{ parryBullet->GetMovement()->GetPosition() };
-                float dx{ bPos.x - pPos.x };
-                float dz{ bPos.z - pPos.z };
-                float dist{ std::sqrt((dx * dx) + (dz * dz)) };
+                // Prevent Divide-by-Zero if cursor is exactly under the player's feet
+                if (aimDistSq > 0.0001f)
+                {
+                    float aimDist{ std::sqrt(aimDistSq) };
+                    aimDir = { aimDx / aimDist, 0.0f, aimDz / aimDist };
+                }
 
-                if (dist > 0.001f) {
-                    float dirX{ dx / dist };
-                    float dirZ{ dz / dist };
-
-                    player->SetLastValidInput({ dirX, dirZ });
-                    player->GetMovement()->SetRotationY(DirectX::XMConvertToDegrees(std::atan2(dx, dz)));
-
-                    // Aim THROUGH the bullet so we don't snap backward if we overshoot!
-                    DirectX::XMFLOAT3 aimThrough{ pPos.x + (dirX * 50.0f), bPos.y, pPos.z + (dirZ * 50.0f) };
-                    player->ForceAimTarget(aimThrough);
+                // 2. Slash Priority (Cone Check)
+                Enemy* slashTarget = colMgr->GetTargetInSlashCone(pPos, aimDir, 0.8f, 0.85f);
+                if (slashTarget)
+                {
+                    // NO SNAPPING! We lock the player strictly to their cursor trajectory. 
+                    player->SetLastValidInput({ aimDir.x, aimDir.z });
+                    player->GetMovement()->SetRotationY(DirectX::XMConvertToDegrees(std::atan2(aimDir.x, aimDir.z)));
                     player->SetAimLocked(true);
+
+                    player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerSlash>());
+                    slashTarget->TakeDamage(30);
+                    return;
                 }
 
-                // Logika Homing Deflection
-                DirectX::XMFLOAT3 tPos = bPos;
-                float speed = 0.0f;
+                // 3. Parry Priority
+                Bullet* parryBullet{ nullptr };
+                Enemy* parryTarget{ nullptr };
+                if (colMgr->GetParryableProjectile(pPos, 2.0f, &parryBullet, &parryTarget))
+                {
+                    DirectX::XMFLOAT3 bPos{ parryBullet->GetMovement()->GetPosition() };
+                    float dx{ bPos.x - pPos.x };
+                    float dz{ bPos.z - pPos.z };
+                    float dist{ std::sqrt((dx * dx) + (dz * dz)) };
 
-                if (parryTarget) {
-                    parryBullet->SetHomingTarget(parryTarget);
-                    tPos = parryTarget->GetPosition();
-                    speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
-                    if (speed < 10.0f) speed = 30.0f;
+                    if (dist > 0.001f) {
+                        float dirX{ dx / dist };
+                        float dirZ{ dz / dist };
+
+                        player->SetLastValidInput({ dirX, dirZ });
+                        player->GetMovement()->SetRotationY(DirectX::XMConvertToDegrees(std::atan2(dx, dz)));
+
+                        // Aim THROUGH the bullet so we don't snap backward if we overshoot!
+                        DirectX::XMFLOAT3 aimThrough{ pPos.x + (dirX * 50.0f), bPos.y, pPos.z + (dirZ * 50.0f) };
+                        player->ForceAimTarget(aimThrough);
+                        player->SetAimLocked(true);
+                    }
+
+                    // Logika Homing Deflection
+                    DirectX::XMFLOAT3 tPos = bPos;
+                    float speed = 0.0f;
+
+                    if (parryTarget) {
+                        parryBullet->SetHomingTarget(parryTarget);
+                        tPos = parryTarget->GetPosition();
+                        speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
+                        if (speed < 10.0f) speed = 30.0f;
+                    }
+                    else if (colMgr->GetNaviBoss()) {
+                        parryBullet->SetHomingTarget(nullptr);
+                        tPos = pPos;
+                        speed = 80.0f;
+                    }
+
+                    float dirX = tPos.x - bPos.x;
+                    float dirZ = tPos.z - bPos.z;
+                    float distDir = std::sqrt(dirX * dirX + dirZ * dirZ);
+
+                    DirectX::XMVECTOR vDir = DirectX::XMVectorSet(0, 0, 1, 0);
+                    if (distDir > 0.001f) {
+                        vDir = DirectX::XMVectorSet(dirX / distDir, 0.0f, dirZ / distDir, 0.0f);
+                    }
+
+                    XMFLOAT3 newVel;
+                    XMStoreFloat3(&newVel, vDir * speed);
+                    parryBullet->ApplyMovement(bPos, newVel);
+
+                    player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerParry>());
+                    return;
                 }
-                else if (colMgr->GetNaviBoss()) {
-                    parryBullet->SetHomingTarget(nullptr);
-                    tPos = pPos;
-                    speed = 80.0f;
-                }
-
-                float dirX = tPos.x - bPos.x;
-                float dirZ = tPos.z - bPos.z;
-                float distDir = std::sqrt(dirX * dirX + dirZ * dirZ);
-
-                DirectX::XMVECTOR vDir = DirectX::XMVectorSet(0, 0, 1, 0);
-                if (distDir > 0.001f) {
-                    vDir = DirectX::XMVectorSet(dirX / distDir, 0.0f, dirZ / distDir, 0.0f);
-                }
-
-                XMFLOAT3 newVel;
-                XMStoreFloat3(&newVel, vDir * speed);
-                parryBullet->ApplyMovement(bPos, newVel);
-
-                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerParry>());
-                return;
             }
-        }
 
-        // 4. Default: Shoot
-        if (!player->GetAnimator()->IsUpperPlaying())
-        {
-            player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerShoot>());
-            player->FireProjectile();
+            // 4. Default: Shoot
+            if (!player->GetAnimator()->IsUpperPlaying())
+            {
+                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerShoot>());
+                player->FireProjectile();
+            }
+            return;
         }
-        return;
     }
 
     // --- 3. Cek Transisi Kembali ke Idle ---

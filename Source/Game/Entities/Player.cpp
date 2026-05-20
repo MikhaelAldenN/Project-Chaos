@@ -190,11 +190,12 @@ void Player::HandleMovementInput(float dt)
     float targetX = 0.0f;
     float targetZ = 0.0f;
 
-    if (GetAsyncKeyState('W') & 0x8000) targetZ = 1.0f;
-    if (GetAsyncKeyState('S') & 0x8000) targetZ = -1.0f;
-    if (GetAsyncKeyState('A') & 0x8000) targetX = -1.0f;
-    if (GetAsyncKeyState('D') & 0x8000) targetX = 1.0f;
-
+    if (isInputEnabled) {
+        if (GetAsyncKeyState('W') & 0x8000) targetZ = 1.0f;
+        if (GetAsyncKeyState('S') & 0x8000) targetZ = -1.0f;
+        if (GetAsyncKeyState('A') & 0x8000) targetX = -1.0f;
+        if (GetAsyncKeyState('D') & 0x8000) targetX = 1.0f;
+    }
     if (invertControls) { targetX = -targetX; targetZ = -targetZ; }
 
     // Normalize diagonal input
@@ -465,6 +466,8 @@ void Player::RotateModelToPoint(const DirectX::XMFLOAT3& targetPos)
 
 void Player::FireProjectile()
 {
+    if (!isInputEnabled) return;
+
     DirectX::XMFLOAT3 myPos = movement->GetPosition();
 
     float dx = m_aimTarget.x - myPos.x;

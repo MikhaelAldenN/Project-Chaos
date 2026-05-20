@@ -47,6 +47,7 @@ public:
 
     // --- Input & camera ---
     void SetInputEnabled(bool enable) { isInputEnabled = enable; }
+    [[nodiscard]] bool IsInputEnabled() const { return isInputEnabled; } // [TAMBAHKAN BARIS INI]
     void SetCamera(Camera* cam) { activeCamera = cam; }
 
     // --- Position helpers ---

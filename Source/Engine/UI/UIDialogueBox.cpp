@@ -33,6 +33,7 @@ void UIDialogueBox::StartDialogue(const std::vector<std::string>& dialogues)
 void UIDialogueBox::AdvanceDialogue()
 {
     m_currentIndex++;
+    m_autoAdvanceTimer = 0.0f;
 
     // Jika indeks sudah melebihi jumlah dialog, sembunyikan
     if (m_currentIndex >= static_cast<int>(m_dialogues.size())) {
@@ -86,8 +87,18 @@ void UIDialogueBox::Update(float dt)
     }
     else if (m_state == State::WaitingForInput)
     {
-        if (isConfirmPressed) {
-            AdvanceDialogue();
+        if (m_autoAdvance) {
+            m_autoAdvanceTimer += dt;
+            // Lanjut jika timer habis ATAU player menekan tombol skip (opsional)
+            if (m_autoAdvanceTimer >= m_autoAdvanceDelay || isConfirmPressed) {
+                m_autoAdvanceTimer = 0.0f;
+                AdvanceDialogue();
+            }
+        }
+        else {
+            if (isConfirmPressed) {
+                AdvanceDialogue();
+            }
         }
     }
 }

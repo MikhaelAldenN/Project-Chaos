@@ -17,6 +17,11 @@
 
 using namespace DirectX;
 
+NaviPhaseNormal::NaviPhaseNormal(Player* target)
+    : m_aiTarget(target)
+{
+}
+
 // ============================================================
 // Enter - Called once when this phase becomes active.
 // ============================================================
@@ -67,15 +72,17 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
 
     // Matikan background dan atur posisi teks MELAYANG di dunia 3D (misal: di atas bos)
     m_dialogueBox->SetShowBackground(false);
-    m_dialogueBox->SetWorldPosition({ -3.0f, 4.0f, 3.0f }); // X, Y, Z (Sesuaikan kordinatnya)
+    m_dialogueBox->SetWorldPosition({ -3.0f, 0.0f, 0.0f }); // X, Y, Z (Sesuaikan kordinatnya)
 
+    m_dialogueBox->SetAutoAdvance(true, 1.5f);
     m_dialogueBox->StartDialogue({
-        u8"d1",
-        u8"d2",
-        u8"d3"
+        u8"やばっ！ウチのモデル消しちゃったんだけど～うけるwww", // "Yaba! Model gue kehapus dong~ wkwkwk"
+        u8"ちょい待ち～～",                                   // "Tunggu bentar~~"
+        u8"これ、どう？"                                      // "Kalo gini, gimana?"
         });
 
     m_isOpeningEvent = true;
+    m_aiEnabled = false;
 
     // --- MENGATUR POSISI BOS & PLAYER ---
     if (boss) {
@@ -86,13 +93,11 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
 
     // [NEW] Teleport Player menggunakan m_aiTarget
     if (m_aiTarget) {
-        DirectX::XMFLOAT3 startPos = { 0.0f, 0.0f, -10.0f }; // Sesuaikan posisi yang dimau
-
-        // PENTING: Gunakan fungsi PhysX jika game-mu pakai PhysX Controller
-        // m_aiTarget->GetController()->setPosition(physx::PxExtendedVec3(startPos.x, startPos.y, startPos.z));
-
-        // Atau gunakan fungsi Setter biasa milikmu:
+        DirectX::XMFLOAT3 startPos = { 0.0f, 0.0f, -10.0f };
         m_aiTarget->SetPosition(startPos);
+
+        // [TAMBAHKAN INI] Kunci input player
+        m_aiTarget->SetInputEnabled(false);
     }
 }
 
@@ -117,20 +122,17 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
             m_dialogueBox->Update(dt);
             int diagIdx = m_dialogueBox->GetCurrentDialogueIndex();
 
+            // Logika animasimu (diagIdx 0, 1, 2) biarkan utuh seperti aslinya
             if (diagIdx == 0) {
-                // Line 1: "I deleted the model lol" — window not spawned yet
                 boss->SetWindowTitle("mat_grass.png");
                 boss->SetGridGrowthLimit(1.0f);
                 boss->SetFaceSpriteVisible(false);
             }
             else if (diagIdx == 1) {
-                // Line 2: "Wait a sec..." — spawn boss window and animate grid in
                 if (!m_hasSpawnedWindow) {
                     boss->SpawnHeadWindow();
                     m_hasSpawnedWindow = true;
                 }
-
-                // Animate grid density from 1 → 8 over ~2 seconds
                 float currentLimit = boss->GetGridGrowthLimit();
                 if (currentLimit < 8.0f) {
                     currentLimit = min(currentLimit + dt * 3.5f, 8.0f);
@@ -139,16 +141,22 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                 boss->SetFaceSpriteVisible(false);
             }
             else if (diagIdx == 2) {
-                // Line 3: "Is this better?" — grid fully visible, face revealed
                 boss->SetGridGrowthLimit(8.0f);
                 boss->SetFaceSpriteVisible(true);
             }
-
-            return; // Block all gameplay logic during dialogue
+            return;
         }
         else {
-            // Dialogue finished — hand control to the AI director
+            // [MODIFIKASI DI SINI] Dialogue finished — hand control to the AI director
             m_isOpeningEvent = false;
+            m_aiEnabled = true; // Otomatis aktifkan AI
+
+            if (m_aiTarget) {
+                m_aiTarget->SetInputEnabled(true); // Bebaskan player
+            }
+
+            // Otomatis putar musik pertarungan
+            AudioManager::Instance().PlayMusic("Data/Sound/BGM_Boss_Phase_01.wav", 0.05f * m_params.bgmVolumeMultiplier, true);
         }
     }
 

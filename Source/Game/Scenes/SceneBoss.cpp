@@ -100,7 +100,7 @@ SceneBoss::SceneBoss()
 #if 0
     m_navi->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
 #else
-    m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>());
+    m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>(m_player.get())); 
 #endif
 
     if (m_collisionManager) {
