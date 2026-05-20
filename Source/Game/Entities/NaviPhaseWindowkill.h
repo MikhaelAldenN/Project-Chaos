@@ -7,6 +7,7 @@
 #include "Camera.h"
 #include "Bullet.h"
 #include "Primitive.h"
+#include "EffectManager.h" 
 
 class Sprite;
 
@@ -89,19 +90,17 @@ public:
         bool active = false;
         int state = 0;
         float timer = 0.0f;
-
-        // [NEW] Tambahkan baseX untuk mengingat titik asalnya sebelum digetarkan
         float baseX = 0.0f;
         DirectX::XMFLOAT3 pos = { 0.0f, 0.0f, 0.0f };
         DirectX::XMFLOAT3 targetPos = { 0.0f, 0.0f, 0.0f };
-
         float beamScaleX = 0.0f;
         std::string windowName;
         std::string beamWindowName;
         float beamCurrentLength = 0.0f;
-    };
 
-    OrbitalBlaster GetBlaster() const { return m_testBlaster; }
+        Effekseer::Handle chargeEffectHandle = -1;
+        Effekseer::Handle fireEffectHandle = -1; // [NEW] Handle untuk efek tembakan (LASER.efk)
+    };
 
     // ==========================================
     // PARAMETER ORBITAL BLASTER (REFINED)
@@ -119,15 +118,28 @@ public:
         float beamSlideSpeed = 10.0f;
         int   beamDamage = 20;
 
-        float chargeDelay = 1.0f;  // Waktu laser tipis (peringatan) sebelum menembak
+        float chargeDelay = 1.0f;
         float fireDuration = 0.8f;
 
+        int   spawnCount = 4;
+        float spawnDelay = 0.5f;
+        float spawnSpreadX = 40.0f;
+
         // ==========================================
-        // [NEW] PARAMETER POLA SERANGAN (PATTERN)
+        // [NEW] PARAMETER VFX & TIMING
         // ==========================================
-        int   spawnCount = 4;         // Jumlah meriam yang muncul
-        float spawnDelay = 0.5f;      // Jeda antar meriam (0 = bersamaan)
-        float spawnSpreadX = 40.0f;   // Jarak total dari ujung kiri ke kanan
+        float dropInDuration = 0.4f;    // Ganti magic number 0.4f
+        float retreatSpeed = 40.0f;     // Ganti magic number 40.0f
+        float windowFadeSpeed = 25.0f;  // Ganti magic number 25.0f
+
+        std::string chargeEffectPath = "Data/Effect/TEST.efk";
+        float chargeEffectScale = 1.0f;
+
+        std::string fireEffectPath = "Data/Effect/LASER.efk";
+        float fireEffectScale = 1.0f;
+
+        float effectPitchDegrees = 90.0f;
+        DirectX::XMFLOAT3 effectOffset = { 0.0f, 0.0f, 2.0f }; // Offset maju searah Z
     };
     BlasterParams& GetBlasterParams() { return m_blasterParams; }
     const std::vector<std::shared_ptr<OrbitalBlaster>>& GetBlasters() const { return m_blasters; }

@@ -177,6 +177,8 @@ private:
     bool    m_isBijuudamaRecovering = false;
     float   m_bijuudamaRecoveryTimer = 0.0f;
 
+    int m_chargeEffectHandle = -1;
+
     // ----- Glintstone Phalanx State -----
     // States: 0=Idle, 1=Charging, 2=Holding, 3=Firing, 4=PostFire, 5=Returning
     int   m_phalanxState = 0;

@@ -16,6 +16,8 @@
 #include "NaviPhaseWindowkill.h"
 #include "NaviPhaseNormal.h"
 #include "TimeManager.h"
+#include "EffectManager.h"
+
 
 using namespace DirectX;
 
@@ -67,8 +69,11 @@ SceneBoss::SceneBoss()
 
     // --- Primitive Renderers ---
     ID3D11Device* device = Graphics::Instance().GetDevice();
+    auto* context = Graphics::Instance().GetDeviceContext();
     m_primitive2D = std::make_unique<Primitive>(device);
     m_primitive3D = std::make_unique<PrimitiveRenderer>(device);
+
+    EffectManager::Instance().Initialize(device, context);
 
     m_stage = std::make_unique<Stage>(device); // Walau kosong, ini mencegah Null Pointer
 
@@ -352,6 +357,8 @@ void SceneBoss::Update(float elapsedTime)
     if (m_itemManager) m_itemManager->Update(scaledDt, activeCam);
     if (m_collisionManager) m_collisionManager->Update(scaledDt);
 
+    EffectManager::Instance().Update(scaledDt);
+
     // Terapkan posisi m_fixedPos dan Shakes
     //camCtrl.Update(scaledDt);
     
@@ -545,6 +552,9 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
     if (m_navi) m_navi->Render(dc, camera);
 
     modelRenderer->Render(rc);
+
+    EffectManager::Instance().Render(camera);
+
 }
 
 
@@ -631,6 +641,7 @@ void SceneBoss::DrawGUI()
                     WindowManager::Instance().EnforceWindowPriorities();
                 }
 
+
                 ImGui::Checkbox("[ImGui] Sync size to main window", &m_autoSyncMainWindow);
                 ImGui::Separator();
                 ImGui::Text("Active Windows: %zu", m_windowSystem->GetWindows().size());
@@ -671,6 +682,22 @@ void SceneBoss::DrawGUI()
         // ---------------------------------------------------------
         if (m_navi && ImGui::BeginTabItem("Phase & Visuals"))
         {
+            if (ImGui::Button("TEST VFX")) {
+            auto handle = EffectManager::Instance().Play(
+                "Data/Effect/LASER.efk",
+                { 0.0f, 0.0f, 0.0f },
+                1.0f
+            );
+
+            // 2. Putar 90 derajat di sumbu X (Pitch)
+            // Jika efeknya malah menghadap ke bawah (membelakangi kamera), 
+            // cukup ubah 90.0f menjadi -90.0f
+            float rotX = DirectX::XMConvertToRadians(90.0f);
+
+            // 3. Terapkan rotasi
+            EffectManager::Instance().SetRotation(handle, { rotX, 0.0f, 0.0f });
+             }
+
             if (ImGui::CollapsingHeader("Core Face Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
                 float speed = m_navi->GetCoreBreathSpeed();
                 float intensity = m_navi->GetCoreBreathIntensity();

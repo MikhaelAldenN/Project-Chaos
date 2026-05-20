@@ -1,4 +1,4 @@
-#include "NaviPhaseWindowkill.h"
+﻿#include "NaviPhaseWindowkill.h"
 #include "NaviBoss.h"
 #include "WindowTrackingSystem.h"
 #include "System/Graphics.h"
@@ -9,6 +9,7 @@
 #include "WindowManager.h" 
 #include <SDL3/SDL.h>
 #include <System/AudioManager.h>
+#include "EffectManager.h"
 
 using namespace DirectX;
 
@@ -19,6 +20,8 @@ NaviPhaseWindowkill::NaviPhaseWindowkill() {}
 // =========================================================
 void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     if (!boss || !boss->GetWindowSystem()) return;
+
+
 
     Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
     if (mainWindow && mainWindow->GetSDLWindow()) {
@@ -67,6 +70,9 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     boss->SetPosition({ 0.0f, 0.0f, 7.0f });
     boss->GetFaceParams().gridResolution = 16;
     boss->InitializeFaceGrid(Graphics::Instance().GetDevice());
+
+    EffectManager::Instance().PreloadEffect(m_blasterParams.chargeEffectPath);
+    EffectManager::Instance().PreloadEffect(m_blasterParams.fireEffectPath);
 }
 
 void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
@@ -89,6 +95,7 @@ void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
         // [FIX] BERSIHKAN JUGA WINDOW MERIAM JIKA SEDANG AKTIF!
         // =========================================================
     for (auto& b : m_blasters) {
+        EffectManager::Instance().Stop(b->chargeEffectHandle);
         if (boss && boss->GetWindowSystem()) {
             boss->GetWindowSystem()->RemoveTrackedWindow(b->beamWindowName);
             boss->GetWindowSystem()->RemoveTrackedWindow(b->windowName);
@@ -160,7 +167,7 @@ void NaviPhaseWindowkill::GenerateButterflyWings() {
 
 void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
     m_glitchTimer += dt;
-    
+
     // =========================================================
     // [NEW] GERAKAN MENGAMBANG (IDLE HOVER) BOS NAVI
     // =========================================================
@@ -588,71 +595,115 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
     for (auto it = m_blasters.begin(); it != m_blasters.end(); ) {
         auto& b = *it;
 
-        if (b->active) {
-            b->timer += dt;
-
-            if (b->state == 1) { // DROP IN
-                b->pos.z += (b->targetPos.z - b->pos.z) * 12.0f * dt;
-                if (b->timer >= 0.4f) {
-                    b->state = 2; b->timer = 0.0f;
-                    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Laser_Charge.wav", 0.1f);
-                }
-            }
-            else if (b->state == 2) { // CHARGE
-                // [FIX] Gunakan baseX agar getaran tidak membuat meriam bergeser (drift)
-                b->beamScaleX = 0.2f;
-                b->beamCurrentLength += (m_blasterParams.beamMaxLength - b->beamCurrentLength) * m_blasterParams.beamSlideSpeed * dt;
-
-                if (b->timer >= m_blasterParams.chargeDelay) {
-                    b->state = 3; b->timer = 0.0f;
-                    CameraController::Instance().AddTrauma(0.6f);
-                    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Laser_Shoot.wav", 0.2f);
-
-                }
-            }
-
-            else if (b->state == 3) { // FIRE
-                b->pos.x = b->baseX; // Kunci ke titik asli
-                b->beamScaleX += (m_blasterParams.beamVisualWidth - b->beamScaleX) * m_blasterParams.beamGrowSpeed * dt;
-                CameraController::Instance().AddTrauma(0.1f);
-
-                if (b->timer >= m_blasterParams.fireDuration) {
-                    b->state = 4; b->timer = 0.0f;
-                    // Jendela sengaja dibiarkan hidup untuk animasi mengecil
-                }
-            }
-            else if (b->state == 4) {
-                // 1. Animasi visual: Kecilkan lebar laser (Visual & Hitbox)
-                b->beamScaleX -= dt * 25.0f;
-                if (b->beamScaleX < 0.0f) b->beamScaleX = 0.0f;
-
-                // 2. [NEW] Animasi Window: Hapus window hanya jika laser sudah sangat tipis
-                if (b->beamScaleX <= 0.1f) {
-                    if (boss && boss->GetWindowSystem() && boss->GetWindowSystem()->GetTrackedWindow(b->beamWindowName)) {
-                        // Buang ke luar layar dulu agar tidak terlihat animasi "jatuh" bawaan Windows
-                        b->pos.z = -10000.0f;
-                        boss->GetWindowSystem()->RemoveTrackedWindow(b->beamWindowName);
-                    }
-                }
-
-                // 3. Meriam mundur terbang ke atas
-                b->pos.z += 40.0f * dt;
-
-                if (b->timer >= 0.3f) {
-                    b->active = false;
-                    if (boss && boss->GetWindowSystem()) {
-                        boss->GetWindowSystem()->RemoveTrackedWindow(b->windowName); // Hapus meriam
-                    }
-                }
-            }
-            ++it;
-        }
-        else {
-            // Jika sudah tidak aktif, hapus dari memori
+        if (!b->active) {
             it = m_blasters.erase(it);
+            continue;
         }
+
+        b->timer += dt;
+
+        // [PRO APPROACH] Hitung posisi efek satu kali saja untuk frame ini
+        DirectX::XMFLOAT3 vfxPos = {
+            b->pos.x + m_blasterParams.effectOffset.x,
+            b->pos.y + m_blasterParams.effectOffset.y,
+            b->pos.z + m_blasterParams.effectOffset.z
+        };
+
+        if (b->state == 1) { // DROP IN
+            b->pos.z += (b->targetPos.z - b->pos.z) * 12.0f * dt;
+
+            if (b->timer >= m_blasterParams.dropInDuration) {
+                b->state = 2;
+                b->timer = 0.0f;
+                AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Laser_Charge.wav", 0.1f);
+
+                // Play Charge Effect (TEST.efk)
+                b->chargeEffectHandle = EffectManager::Instance().Play(
+                    m_blasterParams.chargeEffectPath,
+                    vfxPos,
+                    m_blasterParams.chargeEffectScale
+                );
+
+                float rotX = DirectX::XMConvertToRadians(m_blasterParams.effectPitchDegrees);
+                EffectManager::Instance().SetRotation(b->chargeEffectHandle, { rotX, 0.0f, 0.0f });
+                EffectManager::Instance().SetTargetPosition(b->chargeEffectHandle, vfxPos);
+            }
+        }
+        else if (b->state == 2) { // CHARGE
+            b->beamScaleX = 0.2f;
+            b->beamCurrentLength += (m_blasterParams.beamMaxLength - b->beamCurrentLength) * m_blasterParams.beamSlideSpeed * dt;
+
+            // Tracking Charge Effect
+            EffectManager::Instance().SetPosition(b->chargeEffectHandle, vfxPos);
+            EffectManager::Instance().SetTargetPosition(b->chargeEffectHandle, vfxPos);
+
+            if (b->timer >= m_blasterParams.chargeDelay) {
+                b->state = 3;
+                b->timer = 0.0f;
+                CameraController::Instance().AddTrauma(0.6f);
+                AudioManager::Instance().PlaySFX("Data/Sound/LASER.wav", 0.2f);
+
+                // MATIKAN EFEK CHARGE!
+                EffectManager::Instance().Stop(b->chargeEffectHandle);
+
+                // MAIN KAN EFEK TEMBAKAN LASER (LASER.efk)
+                b->fireEffectHandle = EffectManager::Instance().Play(
+                    m_blasterParams.fireEffectPath,
+                    vfxPos,
+                    m_blasterParams.fireEffectScale
+                );
+
+                float rotX = DirectX::XMConvertToRadians(m_blasterParams.effectPitchDegrees);
+                EffectManager::Instance().SetRotation(b->fireEffectHandle, { rotX, 0.0f, 0.0f });
+                EffectManager::Instance().SetTargetPosition(b->fireEffectHandle, vfxPos);
+            }
+        }
+        else if (b->state == 3) { // FIRE
+            b->pos.x = b->baseX;
+            b->beamScaleX += (m_blasterParams.beamVisualWidth - b->beamScaleX) * m_blasterParams.beamGrowSpeed * dt;
+            CameraController::Instance().AddTrauma(0.1f);
+
+            // Tracking Fire Effect
+            EffectManager::Instance().SetPosition(b->fireEffectHandle, vfxPos);
+            EffectManager::Instance().SetTargetPosition(b->fireEffectHandle, vfxPos);
+
+            if (b->timer >= m_blasterParams.fireDuration) {
+                b->state = 4;
+                b->timer = 0.0f;
+
+                // MATIKAN EFEK TEMBAKAN LASER KARENA DURASI HABIS
+                EffectManager::Instance().Stop(b->fireEffectHandle);
+            }
+        }
+        else if (b->state == 4) { // POST FIRE / RETREAT
+            b->beamScaleX -= dt * m_blasterParams.windowFadeSpeed;
+            if (b->beamScaleX < 0.0f) b->beamScaleX = 0.0f;
+
+            if (b->beamScaleX <= 0.1f) {
+                if (boss && boss->GetWindowSystem() && boss->GetWindowSystem()->GetTrackedWindow(b->beamWindowName)) {
+                    b->pos.z = -10000.0f;
+                    boss->GetWindowSystem()->RemoveTrackedWindow(b->beamWindowName);
+                }
+            }
+
+            b->pos.z += m_blasterParams.retreatSpeed * dt;
+
+            if (b->timer >= 0.3f) {
+                b->active = false;
+
+                // Failsafe pembersihan memori jika state lompat atau error
+                EffectManager::Instance().Stop(b->chargeEffectHandle);
+                EffectManager::Instance().Stop(b->fireEffectHandle);
+
+                if (boss && boss->GetWindowSystem()) {
+                    boss->GetWindowSystem()->RemoveTrackedWindow(b->windowName);
+                }
+            }
+        }
+        ++it;
     }
 }
+
 
 
 void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {

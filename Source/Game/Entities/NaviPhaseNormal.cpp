@@ -13,6 +13,7 @@
 #include "CameraController.h"
 #include <SDL3/SDL.h>
 #include <random>
+#include "EffectManager.h"
 
 using namespace DirectX;
 

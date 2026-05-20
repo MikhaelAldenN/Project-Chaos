@@ -87,6 +87,14 @@ void EffectManager::PreloadEffect(const std::string& filePath)
     {
         m_effectCache[filePath] = effect; // Cache it permanently
     }
+    else
+    {
+        // ==========================================
+        // [DEBUG] TANGKAP ERROR LOAD FILE DI SINI!
+        // ==========================================
+        std::string errMsg = "[EFFEKSEER ERROR] Gagal meload file (Cek path, tekstur, atau versi Effekseer!): " + filePath + "\n";
+        OutputDebugStringA(errMsg.c_str());
+    }
 }
 
 Effekseer::Handle EffectManager::Play(const std::string& filePath, const XMFLOAT3& pos, float scale)
@@ -95,15 +103,37 @@ Effekseer::Handle EffectManager::Play(const std::string& filePath, const XMFLOAT
     PreloadEffect(filePath);
 
     auto it{ m_effectCache.find(filePath) };
-    if (it == m_effectCache.end()) return -1; // Fallback if file was missing/corrupt
+    if (it == m_effectCache.end()) {
+        // ==========================================
+        // [DEBUG] TANGKAP ERROR CACHE DI SINI!
+        // ==========================================
+        std::string errMsg = "[EFFEKSEER ERROR] File tidak ada di cache (Preload gagal sebelumnya): " + filePath + "\n";
+        OutputDebugStringA(errMsg.c_str());
+        return -1;
+    }
 
     // 2. Play the cached resource
     Effekseer::Handle handle{ m_manager->Play(it->second, pos.x, pos.y, pos.z) };
 
-    // 3. Apply initial scale
-    m_manager->SetScale(handle, scale, scale, scale);
+    if (handle == -1) {
+        // ==========================================
+        // [DEBUG] TANGKAP ERROR PLAY HANDLE DI SINI!
+        // ==========================================
+        OutputDebugStringA("[EFFEKSEER ERROR] Manager gagal memutar efek (Handle = -1)!\n");
+    }
+    else {
+        // 3. Apply initial scale only if successfully played
+        m_manager->SetScale(handle, scale, scale, scale);
+    }
 
     return handle;
+}
+
+void EffectManager::SetTargetPosition(Effekseer::Handle handle, const XMFLOAT3& pos)
+{
+    // Ini akan memberitahu Effekseer bahwa "Pusat Sedotan" (Target) efek ini 
+    // berada di koordinat pos, bukan di (0,0,0) dunia!
+    if (IsPlaying(handle)) m_manager->SetTargetLocation(handle, pos.x, pos.y, pos.z);
 }
 
 bool EffectManager::IsPlaying(Effekseer::Handle handle) const
