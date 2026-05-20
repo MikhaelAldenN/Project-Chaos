@@ -131,4 +131,9 @@ private:
 
     DirectX::XMFLOAT4 m_clearColor = { 0.0f, 0.0f, 0.0f, 1.0f }; // Default: Abu-abu Gelap (R, G, B, A)
 
+    private:
+        // --- Pengaturan Desain Keseimbangan Game (Tuning) ---
+        float m_overdriveBossHpTriggerPercent = 30.0f; // Default: Uncap aktif saat HP Boss di bawah 30%
+        bool  m_forceUncapOverride = false;            // Kontrol manual untuk memaksa mode Uncap
+        bool  m_lastUncapState = false;                // Menyimpan status state frame sebelumnya
 };

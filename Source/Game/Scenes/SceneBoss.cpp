@@ -383,7 +383,31 @@ void SceneBoss::Update(float elapsedTime)
     PerformanceLogger::Instance().StopTimer(PerfBucket::Logic);
     const int activeWins = m_windowSystem ? static_cast<int>(m_windowSystem->GetWindows().size()) : 0;
     PerformanceLogger::Instance().EndFrameCheck(ImGui::GetIO().Framerate, activeWins);
+
+    // --- LOGIKA OTOMATISASI OVERDRIVE PLAYER ---
+    if (m_player && m_navi)
+    {
+        bool shouldUncap = m_forceUncapOverride;
+
+        // Cek darah boss jika berada di Fase Normal
+        if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
+        {
+            float bossHpPercent = (static_cast<float>(normalPhase->GetHP()) / 1500.0f) * 100.0f;
+            if (bossHpPercent <= m_overdriveBossHpTriggerPercent)
+            {
+                shouldUncap = true;
+            }
+        }
+
+        // Picu pelepasan batas kekuatan jika kondisi terpenuhi
+        if (shouldUncap && !m_player->IsPowerUncapped())
+        {
+            m_player->ReleasePowerCap();
+        }
+    }
 }
+
+
 // =========================================================
 // RENDER
 // =========================================================
@@ -1087,7 +1111,14 @@ void SceneBoss::DrawGUI()
                 }
                 ImGui::PopID();
             }
-    }
+        }
+
+        if (m_player && ImGui::BeginTabItem("Player Config"))
+        {
+            m_player->DrawDebugGUI();
+            ImGui::EndTabItem();
+        }
+
         // ---------------------------------------------------------
         // TAB 4: TERMINAL
         // ---------------------------------------------------------

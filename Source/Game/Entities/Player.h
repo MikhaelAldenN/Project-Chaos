@@ -144,6 +144,7 @@ public:
     CapeSimulator* GetCapeSimulator() const { return m_capeSimulator.get(); }
 
     void ReleasePowerCap();
+    void RestorePowerCap();
     bool IsPowerUncapped() const { return m_isPowerUncapped; }
 
 private:
@@ -205,11 +206,14 @@ private:
 
     // --- Projectile pool ---
     std::shared_ptr<Model> m_playerbulletModel{};
-    DirectX::XMFLOAT3 m_playerbulletOffsetPos   { 0.000f, 0.460f, -0.950f };
-    DirectX::XMFLOAT3 m_playerbulletOffsetRot   { 0.000f, 0.000f, 0.000f };
-    DirectX::XMFLOAT3 m_playerbulletOffsetScale { 20.000f, 20.000f, 70.000f };
-    DirectX::XMFLOAT4 m_playerbulletColor       { 1.000f, 1.000f, 1.000f, 1.000f };
+    DirectX::XMFLOAT3 m_playerbulletOffsetPos{ 0.000f, 0.460f, -0.950f };
+    DirectX::XMFLOAT3 m_playerbulletOffsetRot{ 0.000f, 0.000f, 0.000f };
+    DirectX::XMFLOAT3 m_playerbulletOffsetScale{ 20.000f, 20.000f, 70.000f };
+    DirectX::XMFLOAT4 m_playerbulletColor{ 1.000f, 1.000f, 1.000f, 1.000f };
     std::deque<std::unique_ptr<Bullet>> m_projectiles;
+
+    // [BARU] Tambahkan ini agar kecepatan peluru bisa diatur via GUI
+    float m_bulletSpeed = PlayerConst::BulletSpeed;
 
     CollisionManager* m_collisionManager = nullptr;
 
@@ -220,4 +224,12 @@ private:
     DebugAnimState m_debugState{};
 
     bool m_isPowerUncapped = false;
+
+    float m_uncapMoveSpeed = 30.0f;
+    float m_uncapDashSpeed = 80.0f;
+    DirectX::XMFLOAT4 m_uncapColor = { 1.5f, 1.5f, 1.5f, 1.0f };
+
+    float m_normalMoveSpeed = PlayerConst::MoveSpeed;
+    float m_normalDashSpeed = PlayerConst::DashSpeed;
+    DirectX::XMFLOAT4 m_normalColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 };

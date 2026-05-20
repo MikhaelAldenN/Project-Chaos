@@ -493,7 +493,7 @@ void Player::FireProjectile()
         if (!bullet->IsActive())
         {
             // RECYCLE IT! 
-            bullet->Fire(spawnPos, fwd, PlayerConst::BulletSpeed);
+            bullet->Fire(spawnPos, fwd, m_bulletSpeed);
 
             // EARLY EXIT: We saved the CPU from allocating new memory!
             return;
@@ -616,22 +616,85 @@ void Player::ReleasePowerCap()
     if (m_isPowerUncapped) return;
     m_isPowerUncapped = true;
 
-    // META: Lepas batas kecepatan (Angka bisa disesuaikan selera)
-    moveSpeed = 30.0f; // Lari jauh lebih cepat
-    dashSpeed = 80.0f; // Dash jadi super kencang
+    // Simpan nilai saat ini sebelum ditimpa, agar bisa dikembalikan nanti
+    m_normalMoveSpeed = moveSpeed;
+    m_normalDashSpeed = dashSpeed;
+    m_normalColor = color;
 
-    // (Opsional) Beri sedikit efek visual warna agak terang
-    color = { 1.5f, 1.5f, 1.5f, 1.0f }; // Overdrive glow
+    // Terapkan atribut Overdrive
+    moveSpeed = m_uncapMoveSpeed;
+    dashSpeed = m_uncapDashSpeed;
+    color = m_uncapColor;
 }
+
+void Player::RestorePowerCap()
+{
+    if (!m_isPowerUncapped) return;
+    m_isPowerUncapped = false;
+
+    // Kembalikan atribut ke nilai normal
+    moveSpeed = m_normalMoveSpeed;
+    dashSpeed = m_normalDashSpeed;
+    color = m_normalColor;
+}
+
 
 void Player::DrawDebugGUI()
 {
-    if (ImGui::CollapsingHeader("Player Movement Config", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("Movement & Physics", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::Text("Status: %s", isInputEnabled ? "Input ON" : "Input OFF");
-        ImGui::DragFloat("Max Speed", &moveSpeed, 0.1f, 0.0f, 100.0f);
-        ImGui::DragFloat("Acceleration", &acceleration, 0.1f, 0.1f, 100.0f);
-        ImGui::DragFloat("Deceleration", &deceleration, 0.1f, 0.1f, 100.0f);
+        ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "Status: %s", isInputEnabled ? "Input ON" : "Input OFF");
         ImGui::Checkbox("Invert Controls", &invertControls);
+        ImGui::DragFloat("Walk Speed", &moveSpeed, 0.1f, 0.0f, 100.0f, "%.1f");
+        ImGui::DragFloat("Acceleration", &acceleration, 0.1f, 0.1f, 100.0f, "%.1f");
+        ImGui::DragFloat("Deceleration", &deceleration, 0.1f, 0.1f, 100.0f, "%.1f");
+    }
+
+    if (ImGui::CollapsingHeader("Dash Settings", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::DragFloat("Dash Speed", &dashSpeed, 0.5f, 10.0f, 200.0f, "%.1f");
+        ImGui::DragFloat("Dash Duration", &dashDuration, 0.01f, 0.01f, 1.0f, "%.2f sec");
+        ImGui::DragFloat("Dash Cooldown", &dashCooldown, 0.01f, 0.0f, 5.0f, "%.2f sec");
+    }
+
+    if (ImGui::CollapsingHeader("Combat & Projectiles", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "[ General Combat ]");
+        int hp = GetHP();
+        if (ImGui::InputInt("Player HP", &hp)) SetMaxHP(hp);
+
+        // --- Toggle Uncap (Overdrive) ---
+        bool powerUncapped = IsPowerUncapped();
+        if (ImGui::Checkbox("Uncap Power (Overdrive)", &powerUncapped)) {
+            if (powerUncapped) ReleasePowerCap();
+            else RestorePowerCap();
+        }
+
+        // --- Parameter Uncap Muncul Jika Aktif ---
+        if (powerUncapped) {
+            ImGui::Indent();
+            ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), ">> Uncap Tuning <<");
+
+            // Jika slider digeser saat Uncap aktif, langsung terapkan nilainya secara real-time
+            if (ImGui::DragFloat("Uncap Walk Speed", &m_uncapMoveSpeed, 0.1f, 10.0f, 100.0f, "%.1f")) moveSpeed = m_uncapMoveSpeed;
+            if (ImGui::DragFloat("Uncap Dash Speed", &m_uncapDashSpeed, 0.5f, 10.0f, 200.0f, "%.1f")) dashSpeed = m_uncapDashSpeed;
+            if (ImGui::ColorEdit4("Uncap Glow Color", (float*)&m_uncapColor)) color = m_uncapColor;
+
+            ImGui::Unindent();
+        }
+
+        ImGui::Separator();
+        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "[ Crossbow Bullet ]");
+        ImGui::DragFloat("Bullet Speed", &m_bulletSpeed, 0.5f, 1.0f, 150.0f, "%.1f");
+        ImGui::ColorEdit4("Bullet Tint Color", (float*)&m_playerbulletColor);
+
+        if (ImGui::TreeNode("Bullet Model Transform (Offset)"))
+        {
+            ImGui::DragFloat3("Position", (float*)&m_playerbulletOffsetPos, 0.01f);
+            ImGui::DragFloat3("Rotation", (float*)&m_playerbulletOffsetRot, 0.5f);
+            ImGui::DragFloat3("Scale", (float*)&m_playerbulletOffsetScale, 0.1f);
+            if (ImGui::Button("Reset Offsets", ImVec2(-1.0f, 25.0f))) ResetPlayerBulletOffsets();
+            ImGui::TreePop();
+        }
     }
 }
