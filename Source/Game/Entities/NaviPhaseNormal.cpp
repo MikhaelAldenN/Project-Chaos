@@ -152,6 +152,34 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
     }
 
     // --------------------------------------------------------
+    // [META MOMENT] LIMIT BREAKER (HP < 10%)
+    // --------------------------------------------------------
+    if (m_bossHP > 0 && m_bossHP <= (m_bossMaxHP * 0.10f))
+    {
+        if (m_aiTarget && !m_aiTarget->IsPowerUncapped())
+        {
+            // LEPAS BATASAN PLAYER!
+            m_aiTarget->ReleasePowerCap();
+
+            // Efek Screen Shake Ekstrem
+            CameraController::Instance().AddTrauma(1.0f);
+
+            // SFX Epik (Gunakan suara glitch/shatter yang kamu punya)
+            AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Hit.wav", 0.5f);
+
+            // Opsional: Gyaru Boss panik karena playernya nge-cheat/nge-hack!
+            if (m_dialogueBox) {
+                m_dialogueBox->SetWorldPosition({ -3.0f, 4.0f, 3.0f });
+                m_dialogueBox->StartDialogue({
+                    u8"えっ！？ちょっと待って！",         // "Eh!? Tunggu bentar!"
+                    u8"なんで急にチート使ってんの！？", // "Kok tiba-tiba pake cheat!?"
+                    u8"やばいやばいやばい！"           // "Gawat gawat gawat!"
+                    });
+            }
+        }
+    }
+
+    // --------------------------------------------------------
     // AI Director
     // --------------------------------------------------------
     UpdateAI(dt, boss);

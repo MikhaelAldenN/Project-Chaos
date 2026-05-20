@@ -142,6 +142,9 @@ public:
 	// --- Cape Simulator (optional, only used if player model has a cape) ---
     CapeSimulator* GetCapeSimulator() const { return m_capeSimulator.get(); }
 
+    void ReleasePowerCap();
+    bool IsPowerUncapped() const { return m_isPowerUncapped; }
+
 private:
     // --- Update pipeline (called in order from Update()) ---
     void UpdateDashCooldown(float dt);
@@ -214,4 +217,6 @@ private:
 
 	// --- Debug Animation ---
     DebugAnimState m_debugState{};
+
+    bool m_isPowerUncapped = false;
 };

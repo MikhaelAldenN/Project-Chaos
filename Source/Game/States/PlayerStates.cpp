@@ -27,14 +27,22 @@ void PlayerIdle::Enter(Player* player)
 
 void PlayerIdle::Update(Player* player, float dt)
 {
-    if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && player->canDash)
+    // --- 1. Cek Transisi Dash (Bypass Cooldown jika Uncapped!) ---
+    if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && (player->canDash || player->IsPowerUncapped()))
     {
         player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerDash>());
         return;
     }
 
+    // --- 2. Cek Logika Serangan ---
+    // Jika Uncapped -> IsPressed (Tahan tombol untuk Full-Auto)
+    // Jika Capped -> IsTriggered (Harus klik satu-satu / Semi-Auto)
+    bool isShootInput = player->IsPowerUncapped() ?
+        Input::Instance().GetKeyboard().IsPress(VK_SPACE) :
+        Input::Instance().GetKeyboard().IsTriggered(VK_SPACE);
+
     // --- Logika Attack Baru ---
-    if (Input::Instance().GetKeyboard().IsTriggered(VK_SPACE))
+    if (isShootInput)
     {
         CollisionManager* colMgr = player->GetCollisionManager();
         if (colMgr)
@@ -157,16 +165,23 @@ void PlayerMoving::Update(Player* player, float dt)
         player->GetAnimator()->SetPlaybackSpeed(1.0f);  // Play forward
     }
 
-    // --- 1. Cek Transisi Dash ---
-    if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && player->canDash)
+    // --- 1. Cek Transisi Dash (Bypass Cooldown jika Uncapped!) ---
+    if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && (player->canDash || player->IsPowerUncapped()))
     {
         player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerDash>());
         return;
     }
 
+    // --- 2. Cek Logika Serangan ---
+    // Jika Uncapped -> IsPressed (Tahan tombol untuk Full-Auto)
+    // Jika Capped -> IsTriggered (Harus klik satu-satu / Semi-Auto)
+    bool isShootInput = player->IsPowerUncapped() ?
+        Input::Instance().GetKeyboard().IsPress(VK_SPACE) :
+        Input::Instance().GetKeyboard().IsTriggered(VK_SPACE);
+
     // --- 2. Cek Logika Serangan (Identik dengan Idle) ---
     // --- Logika Attack Baru ---
-    if (Input::Instance().GetKeyboard().IsTriggered(VK_SPACE))
+    if (isShootInput)
     {
         CollisionManager* colMgr = player->GetCollisionManager();
         if (colMgr)
@@ -422,6 +437,8 @@ void PlayerShoot::Enter(Player* player)
     // 3. Mainkan suaranya lewat AudioManager
     // Kita gunakan volume 0.5f agar tidak terlalu memekakkan telinga
     AudioManager::Instance().PlaySFX(dashSounds[randomIndex], 0.1f);
+
+    timer = player->IsPowerUncapped() ? 0.05f : PlayerConst::ShootDuration;
 }
 
 void PlayerShoot::Update(Player* player, float dt)

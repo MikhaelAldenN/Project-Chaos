@@ -504,9 +504,10 @@ void Player::FireProjectile()
     m_projectiles.push_back(std::move(newBullet));
 
     // Prevent memory leaks. If the pool gets ridiculously large, pop the oldest.
-    if ((int)m_projectiles.size() > PlayerConst::MaxBullets)
-    {
-        m_projectiles.pop_front();
+    for (int i = 0; i < PlayerConst::MaxBullets; ++i) {
+        auto b = std::make_unique<Bullet>();
+        b->SetActive(false);
+        m_projectiles.push_back(std::move(b));
     }
 }
 
@@ -605,6 +606,19 @@ void Player::SetPosition(const DirectX::XMFLOAT3& pos)
             pos.z
         ));
     }
+}
+
+void Player::ReleasePowerCap()
+{
+    if (m_isPowerUncapped) return;
+    m_isPowerUncapped = true;
+
+    // META: Lepas batas kecepatan (Angka bisa disesuaikan selera)
+    moveSpeed = 30.0f; // Lari jauh lebih cepat
+    dashSpeed = 80.0f; // Dash jadi super kencang
+
+    // (Opsional) Beri sedikit efek visual warna agak terang
+    color = { 1.5f, 1.5f, 1.5f, 1.0f }; // Overdrive glow
 }
 
 void Player::DrawDebugGUI()
