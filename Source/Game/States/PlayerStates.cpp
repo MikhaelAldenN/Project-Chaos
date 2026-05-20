@@ -307,7 +307,7 @@ void PlayerDash::Enter(Player* player)
     dashDir = player->GetLastValidInput();
 
     player->canDash = false;
-    player->dashCooldownTimer = PlayerConst::DashCooldown;
+    player->dashCooldownTimer = player->GetDashCooldown();
     player->TriggerInvincibility(DASH_IFRAME_DURATION);
 
     std::string dashSounds[] = {

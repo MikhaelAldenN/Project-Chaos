@@ -116,6 +116,7 @@ public:
     float GetBaseSpeed()    const { return baseSpeed; }
     float GetDashSpeed()    const { return dashSpeed; }
     float GetDashDuration() const { return dashDuration; }
+    float GetDashCooldown() const { return dashCooldown; } // [BARU] Tambahkan baris ini!
     DirectX::XMFLOAT2 GetLastValidInput() const { return lastValidInput; }
 
 

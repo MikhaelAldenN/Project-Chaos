@@ -230,7 +230,7 @@ void CollisionManager::Update(float elapsedTime)
                     {
                         // BOOM! Kena kaca window!
                         bullet->SetActive(false); // Hancurkan peluru player
-                        normalPhase->TakeDamage(10, bPos); // Asumsi 1 peluru = 10 Damage
+                        normalPhase->TakeDamage(bullet->GetDamage(), bPos);
 
                         // Opsional: Mainkan suara kaca retak / benturan peluru di sini
                         // AudioManager::Instance().PlaySFX("Hit.wav");
