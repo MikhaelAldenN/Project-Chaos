@@ -107,6 +107,11 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
 
 void NaviPhaseNormal::Exit(NaviBoss* boss) {
     m_bulletPool.clear();
+
+    if (m_bossGlitchVfxHandle != -1) {
+        EffectManager::Instance().Stop(m_bossGlitchVfxHandle);
+        m_bossGlitchVfxHandle = -1;
+    }
 }
 
 // ============================================================
@@ -157,6 +162,44 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
 
             // Otomatis putar musik pertarungan
             AudioManager::Instance().PlayMusic("Data/Sound/BGM_Boss_Phase_01.wav", 0.05f * m_params.bgmVolumeMultiplier, true);
+        
+            //m_bossGlitchVfxHandle = EffectManager::Instance().Play("Data/Effect/VFX_Boss_Glitch.efk", boss->GetPosition(), 3.0f);
+        }
+    }
+    else {
+        // --------------------------------------------------------
+        // [BARU] VFX Glitch Looping & Tracking (Tiap 2 Detik)
+        // --------------------------------------------------------
+        m_bossGlitchVfxTimer += dt;
+
+        if (m_bossGlitchVfxTimer >= 2.0f) {
+            m_bossGlitchVfxTimer -= 2.0f; // Kurangi 2 detik untuk reset presisi
+
+            // Matikan paksa efek lama jika kebetulan masih berjalan
+            if (m_bossGlitchVfxHandle != -1 && EffectManager::Instance().IsPlaying(m_bossGlitchVfxHandle)) {
+                EffectManager::Instance().Stop(m_bossGlitchVfxHandle);
+            }
+
+            // [FIX 1] Naikkan posisi Y sebesar 0.05f agar melayang DI ATAS wajah bos
+            DirectX::XMFLOAT3 spawnPos = boss->GetPosition();
+            spawnPos.y += 0.05f;
+
+            // [FIX 2] Samakan scale menjadi 3.0f seperti yang kamu inginkan
+            m_bossGlitchVfxHandle = EffectManager::Instance().Play("Data/Effect/VFX_Boss_Glitch.efk", spawnPos, 0.6f);
+
+            // [FIX 3] Terapkan rotasi 90 derajat (Pitch) yang kamu temukan di TEST VFX
+            if (m_bossGlitchVfxHandle != -1) {
+                float rotX = DirectX::XMConvertToRadians(90.0f);
+                EffectManager::Instance().SetRotation(m_bossGlitchVfxHandle, { rotX, 0.0f, 0.0f });
+            }
+        }
+
+        // Terus perbarui koordinatnya setiap frame agar menempel pada Bos
+        if (m_bossGlitchVfxHandle != -1 && EffectManager::Instance().IsPlaying(m_bossGlitchVfxHandle)) {
+            // PENTING: Offset Y juga harus terus dipertahankan saat objek bergerak!
+            DirectX::XMFLOAT3 trackPos = boss->GetPosition();
+            trackPos.y += 0.05f;
+            EffectManager::Instance().SetPosition(m_bossGlitchVfxHandle, trackPos);
         }
     }
 
@@ -819,7 +862,7 @@ void NaviPhaseNormal::TriggerRainAttack(bool isSideMode, bool isPositiveSide, fl
     }
 }
 
-void NaviPhaseNormal::TakeDamage(int damage) {
+void NaviPhaseNormal::TakeDamage(int damage, DirectX::XMFLOAT3 hitPos) {
     if (m_bossHP <= 0) return;
     m_bossHP = max(0, m_bossHP - damage);
     m_hitFlashTimer = 0.05f;
@@ -827,6 +870,9 @@ void NaviPhaseNormal::TakeDamage(int damage) {
     // Micro-shake on hit feedback
     CameraController::Instance().AddTrauma(0.3f);
     AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Hit.wav", 0.1f * m_params.sfxVolumeMultiplier);
+
+    // [BARU] Putar VFX tepat di titik tabrakan peluru dengan bos
+    EffectManager::Instance().Play("Data/Effect/VFX_Boss_Hit.efk", hitPos, 0.3f);
 }
 
 void NaviPhaseNormal::ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* boss) {

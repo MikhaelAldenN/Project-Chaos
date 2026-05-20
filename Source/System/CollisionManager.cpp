@@ -4,6 +4,7 @@
 #include "TimeManager.h"
 #include <CameraController.h>
 #include "NaviPhaseWindowkill.h"
+#include "EffectManager.h"
 
 using namespace DirectX;
 
@@ -229,7 +230,7 @@ void CollisionManager::Update(float elapsedTime)
                     {
                         // BOOM! Kena kaca window!
                         bullet->SetActive(false); // Hancurkan peluru player
-                        normalPhase->TakeDamage(10); // Asumsi 1 peluru = 10 Damage
+                        normalPhase->TakeDamage(10, bPos); // Asumsi 1 peluru = 10 Damage
 
                         // Opsional: Mainkan suara kaca retak / benturan peluru di sini
                         // AudioManager::Instance().PlaySFX("Hit.wav");
@@ -1001,7 +1002,23 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
                 }
 
                 bullet->SetActive(false);
-                AudioManager::Instance().PlaySFX("Data/Sound/SE_Parry.wav", 0.8);
+                AudioManager::Instance().PlaySFX("Data/Sound/SE_Parry.wav", 0.8f);
+
+                // =========================================================
+                // [BARU] MAIN KAN VFX PARRY DI POSISI PLAYER
+                // =========================================================
+                DirectX::XMFLOAT3 vfxPos = m_player->GetMovement()->GetPosition();
+
+                // Opsional: Naikkan sedikit Y agar efek tidak tenggelam di lantai
+                vfxPos.y += 0.5f;
+
+                int parryVfxHandle = EffectManager::Instance().Play("Data/Effect/VFX_Player_Bijuudama_Parry.efk", vfxPos, 1.0f);
+
+                // Rotasi 90 derajat agar efek menghadap sempurna ke kamera Top-Down
+                if (parryVfxHandle != -1) {
+                    float rotX = DirectX::XMConvertToRadians(90.0f);
+                    EffectManager::Instance().SetRotation(parryVfxHandle, { rotX, 0.0f, 0.0f });
+                }
             }
             continue;
         }
@@ -1131,7 +1148,7 @@ void CollisionManager::CheckNaviBossProjectilesVsBoss(float elapsedTime)
                 // Panggil TakeDamage langsung ke Fase-nya agar sinkron 
                 // dengan UI Bar, Efek Suara, dan Flash Damage!
                 // =========================================================
-                normalPhase->TakeDamage(15);
+                normalPhase->TakeDamage(15, bPos);
 
                 // 3. [JUICE] Berikan micro-shake untuk SETIAP kepingan yang menabrak
                 CameraController::Instance().AddTrauma(0.15f);

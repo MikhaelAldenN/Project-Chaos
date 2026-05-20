@@ -131,7 +131,7 @@ public:
     float GetLaserTimer()  const { return m_laserTimer; }
 
     // ----- Boss HP -----
-    void TakeDamage(int damage);
+    void TakeDamage(int damage, DirectX::XMFLOAT3 hitPos); // [UBAH INI] Tambahkan parameter hitPos
     int  GetHP()    const { return m_bossHP; }
     int  GetMaxHP() const { return m_bossMaxHP; }
     bool IsDead()   const { return m_bossHP <= 0; }
@@ -178,6 +178,8 @@ private:
     float   m_bijuudamaRecoveryTimer = 0.0f;
 
     int m_chargeEffectHandle = -1;
+    int m_bossGlitchVfxHandle = -1;
+    float m_bossGlitchVfxTimer = 2.0f;
 
     // ----- Glintstone Phalanx State -----
     // States: 0=Idle, 1=Charging, 2=Holding, 3=Firing, 4=PostFire, 5=Returning
