@@ -112,6 +112,12 @@ void NaviPhaseNormal::Exit(NaviBoss* boss) {
         EffectManager::Instance().Stop(m_bossGlitchVfxHandle);
         m_bossGlitchVfxHandle = -1;
     }
+
+    // [BARU] Keamanan memori tambahan
+    if (m_chargeEffectHandle != -1) {
+        EffectManager::Instance().Stop(m_chargeEffectHandle);
+        m_chargeEffectHandle = -1;
+    }
 }
 
 // ============================================================
@@ -521,6 +527,10 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
             // Play charge audio once when reaching position
             if (m_laserTimer == 0.0f)
                 AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Bijuudama_Charge.wav", 0.1f * m_params.sfxVolumeMultiplier);
+            if (m_chargeEffectHandle == -1) {
+                DirectX::XMFLOAT3 spawnPos = m_bijuudamaBall ? m_bijuudamaBall->GetMovement()->GetPosition() : bPos;
+                m_chargeEffectHandle = EffectManager::Instance().Play("Data/Effect/VFX_Boss_Bijuudama_Charge.efk", spawnPos, 1.0f);
+            }
 
             // Trigger dual rain pillars for the charge phase
             TriggerRainAttack(true, false, 1.0f, true);
@@ -530,6 +540,31 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
 
             m_laserTimer += dt;
             DirectX::XMFLOAT3 pPos = m_laserTargetPlayer->GetPosition();
+
+            // Grow the ball while stationary
+            if (m_bijuudamaBall && m_bijuudamaBall->IsActive()) {
+                DirectX::XMFLOAT3 vel = m_bijuudamaBall->GetVelocity();
+                if ((vel.x * vel.x + vel.z * vel.z) < 0.01f) {
+                    DirectX::XMFLOAT3 offsetPos = bPos;
+                    offsetPos.z -= m_params.bijuudamaSpawnOffsetZ;
+                    m_bijuudamaBall->GetMovement()->SetPosition(offsetPos);
+
+                    float progress = min(1.0f, m_laserTimer / m_params.laserDuration);
+                    float currentHitbox = m_params.bijuudamaBaseHitbox + (m_params.bijuudamaMaxHitboxGrow * progress);
+                    m_bijuudamaBall->SetRadius(currentHitbox);
+
+                    float visualScale = currentHitbox * m_params.bijuudamaVisualMultiplier;
+                    m_bijuudamaBall->scale = { visualScale, visualScale, visualScale };
+
+                    // [BARU] Sync posisi dan scale VFX agar membesar mengikuti bola!
+                    if (m_chargeEffectHandle != -1 && EffectManager::Instance().IsPlaying(m_chargeEffectHandle)) {
+                        EffectManager::Instance().SetPosition(m_chargeEffectHandle, offsetPos);
+                        // Skalanya diperkecil sedikit dari visualScale bola agar pas di tengah
+                        float vfxScale = visualScale * 0.5f;
+                        EffectManager::Instance().SetScale(m_chargeEffectHandle, { vfxScale, vfxScale, vfxScale });
+                    }
+                }
+            }
 
             // Grow the ball while stationary
             if (m_bijuudamaBall && m_bijuudamaBall->IsActive()) {
@@ -561,6 +596,12 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
 
             // Resolve: charge timer expired — fire the ball
             if (m_laserTimer >= m_params.laserDuration) {
+                
+                if (m_chargeEffectHandle != -1) {
+                    EffectManager::Instance().Stop(m_chargeEffectHandle);
+                    m_chargeEffectHandle = -1;
+                }
+
                 m_isLaserLocked = false;
                 m_isBijuudamaRecovering = true;
                 m_bijuudamaRecoveryTimer = 0.0f;
@@ -577,6 +618,7 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                             DirectX::XMFLOAT3 ballPos = m_bijuudamaBall->GetMovement()->GetPosition();
                             m_bijuudamaBall->ApplyMovement(ballPos, shootVel);
                             AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Bijuudama_Shoot.wav", 0.2f * m_params.sfxVolumeMultiplier);
+                        
                         }
                     }
                 }

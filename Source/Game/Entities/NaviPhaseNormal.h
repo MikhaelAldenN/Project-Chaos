@@ -5,6 +5,7 @@
 #include "UIDialogueBox.h"
 #include <vector>
 #include <memory>
+#include "EffectManager.h"
 
 class Player;
 
@@ -106,6 +107,11 @@ public:
 
     // Cancel an in-progress bijuudama (e.g. on phase transition)
     void CancelBijuudama() {
+        if (m_chargeEffectHandle != -1) {
+            EffectManager::Instance().Stop(m_chargeEffectHandle);
+            m_chargeEffectHandle = -1;
+        }
+        
         m_isLaserLocked = false;
         m_bijuudamaBall = nullptr;
         m_laserTimer = 0.0f;
