@@ -14,14 +14,13 @@ class Player;
 //                   Tweak here without touching gameplay code.
 // ============================================================
 struct NaviBulletParams {
-
     // ----- General -----
     float screenDespawnPadding = 5.0f;
     float sfxVolumeMultiplier = 1.0f;
     float bgmVolumeMultiplier = 1.0f;
 
     // ----- Radial Burst -----
-    float speed = 20.0f;
+    float radialSpeed = 20.0f; // [変更] speed から radialSpeed に名前変更
     int   count = 24;
     float fireRate = 1.5f;
     float burstDelay = 0.156f;
@@ -29,6 +28,7 @@ struct NaviBulletParams {
     float despawnDist = 60.0f;
 
     // ----- Targeted Fan Burst (Shotgun) -----
+    float fanSpeed = 25.0f;    // [追加] Fan Burst 専用の弾速
     int   fanLines = 4;
     int   fanWaves = 4;
     float fanWaveDelay = 0.176f;
@@ -75,8 +75,10 @@ struct NaviBulletParams {
     float phalanxReturnMoveSpeed = 2.0f;
 
     // ----- Asgore Rain (Area Denial) -----
-    float rainWarningDuration = 1.5f; // How long the danger marker is shown
-    float rainActiveDuration = 2.0f; // How long the rain lasts
+    float rainMinSpeed = 50.0f; // [追加] 雨の最小落下速度
+    float rainMaxSpeed = 90.0f; // [追加] 雨の最大落下速度
+    float rainWarningDuration = 1.5f;
+    float rainActiveDuration = 2.0f;
     float rainWidth = 25.0f;
     float rainDepth = 40.0f;
     int   rainDamage = 1;
@@ -137,7 +139,8 @@ public:
     float GetLaserTimer()  const { return m_laserTimer; }
 
     // ----- Boss HP -----
-    void TakeDamage(int damage, DirectX::XMFLOAT3 hitPos); // [UBAH INI] Tambahkan parameter hitPos
+    void TakeDamage(int damage, DirectX::XMFLOAT3 hitPos);
+    void SetHP(int hp) { m_bossHP = hp; } // <--- [追加] これでエラーが直ります！
     int  GetHP()    const { return m_bossHP; }
     int  GetMaxHP() const { return m_bossMaxHP; }
     bool IsDead()   const { return m_bossHP <= 0; }

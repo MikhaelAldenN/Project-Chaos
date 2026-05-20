@@ -568,15 +568,15 @@ void Player::RenderWeapon(ModelRenderer* renderer)
 // ============================================================
 void Player::TakeDamage(int damage)
 {
-    // [FIX MUTLAK] EARLY EXIT: Tolak damage jika darah habis atau sedang I-Frame!
     if (m_hp <= 0 || IsInvincible()) return;
 
     m_hp -= damage;
 
-    // [BARU] Berikan Invincibility Time selama 1.0 detik!
-    TriggerInvincibility(1.0f);
+    // [修正] トグルがONの時だけ無敵時間（指定秒数）を付与する
+    if (m_enableIFrames) {
+        TriggerInvincibility(m_iFrameDuration);
+    }
 
-    // Clamp to exactly zero to prevent negative UI bugs
     if (m_hp <= 0)
     {
         m_hp = 0;
@@ -662,6 +662,15 @@ void Player::DrawDebugGUI()
         ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "[ General Combat ]");
         int hp = GetHP();
         if (ImGui::InputInt("Player HP", &hp)) SetMaxHP(hp);
+
+        // --- 無敵時間 (I-Frames) のコントロール ---
+        ImGui::Checkbox("Enable I-Frames (Invincibility on hit)", &m_enableIFrames);
+        if (m_enableIFrames) {
+            ImGui::Indent();
+            ImGui::DragFloat("I-Frame Duration", &m_iFrameDuration, 0.1f, 0.1f, 5.0f, "%.1f sec");
+            ImGui::Unindent();
+        }
+        ImGui::Separator();
 
         // --- Toggle Uncap (Overdrive) ---
         bool powerUncapped = IsPowerUncapped();

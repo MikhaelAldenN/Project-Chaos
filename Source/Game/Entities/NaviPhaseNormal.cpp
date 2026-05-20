@@ -743,7 +743,7 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
         // Active / dissipating: procedural bullet rain (deterministic via fixed seed)
         if (m_rainState == 2 || m_rainState == 3) {
             std::mt19937 gen(1337);
-            std::uniform_real_distribution<float> distSpeed(50.0f, 90.0f);
+            std::uniform_real_distribution<float> distSpeed(m_params.rainMinSpeed, m_params.rainMaxSpeed);
             std::uniform_real_distribution<float> distSpawn(0.0f, m_params.rainActiveDuration);
 
             float currentGlobalTime = (m_rainState == 2)
@@ -1040,7 +1040,7 @@ void NaviPhaseNormal::FireRadialBurst(NaviBoss* boss, float angleOffset) {
             bullet->SetTurnSpeed(8.0f);
 
             float angle = (firedCount * angleStep) + angleOffset;
-            bullet->Fire(boss->GetPosition(), { sinf(angle), 0.0f, cosf(angle) }, m_params.speed);
+            bullet->Fire(boss->GetPosition(), { sinf(angle), 0.0f, cosf(angle) }, m_params.radialSpeed);
             if (++firedCount >= m_params.count) break;
         }
     }
@@ -1065,7 +1065,7 @@ void NaviPhaseNormal::FireFanWave(NaviBoss* boss) {
             bullet->SetTurnSpeed(8.0f);
 
             float angle = startAngle + (firedCount * spread);
-            bullet->Fire(boss->GetPosition(), { sinf(angle), 0.0f, cosf(angle) }, m_params.speed);
+            bullet->Fire(boss->GetPosition(), { sinf(angle), 0.0f, cosf(angle) }, m_params.fanSpeed);
             if (++firedCount >= lines) break;
         }
     }
