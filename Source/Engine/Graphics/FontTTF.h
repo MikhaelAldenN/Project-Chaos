@@ -7,6 +7,8 @@
 #include <wrl.h>
 #include <DirectXMath.h>
 
+class Camera;
+
 class FontTTF
 {
 public:
@@ -23,6 +25,7 @@ public:
     // customCodepoints opsional jika di masa depan ingin mendaftarkan Kanji spesifik secara kustom
     bool Initialize(const std::string& ttfPath, float fontSize, const std::vector<uint32_t>& customCodepoints = {});
     void Draw(const std::string& utf8Text, float startX, float startY, float scale, DirectX::XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
+    void Draw3D(const std::string& utf8Text, const Camera* camera, DirectX::XMFLOAT3 worldPos, float scale, DirectX::XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
 
 private:
     std::vector<uint32_t> GenerateDefaultGlyphList(const std::vector<uint32_t>& customKanji);

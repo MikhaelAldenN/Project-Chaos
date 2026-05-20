@@ -94,7 +94,8 @@ void UIDialogueBox::Update(float dt)
 
 void UIDialogueBox::Render(ID3D11DeviceContext* dc)
 {
-    if (m_state == State::Hidden || !m_panelSprite || !m_font) return;
+    // [UBAH] Jangan return jika !m_panelSprite, karena kita mungkin hanya butuh font-nya saja
+    if (m_state == State::Hidden || !m_font) return;
 
     // Set Blending untuk 2D UI agar transparan
     auto rs = Graphics::Instance().GetRenderState();
@@ -107,22 +108,35 @@ void UIDialogueBox::Render(ID3D11DeviceContext* dc)
 
     float panelW = 847.0f; // Bisa disesuaikan dengan ukuran desain UI-mu
     float panelH = 198.0f;
-    float panelX = (screenW - panelW) * 0.5f;
-    float panelY = screenH - panelH - 60.0f; // Jarak 60 pixel dari bawah layar
+    float panelX = m_useCustomPos ? m_posX : (screenW - panelW) * 0.5f;
+    float panelY = m_useCustomPos ? m_posY : (screenH - panelH - 60.0f);
 
-    // Render Panel Background
-    m_panelSprite->Render(dc,
-        panelX, panelY, 0.0f,     // dx, dy, dz
-        panelW, panelH,           // dw, dh
-        0.0f,                     // angle
-        1.0f, 1.0f, 1.0f, 1.0f    // r, g, b, a
-    );
+    // [UBAH] Render Panel Background hanya jika flag disetel ke true
+    if (m_showBackground && m_panelSprite) {
+        m_panelSprite->Render(dc,
+            panelX, panelY, 0.0f,     // dx, dy, dz
+            panelW, panelH,           // dw, dh
+            0.0f,                     // angle
+            1.0f, 1.0f, 1.0f, 1.0f    // r, g, b, a
+        );
+    }
 
-    // Render Teks (Offset sedikit dari pojok panel)
+    // Render Teks (Offset sedikit dari pojok panel maya)
     float textMarginX = 40.0f;
     float textMarginY = 40.0f;
-    float textScale = 1.0f;
 
     m_font->Draw(m_displayedText, panelX + textMarginX, panelY + textMarginY, 1.0f, { 1.0f, 1.0f, 1.0f, 1.0f });
+}
 
+void UIDialogueBox::Render3D(ID3D11DeviceContext* dc, Camera* camera)
+{
+    if (m_state == State::Hidden || !m_font || !camera) return;
+
+    auto rs = Graphics::Instance().GetRenderState();
+    dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+    dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestOnly), 0);
+
+    // Render Teks di dunia 3D. 
+    // Perhatikan scale-nya! Di 3D kita pakai nilai kecil (cth: 0.05f) karena ini satuan meter, bukan piksel.
+    m_font->Draw3D(m_displayedText, camera, m_worldPos, 0.05f, { 1.0f, 1.0f, 1.0f, 1.0f });
 }

@@ -58,25 +58,40 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
         m_bulletPool.push_back(std::move(b));
     }
 
-    // --- Primitives & UI ---
     m_zonePrimitive = std::make_unique<Primitive>(Graphics::Instance().GetDevice());
 
+    // --- Primitives & UI ---
     m_dialogueBox = std::make_unique<UIDialogueBox>();
     m_dialogueBox->Initialize();
 
-    // Opening dialogue lines (Japanese; intentional)
+    // Matikan background dan atur posisi teks MELAYANG di dunia 3D (misal: di atas bos)
+    m_dialogueBox->SetShowBackground(false);
+    m_dialogueBox->SetWorldPosition({ -3.0f, 4.0f, 3.0f }); // X, Y, Z (Sesuaikan kordinatnya)
+
     m_dialogueBox->StartDialogue({
-        "やばっ！ウチのモデル消しちゃったんだけど〜ウケるwww",
-        "ちょい待ち〜〜",
-        "てか、これでどう！？盛れてる？"
+        u8"d1",
+        u8"d2",
+        u8"d3"
         });
 
     m_isOpeningEvent = true;
 
-    // Start face grid hidden with minimal density
+    // --- MENGATUR POSISI BOS & PLAYER ---
     if (boss) {
         boss->SetGridGrowthLimit(1.0f);
         boss->SetFaceSpriteVisible(false);
+        boss->SetPosition({ 0.0f, 0.0f, 3.0f }); // Posisi awal Boss
+    }
+
+    // [NEW] Teleport Player menggunakan m_aiTarget
+    if (m_aiTarget) {
+        DirectX::XMFLOAT3 startPos = { 0.0f, 0.0f, -10.0f }; // Sesuaikan posisi yang dimau
+
+        // PENTING: Gunakan fungsi PhysX jika game-mu pakai PhysX Controller
+        // m_aiTarget->GetController()->setPosition(physx::PxExtendedVec3(startPos.x, startPos.y, startPos.z));
+
+        // Atau gunakan fungsi Setter biasa milikmu:
+        m_aiTarget->SetPosition(startPos);
     }
 }
 
@@ -659,8 +674,10 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
     }
 
     // --- UI (rendered last, on top of everything) ---
-    if (m_dialogueBox && m_dialogueBox->IsActive())
-        m_dialogueBox->Render(context);
+    if (m_dialogueBox && m_dialogueBox->IsActive()) {
+        // [FIX] Gunakan Render3D dan passing Camera agar bisa dikalkulasi perspektifnya
+        m_dialogueBox->Render3D(context, currentCamera);
+    }
 }
 
 // ============================================================

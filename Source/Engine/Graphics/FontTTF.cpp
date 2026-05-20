@@ -252,3 +252,86 @@ void FontTTF::Draw(const std::string& utf8Text, float startX, float startY, floa
 
     dc->Draw(static_cast<UINT>(vertices.size()), 0);
 }
+
+void FontTTF::Draw3D(const std::string& utf8Text, const Camera* camera, DirectX::XMFLOAT3 worldPos, float scale, DirectX::XMFLOAT4 color)
+{
+    if (utf8Text.empty() || !m_textureSRV || !camera) return;
+
+    std::vector<FontVertex> vertices;
+    float cursorX = 0.0f;
+    float cursorY = 0.0f;
+
+    using namespace DirectX;
+    // Kalkulasi Matriks Proyeksi Kamera
+    XMMATRIX matVP = XMLoadFloat4x4(&camera->GetView()) * XMLoadFloat4x4(&camera->GetProjection());
+
+    size_t charIdx = 0;
+    while (charIdx < utf8Text.size()) {
+        uint32_t codepoint = DecodeUTF8(utf8Text, charIdx);
+        if (codepoint == '\n') {
+            cursorX = 0.0f;
+            cursorY -= m_lineHeight * scale; // Di 3D, Y ke bawah itu negatif
+            continue;
+        }
+
+        if (m_glyphDatabase.find(codepoint) == m_glyphDatabase.end()) continue;
+        const auto& glyph = m_glyphDatabase[codepoint];
+
+        // 1. Koordinat Lokal Huruf (Pivot di awal teks)
+        float x0 = cursorX + (glyph.xOffset * scale);
+        float y0 = cursorY - (glyph.yOffset * scale);
+        float x1 = x0 + (glyph.width * scale);
+        float y1 = y0 - (glyph.height * scale);
+
+        XMFLOAT3 localPos[4] = {
+                    { x0, 0.0f, y0 }, // TL (Top-Left)
+                    { x1, 0.0f, y0 }, // TR (Top-Right)
+                    { x0, 0.0f, y1 }, // BL (Bottom-Left)
+                    { x1, 0.0f, y1 }  // BR (Bottom-Right)
+        };
+
+        FontVertex v[4];
+        for (int i = 0; i < 4; ++i) {
+            // Transformasi Lokal -> World -> Clip Space (tetap sama dan otomatis akurat)
+            XMVECTOR vPos = XMLoadFloat3(&localPos[i]) + XMLoadFloat3(&worldPos);
+            XMVECTOR vClip = XMVector3Transform(vPos, matVP);
+
+            float vW = XMVectorGetW(vClip);
+            if (vW < 0.0001f) vW = 0.0001f;
+
+            XMStoreFloat3(&v[i].position, vClip / vW);
+            v[i].color = color;
+        }
+
+        v[0].texcoord = { glyph.u0, glyph.v0 };
+        v[1].texcoord = { glyph.u1, glyph.v0 };
+        v[2].texcoord = { glyph.u0, glyph.v1 };
+        v[3].texcoord = { glyph.u1, glyph.v1 };
+
+        vertices.push_back(v[0]); vertices.push_back(v[1]); vertices.push_back(v[2]);
+        vertices.push_back(v[1]); vertices.push_back(v[3]); vertices.push_back(v[2]);
+
+        cursorX += glyph.xAdvance * scale;
+    }
+
+    if (vertices.empty()) return;
+
+    auto dc = Graphics::Instance().GetDeviceContext();
+    D3D11_MAPPED_SUBRESOURCE ms;
+    if (SUCCEEDED(dc->Map(m_vertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms))) {
+        memcpy(ms.pData, vertices.data(), sizeof(FontVertex) * vertices.size());
+        dc->Unmap(m_vertexBuffer.Get(), 0);
+    }
+
+    UINT stride = sizeof(FontVertex);
+    UINT offset = 0;
+    dc->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
+    dc->IASetInputLayout(m_inputLayout.Get());
+    dc->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    dc->VSSetShader(m_vertexShader.Get(), nullptr, 0);
+    dc->PSSetShader(m_pixelShader.Get(), nullptr, 0);
+    
+    dc->PSSetShaderResources(0, 1, m_textureSRV.GetAddressOf());
+
+    dc->Draw(static_cast<UINT>(vertices.size()), 0);
+}

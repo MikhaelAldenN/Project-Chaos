@@ -32,6 +32,12 @@ public:
     // [NEW] Untuk sinkronisasi event di luar class
     int GetCurrentDialogueIndex() const { return m_currentIndex; }
 
+    void SetShowBackground(bool show) { m_showBackground = show; }
+    void SetPosition(float x, float y) { m_posX = x; m_posY = y; m_useCustomPos = true; }
+
+    void SetWorldPosition(DirectX::XMFLOAT3 pos) { m_worldPos = pos; m_is3D = true; }
+    void Render3D(ID3D11DeviceContext* dc, Camera* camera);
+
 private:
     void AdvanceDialogue();
 
@@ -52,4 +58,13 @@ private:
     int   m_charIndex = 0;
     float m_typeTimer = 0.0f;
     float m_typeDelay = 0.05f; // Kecepatan efek mesin tik
+
+    bool m_showBackground = true;
+
+    bool  m_useCustomPos = false;
+    float m_posX = 0.0f;
+    float m_posY = 0.0f;
+
+    bool m_is3D = false;
+    DirectX::XMFLOAT3 m_worldPos = { 0.0f, 0.0f, 0.0f };
 };
