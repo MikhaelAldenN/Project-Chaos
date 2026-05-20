@@ -74,6 +74,7 @@ imgui.ini
 *.lib
 *.dll
 *.exe
+External/PhysX/
 
 # PENGECUALIAN:
 # Jika kamu punya file .lib mentahan (Pre-built) yang WAJIB ada di folder External,

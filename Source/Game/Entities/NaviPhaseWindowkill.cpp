@@ -641,7 +641,7 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
                 b->state = 3;
                 b->timer = 0.0f;
                 CameraController::Instance().AddTrauma(0.6f);
-                AudioManager::Instance().PlaySFX("Data/Sound/LASER.wav", 0.2f);
+                AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Laser_Shoot.wav", 0.2f);
 
                 // MATIKAN EFEK CHARGE!
                 EffectManager::Instance().Stop(b->chargeEffectHandle);

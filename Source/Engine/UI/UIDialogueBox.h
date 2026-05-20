@@ -29,7 +29,7 @@ public:
 
     bool IsActive() const { return m_state != State::Hidden; }
 
-    // [NEW] Untuk sinkronisasi event di luar class
+    // [NEW] Untuk sinkronisasi event di luar classa
     int GetCurrentDialogueIndex() const { return m_currentIndex; }
 
     void SetShowBackground(bool show) { m_showBackground = show; }
@@ -37,6 +37,11 @@ public:
 
     void SetWorldPosition(DirectX::XMFLOAT3 pos) { m_worldPos = pos; m_is3D = true; }
     void Render3D(ID3D11DeviceContext* dc, Camera* camera);
+
+    void SetAutoAdvance(bool enable, float delay = 1.5f) {
+        m_autoAdvance = enable;
+        m_autoAdvanceDelay = delay;
+    }
 
 private:
     void AdvanceDialogue();
@@ -67,4 +72,9 @@ private:
 
     bool m_is3D = false;
     DirectX::XMFLOAT3 m_worldPos = { 0.0f, 0.0f, 0.0f };
+
+    // Auto-advance
+    bool m_autoAdvance = false;
+    float m_autoAdvanceTimer = 0.0f;
+    float m_autoAdvanceDelay = 1.5f;
 };
