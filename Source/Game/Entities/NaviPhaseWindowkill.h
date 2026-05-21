@@ -131,6 +131,9 @@ public:
     int  GetMaxHP() const { return m_bossMaxHP; }
     bool IsDead() const { return m_bossHP <= 0; }
 
+    void SetOverdriveSpriteScale(float scale) { m_overdriveSpriteScale = scale; }
+    float GetOverdriveSpriteScale() const { return m_overdriveSpriteScale; }
+
     struct OrbitalBlaster {
         bool active = false;
         int state = 0;
@@ -368,4 +371,11 @@ private:
     float m_cageShakeIntensity = 0.22f;
     float m_cageSizeWorld = 7.5f;  // Hasil dari 300px / PixelToUnitRatio
     std::string m_cageWindowName = "player_cage_window";
+
+    // [BARU] Overdrive Sprite
+    std::unique_ptr<Sprite> m_overdriveSprite;
+    float m_overdriveSpriteScale = 0.02f;
+
+    float m_overdriveAlpha = 0.0f;        // Nilai transparansi saat ini (0.0 - 1.0)
+    float m_overdriveFadeSpeed = 2.0f;
 };

@@ -62,6 +62,7 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     // Load tekstur sayap ke VRAM hanya di fase ini
     m_wingSprite = std::make_unique<Sprite>(device, "Data/Sprite/Placeholder/[PLACEHOLDER]ErrorAtlas.png");
     m_placeholderModel = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_mdl_Ball.glb");
+    m_overdriveSprite = std::make_unique<Sprite>(device, "Data/Sprite/txt_nagaoshi.png");
 
     // Reset timer dan ciptakan array
     m_glitchTimer = 0.0f;
@@ -128,6 +129,8 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
             }
         }
     }
+
+    m_overdriveAlpha = 0.0f;
 }
 
 void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
@@ -140,6 +143,7 @@ void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
     m_wingSprite.reset(); // Bebaskan tekstur dari VRAM
     m_leftWingData.clear();
     m_rightWingData.clear();
+    m_overdriveSprite.reset();
 
     for (auto& bwb : m_bouncingBullets) {
         if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(bwb.windowName);
@@ -245,6 +249,19 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
         float offsetX = (((rand() % 200) / 100.0f) - 1.0f) * strength;
         float offsetZ = (((rand() % 200) / 100.0f) - 1.0f) * strength;
         m_cageWindowPos = { m_cagePos.x + offsetX, m_cagePos.y, m_cagePos.z + offsetZ };
+    }
+
+    // =========================================================
+    // [BARU] ANIMASI FADE-IN OVERDRIVE SPRITE
+    // =========================================================
+    // Syarat: Player sudah uncapped DAN kandang masih belum hancur
+    if (m_aiTarget && m_aiTarget->IsPowerUncapped() && m_isPlayerCaged) {
+        m_overdriveAlpha += m_overdriveFadeSpeed * dt;
+        if (m_overdriveAlpha > 1.0f) m_overdriveAlpha = 1.0f; // Mentok di 1.0 (Solid)
+    }
+    else {
+        // Jika kandang hancur (atau belum overdrive), alpha dikembalikan ke 0 (menghilang)
+        m_overdriveAlpha = 0.0f;
     }
 
     // =========================================================
@@ -1053,6 +1070,33 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
         if (!batchData.empty()) {
             m_wingSprite->Render3DBatch(context, currentCamera, batchData);
         }
+    }
+
+
+    // =========================================================
+        // [UPDATE] RENDER OVERDRIVE SPRITE (DECAL LANTAI)
+        // =========================================================
+        // Hanya render jika alpha > 0 untuk menghemat draw call, dan pastikan kandang masih ada
+    if (m_aiTarget && m_aiTarget->IsPowerUncapped() && m_isPlayerCaged && m_overdriveAlpha > 0.0f && m_overdriveSprite) {
+        std::vector<Sprite::Sprite3DBatchData> overdriveBatch;
+
+        float baseWidth = 592.0f;
+        float baseHeight = 193.0f;
+        float finalWidth = baseWidth * m_overdriveSpriteScale;
+        float finalHeight = baseHeight * m_overdriveSpriteScale;
+
+        DirectX::XMFLOAT3 pos = { 0.0f, 0.0f, -7.5f };
+        float scale = 0.4f;
+
+        overdriveBatch.push_back({
+            pos.x, pos.y, pos.z,
+            finalWidth * scale, finalHeight * scale,
+            0.0f, 0.0f, 0.0f, 0.0f,
+            DirectX::XMConvertToRadians(90.0f), 0.0f, 0.0f,
+            1.0f, 1.0f, 1.0f, m_overdriveAlpha * 0.5f// <-- Terapkan m_overdriveAlpha di channel Alpha (RGBA)
+            });
+
+        m_overdriveSprite->Render3DBatch(context, currentCamera, overdriveBatch);
     }
 
     for (auto& bwb : m_bouncingBullets) {
