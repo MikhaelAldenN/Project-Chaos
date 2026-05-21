@@ -59,8 +59,8 @@ SceneBoss::SceneBoss()
     m_player->InitPhysics(m_controllerManager.get(), m_defaultMaterial.get(),
         PlayerConst::CapsuleHalfHeight);  // Kaki tepat di Y=0, gravity off
     PlayerConfig bossConfig{};
-    bossConfig.moveSpeed = 20.0f;         // Fast movement
-    bossConfig.dashSpeed = 60.0f;         // Fast dash
+    bossConfig.moveSpeed = 15.0f;         // Fast movement
+    bossConfig.dashSpeed = 45.0f;         // Fast dash
     bossConfig.gravityEnabled = false;    // No gravity for Top-Down Boss mode
 
     m_player->ApplyConfig(bossConfig);
