@@ -115,10 +115,15 @@ void NaviPhaseNormal::Exit(NaviBoss* boss) {
         m_bossGlitchVfxHandle = -1;
     }
 
-    // [BARU] Keamanan memori tambahan
     if (m_chargeEffectHandle != -1) {
         EffectManager::Instance().Stop(m_chargeEffectHandle);
         m_chargeEffectHandle = -1;
+    }
+
+    // [BARU] Matikan efek ledakan kematian jika di-respawn paksa di tengah-tengah animasi mati
+    if (m_deathVfxHandle != -1) {
+        EffectManager::Instance().Stop(m_deathVfxHandle);
+        m_deathVfxHandle = -1;
     }
 }
 

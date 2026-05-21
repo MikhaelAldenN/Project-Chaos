@@ -843,8 +843,25 @@ void SceneBoss::DrawGUI()
             }
             ImGui::SameLine();
             if (ImGui::Button("Respawn Boss", ImVec2(180.0f, 30.0f))) {
-                m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>(m_player.get()));
-                AddLog("Boss respawned (Phase 1 Normal).");
+                // [FIX] Cek apakah saat ini sedang di Phase Normal
+                if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+                    // 1. Simpan parameter yang sudah kamu ubah di ImGui
+                    NaviBulletParams savedParams = normalPhase->GetParams();
+
+                    // 2. Buat instance fase baru (agar bos bersih & HP penuh)
+                    auto newPhase = std::make_unique<NaviPhaseNormal>(m_player.get());
+
+                    // 3. Masukkan kembali parameter yang sudah disimpan
+                    newPhase->GetParams() = savedParams;
+
+                    m_navi->ChangePhase(std::move(newPhase));
+                    AddLog("Boss respawned (Phase 1 Normal). Parameters preserved.");
+                }
+                else {
+                    // Jika sedang di Phase 2 (Windowkill) lalu ingin kembali ke Phase 1
+                    m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>(m_player.get()));
+                    AddLog("Boss respawned (Phase 1 Normal).");
+                }
             }
             ImGui::Separator();
 
@@ -946,7 +963,7 @@ void SceneBoss::DrawGUI()
                     ImGui::SliderFloat("Max Fall Speed", &p.rainMaxSpeed, 10.0f, 150.0f);
                     ImGui::SliderFloat("Warning Duration", &p.rainWarningDuration, 0.5f, 5.0f);
                     ImGui::SliderFloat("Active Duration", &p.rainActiveDuration, 0.5f, 10.0f);
-                    ImGui::SliderInt("Rain Contact Damage", &p.rainDamage, 1, 50);
+                    ImGui::SliderFloat("Rain Contact Damage", &p.rainDamage, 0.0f, 50.0f);
                 }
 
                 if (ImGui::CollapsingHeader("Glintstone Phalanx")) {
