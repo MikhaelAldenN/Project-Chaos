@@ -421,26 +421,26 @@ void SceneBoss::Update(float elapsedTime)
     PerformanceLogger::Instance().EndFrameCheck(ImGui::GetIO().Framerate, activeWins);
 
     // --- LOGIKA OTOMATISASI OVERDRIVE PLAYER ---
-    if (m_player && m_navi)
-    {
-        bool shouldUncap = m_forceUncapOverride;
+    //if (m_player && m_navi)
+    //{
+    //    bool shouldUncap = m_forceUncapOverride;
 
-        // Cek darah boss jika berada di Fase Normal
-        if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
-        {
-            float bossHpPercent = (static_cast<float>(normalPhase->GetHP()) / 1500.0f) * 100.0f;
-            if (bossHpPercent <= m_overdriveBossHpTriggerPercent)
-            {
-                shouldUncap = true;
-            }
-        }
+    //    // Cek darah boss jika berada di Fase Normal
+    //    if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
+    //    {
+    //        float bossHpPercent = (static_cast<float>(normalPhase->GetHP()) / 1500.0f) * 100.0f;
+    //        if (bossHpPercent <= m_overdriveBossHpTriggerPercent)
+    //        {
+    //            shouldUncap = true;
+    //        }
+    //    }
 
-        // Picu pelepasan batas kekuatan jika kondisi terpenuhi
-        if (shouldUncap && !m_player->IsPowerUncapped())
-        {
-            m_player->ReleasePowerCap();
-        }
-    }
+    //    // Picu pelepasan batas kekuatan jika kondisi terpenuhi
+    //    if (shouldUncap && !m_player->IsPowerUncapped())
+    //    {
+    //        m_player->ReleasePowerCap();
+    //    }
+    //}
 }
 
 

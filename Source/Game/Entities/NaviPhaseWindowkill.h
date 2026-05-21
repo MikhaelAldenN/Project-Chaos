@@ -63,10 +63,10 @@ struct UndyneSpearParams {
 // [BARU] Parameter Khusus Targeted Blaster
 // =========================================================
 struct TargetedBlasterParams {
-    int   spawnCount = 5;
+    int   spawnCount = 8;
     float spawnDelay = 0.8f;      // Jeda antar kemunculan meriam
-    float dropInDuration = 0.3f;  // Meriam jatuh lebih cepat dari atas
-    float chargeDelay = 0.4f;     // Waktu peringatan (Laser transparan) sebelum nembak!
+    float dropInDuration = 0.2f;  // Meriam jatuh lebih cepat dari atas
+    float chargeDelay = 0.2f;     // Waktu peringatan (Laser transparan) sebelum nembak!
     float fireDuration = 1.0f;
     float fixedTargetZ = 10.0f;   // Sumbu Z tetap agar sejajar dengan blaster acak
 };

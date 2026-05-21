@@ -846,7 +846,7 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
             m_blasters.push_back(blaster);
             m_targetedBlastersSpawned++;
 
-            if (m_targetedBlastersSpawned >= m_blasterParams.spawnCount) {
+            if (m_targetedBlastersSpawned >= m_targetedBlasterParams.spawnCount) {
                 m_isSpawningTargetedBlasters = false;
             }
         }
@@ -1166,7 +1166,7 @@ void NaviPhaseWindowkill::TriggerTargetedBlaster(NaviBoss* boss) {
     // Aktifkan sistem spawner Targeted!
     m_isSpawningTargetedBlasters = true;
     m_targetedBlastersSpawned = 0;
-    m_targetedBlasterSpawnTimer = m_blasterParams.spawnDelay;
+    m_targetedBlasterSpawnTimer = m_targetedBlasterParams.spawnDelay;
 }
 
 void NaviPhaseWindowkill::DamageCage(int dmg) {
