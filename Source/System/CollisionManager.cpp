@@ -1,6 +1,7 @@
 #include "CollisionManager.h"
 #include "NaviBoss.h"        
 #include "NaviPhaseNormal.h" 
+#include "EffectManager.h"
 #include "TimeManager.h"
 #include <CameraController.h>
 
@@ -781,6 +782,7 @@ void CollisionManager::CheckPlayerProjectilesVsNavi(float elapsedTime)
         {
             // Trigger proper OOP damage
             m_navi->TakeDamage(PLAYER_BULLET_DAMAGE);
+            EffectManager::Instance().Play("Data/Effect/Hit.efk", m_navi->GetMovement()->GetPosition(), 1.0f);
             bullet->SetActive(false); // Return bullet to pool
 
             continue;
