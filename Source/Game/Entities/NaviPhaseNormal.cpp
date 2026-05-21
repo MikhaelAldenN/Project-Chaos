@@ -14,6 +14,8 @@
 #include <SDL3/SDL.h>
 #include <random>
 #include "EffectManager.h"
+#include "NaviPhaseWindowkill.h"
+#include "WindowShatter.h"
 
 using namespace DirectX;
 
@@ -126,6 +128,22 @@ void NaviPhaseNormal::Exit(NaviBoss* boss) {
 
 void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
     if (!boss) return;
+
+    // =========================================================
+    // [TRANSISI PHASE] Cek apakah boss mati (HP <= 0)
+    // =========================================================
+    if (m_bossHP <= 0) {
+        // Ambil posisi dunia bos (menggunakan X dan Z untuk sumbu 2D shatter)
+        DirectX::XMFLOAT3 pos = boss->GetPosition();
+
+        // Panggil 5 serpihan jendela pecah
+        WindowShatterManager::Instance().TriggerExplosion({ pos.x, pos.z }, 5);
+
+        // Langsung pindah ke Phase Windowkill
+        boss->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
+
+        return; // Hentikan eksekusi Update Normal Phase di frame ini
+    }
 
     // --- Opening Sequence (blocks AI until dialogue ends) ---
     if (m_isOpeningEvent) {

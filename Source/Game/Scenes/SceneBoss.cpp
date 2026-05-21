@@ -17,7 +17,7 @@
 #include "NaviPhaseNormal.h"
 #include "TimeManager.h"
 #include "EffectManager.h"
-
+#include "WindowShatter.h"
 
 using namespace DirectX;
 
@@ -358,7 +358,7 @@ void SceneBoss::Update(float elapsedTime)
     if (m_collisionManager) m_collisionManager->Update(scaledDt);
 
     EffectManager::Instance().Update(scaledDt);
-
+    WindowShatterManager::Instance().Update(scaledDt);
     // Terapkan posisi m_fixedPos dan Shakes
     //camCtrl.Update(scaledDt);
     
@@ -1212,6 +1212,8 @@ void SceneBoss::ResetEverything()
     m_itemManager.reset();
     m_stage.reset();
     m_boss.reset();
+    WindowShatterManager::Instance().Clear();
+
     if (m_windowSystem) m_windowSystem->ClearAll();
     m_player.reset();
 
