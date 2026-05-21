@@ -77,14 +77,14 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     EffectManager::Instance().PreloadEffect(m_blasterParams.fireEffectPath);
 
     m_bossRef = boss; // Simpan referensi boss untuk dipakai saat jendela hancur
-    m_bossMaxHP = 10000;
+    m_bossMaxHP = 7000;
     m_bossHP = m_bossMaxHP;
     m_hitFlashTimer = 0.0f;
     m_aiEnabled = false;
     m_aiGlobalCooldown = 1.0f;
     m_cdBouncing = 1.0f;
-    m_cdBoomerang = 4.0f;
-    m_cdOrbitalBlaster = 7.0f;
+    m_cdBoomerang = 7.0f;
+    m_cdOrbitalBlaster = 4.0f;
     m_cdTargetedBlaster = 10.0f;
     m_cdUndyne = 13.0f;
 
@@ -98,7 +98,7 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     if (m_aiTarget) {
         m_isPlayerCaged = true;
         m_aiTarget->SetPosition(0, 0, -8.0f);
-        m_cageMaxHP = 1000; // Sesuaikan dengan total HP yang kamu inginkan
+        m_cageMaxHP = 600; // Sesuaikan dengan total HP yang kamu inginkan
         m_cageHP = m_cageMaxHP;        
         m_cagePos = m_aiTarget->GetPosition(); // Kunci posisi kandang di lokasi player saat ini
         m_cageWindowPos = m_cagePos;
@@ -1145,18 +1145,10 @@ void NaviPhaseWindowkill::UpdateAI(float dt, NaviBoss* boss) {
 
     std::mt19937 gen(std::random_device{}());
 
-    bool hasActiveUndyne = false;
-    for (const auto& spear : m_undyneSpears) {
-        if (!spear.isPreparedForDestroy) {
-            hasActiveUndyne = true;
-            break;
-        }
-    }
-
+    // [AGRESIF] Hanya tunggu sampai proses "Spawning" selesai. 
+    // Jangan tunggu sampai peluru hilang dari layar! Biarkan serangan overlap.
     bool isBusy = m_isSpawningBouncing || m_isSpawningBoomerangs ||
-        m_isSpawningBlasters || m_isSpawningTargetedBlasters || m_isSpawningUndynes ||
-        !m_bouncingBullets.empty() || !m_boomerangs.empty() || !m_blasters.empty() ||
-        hasActiveUndyne;
+        m_isSpawningBlasters || m_isSpawningTargetedBlasters || m_isSpawningUndynes;
 
     if (!isBusy) {
         if (m_aiGlobalCooldown > 0.0f) {
@@ -1173,33 +1165,33 @@ void NaviPhaseWindowkill::UpdateAI(float dt, NaviBoss* boss) {
 
     if (isBusy || m_aiGlobalCooldown > 0.0f) return;
 
+    // [AGRESIF] Cooldown antar serangan dipotong hampir 50%
     if (m_cdUndyne <= 0.0f) {
         TriggerUndyneSpear(boss);
-        m_cdUndyne = std::uniform_real_distribution<float>(12.0f, 18.0f)(gen);
-        m_aiGlobalCooldown = 0.8f;
+        m_cdUndyne = std::uniform_real_distribution<float>(7.0f, 10.0f)(gen); // Awalnya 12-18
+        m_aiGlobalCooldown = 0.4f; // Awalnya 0.8f
     }
     else if (m_cdTargetedBlaster <= 0.0f) {
         TriggerTargetedBlaster(boss);
-        m_cdTargetedBlaster = std::uniform_real_distribution<float>(9.0f, 14.0f)(gen);
-        m_aiGlobalCooldown = 0.6f;
+        m_cdTargetedBlaster = std::uniform_real_distribution<float>(5.0f, 8.0f)(gen); // Awalnya 9-14
+        m_aiGlobalCooldown = 0.3f; // Awalnya 0.6f
     }
     else if (m_cdOrbitalBlaster <= 0.0f) {
         TriggerOrbitalBlaster(boss);
-        m_cdOrbitalBlaster = std::uniform_real_distribution<float>(7.0f, 12.0f)(gen);
-        m_aiGlobalCooldown = 0.6f;
+        m_cdOrbitalBlaster = std::uniform_real_distribution<float>(4.0f, 7.0f)(gen); // Awalnya 7-12
+        m_aiGlobalCooldown = 0.3f; // Awalnya 0.6f
     }
     else if (m_cdBoomerang <= 0.0f) {
         TriggerBoomerang(boss);
-        m_cdBoomerang = std::uniform_real_distribution<float>(4.0f, 8.0f)(gen);
-        m_aiGlobalCooldown = 0.4f;
+        m_cdBoomerang = std::uniform_real_distribution<float>(3.0f, 5.0f)(gen); // Awalnya 4-8
+        m_aiGlobalCooldown = 0.2f; // Awalnya 0.4f
     }
     else if (m_cdBouncing <= 0.0f) {
         TriggerBouncingWindows(boss);
-        m_cdBouncing = std::uniform_real_distribution<float>(2.0f, 5.0f)(gen);
-        m_aiGlobalCooldown = 0.3f;
+        m_cdBouncing = std::uniform_real_distribution<float>(1.5f, 3.0f)(gen); // Awalnya 2-5
+        m_aiGlobalCooldown = 0.15f; // Awalnya 0.3f
     }
 }
-
 std::vector<Bullet*> NaviPhaseWindowkill::GetProjectiles() {
     std::vector<Bullet*> activeBullets;
     for (auto& bwb : m_bouncingBullets) {
@@ -1307,7 +1299,7 @@ void NaviPhaseWindowkill::DamageCage(int dmg) {
     // =========================================================
     // PICU PLAYER OVERDRIVE / UNCAPPED (HP <= 50%)
     // =========================================================
-    if (m_cageHP <= 600 && m_aiTarget) {
+    if (m_cageHP <= 300 && m_aiTarget) {
         if (!m_aiTarget->IsPowerUncapped()) {
             m_aiTarget->ReleasePowerCap();
             m_aiTarget->SetShootDelay(0.5f);
