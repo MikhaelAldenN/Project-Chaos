@@ -22,6 +22,20 @@ NaviAlly::NaviAlly(ID3D11Device* device, const Player* targetPlayer, EnemyManage
     scale = { 0.4f, 0.4f, 0.4f };
     movement->SetRotation({ 0.0f, 0.0f, 0.0f });
 
+    OutputDebugStringA("\n=== NAVI ANIMATIONS LOADED ===\n");
+    const auto& anims = model->GetAnimations();
+    for (size_t i = 0; i < anims.size(); ++i)
+    {
+        std::string msg = "[" + std::to_string(i) + "] " + anims[i].name + "\n";
+        OutputDebugStringA(msg.c_str());
+    }
+    OutputDebugStringA("================================\n\n");
+
+    m_animator = std::make_unique<AnimationController>();
+    m_animator->Initialize(model);
+
+    m_animator->Play("Armature|Flying", true, 0.2f);
+
     if (m_targetPlayer)
     {
         XMFLOAT3 startPos{ m_targetPlayer->GetPosition() };
@@ -36,6 +50,11 @@ NaviAlly::NaviAlly(ID3D11Device* device, const Player* targetPlayer, EnemyManage
 void NaviAlly::Update(float elapsedTime, Camera* camera)
 {
     if (!IsAlive()) return;
+
+    if (m_animator)
+    {
+        m_animator->Update(elapsedTime);
+    }
 
     if (m_isPotioned) {
         m_pulseTimer += elapsedTime;

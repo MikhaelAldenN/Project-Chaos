@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AnimationController.h"
 #include "Character.h"
 #include "Bullet.h"
 #include <DirectXMath.h>
@@ -11,6 +12,7 @@ class Player;
 class EnemyManager;
 class Camera;
 class ModelRenderer;
+class AnimationController;
 
 class NaviAlly : public Character
 {
@@ -81,6 +83,8 @@ private:
 
     static constexpr int MAX_HP{ 250 };
     int m_hp{ MAX_HP };
+
+    std::unique_ptr<AnimationController> m_animator{ nullptr };
 
     // ====================================================
     // COMPILE-TIME CONSTANTS (Zero Memory Cost)
