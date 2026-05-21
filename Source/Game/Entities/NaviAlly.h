@@ -39,6 +39,7 @@ private:
     // State Variables 
     float m_animTime{ 0.0f };
     float m_fireTimer{ 0.0f };
+    float m_reactionTimer{ 0.0f };
     DirectX::XMFLOAT4 m_color{ 0.0f, 0.8f, 1.0f, 1.0f };
 
     // True Object Pool for Navi's Bullets
@@ -52,6 +53,7 @@ private:
     static constexpr float FOLLOW_SPEED{ 15.0f };
     static constexpr float HOVER_HEIGHT{ 2.0f };
 
+    static constexpr float REACTION_DELAY{ 2.0f };
     static constexpr float FIRE_RATE{ 0.5f }; 
     static constexpr float ATTACK_RANGE_SQ{ 900.0f }; 
 

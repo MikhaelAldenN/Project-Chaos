@@ -75,6 +75,9 @@ public:
     void SetMaxHP(int hp) { m_hp = hp; }
     [[nodiscard]] int GetHP() const { return m_hp; }
 
+    void SetInvincible(bool invincible) { m_isInvincible = invincible; }
+    [[nodiscard]] bool IsInvincible() const { return m_isInvincible; }
+
 private:
     void UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack);
 
@@ -111,6 +114,8 @@ private:
 
     bool m_isActive = false;
     MoveDir m_moveDir;
+
+    bool m_isInvincible = false;
 
     DirectX::XMFLOAT4 m_baseColor{ 1.0f, 1.0f, 1.0f, 1.0f }; 
 

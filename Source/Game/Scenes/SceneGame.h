@@ -71,7 +71,7 @@ private:
     struct PostProcessState {
         bool MasterEnabled{ true };
         bool EnableVignette{ false };
-        bool EnableLens{ false };
+        bool EnableLens{ true };
         bool EnableChromatic{ true };
         bool EnableCRT{ true };
         bool EnableBloom{ true }; 
@@ -94,7 +94,7 @@ private:
     PostProcessState m_fxState{};
 
     std::unique_ptr<Sprite> m_fadeSprite{};
-    float m_fadeAlpha{ 0.0f };
+    float m_fadeAlpha{ 1.0f };
     DirectX::XMFLOAT4 m_bgSpriteColor{ 1.0f, 1.0f, 1.0f, 1.0f };
 
     float m_globalTime{ 0.0f };
@@ -116,7 +116,8 @@ private:
     // DEATH & RESPAWN SEQUENCE
     bool m_isDying{ false };
     float m_deathTimer{ 0.0f };
-    float m_respawnTimer{ 0.0f };
+    float m_bootTimer{ 1.1f };
+    float m_respawnTimer{ RESPAWN_FADE_DURATION };
 
     static constexpr float DEATH_DELAY_DURATION{ 0.5f };
     static constexpr float DEATH_FADE_DURATION{ 3.0f };

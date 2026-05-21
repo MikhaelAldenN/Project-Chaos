@@ -54,6 +54,8 @@ public:
     void SetParryReturn(bool val) { m_isParryReturn = val; }
     bool IsParryReturn() const { return m_isParryReturn; }
 
+    float GetLifeTime() const { return m_lifeTime; }
+
 private:
     NaviBoss* m_bossTarget = nullptr;
 
@@ -71,6 +73,6 @@ private:
     bool isActive = false;
     Character* m_homingTarget = nullptr;
     float m_turnSpeed = 8.0f;
-
+    float m_lifeTime = 0.0f;
 
 };

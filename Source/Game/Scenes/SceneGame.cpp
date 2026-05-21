@@ -135,7 +135,21 @@ void SceneGame::Update(const float elapsedTime)
         StartPlayerDeathSequence();
     }
 
-    if (m_isDying)
+    if (m_bootTimer > 0.0f)
+    {
+        m_bootTimer -= elapsedTime;
+        m_fadeAlpha = 1.0f;
+        m_uberParams.smoothness = FX_BLACK_SMOOTHNESS;
+        m_uberParams.intensity = FX_BLACK_INTENSITY;
+
+        if (m_player)
+        {
+            CameraController::Instance().SetTarget(m_player->GetPosition());
+            CameraController::Instance().Update(0.0f); 
+        }
+    }
+
+    else if (m_isDying)
     {
         m_deathTimer += elapsedTime;
 
@@ -232,7 +246,7 @@ void SceneGame::Update(const float elapsedTime)
 
         m_player->Update(elapsedTime, activeCam);
         if (m_navi) m_navi->Update(elapsedTime, activeCam);
-        if (m_fadeAlpha < 0.95f)
+        if (m_fadeAlpha < 0.99f)
         {
             CameraController::Instance().SetTarget(m_player->GetPosition());
             m_director->Update(elapsedTime, m_player->GetMovement()->GetPosition());
@@ -312,6 +326,11 @@ void SceneGame::Update(const float elapsedTime)
 
     CameraController::Instance().SetDynamicZoomOffset(targetZoom);
     CameraController::Instance().Update(elapsedTime);
+
+    if (m_player)
+    {
+        m_uberParams.glitchStrength = m_player->GetDamageGlitchIntensity();
+    }
 
     EffectManager::Instance().Update(elapsedTime);
 }

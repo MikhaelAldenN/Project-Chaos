@@ -30,7 +30,7 @@ NaviAlly::NaviAlly(ID3D11Device* device, const Player* targetPlayer, EnemyManage
 void NaviAlly::Update(float elapsedTime, Camera* camera)
 {
     UpdateHoverLogic(elapsedTime);
-    //UpdateShootingLogic(elapsedTime, camera);
+    UpdateShootingLogic(elapsedTime, camera);
     UpdateProjectiles(elapsedTime, camera);
 }
 
@@ -58,21 +58,19 @@ void NaviAlly::UpdateHoverLogic(float elapsedTime)
 
 void NaviAlly::UpdateShootingLogic(float elapsedTime, Camera* camera)
 {
-    // Don't shoot if missing dependencies
     if (!m_enemyManager || !camera) return;
 
-    m_fireTimer += elapsedTime;
-    if (m_fireTimer < FIRE_RATE) return;
-
     XMFLOAT3 myPos{ movement->GetPosition() };
-    float closestDistSq{ ATTACK_RANGE_SQ }; // Start at max allowed distance
-    Enemy* targetEnemy{ nullptr };
+    Enemy* bestTarget{ nullptr };
+    float closestDistSq{ ATTACK_RANGE_SQ };
 
-    // Find the closest active enemy using purely cheap Distance math
+    // SELECT TARGET (With filter)
     for (const auto& enemy : m_enemyManager->GetEnemies())
     {
-        // Ignore dead enemies
         if (!enemy || !enemy->IsActive()) continue;
+
+        // FILTER: Only shoot aggressive enemies 
+        if (enemy->GetAttackType() == AttackType::None) continue;
 
         XMFLOAT3 ePos{ enemy->GetPosition() };
         float dx{ ePos.x - myPos.x };
@@ -81,22 +79,35 @@ void NaviAlly::UpdateShootingLogic(float elapsedTime, Camera* camera)
 
         if (distSq < closestDistSq)
         {
-            // CPU OPTIMIZATION: ONLY do the heavy Camera Frustum matrix math 
-            // if the enemy is actually close enough to hit!
             float dynamicRadius = 1.5f * enemy->GetScale().x;
             if (camera->CheckSphere(ePos.x, ePos.y, ePos.z, dynamicRadius))
             {
                 closestDistSq = distSq;
-                targetEnemy = enemy.get();
+                bestTarget = enemy.get();
             }
         }
     }
 
-    // Fire instantly in the same frame (prevents dangling pointer crashes)
-    if (targetEnemy)
+    // REACTION & SHOOTING LOGIC
+    if (bestTarget)
     {
+        m_reactionTimer += elapsedTime;
+
+        if (m_reactionTimer >= REACTION_DELAY)
+        {
+            m_fireTimer += elapsedTime;
+            if (m_fireTimer >= FIRE_RATE)
+            {
+                m_fireTimer = 0.0f;
+                FireAtTarget(bestTarget->GetPosition());
+            }
+        }
+    }
+    else
+    {
+        // No target? Reset the timer so next detection feels natural.
+        m_reactionTimer = 0.0f;
         m_fireTimer = 0.0f;
-        FireAtTarget(targetEnemy->GetPosition());
     }
 }
 
@@ -182,8 +193,13 @@ void NaviAlly::Render(ModelRenderer* renderer)
 
 void NaviAlly::RenderProjectiles(ModelRenderer* renderer)
 {
+    const DirectX::XMFLOAT4 navibulletColor{ 5.0f, 5.0f, 5.0f, 1.0f };
+
     for (auto& bullet : m_projectiles)
     {
-        if (bullet->IsActive()) renderer->Draw(ShaderId::Phong, bullet->GetModel(), m_color);
+        if (bullet && bullet->IsActive())
+        {
+            renderer->Draw(ShaderId::Phong, bullet->GetModel(), navibulletColor);
+        }
     }
 }

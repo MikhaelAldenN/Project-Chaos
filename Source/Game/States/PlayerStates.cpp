@@ -319,7 +319,6 @@ void PlayerDash::Exit(Player* player)
 
 void PlayerSlash::Enter(Player* player)
 {
-    player->color = { 1.0f, 0.0f, 0.0f, 1.0f }; // Flash red
     player->SetActiveWeapon(Player::WeaponType::Sword);
     player->GetAnimator()->PlayUpper("Parry", false);
 
@@ -353,7 +352,6 @@ void PlayerSlash::Update(Player* player, float dt)
 
 void PlayerSlash::Exit(Player* player)
 {
-    player->color = { 1.0f, 1.0f, 1.0f, 1.0f };
     player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
 }
 
@@ -363,7 +361,6 @@ void PlayerSlash::Exit(Player* player)
 
 void PlayerParry::Enter(Player* player)
 {
-    player->color = { 0.0f, 0.5f, 1.0f, 1.0f }; // Flash blue
     player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
     player->GetAnimator()->PlayUpper("Parry", false);
     player->SetActiveWeapon(Player::WeaponType::Sword);
@@ -384,7 +381,6 @@ void PlayerParry::Update(Player* player, float dt)
 
 void PlayerParry::Exit(Player* player)
 {
-    player->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 }
 
 // ============================================================
@@ -393,7 +389,6 @@ void PlayerParry::Exit(Player* player)
 
 void PlayerShoot::Enter(Player* player)
 {
-    player->color = { 1.0f, 1.0f, 0.0f, 1.0f }; // Flash yellow
 }
 
 void PlayerShoot::Update(Player* player, float dt)
@@ -411,5 +406,4 @@ void PlayerShoot::Update(Player* player, float dt)
 
 void PlayerShoot::Exit(Player* player)
 {
-    player->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 }

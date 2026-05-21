@@ -150,6 +150,9 @@ public:
 	// --- Cape Simulator (optional, only used if player model has a cape) ---
     CapeSimulator* GetCapeSimulator() const { return m_capeSimulator.get(); }
 
+	// --- Glitch Effect ---
+    [[nodiscard]] float GetDamageGlitchIntensity() const noexcept;
+
 private:
     // --- Update pipeline (called in order from Update()) ---
     void UpdateDashCooldown(float dt);
@@ -222,4 +225,9 @@ private:
 
 	// --- Debug Animation ---
     DebugAnimState m_debugState{};
+
+	// --- Glitch Effect ---
+    float m_damageGlitchTimer{ 0.0f };
+    static constexpr float DAMAGE_GLITCH_DURATION{ 0.4f };
+    static constexpr float DAMAGE_GLITCH_MAX_INTENSITY{ 0.120f };
 };

@@ -72,6 +72,7 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
             config.MinZ, config.MaxZ, config.Direction
         );
 
+        pooledEnemy->SetInvincible(config.Type == EnemyType::FakeBoss);
         pooledEnemy->SetScale(finalScale);
         pooledEnemy->SetBaseMoveSpeed(config.BaseSpeed);
         pooledEnemy->SetMaxHP(finalHP); 
@@ -87,6 +88,7 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
             config.MinZ, config.MaxZ, config.Direction
         ) };
 
+        newEnemy->SetInvincible(config.Type == EnemyType::FakeBoss);
         newEnemy->SetScale(finalScale);
         newEnemy->SetBaseMoveSpeed(config.BaseSpeed);
         newEnemy->SetMaxHP(finalHP); 

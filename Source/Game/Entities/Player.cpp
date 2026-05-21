@@ -183,6 +183,11 @@ void Player::Update(float elapsedTime, Camera* camera)
 
     ApplyWorldMatrix(smoothedYaw, shouldAim, relativeAngle);
     UpdateProjectiles(elapsedTime, camera);
+
+    if (m_damageGlitchTimer > 0.0f)
+    {
+        m_damageGlitchTimer = (std::max)(0.0f, m_damageGlitchTimer - elapsedTime);
+    }
 }
 
 // ============================================================
@@ -591,13 +596,24 @@ void Player::TakeDamage(int damage)
 
     m_hp -= damage;
 
-    // Optional: You can change the player->color here to Flash Red when hit!
+    m_damageGlitchTimer = DAMAGE_GLITCH_DURATION;
 
     // Clamp to exactly zero to prevent negative UI bugs
     if (m_hp <= 0)
     {
         m_hp = 0;
     }
+}
+
+// ============================================================
+// GAME FEEL & JUICE
+// ============================================================
+float Player::GetDamageGlitchIntensity() const noexcept
+{
+    if (m_damageGlitchTimer <= 0.0f) return 0.0f;
+    const float t{ m_damageGlitchTimer / DAMAGE_GLITCH_DURATION };
+
+    return DAMAGE_GLITCH_MAX_INTENSITY * (t * t);
 }
 
 // ============================================================
