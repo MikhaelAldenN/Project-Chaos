@@ -18,6 +18,8 @@ public:
     void PlaySFX(const std::string& filePath, float volume = 1.0f);
     void StopMusic();
     void FadeOutMusic(float duration);
+    void PlayAmbientSFX(const std::string& filePath, float targetVolume = 1.0f, float fadeDuration = 1.0f);
+    void FadeOutAmbientSFX(float duration);
 
 private:
     AudioManager() = default;
@@ -44,6 +46,12 @@ private:
     bool m_isFadingOut = false;
     float m_fadeTimer = 0.0f;
     float m_fadeDuration = 0.0f;
+
+    SDL_AudioStream* m_ambientStream{ nullptr };
+    float m_ambientVolume{ 0.0f };
+    float m_ambientTargetVolume{ 0.0f };
+    float m_ambientFadeSpeed{ 0.0f };
+    int m_ambientFadeState{ 0 };
 
     std::vector<SDL_AudioStream*> m_activeSFXStreams;
 };

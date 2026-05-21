@@ -3,6 +3,7 @@
 #include "EnemyManager.h"
 #include "Enemy.h"
 #include "Camera.h"
+#include "System/AudioManager.h"
 #include "System/Graphics.h"
 #include <cmath>
 #include <algorithm>
@@ -330,6 +331,10 @@ void NaviAlly::TakeDamage(int damage) noexcept
     if (!IsAlive()) return;
 
     m_hp = (std::max)(0, m_hp - damage);
+
+    static const std::string HIT_SFX_PATH{ "Data/Sound/SE_Enemy_Hit.wav" };
+
+    AudioManager::Instance().PlaySFX(HIT_SFX_PATH, 0.6f);
 
     if (m_hp <= 0)
     {

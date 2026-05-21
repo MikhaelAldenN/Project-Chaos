@@ -489,6 +489,9 @@ void Enemy::TakeDamage(int damage)
     m_hp -= damage;
     m_blinkTimer = BLINK_DURATION; // Trigger blink effect
 
+    static const std::string HIT_SFX_PATH{ "Data/Sound/SE_Enemy_Hit.wav" };
+    AudioManager::Instance().PlaySFX(HIT_SFX_PATH, 0.6f);
+
 	// Play visual effect
     EffectManager::Instance().Play("Data/Effect/Hit.efk", GetPosition(), 1.0f);
 

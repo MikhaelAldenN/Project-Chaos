@@ -105,9 +105,9 @@ namespace EnemyLevelData
 
             // 3. TRACKING: Slowly chases the player around the map.
             { { 31.514f, 1.1f, 99.7f }, Rot::Forward, Potioned, EnemyType::MushroomTracking, AttackType::Tracking },
-            //{ { 55.814f, 1.1f, 92.4f }, Rot::Left, Potioned, EnemyType::MushroomStatic, AttackType::Tracking },
-            //{ { 53.514f, 1.1f, 75.2f }, Rot::Left, Potioned, EnemyType::MushroomTracking, AttackType::Tracking },
-            //{ { 45.314f, 1.1f, 70.0f }, Rot::Forward, Potioned, EnemyType::MushroomStatic, AttackType::Tracking }
+            { { 55.814f, 1.1f, 92.4f }, Rot::Left, Potioned, EnemyType::MushroomStatic, AttackType::Tracking },
+            { { 53.514f, 1.1f, 75.2f }, Rot::Left, Potioned, EnemyType::MushroomTracking, AttackType::Tracking },
+            { { 45.314f, 1.1f, 70.0f }, Rot::Forward, Potioned, EnemyType::MushroomStatic, AttackType::Tracking }
     } };
 }
 

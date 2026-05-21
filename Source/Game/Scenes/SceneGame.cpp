@@ -419,6 +419,10 @@ void SceneGame::Update(const float elapsedTime)
             {
                 m_bossEffectTriggered = true;
 
+                static const std::string POISON_SFX{ "Data/Sound/SE_FakeBoss_Poison.wav" };
+
+                AudioManager::Instance().PlayAmbientSFX(POISON_SFX, 1.0f, 0.5f);
+
                 if (Enemy* fakeBoss = GetFakeBoss())
                 {
                     DirectX::XMFLOAT3 spawnPos = fakeBoss->GetPosition();
@@ -444,6 +448,8 @@ void SceneGame::Update(const float elapsedTime)
             // FASE 4: Player mencet enter nutup jeritan Navi. Kotak dialog otomatis hilang, mulai Fade Putih!
             if (m_bossEffectTriggered && !m_dialogueBox->IsActive())
             {
+                AudioManager::Instance().FadeOutAmbientSFX(1.5f);
+
                 // Jalanin timer lagi buat ngitung efek whiteout
                 m_bossCinematicTimer += elapsedTime;
 
