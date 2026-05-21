@@ -101,6 +101,8 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
         m_cageMaxHP = 1000; // Sesuaikan dengan total HP yang kamu inginkan
         m_cageHP = m_cageMaxHP;        
         m_cagePos = m_aiTarget->GetPosition(); // Kunci posisi kandang di lokasi player saat ini
+        m_cageWindowPos = m_cagePos;
+        m_cageShakeTimer = 0.0f;
         m_aiTarget->SetShootDelay(0.0f);
 
         // Hitung ukuran asli di dunia 3D (300 pixel / ratio)
@@ -116,9 +118,15 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
         cageCfg.isTransparent = false;
 
         windowSystem->AddTrackedWindow(cageCfg,
-            [this]() { return m_cagePos; }, // Posisinya STATIS, tidak lagi mengikuti player!
+            [this]() { return m_cageWindowPos; }, // Posisinya STATIS, hanya jitter saat kena tembak
             []() { return DirectX::XMFLOAT2(300.0f, 300.0f); }
         );
+
+        if (auto* cageWindow = windowSystem->GetTrackedWindow(m_cageWindowName)) {
+            if (cageWindow->window) {
+                cageWindow->window->SetBackgroundAlpha(1.0f);
+            }
+        }
     }
 }
 
@@ -227,6 +235,16 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
 
     if (m_bossHP <= 0) {
         m_aiEnabled = false;
+    }
+
+    m_cageWindowPos = m_cagePos;
+    if (m_isPlayerCaged && m_cageShakeTimer > 0.0f) {
+        m_cageShakeTimer -= dt;
+        float t = (m_cageShakeDuration > 0.0f) ? (m_cageShakeTimer / m_cageShakeDuration) : 0.0f;
+        float strength = max(0.0f, t) * m_cageShakeIntensity;
+        float offsetX = (((rand() % 200) / 100.0f) - 1.0f) * strength;
+        float offsetZ = (((rand() % 200) / 100.0f) - 1.0f) * strength;
+        m_cageWindowPos = { m_cagePos.x + offsetX, m_cagePos.y, m_cagePos.z + offsetZ };
     }
 
     // =========================================================
@@ -1109,6 +1127,7 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
             m_solidRenderer->Render(context);
         }
     }
+
 }
 
 
@@ -1265,15 +1284,25 @@ void NaviPhaseWindowkill::DamageCage(int dmg) {
     if (!m_isPlayerCaged) return;
 
     m_cageHP -= dmg;
+    if (m_cageHP < 0) m_cageHP = 0;
 
     // =========================================================
     // [FIX] KEMBALIKAN EFEK HIT YANG HILANG
     // =========================================================
-    CameraController::Instance().AddTrauma(0.25f); // Naikkan getarannya agar terasa!
+    m_cageShakeTimer = m_cageShakeDuration;
 
     // [PENTING] Ganti tulisan "SE_Hit.wav" di bawah ini dengan 
     // nama file suara aslimu yang benar jika kamu menggunakan nama lain!
     AudioManager::Instance().PlaySFX("Data/Sound/SE_Hit.wav", 0.2f);
+
+    if (m_bossRef && m_bossRef->GetWindowSystem()) {
+        if (auto* cageWindow = m_bossRef->GetWindowSystem()->GetTrackedWindow(m_cageWindowName)) {
+            if (cageWindow->window) {
+                float hpRatio = (m_cageMaxHP > 0) ? ((float)m_cageHP / (float)m_cageMaxHP) : 0.0f;
+                cageWindow->window->SetBackgroundAlpha(max(0.15f, hpRatio));
+            }
+        }
+    }
 
     // =========================================================
     // PICU PLAYER OVERDRIVE / UNCAPPED (HP <= 50%)

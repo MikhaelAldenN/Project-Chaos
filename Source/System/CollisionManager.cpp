@@ -1084,7 +1084,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
                 if (!m_player->IsInvincible()) {
                     m_player->TakeDamage(bullet->GetDamage());
                     if (wkPhase) {
-                        m_player->TriggerInvincibility(0.5f);
+                        m_player->TriggerInvincibility(0.2f);
                     }
 
                     // [FIX MUTLAK] HANYA hancurkan peluru jika ini dari Fase Normal!
@@ -1159,7 +1159,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
                 {
                     if (!m_player->IsInvincible()) {
                         m_player->TakeDamage(beamDamage);
-                        m_player->TriggerInvincibility(0.5f);
+                        m_player->TriggerInvincibility(0.2f);
 
                         if (m_player->GetHP() <= 0) {
                             m_player->scale = { 0.0f, 0.0f, 0.0f };

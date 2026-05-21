@@ -362,6 +362,10 @@ private:
     int m_cageHP = 1000;             // Sesuaikan dengan damage peluru player-mu
     bool m_isCageOverdrive = false;
     DirectX::XMFLOAT3 m_cagePos = { 0.0f, 0.0f, 0.0f };
+    DirectX::XMFLOAT3 m_cageWindowPos = { 0.0f, 0.0f, 0.0f };
+    float m_cageShakeTimer = 0.0f;
+    float m_cageShakeDuration = 0.18f;
+    float m_cageShakeIntensity = 0.22f;
     float m_cageSizeWorld = 7.5f;  // Hasil dari 300px / PixelToUnitRatio
     std::string m_cageWindowName = "player_cage_window";
 };
