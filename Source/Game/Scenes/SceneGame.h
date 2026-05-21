@@ -2,6 +2,7 @@
 
 // Standard Libraries
 #include <memory>
+#include <string>
 #include <DirectXMath.h>
 #include <wrl/client.h> 
 #include <PxPhysicsAPI.h> 
@@ -27,6 +28,7 @@ class ItemManager;
 class NaviAlly;
 class Player;
 class PostProcessManager;
+class Primitive;
 class Stage;
 
 // ==========================================
@@ -90,6 +92,7 @@ private:
     DirectX::XMFLOAT3 m_cameraTarget{ 0.0f, 0.0f, 0.0f };
     LightManager m_lightManager{};
     std::unique_ptr<PostProcessManager> m_postProcess{};
+    std::unique_ptr<Primitive> m_dialogPrimitive{};
     UberShader::UberData m_uberParams{};
     PostProcessState m_fxState{};
 
@@ -124,6 +127,13 @@ private:
     bool m_isNaviDefeatSequenceActive{ false };
     float m_naviDefeatTimer{ 0.0f };
     bool m_isNaviDefeatReadyForNextScene{ false };
+    bool m_hasIntroDialogueTestStarted{ false };
+    bool m_dialogVisible{ false };
+    std::string m_dialogSpeaker{};
+    std::string m_dialogText{};
+    int m_dialogVisibleCharacters{ 0 };
+    int m_dialogTotalCharacters{ 0 };
+    float m_dialogTypeTimer{ 0.0f };
 
     static constexpr float DEATH_DELAY_DURATION{ 0.5f };
     static constexpr float DEATH_FADE_DURATION{ 3.0f };
@@ -131,6 +141,7 @@ private:
     static constexpr float RESPAWN_FADE_DURATION{ 3.0f };
     static constexpr float WHITEOUT_HOLD_DURATION{ 15.0f };
     static constexpr float FADE_BACK_DURATION{ 2.0f };
+    static constexpr float DIALOG_CHARACTERS_PER_SECOND{ 18.0f };
 
     // Post-Process Values for Fading to Black
     static constexpr float FX_BASE_SMOOTHNESS{ 0.2f };
@@ -142,6 +153,9 @@ private:
 
     void StartPlayerDeathSequence();
     void StartNaviDefeatSequence();
+    void StartIntroDialogueTest();
+    void UpdateDialogue(float elapsedTime);
+    void RenderDialogue();
     void ResetLevel();
 
     // Cinematic States
