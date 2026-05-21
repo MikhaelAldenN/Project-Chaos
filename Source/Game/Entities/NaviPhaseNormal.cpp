@@ -16,6 +16,7 @@
 #include "EffectManager.h"
 #include "NaviPhaseWindowkill.h"
 #include "WindowShatter.h"
+#include <SceneBoss.h>
 
 using namespace DirectX;
 
@@ -176,7 +177,8 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
             }
 
             WindowShatterManager::Instance().WakeUpAll();
-            boss->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
+            boss->ChangePhase(std::make_unique<NaviPhaseWindowkill>(m_aiTarget));
+           
         }
 
         return; // Hentikan sisa logika Update Normal Phase saat bos sedang mati

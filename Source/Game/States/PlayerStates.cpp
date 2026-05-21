@@ -472,7 +472,12 @@ void PlayerShoot::Enter(Player* player)
     // Kita gunakan volume 0.5f agar tidak terlalu memekakkan telinga
     AudioManager::Instance().PlaySFX(dashSounds[randomIndex], 0.1f);
 
-    timer = player->IsPowerUncapped() ? 0.05f : PlayerConst::ShootDuration;
+    float currentDelay = player->GetShootDelay();
+    if (currentDelay > 0.0f && player->IsPowerUncapped()) {
+        currentDelay = 0.05f;
+    }
+
+    timer = currentDelay;
 }
 
 void PlayerShoot::Update(Player* player, float dt)

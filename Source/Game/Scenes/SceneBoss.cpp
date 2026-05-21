@@ -100,14 +100,16 @@ SceneBoss::SceneBoss()
     m_navi = std::make_unique<NaviBoss>();
     m_navi->Initialize(m_windowSystem.get());
 
-#if 1
-    m_navi->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
+#if 0
+    m_navi->ChangePhase(std::make_unique<NaviPhaseWindowkill>(m_player.get())); 
+    m_playerWindowTransparent = true;
 #else
     m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>(m_player.get())); 
 #endif
 
     if (m_collisionManager) {
         m_collisionManager->SetNaviBoss(m_navi.get());
+        m_playerWindowTransparent = false;
     }
 
     WindowManager::Instance().SetTopmost(m_topmostEnabled);
@@ -164,33 +166,48 @@ void SceneBoss::InitializeSubWindows()
 {
     if (!m_windowSystem || !m_player) return;
 
-    // --- Player-tracking window ---
-    m_windowSystem->AddTrackedWindow(
-        { "player", "Player", 300, 300, 1 },
-        [this]() -> XMFLOAT3 {
-            if (!m_player) return XMFLOAT3(0.0f, 0.0f, 0.0f);
-            const auto pPos = m_player->GetPosition();
-            return XMFLOAT3(
-                pPos.x + m_stretchOffset.x,
-                0.0f,
-                pPos.z + m_stretchOffset.y   // XMFLOAT2::y maps to world Z
-            );
-        },
-        [this]() -> XMFLOAT2 {
-            return XMFLOAT2(
-                k_defaultWinSize + m_currentStretch.x,
-                k_defaultWinSize + m_currentStretch.y
-            );
-        }
-    );
-
-    TrackedWindow* playerWin = m_windowSystem->GetTrackedWindow("player");
-    if (playerWin && playerWin->window)
-    {
-        SDL_Window* sdlWin = playerWin->window->GetSDLWindow();
-        SDL_SetWindowResizable(sdlWin, true);
-        SDL_SetWindowBordered(sdlWin, true);
+    // =========================================================
+    // [FIX MUTLAK] Jangan pernah spawn window "player" jika 
+    // bos sedang berada di Fase Windowkill!
+    // =========================================================
+    bool isWindowkillPhase = false;
+    if (m_navi && dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+        isWindowkillPhase = true;
     }
+
+    if (!isWindowkillPhase)
+    {
+        // --- Player-tracking window ---
+        m_windowSystem->AddTrackedWindow(
+            { "player", "Player", 300, 300, 1 },
+            [this]() -> XMFLOAT3 {
+                if (!m_player) return XMFLOAT3(0.0f, 0.0f, 0.0f);
+                const auto pPos = m_player->GetPosition();
+                return XMFLOAT3(
+                    pPos.x + m_stretchOffset.x,
+                    0.0f,
+                    pPos.z + m_stretchOffset.y
+                );
+            },
+            [this]() -> XMFLOAT2 {
+                return XMFLOAT2(
+                    k_defaultWinSize + m_currentStretch.x,
+                    k_defaultWinSize + m_currentStretch.y
+                );
+            }
+        );
+
+        TrackedWindow* playerWin = m_windowSystem->GetTrackedWindow("player");
+        if (playerWin && playerWin->window)
+        {
+            SDL_Window* sdlWin = playerWin->window->GetSDLWindow();
+            SDL_SetWindowResizable(sdlWin, true);
+            SDL_SetWindowBordered(sdlWin, true);
+        }
+    }
+
+    // --- Register main window with the tracking system ---
+    // (Lanjutkan kode aslimu di bawah sini...)
 
     // --- Register main window with the tracking system ---
     Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
@@ -360,6 +377,17 @@ void SceneBoss::Update(float elapsedTime)
         }
 
         m_navi->Update(scaledDt);
+
+        bool isWindowkillPhase = (dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()) != nullptr);
+
+        if (isWindowkillPhase && !m_playerWindowTransparent) {
+            // Jika bos baru saja masuk Phase 2, nyalakan transparansi!
+            m_playerWindowTransparent = true;
+        }
+        else if (!isWindowkillPhase && m_playerWindowTransparent) {
+            // Jika bos kembali ke Phase 1 (atau respawn/mati), matikan transparansi!
+            m_playerWindowTransparent = false;
+        }
     }
     if (m_enemyManager) m_enemyManager->Update(scaledDt, activeCam, m_player->GetPosition(), true);
     if (m_itemManager) m_itemManager->Update(scaledDt, activeCam);
@@ -561,14 +589,26 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
 
     // B. RENDER TUBUH PEMAIN (Kondisional)
     if (m_player) {
-        // [FIX] Logika baru: 
-        // 1. Jika mode transparan AKTIF -> Render HANYA di Wing/FX Camera
-        // 2. Jika mode transparan MATI  -> Render HANYA di Main/Portal Camera
+        // Logika bawaan:
         bool shouldRenderHere = m_playerWindowTransparent ? isWingCamera : !isWingCamera;
+
+        // [FIX MUTLAK] PAKSA RENDER DI SEMUA KAMERA SAAT WINDOWKILL
+        if (m_navi && dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+            shouldRenderHere = true;
+        }
 
         if (shouldRenderHere) {
             const XMFLOAT3 pPos = m_player->GetPosition();
-            if (camera->CheckSphere(pPos.x, pPos.y, pPos.z, 1.5f)) {
+
+            // [MODIFIKASI] Bypass pengecekan Sphere jika sedang dikurung!
+            bool isInView = camera->CheckSphere(pPos.x, pPos.y, pPos.z, 1.5f);
+
+            auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase());
+            if (wkPhase && wkPhase->IsPlayerCaged()) {
+                isInView = true; // Selalu render player selama dia di dalam kandang!
+            }
+
+            if (isInView) {
                 m_player->Render(modelRenderer);
             }
         }
@@ -733,7 +773,8 @@ void SceneBoss::DrawGUI()
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
                 if (ImGui::Button("TRIGGER PHASE 2 (WINDOWKILL) !!!", ImVec2(-1.0f, 50.0f))) {
-                    m_navi->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
+                    m_navi->ChangePhase(std::make_unique<NaviPhaseWindowkill>(m_player.get()));
+                    m_playerWindowTransparent = true;
                     AddLog("Transitioning to Windowkill Phase...");
                 }
                 ImGui::PopStyleColor(2);
@@ -862,6 +903,10 @@ void SceneBoss::DrawGUI()
                 else {
                     // Jika sedang di Phase 2 (Windowkill) lalu ingin kembali ke Phase 1
                     m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>(m_player.get()));
+                    m_playerWindowTransparent = false;
+                    if (m_player) {
+                        m_player->RestoreShootDelay();
+                    }
                     AddLog("Boss respawned (Phase 1 Normal).");
                 }
             }
@@ -1273,6 +1318,8 @@ void SceneBoss::ResetEverything()
     m_stage.reset();
     m_boss.reset();
     WindowShatterManager::Instance().Clear();
+    m_player->RestoreShootDelay();
+    
 
     if (m_windowSystem) m_windowSystem->ClearAll();
     m_player.reset();
@@ -1345,7 +1392,7 @@ void SceneBoss::ResetEverything()
     m_autoSyncMainWindow = false; // Tetap false agar tidak merusak Fullscreen Fase 1
 
     //m_topmostEnabled = true;
-    m_playerWindowTransparent = false;
+    m_playerWindowTransparent = true;
     m_debugLogs.clear();
 
     WindowManager::Instance().SetTopmost(m_topmostEnabled);

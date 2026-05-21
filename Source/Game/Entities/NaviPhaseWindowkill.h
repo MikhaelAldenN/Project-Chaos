@@ -73,7 +73,7 @@ struct TargetedBlasterParams {
 
 class NaviPhaseWindowkill : public INaviPhase {
 public:
-    NaviPhaseWindowkill();
+    NaviPhaseWindowkill(Player* player = nullptr);
     ~NaviPhaseWindowkill() override = default;
 
     // --- Kontrak Wajib dari INaviPhase ---
@@ -242,6 +242,12 @@ public:
     void TriggerUndyneSpear(NaviBoss* boss);
     UndyneSpearParams& GetUndyneParams() { return m_undyneParams; }
 
+    // [BARU] API Kandang (Cage) untuk dibaca oleh CollisionManager
+    bool IsPlayerCaged() const { return m_isPlayerCaged; }
+    DirectX::XMFLOAT3 GetCagePos() const { return m_cagePos; }
+    float GetCageSize() const { return m_cageSizeWorld; }
+    void DamageCage(int dmg);
+
 private:
     void GenerateButterflyWings();
 
@@ -325,4 +331,14 @@ private:
     std::vector<int> m_undyneSpawnIndices;
 
     Player* m_aiTarget = nullptr;
+
+    // [BARU] Parameter Kandang
+    NaviBoss* m_bossRef = nullptr; // Untuk menyimpan pointer boss sementara
+    bool m_isPlayerCaged = false;
+    int m_cageMaxHP = 1000;
+    int m_cageHP = 1000;             // Sesuaikan dengan damage peluru player-mu
+    bool m_isCageOverdrive = false;
+    DirectX::XMFLOAT3 m_cagePos = { 0.0f, 0.0f, 0.0f };
+    float m_cageSizeWorld = 7.5f;  // Hasil dari 300px / PixelToUnitRatio
+    std::string m_cageWindowName = "player_cage_window";
 };

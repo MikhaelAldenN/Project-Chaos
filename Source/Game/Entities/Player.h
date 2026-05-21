@@ -99,6 +99,17 @@ public:
         m_playerbulletOffsetRot = { 0.0f, 0.0f, 0.0f };
         m_playerbulletOffsetScale = { 1.0f, 1.0f, 1.0f };
     }
+
+    void SetShootDelay(float newDelay) {
+        m_shootDelay = newDelay;
+    }
+    void RestoreShootDelay() {
+        m_shootDelay = PlayerConst::ShootDuration; // Otomatis baca dari konstanta aslimu
+    }
+    float GetShootDelay() const {
+        return m_shootDelay;
+    }
+
     std::shared_ptr<Model> GetPlayerBulletModel() const { return m_playerbulletModel; }
     DirectX::XMFLOAT3* GetPlayerBulletOffsetPos() { return &m_playerbulletOffsetPos; }
     DirectX::XMFLOAT3* GetPlayerBulletOffsetRot() { return &m_playerbulletOffsetRot; }
@@ -221,6 +232,8 @@ private:
     DirectX::XMFLOAT4 m_playerbulletColor{ 1.000f, 1.000f, 1.000f, 1.000f };
     std::deque<std::unique_ptr<Bullet>> m_projectiles;
     float m_bulletSpeed = PlayerConst::BulletSpeed;
+
+    float m_shootDelay = PlayerConst::ShootDuration;
 
     // [BARU] Tambahkan ini untuk menyimpan damage peluru player
     int m_bulletDamage = 10;

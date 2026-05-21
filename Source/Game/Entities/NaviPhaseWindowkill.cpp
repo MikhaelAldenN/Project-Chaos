@@ -13,8 +13,9 @@
 
 using namespace DirectX;
 
-NaviPhaseWindowkill::NaviPhaseWindowkill() {}
-
+NaviPhaseWindowkill::NaviPhaseWindowkill(Player* player) {
+    m_aiTarget = player;
+}
 // =========================================================
 // [MAGIC] MEMORY MANAGEMENT & SPAWNING
 // =========================================================
@@ -73,6 +74,41 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
 
     EffectManager::Instance().PreloadEffect(m_blasterParams.chargeEffectPath);
     EffectManager::Instance().PreloadEffect(m_blasterParams.fireEffectPath);
+
+    m_bossRef = boss; // Simpan referensi boss untuk dipakai saat jendela hancur
+
+    if (windowSystem->GetTrackedWindow("player")) {
+        windowSystem->RemoveTrackedWindow("player");
+    }
+
+    // =========================================================
+    // [BARU] INISIALISASI KANDANG PEMAIN
+    // =========================================================
+    if (m_aiTarget) {
+        m_isPlayerCaged = true;
+        m_aiTarget->SetPosition(0, 0, -8.0f);
+        m_cageMaxHP = 1000; // Sesuaikan dengan total HP yang kamu inginkan
+        m_cageHP = m_cageMaxHP;        
+        m_cagePos = m_aiTarget->GetPosition(); // Kunci posisi kandang di lokasi player saat ini
+        m_aiTarget->SetShootDelay(0.0f);
+
+        // Hitung ukuran asli di dunia 3D (300 pixel / ratio)
+        m_cageSizeWorld = 300.0f / windowSystem->GetPixelToUnitRatio();
+
+        TrackedWindowConfig cageCfg;
+        cageCfg.name = m_cageWindowName;
+        cageCfg.title = "TRAPPED.exe";
+        cageCfg.width = 300;
+        cageCfg.height = 300;
+        cageCfg.role = WindowRole::TRACKED_ENTITY;
+        cageCfg.priority = 100; // Pastikan selalu di atas
+        cageCfg.isTransparent = false;
+
+        windowSystem->AddTrackedWindow(cageCfg,
+            [this]() { return m_cagePos; }, // Posisinya STATIS, tidak lagi mengikuti player!
+            []() { return DirectX::XMFLOAT2(300.0f, 300.0f); }
+        );
+    }
 }
 
 void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
@@ -167,6 +203,34 @@ void NaviPhaseWindowkill::GenerateButterflyWings() {
 
 void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
     m_glitchTimer += dt;
+
+    // =========================================================
+        // [FIX] KURUNG PEMAIN DI DALAM KANDANG (HITBOX & VISUAL SINKRON)
+        // =========================================================
+    if (m_isPlayerCaged && m_aiTarget) {
+        DirectX::XMFLOAT3 pPos = m_aiTarget->GetPosition();
+
+        float halfSize = (m_cageSizeWorld * 0.5f) - 0.5f;
+        bool isClamped = false; // Penanda jika pemain mentok
+
+        // Tembok Kiri Kanan (Sumbu X)
+        if (pPos.x > m_cagePos.x + halfSize) { pPos.x = m_cagePos.x + halfSize; isClamped = true; }
+        if (pPos.x < m_cagePos.x - halfSize) { pPos.x = m_cagePos.x - halfSize; isClamped = true; }
+
+        // Tembok Atas Bawah (Sumbu Z)
+        if (pPos.z > m_cagePos.z + halfSize) { pPos.z = m_cagePos.z + halfSize; isClamped = true; }
+        if (pPos.z < m_cagePos.z - halfSize) { pPos.z = m_cagePos.z - halfSize; isClamped = true; }
+
+        if (isClamped) {
+            // Paksa pergerakan fisika
+            m_aiTarget->GetMovement()->SetPosition(pPos);
+            // [BARU] Paksa juga posisi model/entitas agar tidak nge-drift keluar!
+            m_aiTarget->SetPosition(pPos);
+
+            // Opsional: Hentikan velocity agar pemain tidak "meluncur" di dinding
+            // m_aiTarget->GetMovement()->SetVelocity({0,0,0}); 
+        }
+    }
 
     // =========================================================
     // [NEW] GERAKAN MENGAMBANG (IDLE HOVER) BOS NAVI
@@ -1103,4 +1167,50 @@ void NaviPhaseWindowkill::TriggerTargetedBlaster(NaviBoss* boss) {
     m_isSpawningTargetedBlasters = true;
     m_targetedBlastersSpawned = 0;
     m_targetedBlasterSpawnTimer = m_blasterParams.spawnDelay;
+}
+
+void NaviPhaseWindowkill::DamageCage(int dmg) {
+    if (!m_isPlayerCaged) return;
+
+    m_cageHP -= dmg;
+
+    // =========================================================
+    // [FIX] KEMBALIKAN EFEK HIT YANG HILANG
+    // =========================================================
+    CameraController::Instance().AddTrauma(0.25f); // Naikkan getarannya agar terasa!
+
+    // [PENTING] Ganti tulisan "SE_Hit.wav" di bawah ini dengan 
+    // nama file suara aslimu yang benar jika kamu menggunakan nama lain!
+    AudioManager::Instance().PlaySFX("Data/Sound/SE_Hit.wav", 0.2f);
+
+    // =========================================================
+    // PICU PLAYER OVERDRIVE / UNCAPPED (HP <= 50%)
+    // =========================================================
+    if (m_cageHP <= 600 && m_aiTarget) {
+        if (!m_aiTarget->IsPowerUncapped()) {
+            m_aiTarget->ReleasePowerCap();
+            m_aiTarget->SetShootDelay(0.5f);
+
+            // Beri efek getaran & suara dramatis saat player "Super Saiyan"
+            CameraController::Instance().AddTrauma(0.5f);
+            AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Laser_Charge.wav", 0.3f);
+        }
+    }
+
+    // =========================================================
+    // JIKA KANDANG HANCUR (HP <= 0)
+    // =========================================================
+    if (m_cageHP <= 0) {
+        m_isPlayerCaged = false;
+
+        CameraController::Instance().AddTrauma(0.6f);
+        AudioManager::Instance().PlaySFX("Data/Sound/SE_GlassShatter.wav", 0.4f);
+
+        if (m_bossRef && m_bossRef->GetWindowSystem()) {
+            auto extracted = m_bossRef->GetWindowSystem()->ExtractForPool(m_cageWindowName);
+            if (extracted && extracted->window) {
+                WindowManager::Instance().DestroyWindow(extracted->window);
+            }
+        }
+    }
 }

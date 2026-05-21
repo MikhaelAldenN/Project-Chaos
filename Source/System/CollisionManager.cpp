@@ -659,11 +659,11 @@ void CollisionManager::CheckPlayerVsItems()
 
 void CollisionManager::CheckPlayerProjectilesVsEnemies(const float elapsedTime)
 {
-    // Bug Anticipation: Always check pointers before dereferencing in a hot loop.
-    if (!m_player || !m_enemyManager) return;
+    // Cukup cek player di awal, agar logic menembak kandang tetap jalan 
+    // meskipun tidak ada musuh (atau m_enemyManager belum siap)
+    if (!m_player) return;
 
     auto& projectiles{ m_player->GetProjectiles() };
-    const auto& enemies{ m_enemyManager->GetEnemies() }; // const auto& to prevent copying the vector
 
     //constexpr int PLAYER_BULLET_DAMAGE = 10;
     constexpr float BULLET_HITBOX_RADIUS = 1.0f;
@@ -673,6 +673,40 @@ void CollisionManager::CheckPlayerProjectilesVsEnemies(const float elapsedTime)
         if (!bullet || !bullet->IsActive()) continue;
 
         const DirectX::XMFLOAT3 currentPos{ bullet->GetMovement()->GetPosition() };
+
+        // =========================================================
+        // [BARU] DETEKSI TABRAKAN PELURU VS KANDANG (CAGE)
+        // =========================================================
+        bool hitCage = false;
+        if (m_naviBoss) {
+            // Cek apakah sedang berada di fase Windowkill
+            if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_naviBoss->GetCurrentPhase())) {
+                if (wkPhase->IsPlayerCaged()) {
+                    DirectX::XMFLOAT3 cPos = wkPhase->GetCagePos();
+                    float halfSize = wkPhase->GetCageSize() * 0.5f;
+
+                    // Jika posisi peluru MELEWATI batas kotak kandang
+                    if (currentPos.x > cPos.x + halfSize || currentPos.x < cPos.x - halfSize ||
+                        currentPos.z > cPos.z + halfSize || currentPos.z < cPos.z - halfSize)
+                    {
+                        // Kurangi HP kandang dan hancurkan peluru
+                        wkPhase->DamageCage(bullet->GetDamage());
+                        bullet->SetActive(false);
+                        hitCage = true;
+                    }
+                }
+            }
+        }
+
+        // Jika peluru hancur menabrak kandang, lewati pengecekan musuh untuk peluru ini
+        if (hitCage) continue;
+
+        // =========================================================
+        // DETEKSI PELURU VS MUSUH (Logika Aslimu)
+        // =========================================================
+        if (!m_enemyManager) continue; // Cek musuh di sini agar aman
+        const auto& enemies{ m_enemyManager->GetEnemies() };
+
         const DirectX::XMFLOAT3 velocity{ bullet->GetVelocity() };
 
         // Calculate where the bullet was last frame
