@@ -214,6 +214,10 @@ private:
     float             m_rainSweepDir = 1.0f;
     DirectX::XMFLOAT3 m_rainCenter = { 0, 0, 0 };
     DirectX::XMFLOAT3 m_rainCenter2 = { 0, 0, 0 };
+    
+    std::vector<int> m_rainVfxHandles;
+    void ClearRainVFX();
+
 
     // ----- Danger Zone Visual -----
     std::unique_ptr<Primitive> m_zonePrimitive;

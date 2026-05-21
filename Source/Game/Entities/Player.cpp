@@ -96,9 +96,14 @@ Player::~Player()
         EffectManager::Instance().Stop(m_dashReadyVfxHandle);
     }
 
-    // [BARU] Bersihkan efek standby jika player mendadak dihapus
+    // Bersihkan efek standby jika player mendadak dihapus
     if (m_dashStandbyVfxHandle != -1) {
         EffectManager::Instance().Stop(m_dashStandbyVfxHandle);
+    }
+
+    // [BARU] Bersihkan efek overdrive
+    if (m_overdriveVfxHandle != -1) {
+        EffectManager::Instance().Stop(m_overdriveVfxHandle);
     }
 }
 
@@ -245,6 +250,77 @@ void Player::Update(float elapsedTime, Camera* camera)
         if (m_dashStandbyVfxHandle != -1) {
             EffectManager::Instance().Stop(m_dashStandbyVfxHandle);
             m_dashStandbyVfxHandle = -1; // Reset handle agar bisa spawn baru nanti
+        }
+    }
+
+    // =========================================================
+        // [BARU] Update posisi VFX Dash Ready agar menempel ke Player
+        // =========================================================
+    if (m_dashReadyVfxHandle != -1 && EffectManager::Instance().IsPlaying(m_dashReadyVfxHandle))
+    {
+        DirectX::XMFLOAT3 vfxPos = movement->GetPosition();
+        vfxPos.y += m_dashReadyOffsetY;
+        EffectManager::Instance().SetPosition(m_dashReadyVfxHandle, vfxPos);
+    }
+
+    // =========================================================
+    // Logika VFX Overdrive & Standby Dash (Hierarki & Tracking)
+    // =========================================================
+    if (IsPowerUncapped())
+    {
+        // 1. Matikan paksa Dash Standby jika kebetulan masih menyala
+        if (m_dashStandbyVfxHandle != -1) {
+            EffectManager::Instance().Stop(m_dashStandbyVfxHandle);
+            m_dashStandbyVfxHandle = -1;
+        }
+
+        // 2. Mainkan efek Overdrive jika belum hidup
+        if (m_overdriveVfxHandle == -1 || !EffectManager::Instance().IsPlaying(m_overdriveVfxHandle))
+        {
+            DirectX::XMFLOAT3 vfxPos = movement->GetPosition();
+            vfxPos.y += m_dashReadyOffsetY;
+            m_overdriveVfxHandle = EffectManager::Instance().Play("Data/Effect/VFX_Player_Overdrive.efk", vfxPos, 1.0f);
+        }
+
+        // 3. Terus update posisinya mengikuti player
+        if (m_overdriveVfxHandle != -1 && EffectManager::Instance().IsPlaying(m_overdriveVfxHandle))
+        {
+            DirectX::XMFLOAT3 trackPos = movement->GetPosition();
+            trackPos.y += m_dashReadyOffsetY;
+            EffectManager::Instance().SetPosition(m_overdriveVfxHandle, trackPos);
+        }
+    }
+    else
+    {
+        // 1. Matikan efek Overdrive jika player kehilangan status Uncapped
+        if (m_overdriveVfxHandle != -1) {
+            EffectManager::Instance().Stop(m_overdriveVfxHandle);
+            m_overdriveVfxHandle = -1;
+        }
+
+        // 2. Fallback ke logika normal Dash Standby
+        if (canDash)
+        {
+            if (m_dashStandbyVfxHandle == -1 || !EffectManager::Instance().IsPlaying(m_dashStandbyVfxHandle))
+            {
+                DirectX::XMFLOAT3 vfxPos = movement->GetPosition();
+                vfxPos.y += m_dashReadyOffsetY;
+                m_dashStandbyVfxHandle = EffectManager::Instance().Play("Data/Effect/VFX_Player_Dash_Standby.efk", vfxPos, 0.7f);
+            }
+
+            if (m_dashStandbyVfxHandle != -1 && EffectManager::Instance().IsPlaying(m_dashStandbyVfxHandle))
+            {
+                DirectX::XMFLOAT3 trackPos = movement->GetPosition();
+                trackPos.y += m_dashReadyOffsetY;
+                EffectManager::Instance().SetPosition(m_dashStandbyVfxHandle, trackPos);
+            }
+        }
+        else
+        {
+            if (m_dashStandbyVfxHandle != -1) {
+                EffectManager::Instance().Stop(m_dashStandbyVfxHandle);
+                m_dashStandbyVfxHandle = -1;
+            }
         }
     }
 }

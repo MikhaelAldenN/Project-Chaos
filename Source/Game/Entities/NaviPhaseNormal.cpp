@@ -23,6 +23,7 @@ using namespace DirectX;
 NaviPhaseNormal::NaviPhaseNormal(Player* target)
     : m_aiTarget(target)
 {
+    m_rainVfxHandles.assign(800, -1);
 }
 
 // ============================================================
@@ -127,6 +128,8 @@ void NaviPhaseNormal::Exit(NaviBoss* boss) {
         EffectManager::Instance().Stop(m_deathVfxHandle);
         m_deathVfxHandle = -1;
     }
+
+    ClearRainVFX();
 }
 
 // ============================================================
@@ -582,8 +585,11 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
         }
         else if (m_rainState == 3) { // Dissipating
             m_rainSFXTimer = 0.0f;
-            if (m_rainTimer >= 1.0f)
+            // Perpanjang agar Render Loop punya waktu menggambar sisa hujan yang nyangkut di tanah
+            if (m_rainTimer >= 4.0f) {
                 m_rainState = 0;
+                ClearRainVFX();
+            }
         }
     }
     else {
@@ -832,35 +838,47 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
 
             int dropCount = m_rainIsDual ? 800 : 400;
 
+            if (m_rainVfxHandles.size() < dropCount) {
+                m_rainVfxHandles.resize(dropCount, -1);
+            }
+
             for (int i = 0; i < dropCount; ++i) {
                 float speed = distSpeed(gen);
                 float spawnTime = distSpawn(gen);
                 float localTime = currentGlobalTime - spawnTime;
+
                 if (localTime < 0.0f) continue;
 
+                DirectX::XMFLOAT3 dropPos = { 0.0f, 0.0f, 0.0f };
+                bool isActive = false;
+                float yawAngle = 0.0f; // Menyimpan rotasi Y (Yaw) dalam radian
+
                 if (m_rainIsDual) {
-                    // Alternate drops between left and right pillars
                     DirectX::XMFLOAT3 activeCenter = (i % 2 == 0) ? m_rainCenter : m_rainCenter2;
                     std::uniform_real_distribution<float> distX(activeCenter.x - halfW, activeCenter.x + halfW);
                     float rx = distX(gen);
                     float topEdge = activeCenter.z + halfD + 5.0f;
                     float bottomEdge = activeCenter.z - halfD;
                     float z = topEdge - (localTime * speed);
-                    if (z >= bottomEdge)
-                        shapeRenderer->DrawSphere({ rx, 1.0f, z }, 0.4f, { 1.0f, 0.4f, 0.0f, 1.0f });
+                    if (z >= bottomEdge) {
+                        dropPos = { rx, 1.0f, z };
+                        isActive = true;
+                        yawAngle = DirectX::XM_PI; // Travel ke bawah (-Z) = 180 derajat
+                    }
                 }
                 else if (m_rainIsVertical) {
-                    // Vertical zone: drops fall top-to-bottom along Z
                     std::uniform_real_distribution<float> distX(m_rainCenter.x - halfW, m_rainCenter.x + halfW);
                     float rx = distX(gen);
                     float topEdge = m_rainCenter.z + halfD + 5.0f;
                     float bottomEdge = m_rainCenter.z - halfD;
                     float z = topEdge - (localTime * speed);
-                    if (z >= bottomEdge)
-                        shapeRenderer->DrawSphere({ rx, 1.0f, z }, 0.4f, { 1.0f, 0.4f, 0.0f, 1.0f });
+                    if (z >= bottomEdge) {
+                        dropPos = { rx, 1.0f, z };
+                        isActive = true;
+                        yawAngle = DirectX::XM_PI; // Travel ke bawah (-Z) = 180 derajat
+                    }
                 }
                 else {
-                    // Horizontal zone: drops sweep left-to-right or right-to-left
                     std::uniform_real_distribution<float> distZ(m_rainCenter.z - halfD, m_rainCenter.z + halfD);
                     float rz = distZ(gen);
                     float dir = m_rainSweepDir;
@@ -868,8 +886,39 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
                     float endX = (dir > 0) ? (m_rainCenter.x + halfW) : (m_rainCenter.x - halfW);
                     float x = startX + (localTime * speed * dir);
                     bool  inside = (dir > 0) ? (x <= endX) : (x >= endX);
-                    if (inside)
-                        shapeRenderer->DrawSphere({ x, 1.0f, rz }, 0.4f, { 1.0f, 0.4f, 0.0f, 1.0f });
+                    if (inside) {
+                        dropPos = { x, 1.0f, rz };
+                        isActive = true;
+                        // Ke kanan (+X) = 90 derajat | Ke kiri (-X) = -90 derajat
+                        yawAngle = (dir > 0) ? DirectX::XM_PIDIV2 : -DirectX::XM_PIDIV2;
+                    }
+                }
+
+                if (isActive) {
+                    // Render bola merah peringatan (Opsional: kamu bisa mematikan/komen ini jika VFX saja sudah cukup)
+                    shapeRenderer->DrawSphere(dropPos, 0.4f, { 1.0f, 0.4f, 0.0f, 1.0f });
+
+                    if (m_rainVfxHandles[i] == -1) {
+                        // Play efek untuk pertama kali
+                        m_rainVfxHandles[i] = EffectManager::Instance().Play("Data/Effect/VFX_Boss_Asgore_Rain.efk", dropPos, 0.4f);
+
+                        // Terapkan Rotasi:
+                        // X = 90 Derajat (agar rebah ke plane tanah/tidak berdiri vertikal ke arah kamera)
+                        // Y = Arah travel jatuhnya hujan (Yaw)
+                        float rotX = DirectX::XMConvertToRadians(90.0f);
+                        EffectManager::Instance().SetRotation(m_rainVfxHandles[i], { rotX, yawAngle, 0.0f });
+                    }
+                    else {
+                        // Perbarui posisinya setiap frame
+                        EffectManager::Instance().SetPosition(m_rainVfxHandles[i], dropPos);
+                    }
+                }
+                else {
+                    // Stop dan putus sirkulasi saat tetesan hujan melewati batas layar
+                    if (m_rainVfxHandles[i] != -1) {
+                        EffectManager::Instance().Stop(m_rainVfxHandles[i]);
+                        m_rainVfxHandles[i] = -1;
+                    }
                 }
             }
         }
@@ -966,6 +1015,8 @@ void NaviPhaseNormal::TriggerPhalanx(Player* targetPlayer) {
 
 void NaviPhaseNormal::TriggerRainAttack(bool isSideMode, bool isPositiveSide, float sweepDir, bool isDual) {
     if (m_rainState != 0) return;
+
+    ClearRainVFX();
 
     m_rainState = 1;
     m_rainTimer = 0.0f;
@@ -1160,4 +1211,13 @@ void NaviPhaseNormal::FireFanWave(NaviBoss* boss) {
     }
 
     AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Shoot.wav", 0.2f * m_params.sfxVolumeMultiplier);
+}
+
+void NaviPhaseNormal::ClearRainVFX() {
+    for (int& handle : m_rainVfxHandles) {
+        if (handle != -1) {
+            EffectManager::Instance().Stop(handle);
+            handle = -1;
+        }
+    }
 }

@@ -271,4 +271,6 @@ private:
 
     // [BARU] Timer untuk efek standby berulang
     int m_dashStandbyVfxHandle = -1;
+
+    int m_overdriveVfxHandle = -1;
 };
