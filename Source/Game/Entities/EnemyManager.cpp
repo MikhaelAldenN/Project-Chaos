@@ -58,9 +58,11 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
         break;
     }
 
+    const int finalHP{ (config.AttackBehavior == AttackType::Tracking) ? 70 : config.MaxHP };
+
     if (!m_enemyPool.empty())
     {
-        // FAST PATH: Pull from the pool. Zero runtime memory allocation.
+        // FAST PATH: Pull from the pool.
         std::unique_ptr<Enemy> pooledEnemy{ std::move(m_enemyPool.back()) };
         m_enemyPool.pop_back();
 
@@ -72,13 +74,13 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
 
         pooledEnemy->SetScale(finalScale);
         pooledEnemy->SetBaseMoveSpeed(config.BaseSpeed);
-        pooledEnemy->SetMaxHP(config.MaxHP);
+        pooledEnemy->SetMaxHP(finalHP); 
 
         m_enemies.push_back(std::move(pooledEnemy));
     }
     else
     {
-        // SLOW PATH: Allocate new memory (Only happens during initial engine warmup)
+        // SLOW PATH: Allocate new memory 
         auto newEnemy{ std::make_unique<Enemy>(
             device, modelPath, config.Position, config.Rotation, config.Color,
             config.Type, config.AttackBehavior, config.MinX, config.MaxX,
@@ -87,7 +89,7 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
 
         newEnemy->SetScale(finalScale);
         newEnemy->SetBaseMoveSpeed(config.BaseSpeed);
-        newEnemy->SetMaxHP(config.MaxHP);
+        newEnemy->SetMaxHP(finalHP); 
 
         m_enemies.push_back(std::move(newEnemy));
     }

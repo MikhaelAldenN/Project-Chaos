@@ -12,6 +12,7 @@
 #include "PhysXUtils.h"
 #include "Scene.h"
 #include "System/Light.h"
+#include "System/Sprite.h"
 #include "UberShader.h"
 
 // ==========================================
@@ -27,10 +28,6 @@ class NaviAlly;
 class Player;
 class PostProcessManager;
 class Stage;
-
-// ==========================================
-// MAIN CLASS
-// ==========================================
 
 // ==========================================
 // MAIN CLASS
@@ -95,6 +92,9 @@ private:
     std::unique_ptr<PostProcessManager> m_postProcess{};
     UberShader::UberData m_uberParams{};
     PostProcessState m_fxState{};
+
+    std::unique_ptr<Sprite> m_fadeSprite{};
+    float m_fadeAlpha{ 0.0f };
     DirectX::XMFLOAT4 m_bgSpriteColor{ 1.0f, 1.0f, 1.0f, 1.0f };
 
     float m_globalTime{ 0.0f };
@@ -112,4 +112,24 @@ private:
     std::unique_ptr<physx::PxControllerManager, PhysXDeleter> m_controllerManager{};
     std::unique_ptr<physx::PxMaterial, PhysXDeleter> m_defaultMaterial{};
     std::unique_ptr<physx::PxRigidStatic, PhysXDeleter> m_groundPlane{};
+
+    // DEATH & RESPAWN SEQUENCE
+    bool m_isDying{ false };
+    float m_deathTimer{ 0.0f };
+    float m_respawnTimer{ 0.0f };
+
+    static constexpr float DEATH_DELAY_DURATION{ 0.5f };
+    static constexpr float DEATH_FADE_DURATION{ 3.0f };
+    static constexpr float RESPAWN_FADE_DURATION{ 3.0f };
+
+    // Post-Process Values for Fading to Black
+    static constexpr float FX_BASE_SMOOTHNESS{ 0.2f };
+    static constexpr float FX_BASE_INTENSITY{ 0.38f };
+    static constexpr float FX_BLACK_SMOOTHNESS{ 7.0f };
+    static constexpr float FX_BLACK_INTENSITY{ 5.0f };
+
+    const DirectX::XMFLOAT3 m_playerSpawnPos{ 0.0f, 2.0f, 0.0f };
+
+    void StartPlayerDeathSequence();
+    void ResetLevel();
 };

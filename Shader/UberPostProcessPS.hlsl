@@ -213,6 +213,8 @@ float4 main(VS_OUT pin) : SV_TARGET
         }
     }
 
+    finalColor.rgb *= mask;
+
     // -----------------------------------------------------
     // STEP 5A: ROLLING BAR (Animation)
     // -----------------------------------------------------

@@ -90,16 +90,17 @@ private:
     // ATTACK SETTINGS 
     // ==========================================
     float m_attackTimer = 0.0f;
-    float m_fireRate = 1.5f;
+    float m_aggroTimer = 0.0f;
+    float m_fireRate = 0.7f;
     float m_projectileSpeed = 7.0f;
-    float m_activationDistance = 35.0f;
+    float m_activationDistance = 15.0f;
     float m_despawnDistance = 55.0f;
     float m_patrolMinX = 0.0f;
     float m_patrolMaxX = 0.0f;
     float m_patrolMinZ = 0.0f;
     float m_patrolMaxZ = 0.0f;
     float m_currentSpeed = 0.0f;
-    float m_baseMoveSpeed = 2.0f;
+    float m_baseMoveSpeed = 0.0f;
 
     float GetRandomFloat(float min, float max);
     DirectX::XMFLOAT3 m_randomTargetPos;
@@ -114,6 +115,7 @@ private:
     DirectX::XMFLOAT4 m_baseColor{ 1.0f, 1.0f, 1.0f, 1.0f }; 
 
     float m_blinkTimer{ 0.0f };
+    float m_lifeTime{ 0.0f };
     static constexpr float BLINK_DURATION{ 0.1f };
 
     DirectX::XMFLOAT4 m_projectileColor = { 1.0f, 1.0f, 1.0f, 1.0f };

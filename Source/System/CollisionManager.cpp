@@ -436,49 +436,78 @@ float CollisionManager::GetEnemyPushRadius(const Enemy* enemy) const
 
 void CollisionManager::CheckPlayerVsEnemies()
 {
+    // FAST FAIL: Guard clauses
     if (!m_player || !m_enemyManager) return;
 
-    auto& enemies = m_enemyManager->GetEnemies();
-    DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
-    DirectX::XMFLOAT3 playerVel = m_player->GetMovement()->GetVelocity();
+    // CPU OPTIMIZATION: If player is already dead, skip all enemy physics!
+    if (m_player->GetHP() <= 0) return;
 
-    constexpr float PLAYER_RADIUS = 0.25f;
-    bool collidedAny = false;
+    auto& enemies{ m_enemyManager->GetEnemies() };
+    DirectX::XMFLOAT3 playerPos{ m_player->GetMovement()->GetPosition() };
+    DirectX::XMFLOAT3 playerVel{ m_player->GetMovement()->GetVelocity() };
+
+    constexpr float PLAYER_RADIUS{ 0.25f };
+    bool collidedAny{ false };
 
     for (const auto& enemy : enemies)
     {
         if (!enemy || !enemy->IsActive()) continue;
 
-        DirectX::XMFLOAT3 ePos = enemy->GetPosition();
+        const DirectX::XMFLOAT3 ePos{ enemy->GetPosition() };
 
-        // Use our new centralized function!
-        float enemyRadius = GetEnemyPushRadius(enemy.get());
-        float combinedRadius = PLAYER_RADIUS + enemyRadius;
+        const float enemyRadius{ GetEnemyPushRadius(enemy.get()) };
+        const float combinedRadius{ PLAYER_RADIUS + enemyRadius };
 
-        float dx = playerPos.x - ePos.x;
-        float dz = playerPos.z - ePos.z;
-        float distSq = (dx * dx) + (dz * dz);
+        // Zero-copy math
+        float dx{ playerPos.x - ePos.x };
+        float dz{ playerPos.z - ePos.z };
+        const float distSq{ (dx * dx) + (dz * dz) };
 
         if (distSq < (combinedRadius * combinedRadius))
         {
-            float dist = std::sqrt(distSq);
+            // =======================================================
+            // THE KAMIKAZE INSTA-KILL MECHANIC 
+            // =======================================================
+            if (enemy->GetAttackType() == AttackType::Tracking && !m_player->IsInvincible())
+            {
+                // 1. Instantly nuke player HP
+                m_player->TakeDamage(9999);
 
-            if (dist < 0.0001f) // Divide-By-Zero Guard
+                // 2. Trigger standard death sequence
+                m_player->scale = { 0.0f, 0.0f, 0.0f }; // Hide 3D model
+                m_player->SetInputEnabled(false);       // Lock controls
+                m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f }); // Stop sliding
+                m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
+
+                // 3. Kill the kamikaze enemy so it doesn't survive the explosion
+                enemy->TakeDamage(9999);
+
+                // 4. INSTANT EXIT: Player is dead, absolutely zero need to check other enemies!
+                return;
+            }
+
+            // =======================================================
+            // NORMAL PUSH PHYSICS (For Static / Standard Enemies)
+            // =======================================================
+            float dist{ std::sqrt(distSq) };
+
+            // Divide-By-Zero Guard (NaN propagation)
+            if (dist < 0.0001f)
             {
                 dx = 1.0f; dz = 0.0f; dist = 1.0f;
             }
 
-            float overlap = combinedRadius - dist;
+            const float overlap{ combinedRadius - dist };
             playerPos.x += (dx / dist) * overlap;
             playerPos.z += (dz / dist) * overlap;
 
             collidedAny = true;
 
             // "Sticky Wall" Velocity Fix
-            DirectX::XMVECTOR vVel = DirectX::XMLoadFloat3(&playerVel);
-            DirectX::XMVECTOR vNormal = DirectX::XMVectorSet(dx / dist, 0.0f, dz / dist, 0.0f);
+            DirectX::XMVECTOR vVel{ DirectX::XMLoadFloat3(&playerVel) };
+            const DirectX::XMVECTOR vNormal{ DirectX::XMVectorSet(dx / dist, 0.0f, dz / dist, 0.0f) };
 
-            float dot = DirectX::XMVectorGetX(DirectX::XMVector3Dot(vVel, vNormal));
+            const float dot{ DirectX::XMVectorGetX(DirectX::XMVector3Dot(vVel, vNormal)) };
             if (dot < 0.0f)
             {
                 vVel = DirectX::XMVectorSubtract(vVel, DirectX::XMVectorScale(vNormal, dot));
@@ -487,6 +516,7 @@ void CollisionManager::CheckPlayerVsEnemies()
         }
     }
 
+    // Only update memory if a collision actually happened
     if (collidedAny)
     {
         m_player->SetPosition(playerPos);

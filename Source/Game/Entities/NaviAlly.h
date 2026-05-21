@@ -24,6 +24,8 @@ public:
     void RenderProjectiles(ModelRenderer* renderer);
     std::deque<std::unique_ptr<Bullet>>& GetProjectiles() { return m_projectiles; }
 
+    void SetPosition(const DirectX::XMFLOAT3& pos);
+
 private:
     void UpdateHoverLogic(float elapsedTime);
     void UpdateShootingLogic(float elapsedTime, Camera* camera);

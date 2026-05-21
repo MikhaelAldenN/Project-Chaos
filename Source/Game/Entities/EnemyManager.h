@@ -1,8 +1,8 @@
 #pragma once
-
 #include <DirectXMath.h> 
 #include <memory>
 #include <vector>
+#include <array>
 #include "System/Graphics.h"
 
 class Enemy;
@@ -26,7 +26,7 @@ enum class AttackType
     Tracking,
     TrackingHorizontal,
     TrackingRandom,
-    RadialBurst 
+    RadialBurst
 };
 
 enum class MoveDir
@@ -38,19 +38,19 @@ enum class MoveDir
 
 struct EnemySpawnConfig
 {
-    DirectX::XMFLOAT3 Position; 
-    DirectX::XMFLOAT3 Rotation; 
-    DirectX::XMFLOAT4 Color;    
-    EnemyType Type = EnemyType::Paddle;
-    AttackType AttackBehavior = AttackType::None;
+    DirectX::XMFLOAT3 Position;
+    DirectX::XMFLOAT3 Rotation;
+    DirectX::XMFLOAT4 Color;
+    EnemyType Type;
+    AttackType AttackBehavior;
     MoveDir Direction = MoveDir::None;
     float MinX = 0.0f;
     float MaxX = 0.0f;
-    float MinZ = 0.0f; 
-    float MaxZ = 0.0f; 
+    float MinZ = 0.0f;
+    float MaxZ = 0.0f;
 
     DirectX::XMFLOAT3 Scale = { 0.5f, 0.5f, 0.5f };
-    float BaseSpeed = 2.0f;         
+    float BaseSpeed = 2.0f;
 
     int MaxHP = 30;
 };
@@ -58,47 +58,57 @@ struct EnemySpawnConfig
 namespace EnemyLevelData
 {
     // ==========================================
-    // COLOR PRESETS
+    // COLOR PRESETS 
     // ==========================================
-    static const DirectX::XMFLOAT4 None         = { 1.0f, 1.0f, 1.0f, 1.0f };
-    static const DirectX::XMFLOAT4 Blue         = { 0.0f, 0.0f, 0.8f, 1.0f };
-    static const DirectX::XMFLOAT4 PaleYellow   = { 0.76f, 0.74f, 0.56f, 1.0f };
+    static const DirectX::XMFLOAT4 None = { 1.0f, 1.0f, 1.0f, 1.0f };
+    static const DirectX::XMFLOAT4 Blue = { 0.0f, 0.0f, 0.8f, 1.0f };
+    static const DirectX::XMFLOAT4 PaleYellow = { 0.76f, 0.74f, 0.56f, 1.0f };
+    static const DirectX::XMFLOAT4 Potioned = { -1.0f, -1.0f, -1.0f, 1.0f };
+    static const DirectX::XMFLOAT4 ArcanePurple = { 0.8f, 0.2f, 0.9f, 1.0f };
+    static const DirectX::XMFLOAT4 ToxicGreen = { 0.4f, 0.9f, 0.2f, 1.0f };
 
     // ==========================================
     // ROTATION PRESETS
     // ==========================================
     namespace Rot
     {
-        static const DirectX::XMFLOAT3 Backward = { 0.0f, 0.0f, 0.0f };
-        static const DirectX::XMFLOAT3 Forward  = { 0.0f, 180.0f, 0.0f };
-        static const DirectX::XMFLOAT3 Left     = { 0.0f, 90.0f, 0.0f };
-        static const DirectX::XMFLOAT3 Right    = { 0.0f, -90.0f, 0.0f };
+        static const DirectX::XMFLOAT3 Backward = { 0.0f, 180.0f, 0.0f };
+        static const DirectX::XMFLOAT3 Forward = { 0.0f, 0.0f, 0.0f };
+        static const DirectX::XMFLOAT3 Left = { 0.0f, -90.0f, 0.0f };
+        static const DirectX::XMFLOAT3 Right = { 0.0f, 90.0f, 0.0f };
     }
 
     // ==========================================
     // MASTER SPAWN LIST
     // ==========================================
-    static const std::vector<EnemySpawnConfig> Spawns =
-    {
-        // 1. NONE: Just stands there, doesn't shoot or move.
-        { { 20.9f, 1.1f, 40.2f }, Rot::Backward, None, EnemyType::MushroomNone, AttackType::None },
-        { { 22.0f, 1.1f, 40.2f }, Rot::Forward, None, EnemyType::MushroomStatic, AttackType::None },
-        { { 27.0f, 1.1f, 40.2f }, Rot::Forward, None, EnemyType::MushroomTracking, AttackType::None },
-        { { 32.0f, 1.1f, 40.2f }, Rot::Backward, None, EnemyType::FakeBoss, AttackType::None },
+    static const std::array<EnemySpawnConfig, 20> Spawns =
+    { {
+            // 1. NONE: Just stands there, doesn't shoot or move.
+            { { 8.6f, 1.1f, 39.9f }, Rot::Backward, None, EnemyType::MushroomNone, AttackType::None },
+            { { -6.2f, 1.1f, 100.6f }, Rot::Backward, None, EnemyType::MushroomNone, AttackType::None },
+            { { 20.0f, 1.1f, 113.8f }, Rot::Backward, None, EnemyType::MushroomNone, AttackType::None },
+            { { 54.7f, 1.1f, 98.9f }, Rot::Backward, None, EnemyType::MushroomNone, AttackType::None },
+            { { 11.6f, 1.1f, 77.0f }, Rot::Forward, None, EnemyType::MushroomStatic, AttackType::None },
+            { { 11.3f, 1.1f, 90.2f }, Rot::Forward, None, EnemyType::MushroomStatic, AttackType::None },
+            { { 25.6f, 1.1f, 84.6f }, Rot::Forward, None, EnemyType::MushroomStatic, AttackType::None },
+            { { 28.1f, 1.1f, 77.0f }, Rot::Forward, None, EnemyType::MushroomStatic, AttackType::None },
+            { { -6.1f, 1.1f, 72.4f }, Rot::Forward, None, EnemyType::MushroomTracking, AttackType::None },
+            { { -1.3f, 1.1f, 115.3f }, Rot::Forward, None, EnemyType::MushroomTracking, AttackType::None },
+            { { 51.7f, 1.1f, 113.7f }, Rot::Forward, None, EnemyType::MushroomTracking, AttackType::None },
+            { { 35.9f, 1.1f, 67.0f }, Rot::Backward, None, EnemyType::FakeBoss, AttackType::None },
 
-        // 2. STATIC: Stands completely still, but shoots at the player.
-        //{ { -8.0f, 1.1f, 15.0f }, Rot::Backward, Blue, EnemyType::MushroomStatic, AttackType::Static },
+            // 2. STATIC: Stands completely still, but shoots at the player.
+            { { -6.4f, 1.1f, 83.0f }, Rot::Right, Potioned, EnemyType::MushroomNone, AttackType::Static },
+            { { -6.2f, 1.1f, 109.3f }, Rot::Right, Potioned, EnemyType::MushroomStatic, AttackType::Static },
+            { { 24.8f, 1.1f, 113.8f }, Rot::Backward, Potioned, EnemyType::MushroomTracking, AttackType::Static },
+            { { 55.614f, 1.1f, 109.4f }, Rot::Left, Potioned, EnemyType::MushroomStatic, AttackType::Static },
 
-        // 3. TRACKING: Slowly chases the player around the map and shoots.
-        //{ { 0.0f, 1.1f, 15.0f }, Rot::Backward, Blue, EnemyType::MushroomTracking, AttackType::Tracking },
-
-        // 4. TRACKING HORIZONTAL: Patrols left and right (offset -4 to +4) and shoots.
-        //{ { 8.0f, 1.3f, 15.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingHorizontal, MoveDir::Left, -4.0f, 4.0f },
-
-        // 5. TRACKING RANDOM: Wanders randomly inside a specific box area and shoots.
-        //{ { 16.0f, 1.3f, 15.0f }, Rot::Backward, Blue, EnemyType::Paddle, AttackType::TrackingRandom, MoveDir::None, -4.0f, 4.0f, -4.0f, 4.0f }
-
-    };
+            // 3. TRACKING: Slowly chases the player around the map.
+            { { 18.114f, 1.1f, 89.2f }, Rot::Forward, Potioned, EnemyType::MushroomTracking, AttackType::Tracking },
+            { { 55.814f, 1.1f, 92.4f }, Rot::Left, Potioned, EnemyType::MushroomStatic, AttackType::Tracking },
+            { { 53.514f, 1.1f, 75.2f }, Rot::Left, Potioned, EnemyType::MushroomTracking, AttackType::Tracking },
+            { { 45.314f, 1.1f, 70.0f }, Rot::Forward, Potioned, EnemyType::MushroomStatic, AttackType::Tracking }
+    } };
 }
 
 class EnemyManager
@@ -115,8 +125,7 @@ public:
     void SpawnEnemy(const EnemySpawnConfig& config);
 
     std::vector<std::unique_ptr<Enemy>>& GetEnemies() { return m_enemies; }
-
 private:
-    std::vector<std::unique_ptr<Enemy>> m_enemies{};      
-    std::vector<std::unique_ptr<Enemy>> m_enemyPool{};    
+    std::vector<std::unique_ptr<Enemy>> m_enemies{};
+    std::vector<std::unique_ptr<Enemy>> m_enemyPool{};
 };
