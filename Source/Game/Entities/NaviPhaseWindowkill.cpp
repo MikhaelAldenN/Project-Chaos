@@ -23,7 +23,7 @@ NaviPhaseWindowkill::NaviPhaseWindowkill(Player* player) {
 void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     if (!boss || !boss->GetWindowSystem()) return;
 
-
+    EffectManager::Instance().StopAll();
 
     Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
     if (mainWindow && mainWindow->GetSDLWindow()) {
@@ -371,6 +371,7 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
         // [FIX] TERAPKAN SLIDER IMGUI SECARA REAL-TIME KE GAME!
         // =========================================================
         bwb.bullet->SetRadius(m_bouncingParams.hitboxRadius);
+        bwb.bullet->SetDamage(m_bouncingParams.damage);
         float vs = m_bouncingParams.visualScale;
         bwb.bullet->scale = { vs, vs, vs };
 
@@ -444,6 +445,7 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
             BouncingWindowBullet bwb;
             bwb.bullet = std::make_unique<Bullet>();
             bwb.bullet->SetRadius(m_bouncingParams.hitboxRadius);
+            bwb.bullet->SetDamage(m_bouncingParams.damage);
             float vs = m_bouncingParams.visualScale;
             bwb.bullet->scale = { vs, vs, vs };
             bwb.maxBounces = m_bouncingParams.maxBounces;
@@ -497,6 +499,7 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
             BoomerangWindowBullet bw;
             bw.bullet = std::make_unique<Bullet>();
             bw.bullet->SetRadius(m_boomerangParams.hitboxRadius);
+            bw.bullet->SetDamage(m_boomerangParams.damage);
             bw.bullet->scale = { m_boomerangParams.visualScale, m_boomerangParams.visualScale, m_boomerangParams.visualScale };
 
             float p2u = boss->GetWindowSystem()->GetPixelToUnitRatio();
@@ -570,6 +573,7 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
         }
 
         bw.bullet->SetRadius(m_boomerangParams.hitboxRadius);
+        bw.bullet->SetDamage(m_boomerangParams.damage);
         float vs = m_boomerangParams.visualScale;
         bw.bullet->scale = { vs, vs, vs };
 

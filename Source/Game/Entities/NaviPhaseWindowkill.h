@@ -224,6 +224,7 @@ public:
         int   spawnCount = 5;
         float spawnDelay = 1.0f;
         float turnSpeed = 3.0f;
+        int   damage = 10;
 
         // =========================================================
         // [NEW] PARAMETER KONTROL JARAK & AREA SCREEN

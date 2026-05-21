@@ -1013,90 +1013,93 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
         activeBullets = wkPhase->GetProjectiles();
     }
 
-    if (activeBullets.empty()) return;
-
     constexpr float PLAYER_HURTBOX_RADIUS = 0.3f;
     //constexpr int BOSS_BULLET_DAMAGE = 10;
 
     // =========================================================
     // [FIX MUTLAK 1] GUNAKAN 'activeBullets', BUKAN 'normalPhase'!
     // =========================================================
-    for (Bullet* bullet : activeBullets)
-    {
-        if (!bullet || !bullet->IsActive()) continue;
-
-        DirectX::XMFLOAT3 currentPos = bullet->GetMovement()->GetPosition();
-        DirectX::XMFLOAT3 vel = bullet->GetVelocity();
-        float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
-
-        // TIER 3: Peluru sukses dipantulkan ke bos
-        if (speedSq > 10000.0f) continue;
-
-        DirectX::XMFLOAT3 prevPos = {
-            currentPos.x - (vel.x * elapsedTime),
-            currentPos.y - (vel.y * elapsedTime),
-            currentPos.z - (vel.z * elapsedTime)
-        };
-
-        DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
-        float combinedRadius = PLAYER_HURTBOX_RADIUS + bullet->GetRadius();
-        float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, playerPos);
-
-        // TIER 2: BIJUUDAMA YANG SUKSES DI-PARRY
-        if (bullet->IsParryReturn())
+    if (!activeBullets.empty()) {
+        for (Bullet* bullet : activeBullets)
         {
+            if (!bullet || !bullet->IsActive()) continue;
+
+            DirectX::XMFLOAT3 currentPos = bullet->GetMovement()->GetPosition();
+            DirectX::XMFLOAT3 vel = bullet->GetVelocity();
+            float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
+
+            // TIER 3: Peluru sukses dipantulkan ke bos
+            if (speedSq > 10000.0f) continue;
+
+            DirectX::XMFLOAT3 prevPos = {
+                currentPos.x - (vel.x * elapsedTime),
+                currentPos.y - (vel.y * elapsedTime),
+                currentPos.z - (vel.z * elapsedTime)
+            };
+
+            DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
+            float combinedRadius = PLAYER_HURTBOX_RADIUS + bullet->GetRadius();
+            float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, playerPos);
+
+            // TIER 2: BIJUUDAMA YANG SUKSES DI-PARRY
+            if (bullet->IsParryReturn())
+            {
+                if (distToPath <= combinedRadius)
+                {
+                    TimeManager::Instance().TriggerHitStop(0.15f, 0.0f);
+                    CameraController::Instance().AddTrauma(0.8f);
+
+                    // Pastikan shatter hanya dipanggil jika memang normalPhase ada
+                    if (normalPhase) {
+                        normalPhase->ShatterBijuudama(currentPos, m_naviBoss);
+                    }
+
+                    bullet->SetActive(false);
+                    AudioManager::Instance().PlaySFX("Data/Sound/SE_Parry.wav", 0.8f);
+
+                    // =========================================================
+                    // [BARU] MAIN KAN VFX PARRY DI POSISI PLAYER
+                    // =========================================================
+                    DirectX::XMFLOAT3 vfxPos = m_player->GetMovement()->GetPosition();
+
+                    // Opsional: Naikkan sedikit Y agar efek tidak tenggelam di lantai
+                    vfxPos.y += 0.5f;
+
+                    int parryVfxHandle = EffectManager::Instance().Play("Data/Effect/VFX_Player_Bijuudama_Parry.efk", vfxPos, 1.0f);
+
+                    // Rotasi 90 derajat agar efek menghadap sempurna ke kamera Top-Down
+                    if (parryVfxHandle != -1) {
+                        float rotX = DirectX::XMConvertToRadians(90.0f);
+                        EffectManager::Instance().SetRotation(parryVfxHandle, { rotX, 0.0f, 0.0f });
+                    }
+                }
+                continue;
+            }
+
+            // =========================================================
+            // TIER 1: Peluru Normal / Bijuudama GAGAL Parry
+            // =========================================================
             if (distToPath <= combinedRadius)
             {
-                TimeManager::Instance().TriggerHitStop(0.15f, 0.0f);
-                CameraController::Instance().AddTrauma(0.8f);
+                if (!m_player->IsInvincible()) {
+                    m_player->TakeDamage(bullet->GetDamage());
+                    if (wkPhase) {
+                        m_player->TriggerInvincibility(0.5f);
+                    }
 
-                // Pastikan shatter hanya dipanggil jika memang normalPhase ada
-                if (normalPhase) {
-                    normalPhase->ShatterBijuudama(currentPos, m_naviBoss);
-                }
+                    // [FIX MUTLAK] HANYA hancurkan peluru jika ini dari Fase Normal!
+                    // Peluru Windowkill (wkPhase) akan dibiarkan hidup dan terus memantul!
+                    if (normalPhase) {
+                        bullet->SetActive(false);
+                    }
 
-                bullet->SetActive(false);
-                AudioManager::Instance().PlaySFX("Data/Sound/SE_Parry.wav", 0.8f);
-
-                // =========================================================
-                // [BARU] MAIN KAN VFX PARRY DI POSISI PLAYER
-                // =========================================================
-                DirectX::XMFLOAT3 vfxPos = m_player->GetMovement()->GetPosition();
-
-                // Opsional: Naikkan sedikit Y agar efek tidak tenggelam di lantai
-                vfxPos.y += 0.5f;
-
-                int parryVfxHandle = EffectManager::Instance().Play("Data/Effect/VFX_Player_Bijuudama_Parry.efk", vfxPos, 1.0f);
-
-                // Rotasi 90 derajat agar efek menghadap sempurna ke kamera Top-Down
-                if (parryVfxHandle != -1) {
-                    float rotX = DirectX::XMConvertToRadians(90.0f);
-                    EffectManager::Instance().SetRotation(parryVfxHandle, { rotX, 0.0f, 0.0f });
-                }
-            }
-            continue;
-        }
-
-        // =========================================================
-        // TIER 1: Peluru Normal / Bijuudama GAGAL Parry
-        // =========================================================
-        if (distToPath <= combinedRadius)
-        {
-            if (!m_player->IsInvincible()) {
-                m_player->TakeDamage(bullet->GetDamage());
-
-                // [FIX MUTLAK] HANYA hancurkan peluru jika ini dari Fase Normal!
-                // Peluru Windowkill (wkPhase) akan dibiarkan hidup dan terus memantul!
-                if (normalPhase) {
-                    bullet->SetActive(false);
-                }
-
-                if (m_player->GetHP() <= 0)
-                {
-                    m_player->scale = { 0.0f, 0.0f, 0.0f };
-                    m_player->SetInputEnabled(false);
-                    m_player->GetMovement()->SetVelocity({ 0,0,0 });
-                    m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
+                    if (m_player->GetHP() <= 0)
+                    {
+                        m_player->scale = { 0.0f, 0.0f, 0.0f };
+                        m_player->SetInputEnabled(false);
+                        m_player->GetMovement()->SetVelocity({ 0,0,0 });
+                        m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
+                    }
                 }
             }
         }
@@ -1156,6 +1159,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
                 {
                     if (!m_player->IsInvincible()) {
                         m_player->TakeDamage(beamDamage);
+                        m_player->TriggerInvincibility(0.5f);
 
                         if (m_player->GetHP() <= 0) {
                             m_player->scale = { 0.0f, 0.0f, 0.0f };

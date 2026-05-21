@@ -1060,6 +1060,46 @@ void SceneBoss::DrawGUI()
                 ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "--- PHASE 2: WINDOWKILL ATTACKS ---");
                 ImGui::Separator();
 
+                if (ImGui::CollapsingHeader("Windowkill AI & Damage", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    bool aiActive = wkPhase->IsAIEnabled();
+                    ImGui::Text("AI Status: %s", aiActive ? "ENABLED" : "DISABLED");
+                    if (aiActive) {
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+                        if (ImGui::Button("DISABLE WINDOWKILL AI", ImVec2(-1.0f, 34.0f))) {
+                            wkPhase->SetAIEnabled(false);
+                            AddLog("Windowkill AI disabled.");
+                        }
+                        ImGui::PopStyleColor();
+                    }
+                    else {
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
+                        if (ImGui::Button("ENABLE WINDOWKILL AI", ImVec2(-1.0f, 34.0f))) {
+                            wkPhase->SetAIEnabled(true);
+                            AddLog("Windowkill AI enabled.");
+                        }
+                        ImGui::PopStyleColor();
+                    }
+
+                    if (wkPhase->IsPlayerCaged()) {
+                        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "AI will stay gated until the cage breaks.");
+                    }
+
+                    ImGui::Separator();
+                    ImGui::PushID("WindowkillDamage");
+                    auto& bp = wkPhase->GetBlasterParams();
+                    auto& tp = wkPhase->GetTargetedBlasterParams();
+                    auto& bounce = wkPhase->GetBouncingParams();
+                    auto& boom = wkPhase->GetBoomerangParams();
+                    auto& spear = wkPhase->GetUndyneParams();
+                    ImGui::SliderInt("Orbital Laser Damage", &bp.beamDamage, 1, 200);
+                    ImGui::SliderInt("Targeted Laser Damage", &tp.beamDamage, 1, 200);
+                    ImGui::SliderInt("Bouncing Window Damage", &bounce.damage, 1, 200);
+                    ImGui::SliderInt("Boomerang Damage", &boom.damage, 1, 200);
+                    ImGui::SliderInt("Undyne Spear Damage", &spear.damage, 1, 500);
+                    ImGui::PopID();
+                }
+
                 if (ImGui::CollapsingHeader("System Metrics & Time", ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     const float fps = ImGui::GetIO().Framerate;
@@ -1189,6 +1229,7 @@ void SceneBoss::DrawGUI()
                     ImGui::SliderFloat("Boomerang Speed", &bmp.speed, 10.0f, 100.0f);
                     ImGui::SliderFloat("Max Travel Distance", &bmp.maxTravelDistance, 10.0f, 120.0f, "%.1f units");
                     ImGui::SliderFloat("Turn Smoothness", &bmp.turnSpeed, 1.0f, 20.0f, "%.1f");
+                    ImGui::SliderInt("Impact Damage", &bmp.damage, 1, 200);
                     ImGui::Separator();
                     ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "[ Window & Hitbox ]");
                     ImGui::SliderFloat("Window Size", &bmp.windowSize, 100.0f, 500.0f);
