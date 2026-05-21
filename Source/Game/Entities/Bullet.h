@@ -34,7 +34,10 @@ public:
 	void SetRadius(float r) { radius = r; }
 	void SetTurnSpeed(float speed) { m_turnSpeed = speed; }
     [[nodiscard]] bool IsActive() const { return isActive; }
-    void SetActive(bool active) { isActive = active; }
+    void SetActive(bool active);
+
+    void AttachVFX(const char* path, float scale);
+    void StopVFX();
 
     void SetBossTarget(NaviBoss* target) {
         m_bossTarget = target;
@@ -57,6 +60,8 @@ public:
     void SetDamage(int damage) { m_damage = damage; }
     int GetDamage() const { return m_damage; }
 
+
+
 private:
     NaviBoss* m_bossTarget = nullptr;
 
@@ -76,4 +81,7 @@ private:
     float m_turnSpeed = 8.0f;
 
     int m_damage = 10;
+    int m_vfxHandle = -1;
+    float m_vfxScaleMultiplier = 1.0f; // <--- [BARU] Tambahkan ini
+    float m_vfxForwardOffsetMult = 0.0f;
 };

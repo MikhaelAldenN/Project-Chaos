@@ -1,4 +1,6 @@
 #include "Bullet.h"
+#include "EffectManager.h"
+#include <cmath>
 
 using namespace DirectX;
 
@@ -119,6 +121,63 @@ void Bullet::Update(float elapsedTime, Camera* camera)
 
     movement->SetPosition(pos);
     SyncData();
+
+    // =========================================================
+        // [BARU] UPDATE POSISI, SKALA & ARAH HADAP VFX
+        // =========================================================
+    if (m_vfxHandle != -1 && EffectManager::Instance().IsPlaying(m_vfxHandle))
+    {
+        DirectX::XMFLOAT3 vfxPos = pos;
+        float speed = std::sqrt((velocity.x * velocity.x) + (velocity.y * velocity.y) + (velocity.z * velocity.z));
+
+        // 1. Tentukan seberapa jauh efek harus didorong maju.
+                // Gunakan variabel m_vfxForwardOffsetMult yang kita buat di langkah sebelumnya.
+                // - Untuk Bijuudama: m_vfxForwardOffsetMult = 0.0f (jadi offset = 0, efek pas di tengah!)
+                // - Untuk Phalanx: m_vfxForwardOffsetMult = 0.5f (jadi didorong ke ujung pedang)
+        float actualOffset = scale.x * m_vfxForwardOffsetMult;
+
+        float pitch = 0.0f;
+        float yaw = 0.0f;
+
+        if (speed > 0.1f) {
+            // Jika meluncur: Arah dan offset ikuti Velocity
+            float horizontalDist = std::sqrt((velocity.x * velocity.x) + (velocity.z * velocity.z));
+            yaw = std::atan2(velocity.x, velocity.z);
+            pitch = std::atan2(-velocity.y, horizontalDist);
+
+            // [FIX] Kalikan arah maju (velocity/speed) dengan actualOffset!
+            vfxPos.x += (velocity.x / speed) * actualOffset;
+            vfxPos.y += (velocity.y / speed) * actualOffset;
+            vfxPos.z += (velocity.z / speed) * actualOffset;
+        }
+        else {
+            // Jika diam (Charging): Arah dan offset ikuti Rotasi Model 3D
+            yaw = DirectX::XMConvertToRadians(movement->GetRotation().y);
+            pitch = DirectX::XMConvertToRadians(movement->GetRotation().x);
+
+            // [FIX] Kalikan juga arah maju saat diam dengan actualOffset!
+            vfxPos.x += std::sin(yaw) * actualOffset;
+            vfxPos.z += std::cos(yaw) * actualOffset;
+        }
+
+        // Jangan lupa putar 180 derajat (Pi) agar Phalanx tidak hadap belakang
+        yaw += DirectX::XM_PI;
+
+        // Terapkan Posisi & Rotasi
+        EffectManager::Instance().SetPosition(m_vfxHandle, vfxPos);
+        EffectManager::Instance().SetRotation(m_vfxHandle, { pitch, yaw, 0.0f });
+
+        // Terapkan Skala Dinamis setiap frame
+        EffectManager::Instance().SetScale(m_vfxHandle, {
+            scale.x * m_vfxScaleMultiplier,
+            scale.y * m_vfxScaleMultiplier,
+            scale.z * m_vfxScaleMultiplier
+            });
+    }
+    else if (m_vfxHandle != -1)
+    {
+        m_vfxHandle = -1;
+    }
 }
 
 void Bullet::ApplyMovement(const DirectX::XMFLOAT3& newPos, const DirectX::XMFLOAT3& newVel)
@@ -126,4 +185,29 @@ void Bullet::ApplyMovement(const DirectX::XMFLOAT3& newPos, const DirectX::XMFLO
     movement->SetPosition(newPos);
     velocity = newVel;
     SyncData();
+}
+
+void Bullet::SetActive(bool active)
+{
+    isActive = active;
+
+    // Jika peluru dimatikan (menabrak/keluar layar), MATIKAN JUGA EFEKNYA!
+    if (!active) {
+        StopVFX();
+    }
+}
+
+void Bullet::StopVFX()
+{
+    if (m_vfxHandle != -1) {
+        EffectManager::Instance().Stop(m_vfxHandle);
+        m_vfxHandle = -1;
+    }
+}
+
+void Bullet::AttachVFX(const char* path, float scale)
+{
+    StopVFX(); // Amankan memori: Hentikan efek lama (jika ada) sebelum memutar yang baru
+    m_vfxScaleMultiplier = scale;
+    m_vfxHandle = EffectManager::Instance().Play(path, movement->GetPosition(), scale);
 }

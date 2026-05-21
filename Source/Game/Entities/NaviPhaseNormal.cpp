@@ -387,6 +387,10 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                             bullet->scale = { 2.0f, 2.0f, 2.0f };
                             bullet->SetTurnSpeed(m_params.phalanxTurnSpeed);
                             bullet->SetDamage(m_params.phalanxDamage);
+
+                            
+                            bullet->AttachVFX("Data/Effect/VFX_Boss_Phalanx_Smoke.efk", 0.3f);
+
                             m_phalanxBullets.push_back(bullet.get());
                             AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Phalanx_Ready.wav", 0.1f * m_params.sfxVolumeMultiplier);
                             m_phalanxSpawned++;
@@ -403,9 +407,27 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
         }
         // State 2: Holding — all bullets orbiting, waiting before fire
         else if (m_phalanxState == 2) {
+            // =========================================================
+            // [BARU] Tepat 0.5 detik sebelum durasi Hold habis, Ganti Smoke jadi Flare!
+            // =========================================================
+            if (m_phalanxTimer >= (m_params.phalanxHoldDuration - 0.5f) && !m_phalanxFlareTriggered) {
+                m_phalanxFlareTriggered = true; // Kunci agar tidak dipanggil berkali-kali tiap frame
+
+                // Looping ke semua pedang yang sedang melayang, paksa ganti efeknya ke Flare
+                for (Bullet* b : m_phalanxBullets) {
+                    if (b && b->IsActive()) {
+                        b->AttachVFX("Data/Effect/VFX_Boss_Phalanx_Flare.efk", 0.3f);
+                    }
+                }
+
+                // Opsional: Kamu bisa tambahkan bunyi kilat/charging di sini agar lebih dramatis!
+                // AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Phalanx_Charge.wav", 0.1f * m_params.sfxVolumeMultiplier);
+            }
+
             if (m_phalanxTimer >= m_params.phalanxHoldDuration) {
                 m_phalanxState = 3;
                 m_phalanxTimer = 0.0f;
+
             }
         }
         // State 3: Firing — launch one bullet at a time toward player
@@ -437,8 +459,7 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                     m_phalanxBullets.clear();
                 }
             }
-        }
-        // State 4: Post-fire pause before returning to center
+        }        // State 4: Post-fire pause before returning to center
         else if (m_phalanxState == 4) {
             if (m_phalanxTimer >= m_params.phalanxPostFireDelay) {
                 m_phalanxState = 5;
@@ -531,6 +552,7 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
             if (m_chargeEffectHandle == -1) {
                 DirectX::XMFLOAT3 spawnPos = m_bijuudamaBall ? m_bijuudamaBall->GetMovement()->GetPosition() : bPos;
                 m_chargeEffectHandle = EffectManager::Instance().Play("Data/Effect/VFX_Boss_Bijuudama_Charge.efk", spawnPos, 1.0f);
+                m_bijuudamaBall->AttachVFX("Data/Effect/VFX_Boss_Fireball.efk", m_bijuudamaBall->scale.x * 0.3f);
             }
 
             // Trigger dual rain pillars for the charge phase
@@ -619,7 +641,6 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                             DirectX::XMFLOAT3 ballPos = m_bijuudamaBall->GetMovement()->GetPosition();
                             m_bijuudamaBall->ApplyMovement(ballPos, shootVel);
                             AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Bijuudama_Shoot.wav", 0.2f * m_params.sfxVolumeMultiplier);
-                        
                         }
                     }
                 }
@@ -857,6 +878,8 @@ void NaviPhaseNormal::TriggerBijuudama(Player* targetPlayer) {
                 bullet->scale = { baseVisual, baseVisual, baseVisual };
                 bullet->SetDamage(m_params.bijuudamaBallDamage);
 
+                //bullet->AttachVFX("Data/Effect/VFX_Boss_Fireball.efk", 1.0f);
+
                 m_bijuudamaBall = bullet.get();
                 break;
             }
@@ -870,6 +893,7 @@ void NaviPhaseNormal::TriggerPhalanx(Player* targetPlayer) {
         m_phalanxTimer = 0.0f;
         m_phalanxSpawned = 0;
         m_phalanxFired = 0;
+        m_phalanxFlareTriggered = false;
         m_phalanxTarget = targetPlayer;
         m_phalanxBullets.clear();
 

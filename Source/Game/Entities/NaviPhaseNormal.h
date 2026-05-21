@@ -78,6 +78,7 @@ struct NaviBulletParams {
     float phalanxReturnMoveSpeed = 2.0f;
     int   phalanxDamage = 25; // [BARU] Damage pedang melayang
 
+
     // ----- Asgore Rain (Area Denial) -----
     float rainMinSpeed = 50.0f;
     float rainMaxSpeed = 90.0f;
@@ -200,6 +201,7 @@ private:
     float m_phalanxTimer = 0.0f;
     int   m_phalanxSpawned = 0;
     int   m_phalanxFired = 0;
+    bool  m_phalanxFlareTriggered = false;
     Player* m_phalanxTarget = nullptr;
     std::vector<Bullet*> m_phalanxBullets; // Raw pointers into the bullet pool
 
