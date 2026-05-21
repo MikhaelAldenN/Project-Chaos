@@ -120,6 +120,7 @@ private:
     float m_deathTimer{ 0.0f };
     float m_bootTimer{ 1.1f };
     float m_respawnTimer{ RESPAWN_FADE_DURATION };
+    bool m_hasBGMStarted{ false };
 
     static constexpr float DEATH_DELAY_DURATION{ 0.5f };
     static constexpr float DEATH_FADE_DURATION{ 3.0f };

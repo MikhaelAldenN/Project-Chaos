@@ -5,6 +5,7 @@
 #include "Framework.h"
 #include "GUISceneGameBreaker.h" 
 #include "PostProcessManager.h"
+#include "System/AudioManager.h"
 #include "System/CollisionManager.h"
 #include "System/Graphics.h"
 #include "InputHelper.h"
@@ -129,6 +130,7 @@ SceneGame::SceneGame()
 
 SceneGame::~SceneGame()
 {
+    AudioManager::Instance().StopMusic();
     CameraController::Instance().ClearCamera();
 
     m_player.reset();
@@ -212,6 +214,12 @@ void SceneGame::Update(const float elapsedTime)
         // Normal Gameplay Lighting
         m_uberParams.smoothness = FX_BASE_SMOOTHNESS;
         m_fadeAlpha = 0.0f;
+
+        if (!m_hasBGMStarted)
+        {
+            AudioManager::Instance().PlayMusic("Data/Sound/BGM_Game.wav", true);
+            m_hasBGMStarted = true; 
+        }
     }
 
     if (m_scene) {
