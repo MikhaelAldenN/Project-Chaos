@@ -100,7 +100,7 @@ SceneBoss::SceneBoss()
     m_navi = std::make_unique<NaviBoss>();
     m_navi->Initialize(m_windowSystem.get());
 
-#if 0
+#if 1
     m_navi->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
 #else
     m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>(m_player.get())); 
@@ -350,10 +350,15 @@ void SceneBoss::Update(float elapsedTime)
 
     // --- Entities & Collision Update ---
     if (m_navi) {
-        // [FIX] Oper data Player ke AI Director sebelum Update berjalan
+        // AI Director にプレイヤーのデータを渡す
         if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
             normalPhase->SetAITarget(m_player.get());
         }
+        // [追加] Windowkill フェーズにもプレイヤーデータを渡す！
+        else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+            wkPhase->SetAITarget(m_player.get());
+        }
+
         m_navi->Update(scaledDt);
     }
     if (m_enemyManager) m_enemyManager->Update(scaledDt, activeCam, m_player->GetPosition(), true);
@@ -805,9 +810,6 @@ void SceneBoss::DrawGUI()
         {
             ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "=== BOSS MASTER CONTROLS ===");
 
-            // --- 2 HEALTHBAR TRACKER ---
-            ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "=== MASTER HEALTH STATUS ===");
-
             // 1. Health Bar Player
             int pHP = m_player->GetHP();
             float pHpProgress = pHP / 100.0f;
@@ -1119,7 +1121,28 @@ void SceneBoss::DrawGUI()
                     ImGui::SliderFloat("Hitbox Radius", &bmp.hitboxRadius, 0.1f, 10.0f);
                 }
                 ImGui::PopID();
+
+                if (ImGui::Button("Trigger Undyne Spear", ImVec2(180.0f, 30.0f))) {
+                    wkPhase->TriggerUndyneSpear(m_navi.get());
+                    AddLog("Undyne Spear Attack Triggered!");
+                }
+                // [BARU] Menu tuning parameter Undyne Spear
+                if (ImGui::CollapsingHeader("Undyne Spear Config", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    auto& params = wkPhase->GetUndyneParams();
+                    ImGui::SliderInt("Spear Count", &params.count, 1, 20);
+                    ImGui::DragFloat("Spawn Delay", &params.spawnDelay, 0.05f, 0.05f, 2.0f, "%.2f sec");
+                    ImGui::DragFloat("Aiming Time", &params.hoverDuration, 0.05f, 0.1f, 3.0f, "%.2f sec");
+                    ImGui::DragFloat("Shoot Delay", &params.telegraphDuration, 0.05f, 0.1f, 2.0f, "%.2f sec");
+                    ImGui::DragFloat("Max Speed", &params.maxSpeed, 1.0f, 10.0f, 300.0f, "%.1f");
+                    ImGui::DragFloat("Arc Radius", &params.arcRadius, 0.5f, 5.0f, 100.0f, "%.1f");
+                    ImGui::DragFloat("Arc Center X", &params.arcCenterX, 0.5f, -50.0f, 50.0f, "%.1f");
+                    ImGui::DragFloat("Arc Center Z", &params.arcCenterZ, 0.5f, -50.0f, 50.0f, "%.1f");
+                    ImGui::DragFloat("Arc Min Angle", &params.arcMinAngle, 1.0f, 0.0f, 360.0f, "%.0f deg");
+                    ImGui::DragFloat("Arc Max Angle", &params.arcMaxAngle, 1.0f, 0.0f, 360.0f, "%.0f deg");                    // [MODIFIKASI BARU] Tambahkan slider untuk Damage
+                    ImGui::SliderInt("Spear Damage", &params.damage, 1, 500);
+                }
             }
+
             ImGui::EndTabItem(); // <--- FIX MUTLAK BUG: Kode sebelumnya lupa menutup TabItem di sini!
         }
 

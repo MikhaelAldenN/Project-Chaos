@@ -702,9 +702,116 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
         }
         ++it;
     }
+
+    // =========================================================
+        // 1. Logika Spawner (Formasi Pelangi Rapi di Bawah Layar)
+        // =========================================================
+    if (m_isSpawningUndynes) {
+        m_undyneSpawnTimer -= dt;
+        if (m_undyneSpawnTimer <= 0.0f) {
+            m_undyneSpawnTimer = m_undyneParams.spawnDelay;
+
+            float angleRange = m_undyneParams.arcMaxAngle - m_undyneParams.arcMinAngle;
+            float step = (m_undyneParams.count > 1) ? (angleRange / (m_undyneParams.count - 1)) : 0.0f;
+
+            // [MODIFIKASI BARU] Ambil indeks acak dari array!
+            int randomPositionIndex = m_undyneSpawnIndices[m_undynesSpawned];
+
+            // Kalikan step dengan indeks acak tersebut, BUKAN dengan m_undynesSpawned
+            float angleDeg = m_undyneParams.arcMinAngle + (randomPositionIndex * step);
+            float rad = DirectX::XMConvertToRadians(angleDeg);
+
+            // Hitung koordinat dari titik pusat busur
+            DirectX::XMFLOAT3 spawnPos = {
+                m_undyneParams.arcCenterX + cosf(rad) * m_undyneParams.arcRadius,
+                0.0f,
+                m_undyneParams.arcCenterZ + sinf(rad) * m_undyneParams.arcRadius
+            };
+
+            // Setup Tombak
+            UndyneSpearWindow spear;
+            spear.bullet = std::make_unique<Bullet>();
+            spear.bullet->SetActive(true);
+            spear.bullet->ApplyMovement(spawnPos, { 0, 0, 0 });
+            spear.bullet->SetDamage(m_undyneParams.damage);
+            spear.bullet->SetRadius(0.8f);
+
+            spear.windowName = "Spear_" + std::to_string(SDL_GetTicks()) + "_" + std::to_string(m_undynesSpawned);
+            TrackedWindowConfig config;
+            config.name = spear.windowName;
+            config.title = "Spear.exe";
+            config.width = 100;
+            config.height = 100;
+            config.role = WindowRole::TRACKED_ENTITY;
+            config.priority = 10;
+
+            Bullet* rawBullet = spear.bullet.get();
+            boss->GetWindowSystem()->AddTrackedWindow(config, [rawBullet]() {
+                return rawBullet->GetMovement()->GetPosition();
+                });
+
+            m_undyneSpears.push_back(std::move(spear));
+
+            if (++m_undynesSpawned >= m_undyneParams.count) {
+                m_isSpawningUndynes = false;
+            }
+        }
+    }
+
+    // =========================================================
+    // 2. State Machine per Spear (Tanpa Laser)
+    // =========================================================
+    for (auto& spear : m_undyneSpears) {
+        if (spear.isPreparedForDestroy) continue;
+
+        spear.timer += dt;
+        DirectX::XMFLOAT3 bPos = spear.bullet->GetMovement()->GetPosition();
+
+        // Selama masih membidik (State 0), terus perbarui arah menghadap player
+        if (spear.state == 0 && m_aiTarget) {
+            DirectX::XMFLOAT3 pPos = m_aiTarget->GetPosition();
+            float dx = pPos.x - bPos.x;
+            float dz = pPos.z - bPos.z;
+            float dist = sqrtf(dx * dx + dz * dz);
+
+            if (dist > 0.001f) {
+                spear.lockDir = { dx / dist, 0.0f, dz / dist };
+                spear.bullet->GetMovement()->SetRotationY(DirectX::XMConvertToDegrees(atan2f(dx, dz)));
+            }
+        }
+
+        // STATE 0: Membidik & Menunggu
+        if (spear.state == 0) {
+            if (spear.timer >= m_undyneParams.hoverDuration) {
+                spear.state = 2; // Langsung beralih ke State Meluncur (Skip Laser)
+                spear.timer = 0.0f;
+                spear.currentSpeed = m_undyneParams.startSpeed;
+            }
+        }
+        // STATE 2: Meluncur! 
+        else if (spear.state == 2) {
+            spear.currentSpeed += m_undyneParams.acceleration * dt;
+            if (spear.currentSpeed > m_undyneParams.maxSpeed) {
+                spear.currentSpeed = m_undyneParams.maxSpeed;
+            }
+
+            spear.bullet->ApplyMovement(bPos, {
+                spear.lockDir.x * spear.currentSpeed,
+                0.0f,
+                spear.lockDir.z * spear.currentSpeed
+                });
+            spear.bullet->Update(dt, nullptr);
+
+            if (bPos.x < -40.0f || bPos.x > 40.0f || bPos.z < -40.0f || bPos.z > 40.0f) {
+                spear.isPreparedForDestroy = true;
+                auto extracted = boss->GetWindowSystem()->ExtractForPool(spear.windowName);
+                if (extracted && extracted->window) {
+                    WindowManager::Instance().DestroyWindow(extracted->window);
+                }
+            }
+        }
+    }
 }
-
-
 
 void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {
     if (!currentCamera || !m_wingSprite || !boss) return;
@@ -846,6 +953,13 @@ std::vector<Bullet*> NaviPhaseWindowkill::GetProjectiles() {
             activeBullets.push_back(bw.bullet.get());
         }
     }
+
+    for (auto& spear : m_undyneSpears) {
+        if (spear.bullet && spear.bullet->IsActive() && spear.state == 2) {
+            // Hanya berbahaya saat State = 2 (Meluncur)
+            activeBullets.push_back(spear.bullet.get());
+        }
+    }
     return activeBullets;
 }
 
@@ -870,4 +984,24 @@ void NaviPhaseWindowkill::TriggerBoomerang(NaviBoss* boss) {
     m_isSpawningBoomerangs = true;
     m_boomerangsSpawned = 0;
     m_boomerangSpawnTimer = m_boomerangParams.spawnDelay; // Paksa spawn yang pertama
+}
+
+void NaviPhaseWindowkill::TriggerUndyneSpear(NaviBoss* boss) {
+    if (!boss || !boss->GetWindowSystem()) return;
+
+    m_isSpawningUndynes = true;
+    m_undynesSpawned = 0;
+    m_undyneSpawnTimer = 0.0f;
+
+    // =========================================================
+    // [BARU] Siapkan urutan posisi spawn yang diacak
+    // =========================================================
+    m_undyneSpawnIndices.clear();
+    for (int i = 0; i < m_undyneParams.count; ++i) {
+        m_undyneSpawnIndices.push_back(i); // Isi dengan: 0, 1, 2, 3...
+    }
+
+    // Acak urutan angkanya (misal menjadi: 3, 0, 5, 1...)
+    static std::mt19937 gen(std::random_device{}());
+    std::shuffle(m_undyneSpawnIndices.begin(), m_undyneSpawnIndices.end(), gen);
 }

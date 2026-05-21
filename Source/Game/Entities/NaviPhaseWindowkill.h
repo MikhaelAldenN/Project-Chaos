@@ -10,6 +10,7 @@
 #include "EffectManager.h" 
 
 class Sprite;
+class Player;
 
 // Pindahkan struktur sayap ke sini, karena hanya Fase Windowkill yang butuh ini!
 struct WingNode {
@@ -37,6 +38,25 @@ struct BoomerangWindowBullet {
     float startX = 0.0f;   // Titik awal offscreen
     float targetX = 0.0f;  // Titik putar balik (2/3 layar)]
     float targetVelX = 0.0f;
+};
+
+// =========================================================
+// UNDYNE SPEAR STRUCT & PARAMS
+// =========================================================
+struct UndyneSpearParams {
+    int   count = 20;                // Parameter: Spawn Count
+    float spawnDelay = 0.4f;        // Parameter: Spawn Delay
+    float hoverDuration = 1.0f;     // Parameter: Waktu Membidik
+    float telegraphDuration = 1.0f; // Parameter: Shoot Delay (Laser menyala)
+    float startSpeed = 10.0f;
+    float maxSpeed = 60.0f;        // Parameter: Max Speed
+    float acceleration = 10.0f;
+    int   damage = 10;              // Parameter: Spear Damage
+    float arcRadius = 20.0f;      // Jari-jari lengkungan busur
+    float arcCenterX = 0.0f;      // Posisi X titik pusat (0 = Tengah horizontal)
+    float arcCenterZ = -15.0f;    // Posisi Z titik pusat (-35 = Bawah arena/layar)
+    float arcMinAngle = 20.0f;    // Sudut minimal (Derajat)
+    float arcMaxAngle = 160.0f;   // Sudut maksimal (Derajat)
 };
 
 class NaviPhaseWindowkill : public INaviPhase {
@@ -85,6 +105,8 @@ public:
     std::vector<Bullet*> GetProjectiles();
 
     void TriggerOrbitalBlaster(NaviBoss* boss);
+
+    void SetAITarget(Player* p) { m_aiTarget = p; }
 
     struct OrbitalBlaster {
         bool active = false;
@@ -188,6 +210,22 @@ public:
     void TriggerBoomerang(NaviBoss* boss);
 
 
+    struct UndyneSpearWindow {
+        std::unique_ptr<Bullet> bullet;
+        std::string windowName;
+
+        int state = 0; // 0 = Muncul & Membidik, 1 = Telegraph Laser, 2 = Meluncur
+        float timer = 0.0f;
+
+        DirectX::XMFLOAT3 lockDir = { 0,0,1 }; // Arah tembakan yang sudah dikunci
+        float currentSpeed = 0.0f;             // Untuk logika Ease-in
+
+        bool isPreparedForDestroy = false;
+    };
+
+    void TriggerUndyneSpear(NaviBoss* boss);
+    UndyneSpearParams& GetUndyneParams() { return m_undyneParams; }
+
 private:
     void GenerateButterflyWings();
 
@@ -253,4 +291,16 @@ private:
     bool  m_isSpawningBouncing = false;
     int   m_bouncingSpawned = 0;
     float m_bouncingSpawnTimer = 0.0f;
+
+
+    UndyneSpearParams m_undyneParams;
+    std::vector<UndyneSpearWindow> m_undyneSpears;
+
+    bool  m_isSpawningUndynes = false;
+    int   m_undynesSpawned = 0;
+    float m_undyneSpawnTimer = 0.0f;
+
+    std::vector<int> m_undyneSpawnIndices;
+
+    Player* m_aiTarget = nullptr;
 };
