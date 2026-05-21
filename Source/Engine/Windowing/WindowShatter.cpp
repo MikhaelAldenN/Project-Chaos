@@ -40,6 +40,9 @@ void WindowShatter::Cleanup()
 void WindowShatter::Update(float dt)
 {
     if (m_markedForDestroy) return;
+    
+    if (m_isSleeping && m_isNativeWindow) return;
+
     m_timeAlive += dt;
 
     if (!m_isNativeWindow)
@@ -122,6 +125,11 @@ void WindowShatter::TransitionToNativeWindow()
 
     if (m_window)
     {
+
+        if (m_isSleeping) {
+            SDL_HideWindow(m_window->GetSDLWindow());
+        }
+
         m_window->SetPriority(-1);
         SetWindowPos(m_window->GetNativeHandle(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
@@ -142,6 +150,34 @@ void WindowShatter::TransitionToNativeWindow()
     else
     {
         m_markedForDestroy = true;
+    }
+}
+
+void WindowShatter::WakeUp()
+{
+    m_isSleeping = false;
+    if (m_window) {
+        SDL_ShowWindow(m_window->GetSDLWindow());
+    }
+}
+
+void WindowShatterManager::PreloadExplosion(DirectX::XMFLOAT2 centerWorldPos, int count)
+{
+    for (int i = 0; i < count; ++i)
+    {
+        SpawnSingleInstance(centerWorldPos, i, count);
+        // Paksa shatter yang baru di-spawn masuk mode tidur
+        m_shatters.back()->SetSleeping(true);
+    }
+}
+
+void WindowShatterManager::WakeUpAll()
+{
+    for (auto& shatter : m_shatters)
+    {
+        if (shatter->IsSleeping()) {
+            shatter->WakeUp();
+        }
     }
 }
 

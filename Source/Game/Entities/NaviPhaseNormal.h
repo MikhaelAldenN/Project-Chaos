@@ -20,21 +20,21 @@ struct NaviBulletParams {
     float bgmVolumeMultiplier = 1.0f;
 
     // ----- Radial Burst -----
-    float radialSpeed = 20.0f;
-    int   count = 24;
-    float fireRate = 1.5f;
+    float radialSpeed = 22.140f;
+    int   count = 55;
+    float fireRate = 1.56f;
     float burstDelay = 0.156f;
-    int   radialDamage = 10; // [BARU] Damage pola lingkaran
+    int   radialDamage = 1; // [BARU] Damage pola lingkaran
     DirectX::XMFLOAT4 color = { 1.0f, 0.2f, 0.2f, 1.0f };
     float despawnDist = 60.0f;
 
     // ----- Targeted Fan Burst (Shotgun) -----
-    float fanSpeed = 25.0f;
-    int   fanLines = 4;
+    float fanSpeed = 35.5f;
+    int   fanLines = 5;
     int   fanWaves = 4;
-    float fanWaveDelay = 0.176f;
-    float fanSpreadAngle = 0.183f;
-    int   fanDamage = 15; // [BARU] Damage pola shotgun
+    float fanWaveDelay = 0.133f;
+    float fanSpreadAngle = 0.130f;
+    int   fanDamage = 2; // [BARU] Damage pola shotgun
 
     // ----- Rhythm Laser (Bijuudama charge indicator) -----
     float laserDuration = 4.0f;
@@ -252,4 +252,9 @@ private:
     bool m_isOpeningEvent = true;
     bool m_hasSpawnedWindow = false;
     std::unique_ptr<UIDialogueBox> m_dialogueBox;
+
+    // ----- Death State -----
+    bool  m_isDying = false;
+    float m_deathTimer = 0.0f;
+    int   m_deathVfxHandle = -1;
 };

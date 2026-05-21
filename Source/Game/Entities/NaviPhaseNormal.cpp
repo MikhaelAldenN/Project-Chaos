@@ -130,19 +130,51 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
     if (!boss) return;
 
     // =========================================================
-    // [TRANSISI PHASE] Cek apakah boss mati (HP <= 0)
-    // =========================================================
+        // [DEATH SEQUENCE] Boss Mati
+        // =========================================================
     if (m_bossHP <= 0) {
-        // Ambil posisi dunia bos (menggunakan X dan Z untuk sumbu 2D shatter)
-        DirectX::XMFLOAT3 pos = boss->GetPosition();
+        if (!m_isDying) {
+            m_isDying = true;
+            m_deathTimer = 0.0f;
 
-        // Panggil 5 serpihan jendela pecah
-        WindowShatterManager::Instance().TriggerExplosion({ pos.x, pos.z }, 5);
+            // 1. Matikan AI dan hentikan serangan aktif
+            m_aiEnabled = false;
+            CancelBijuudama();
 
-        // Langsung pindah ke Phase Windowkill
-        boss->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
+            // 2. Mainkan VFX Kematian di posisi bos
+            m_deathVfxHandle = EffectManager::Instance().Play("Data/Effect/VFX_Boss_Death.efk", boss->GetPosition(), 2.0f);
 
-        return; // Hentikan eksekusi Update Normal Phase di frame ini
+            // [MODIFIKASI BARU] Putar VFX 90 derajat menghadap ke atas (Pitch)
+            if (m_deathVfxHandle != -1) {
+                float rotX = DirectX::XMConvertToRadians(90.0f);
+                EffectManager::Instance().SetRotation(m_deathVfxHandle, { rotX, 0.0f, 0.0f });
+            }
+
+            // 3. [PRE-LOAD] Buat pecahan window SEKARANG secara sembunyi-sembunyi agar tidak lag nanti
+            DirectX::XMFLOAT3 pos = boss->GetPosition();
+            WindowShatterManager::Instance().PreloadExplosion({ pos.x, pos.z }, 5);
+        }
+
+        m_deathTimer += dt;
+
+        // Pastikan VFX selalu mengikuti posisi bos jika dia masih melayang sedikit
+        if (m_deathVfxHandle != -1 && EffectManager::Instance().IsPlaying(m_deathVfxHandle)) {
+            EffectManager::Instance().SetPosition(m_deathVfxHandle, boss->GetPosition());
+        }
+
+        // 4. [MODIFIKASI BARU] Waktu tunggu diubah menjadi 5 detik
+        if (m_deathTimer >= 5.0f) {
+            // [MODIFIKASI BARU] Matikan paksa VFX kematian
+            if (m_deathVfxHandle != -1) {
+                EffectManager::Instance().Stop(m_deathVfxHandle);
+                m_deathVfxHandle = -1; // Reset handle untuk keamanan memori
+            }
+
+            WindowShatterManager::Instance().WakeUpAll();
+            boss->ChangePhase(std::make_unique<NaviPhaseWindowkill>());
+        }
+
+        return; // Hentikan sisa logika Update Normal Phase saat bos sedang mati
     }
 
     // --- Opening Sequence (blocks AI until dialogue ends) ---

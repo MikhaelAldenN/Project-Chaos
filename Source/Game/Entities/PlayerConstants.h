@@ -9,7 +9,7 @@
 namespace PlayerConst
 {
     // --- Movement ---
-    inline constexpr float MoveSpeed = 20.0f;  // Default walk speed (units/s)
+    inline constexpr float MoveSpeed = 15.0f;  // Default walk speed (units/s)
     inline constexpr float Acceleration = 8.0f;   // Input ramp-up rate
     inline constexpr float Deceleration = 12.0f;  // Input ramp-down rate
     inline constexpr float RotSmoothSpeed = 15.0f;  // Foot yaw lerp speed (rad/s)
@@ -23,7 +23,7 @@ namespace PlayerConst
     inline constexpr float PhysXMinDist = 0.001f; // move() minDist parameter
 
     // --- Dash ---
-    inline constexpr float DashSpeed = 40.0f;  // Burst speed during dash (units/s)
+    inline constexpr float DashSpeed = 45.0f;  // Burst speed during dash (units/s)
     inline constexpr float DashDuration = 0.15f;  // How long the dash lasts (s)
     inline constexpr float DashCooldown = 0.5f;   // Time before dash can be used again (s)
 

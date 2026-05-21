@@ -237,6 +237,6 @@ private:
     float m_normalDashSpeed = PlayerConst::DashSpeed;
     DirectX::XMFLOAT4 m_normalColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
-    bool m_enableIFrames = true;
+    bool m_enableIFrames = false;
     float m_iFrameDuration = 1.0f;
 };

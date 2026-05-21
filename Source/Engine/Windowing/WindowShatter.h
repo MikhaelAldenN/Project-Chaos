@@ -46,6 +46,9 @@ public:
     // [TAMBAH] Manual cleanup method
     void Cleanup();
 
+    void SetSleeping(bool sleep) { m_isSleeping = sleep; }
+    bool IsSleeping() const { return m_isSleeping; }
+    void WakeUp();
 
 private:
     void UpdateVirtualState(float dt);
@@ -78,6 +81,8 @@ private:
     float m_timeAlive = 0.0f;
 
     bool m_preparedForDestroy = false;
+
+    bool m_isSleeping = false;
 };
 
 // Manager definition (tidak berubah, copy paste saja bagian class WindowShatterManager seperti sebelumnya)
@@ -95,6 +100,9 @@ public:
     void Clear();
     [[nodiscard]] const std::vector<std::unique_ptr<WindowShatter>>& GetShatters() const { return m_shatters; }
     [[nodiscard]] int GetActiveCount() const { return static_cast<int>(m_shatters.size()); }
+
+    void PreloadExplosion(DirectX::XMFLOAT2 centerWorldPos, int count = 5);
+    void WakeUpAll();
 
 private:
     WindowShatterManager() = default;
