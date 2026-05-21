@@ -13,6 +13,8 @@
 #include "NaviBoss.h"
 #include "System/AudioManager.h"
 
+#include "EffectManager.h"
+
 using namespace DirectX;
 
 // ============================================================
@@ -310,6 +312,23 @@ void PlayerDash::Enter(Player* player)
     player->dashCooldownTimer = player->GetDashCooldown();
     player->TriggerInvincibility(DASH_IFRAME_DURATION);
 
+
+    // =========================================================
+    // Play VFX Dash Go dan sesuaikan arah rotasinya!
+    // =========================================================
+    DirectX::XMFLOAT3 pos = player->GetMovement()->GetPosition();
+    pos.y += 1.0f; // Naikkan sedikit agar pas di tengah badan
+
+    // [MODIFIKASI] Simpan handle ke variabel class
+    m_dashGoVfxHandle = EffectManager::Instance().Play("Data/Effect/VFX_Player_Dash_Go.efk", pos, 0.2f);
+
+    if (m_dashGoVfxHandle != -1) {
+        // [FIX] Tambahkan DirectX::XM_PI (180 derajat dalam radian) untuk membalik arahnya!
+        float yaw = atan2f(dashDir.x, dashDir.y) + DirectX::XM_PI;
+
+        EffectManager::Instance().SetRotation(m_dashGoVfxHandle, { 0.0f, yaw, 0.0f });
+    }
+
     std::string dashSounds[] = {
         "Data/Sound/SE_Dash_01.wav",
         "Data/Sound/SE_Dash_02.wav",
@@ -333,6 +352,16 @@ void PlayerDash::Update(Player* player, float dt)
         0.0f,
         dashDir.y * player->GetDashSpeed()
         });
+
+    // =========================================================
+    // [BARU] Terus seret VFX mengikuti posisi player selama Dash berjalan
+    // =========================================================
+    if (m_dashGoVfxHandle != -1 && EffectManager::Instance().IsPlaying(m_dashGoVfxHandle))
+    {
+        DirectX::XMFLOAT3 trackPos = player->GetMovement()->GetPosition();
+        trackPos.y += 1.0f; // Pastikan offset Y sama dengan saat Enter
+        EffectManager::Instance().SetPosition(m_dashGoVfxHandle, trackPos);
+    }
 
     if (timer <= 0.0f)
     {

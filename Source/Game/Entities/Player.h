@@ -247,4 +247,11 @@ private:
 
     bool m_enableIFrames = false;
     float m_iFrameDuration = 1.0f;
+
+    // [BARU] Handle & Offset untuk efek Dash
+    int m_dashReadyVfxHandle = -1;
+    float m_dashReadyOffsetY = 1.0f;
+
+    // [BARU] Timer untuk efek standby berulang
+    int m_dashStandbyVfxHandle = -1;
 };

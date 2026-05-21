@@ -35,6 +35,7 @@ public:
 private:
     float timer = 0.0f;
     DirectX::XMFLOAT2 dashDir = { 0.0f, 0.0f };
+    int m_dashGoVfxHandle = -1;
 };
 
 class PlayerSlash : public PlayerState

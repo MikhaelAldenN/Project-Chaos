@@ -9,6 +9,8 @@
 #include <cmath>
 #include <imgui.h>
 #include "InputHelper.h"
+#include "EffectManager.h"
+#include "System/AudioManager.h"
 
 using namespace DirectX;
 
@@ -88,9 +90,16 @@ Player::Player()
 
 Player::~Player()
 {
-    // stateMachine and animator cleaned up by unique_ptr automatically.
-    // PhysX controller is not owned by a smart pointer — release manually.
     if (m_physxController) m_physxController->release();
+
+    if (m_dashReadyVfxHandle != -1) {
+        EffectManager::Instance().Stop(m_dashReadyVfxHandle);
+    }
+
+    // [BARU] Bersihkan efek standby jika player mendadak dihapus
+    if (m_dashStandbyVfxHandle != -1) {
+        EffectManager::Instance().Stop(m_dashStandbyVfxHandle);
+    }
 }
 
 void Player::InitPhysics(physx::PxControllerManager* manager, physx::PxMaterial* material, float spawnY)
@@ -183,6 +192,49 @@ void Player::Update(float elapsedTime, Camera* camera)
 
     ApplyWorldMatrix(smoothedYaw, shouldAim, relativeAngle);
     UpdateProjectiles(elapsedTime, camera);
+
+    // =========================================================
+    // [BARU] Update posisi VFX Dash Ready agar menempel ke Player
+    // =========================================================
+    if (m_dashReadyVfxHandle != -1 && EffectManager::Instance().IsPlaying(m_dashReadyVfxHandle))
+    {
+        DirectX::XMFLOAT3 vfxPos = movement->GetPosition();
+
+        // Gunakan variabel offset dari GUI
+        vfxPos.y += m_dashReadyOffsetY;
+
+        EffectManager::Instance().SetPosition(m_dashReadyVfxHandle, vfxPos);
+    }
+
+    // =========================================================
+        // Logika Standby Dash VFX (Otomatis & Tracking)
+        // =========================================================
+    if (canDash)
+    {
+        // 1. Jika handle kosong atau efek sebelumnya sudah selesai (mati), putar lagi!
+        if (m_dashStandbyVfxHandle == -1 || !EffectManager::Instance().IsPlaying(m_dashStandbyVfxHandle))
+        {
+            DirectX::XMFLOAT3 vfxPos = movement->GetPosition();
+            vfxPos.y += m_dashReadyOffsetY;
+            m_dashStandbyVfxHandle = EffectManager::Instance().Play("Data/Effect/VFX_Player_Dash_Standby.efk", vfxPos, 0.7f);
+        }
+
+        // 2. Selama efeknya hidup, terus update posisinya agar menempel ke player
+        if (m_dashStandbyVfxHandle != -1 && EffectManager::Instance().IsPlaying(m_dashStandbyVfxHandle))
+        {
+            DirectX::XMFLOAT3 trackPos = movement->GetPosition();
+            trackPos.y += m_dashReadyOffsetY;
+            EffectManager::Instance().SetPosition(m_dashStandbyVfxHandle, trackPos);
+        }
+    }
+    else
+    {
+        // 3. Jika dash sedang tidak bisa dipakai (cooldown), matikan efek standby!
+        if (m_dashStandbyVfxHandle != -1) {
+            EffectManager::Instance().Stop(m_dashStandbyVfxHandle);
+            m_dashStandbyVfxHandle = -1; // Reset handle agar bisa spawn baru nanti
+        }
+    }
 }
 
 // ============================================================
@@ -194,7 +246,14 @@ void Player::UpdateDashCooldown(float dt)
     if (canDash) return;
 
     dashCooldownTimer -= dt;
-    if (dashCooldownTimer <= 0.0f) canDash = true;
+    if (dashCooldownTimer <= 0.0f)
+    {
+        canDash = true;
+
+        // [MODIFIKASI] Play VFX dan simpan handle-nya
+        m_dashReadyVfxHandle = EffectManager::Instance().Play("Data/Effect/VFX_Player_Dash_Ready.efk", movement->GetPosition(), 0.5f);
+        AudioManager::Instance().PlaySFX("Data/Sound/SE_Player_Dash_Ready_01.wav", 0.3f);
+    }
 }
 
 void Player::HandleMovementInput(float dt)
