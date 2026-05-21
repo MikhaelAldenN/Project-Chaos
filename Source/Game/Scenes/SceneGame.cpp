@@ -358,7 +358,15 @@ void SceneGame::Update(const float elapsedTime)
             const float fadeOutTime{ m_bossCinematicTimer - fadeBackStartTime };
             m_whiteAlpha = 1.0f - std::clamp(fadeOutTime / FADE_BACK_DURATION, 0.0f, 1.0f);
 
-            if (m_navi) m_navi->SetPotionedState(true);
+            if (m_navi)
+            {
+                m_navi->SetPotionedState(true);
+
+                if (m_whiteAlpha <= 0.0f && m_isBossCinematicActive)
+                {
+                    m_navi->StartAttackDelay(3.0f);
+                }
+            }
 
             // Resume gameplay once fading starts
             if (m_player)
@@ -469,28 +477,34 @@ void SceneGame::StartPlayerDeathSequence()
 
 void SceneGame::ResetLevel()
 {
-    // 1. Reset Player State (Zero allocation)
+    const bool isBossStage = m_bossCinematicTriggered;
+
+    // 1. Calculate Respawn Position
+    DirectX::XMFLOAT3 respawnPos = m_playerSpawnPos;
+    if (isBossStage && m_stage && !m_stage->m_linesEnable.empty())
+    {
+        const auto& line = m_stage->m_linesEnable[0];
+        respawnPos = { line.Position.x, m_playerSpawnPos.y, line.Position.z };
+    }
+
+    // 2. Reset Player State
     if (m_player)
     {
-        m_player->SetPosition(m_playerSpawnPos); // Updates PhysX automatically
+        m_player->SetPosition(respawnPos);
         m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
-        m_player->SetMaxHP(100);
+        m_player->SetMaxHP(isBossStage ? 150 : 100);
         m_player->SetInputEnabled(true);
         m_player->scale = { 1.0f, 1.0f, 1.0f };
         m_player->GetStateMachine()->ChangeState(m_player.get(), std::make_unique<PlayerIdle>());
-
-        // Clean up any bullets the player shot right before dying
         m_player->GetProjectiles().clear();
     }
 
-    // 2. Reset Enemies (Safe Object Pool Wipe)
+    // 3. Reset Enemies & Items
     if (m_enemyManager)
     {
         m_enemyManager->GetEnemies().clear();
         m_enemyManager->Initialize(Graphics::Instance().GetDevice());
     }
-
-    // 3. Reset Items
     if (m_itemManager)
     {
         m_itemManager->GetItems().clear();
@@ -500,32 +514,22 @@ void SceneGame::ResetLevel()
     // 4. Reset Navi Ally
     if (m_navi)
     {
-        m_navi->GetProjectiles().clear();
+        m_navi->Reset();
+        m_navi->SetPotionedState(isBossStage);
 
-        // Snap navi back to the player's shoulder instantly
-        DirectX::XMFLOAT3 naviPos{ m_playerSpawnPos };
-        naviPos.x += 1.0f;
-        naviPos.y += 2.0f; // HOVER_HEIGHT
-        naviPos.z += 0.5f;
-        m_navi->SetPosition(naviPos);
+        // Position Navi near Player
+        m_navi->SetPosition({ respawnPos.x + 1.0f, respawnPos.y + 2.0f, respawnPos.z + 0.5f });
+
+        // --- NEW: TRIGGER DELAY ON RESPAWN ---
+        if (isBossStage)
+        {
+            m_navi->StartAttackDelay(3.0f);
+        }
     }
 
-	// 5. Reset Camera
-    if (m_mainCamera)
-    {
-        XMFLOAT3 resetPos{ m_cameraPosition };
-        resetPos.x = 0.0f;
-        resetPos.z = -14.0f;
-        resetPos.y = Config::CAM_START_HEIGHT;
-
-        m_mainCamera->SetPosition(resetPos);
-        m_mainCamera->LookAt(m_cameraTarget);
-
-        // Force the CameraController to snap to the new position
-        CameraController::Instance().SetFixedSetting(resetPos);
-        CameraController::Instance().SetTarget(m_playerSpawnPos);
-        CameraController::Instance().Update(0.0f); 
-    }
+    // 5. Smart Camera Reset
+    CameraController::Instance().SetTarget(respawnPos);
+    CameraController::Instance().Update(0.0f);
 }
 
 void SceneGame::Render(float elapsedTime, Camera* camera)

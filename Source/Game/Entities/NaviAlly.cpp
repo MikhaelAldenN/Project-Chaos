@@ -15,8 +15,9 @@ float NaviAlly::GetRandomFloat(float min, float max)
     return min + random * (max - min);
 }
 
-NaviAlly::NaviAlly(ID3D11Device* device, const Player* targetPlayer, EnemyManager* enemyManager)
-    : m_targetPlayer(targetPlayer), m_enemyManager(enemyManager)
+NaviAlly::NaviAlly(ID3D11Device* device, Player* targetPlayer, EnemyManager* enemyManager)
+    : m_targetPlayer(targetPlayer) 
+    , m_enemyManager(enemyManager)
 {
     model = std::make_shared<Model>(device, "Data/Model/Character/MDL_Navi.glb");
     scale = { 0.4f, 0.4f, 0.4f };
@@ -47,9 +48,27 @@ NaviAlly::NaviAlly(ID3D11Device* device, const Player* targetPlayer, EnemyManage
     SyncData();
 }
 
+void NaviAlly::Reset() noexcept
+{
+    m_hp = MAX_HP;          
+    m_projectiles.clear();  
+    m_pulseTimer = 0.0f;    
+}
+
+void NaviAlly::UpdateAttackDelay(float dt) noexcept
+{
+    if (m_attackDelayTimer > 0.0f)
+    {
+        m_attackDelayTimer -= dt;
+        if (m_attackDelayTimer < 0.0f) m_attackDelayTimer = 0.0f;
+    }
+}
+
 void NaviAlly::Update(float elapsedTime, Camera* camera)
 {
     if (!IsAlive()) return;
+
+    UpdateAttackDelay(elapsedTime);
 
     if (m_animator)
     {
@@ -203,6 +222,8 @@ void NaviAlly::FireFanBurst(const DirectX::XMFLOAT3& targetPos) noexcept
 
 void NaviAlly::UpdateShootingLogic(float elapsedTime, Camera* camera)
 {
+    if (m_attackDelayTimer > 0.0f) return;
+
     if (m_isPotioned)
     {
         if (!m_targetPlayer) return;
@@ -316,6 +337,19 @@ void NaviAlly::TakeDamage(int damage) noexcept
     }
 }
 
+void NaviAlly::SetPotionedState(bool isPotioned) noexcept
+{
+    if (m_isPotioned == isPotioned) return; // No state change
+
+    m_isPotioned = isPotioned;
+
+    // When Potioned starts, heal the player to 150 HP
+    if (m_isPotioned && m_targetPlayer)
+    {
+        m_targetPlayer->SetMaxHP(150);
+    }
+}
+
 void NaviAlly::SetPosition(const DirectX::XMFLOAT3& pos)
 {
     movement->SetPosition(pos);
@@ -349,7 +383,7 @@ void NaviAlly::RenderProjectiles(ModelRenderer* renderer)
 {
     if (!IsAlive()) return;
 
-    const DirectX::XMFLOAT4 navibulletColor{ 5.0f, 5.0f, 5.0f, 1.0f };
+    const DirectX::XMFLOAT4 navibulletColor{ 6.0f, 6.0f, 6.0f, 6.0f };
 
     for (auto& bullet : m_projectiles)
     {

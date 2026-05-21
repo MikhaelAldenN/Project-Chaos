@@ -790,12 +790,14 @@ void CollisionManager::CheckPlayerProjectilesVsNavi(float elapsedTime)
 
 void CollisionManager::CheckNaviAllyProjectilesVsPlayer(float elapsedTime)
 {
+    // Validate pointers
     if (!m_player || !m_navi || m_player->GetHP() <= 0 || !m_navi->IsPotioned()) return;
 
     auto& projectiles = m_navi->GetProjectiles();
     DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
 
     constexpr float PLAYER_HURTBOX_RADIUS = 0.3f;
+    constexpr int NAVI_BULLET_DAMAGE = 10; // Match standard enemy damage
 
     for (auto& bullet : projectiles)
     {
@@ -812,13 +814,28 @@ void CollisionManager::CheckNaviAllyProjectilesVsPlayer(float elapsedTime)
         float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, playerPos);
         float combinedRadius = PLAYER_HURTBOX_RADIUS + bullet->GetRadius();
 
-        // Hit!
         if (distToPath <= combinedRadius)
         {
-            bullet->SetActive(false); // Destroy the bullet visually
+            bullet->SetActive(false); // Destroy the bullet
 
-            // INTENTIONAL: Do NOT call m_player->TakeDamage() here yet.
-            // We just want to confirm the collision math works.
+            // --- Apply Damage ---
+            m_player->TakeDamage(NAVI_BULLET_DAMAGE);
+
+            // --- Death Sequence Logic ---
+            if (m_player->GetHP() <= 0)
+            {
+                // Visual & State Reset
+                m_player->scale = { 0.0f, 0.0f, 0.0f };
+                m_player->SetInputEnabled(false);
+                m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
+                m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
+
+                // Trigger Fade via Callback (Ensures SceneGame manages the UI transition)
+                if (m_onPlayerDeathCallback)
+                {
+                    m_onPlayerDeathCallback();
+                }
+            }
         }
     }
 }

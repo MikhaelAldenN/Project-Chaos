@@ -17,8 +17,10 @@ class AnimationController;
 class NaviAlly : public Character
 {
 public:
-    explicit NaviAlly(ID3D11Device* device, const Player* targetPlayer, EnemyManager* enemyManager);
+    explicit NaviAlly(ID3D11Device* device, Player* targetPlayer, EnemyManager* enemyManager);
     ~NaviAlly() override = default;
+
+    void Reset() noexcept;
 
     void Update(float elapsedTime, Camera* camera) override;
     void Render(ModelRenderer* renderer);
@@ -37,7 +39,9 @@ public:
     void SpawnBullet(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& fwd, float speed) noexcept;
 
     void SetPosition(const DirectX::XMFLOAT3& pos);
-    void SetPotionedState(bool isPotioned) noexcept { m_isPotioned = isPotioned; }
+    void SetPotionedState(bool isPotioned) noexcept;
+
+    void StartAttackDelay(float duration) noexcept { m_attackDelayTimer = duration; }
 
     void OnHitByPlayerBullet() { /* Add your HP reduction logic here */ }
 
@@ -55,11 +59,12 @@ private:
     void UpdateHoverLogic(float elapsedTime);
     void UpdateShootingLogic(float elapsedTime, Camera* camera);
     void UpdateProjectiles(float elapsedTime, Camera* camera);
+    void UpdateAttackDelay(float dt) noexcept;
     void FireAtTarget(const DirectX::XMFLOAT3& targetPos);
     float GetRandomFloat(float min, float max);
 
     // Safe Observer Pointers
-    const Player* m_targetPlayer{ nullptr };
+    Player* m_targetPlayer{ nullptr };
     EnemyManager* m_enemyManager{ nullptr };
 
     // State Variables 
@@ -74,6 +79,8 @@ private:
 	// Potion State
     bool m_isPotioned{ false }; // Track the state
     float m_pulseTimer{ 0.0f }; // Local timer for the pulse
+
+    float m_attackDelayTimer{ 0.0f };
 
     DirectX::XMFLOAT3 m_potionAnchorPos{ 0.0f, 0.0f, 0.0f };
     bool m_hasCapturedAnchor{ false };
