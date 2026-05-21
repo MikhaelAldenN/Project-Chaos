@@ -128,8 +128,13 @@ private:
     bool m_isNaviDefeatSequenceActive{ false };
     float m_naviDefeatTimer{ 0.0f };
     bool m_isNaviDefeatReadyForNextScene{ false };
+
     bool m_hasIntroDialogueTestStarted{ false };
-  
+    bool m_hasTriggeredMushroomDialogue{ false };
+    bool m_hasTriggeredTrackingDialogue{ false };
+    bool m_bossDialogueStarted{ false };
+    bool m_hasTriggeredPoisonDialogue{ false };
+    bool m_isPoisonDialogueActive{ false };
 
     static constexpr float DEATH_DELAY_DURATION{ 0.5f };
     static constexpr float DEATH_FADE_DURATION{ 3.0f };
@@ -152,6 +157,9 @@ private:
     void StartIntroDialogueTest();
     void UpdateDialogue(float elapsedTime);
     void RenderDialogue();
+    void StartMushroomDialogue();
+    void StartTrackingDialogue();
+    void StartPoisonDialogue();
     void ResetLevel();
 
     // Cinematic States

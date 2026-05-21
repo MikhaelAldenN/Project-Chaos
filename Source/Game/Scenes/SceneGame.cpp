@@ -374,10 +374,8 @@ void SceneGame::Update(const float elapsedTime)
 
     if (m_isBossCinematicActive)
     {
-        m_bossCinematicTimer += elapsedTime;
+        // 1. Hitung pergerakan kamera (berhenti di angka 1.0)
         float t = std::clamp(m_bossCinematicTimer / BOSS_CINEMATIC_DURATION, 0.0f, 1.0f);
-
-        // Zero-Cost Math: Smoothstep (Creates a buttery-smooth ease-in and ease-out)
         float smoothT = t * t * (3.0f - 2.0f * t);
 
         DirectX::XMFLOAT3 currentTarget = {
@@ -386,90 +384,110 @@ void SceneGame::Update(const float elapsedTime)
             m_cinematicStartTarget.z + (m_cinematicEndTarget.z - m_cinematicStartTarget.z) * smoothT
         };
 
-        // Force zoom out to the base Furi style view during cinematic
         CameraController::Instance().SetDynamicZoomOffset(0.0f);
         CameraController::Instance().SetTarget(currentTarget);
 
-        if (!m_bossEffectTriggered && m_bossCinematicTimer >= (BOSS_CINEMATIC_DURATION + BOSS_CINEMATIC_HOLD_DURATION))
+        // 2. State Machine Cinematic
+        if (m_bossCinematicTimer < BOSS_CINEMATIC_DURATION)
         {
-            m_bossEffectTriggered = true;
+            // FASE 1: Kamera masih jalan menuju Boss. Timer jalan terus.
+            m_bossCinematicTimer += elapsedTime;
+        }
+        else if (!m_bossDialogueStarted)
+        {
+            // FASE 2: Kamera sampai. Munculin dialog dan STOP Timer!
+            m_bossDialogueStarted = true;
+            std::vector<std::string> dialogPages = {
+                u8"えっ…？ 何あのキノコ…。\n他のやつらより、ずっと大きい……？",
+                u8"ちょっと待って、様子がおかしいわ。\nなんか…膨らんでない！？",
+                u8"きゃあああああっ！？\n毒ガス！？ ごほっ、げほっ…！"
+            };
+            // Terjemahan kasarnya:
+            // 1. Eh...? Jamur apa itu... Jauh lebih besar dari yang lain?
+            // 2. Tunggu, ada yang aneh. Kok dia... membesar?!
+            // 3. Kyaaaa?! Gas racun?! Uhuk, uhuk!
 
-            if (Enemy* fakeBoss = GetFakeBoss())
+            m_dialogueBox->StartDialogue(dialogPages);
+        }
+        else if (m_bossDialogueStarted)
+        {
+            // FASE 3: Dialog sedang berjalan, nungguin player mencet Enter
+            int currentLine = m_dialogueBox->GetCurrentDialogueIndex();
+
+            // Pas nyampe di baris ke-3 (index 2) dan efek belum keluar, TRIGGER RACUNNYA!
+            if (currentLine == 2 && !m_bossEffectTriggered)
             {
-                DirectX::XMFLOAT3 spawnPos = fakeBoss->GetPosition();
+                m_bossEffectTriggered = true;
 
-                spawnPos.x += m_fakeBossEffectOffset.x;
-                spawnPos.y += m_fakeBossEffectOffset.y;
-                spawnPos.z += m_fakeBossEffectOffset.z;
-
-                // 1. Save the lightweight Handle
-                Effekseer::Handle effHandle = EffectManager::Instance().Play(
-                    "Data/Effect/FakeBossPoison.efk",
-                    spawnPos,
-                    m_fakeBossEffectScale
-                );
-
-                // 2. Apply Rotation (Convert GUI Degrees to Effekseer Radians)
-                if (effHandle >= 0)
+                if (Enemy* fakeBoss = GetFakeBoss())
                 {
-                    DirectX::XMFLOAT3 rotRad{
-                        DirectX::XMConvertToRadians(m_fakeBossEffectRotation.x),
-                        DirectX::XMConvertToRadians(m_fakeBossEffectRotation.y),
-                        DirectX::XMConvertToRadians(m_fakeBossEffectRotation.z)
-                    };
-                    EffectManager::Instance().SetRotation(effHandle, rotRad);
-                }
-            }
-        }
+                    DirectX::XMFLOAT3 spawnPos = fakeBoss->GetPosition();
+                    spawnPos.x += m_fakeBossEffectOffset.x;
+                    spawnPos.y += m_fakeBossEffectOffset.y;
+                    spawnPos.z += m_fakeBossEffectOffset.z;
 
-        const float whiteoutStartTime{ BOSS_CINEMATIC_DURATION + BOSS_CINEMATIC_HOLD_DURATION + BOSS_EFFECT_WHITEOUT_DELAY };
-        const float holdStartTime{ whiteoutStartTime + WHITEOUT_FADE_DURATION };
-        const float fadeBackStartTime{ holdStartTime + WHITEOUT_HOLD_DURATION };
+                    Effekseer::Handle effHandle = EffectManager::Instance().Play(
+                        "Data/Effect/FakeBossPoison.efk", spawnPos, m_fakeBossEffectScale
+                    );
 
-        // 1. PHASE: DROP CURTAIN
-        if (m_bossCinematicTimer >= whiteoutStartTime && m_bossCinematicTimer < holdStartTime)
-        {
-            const float timeInFade{ m_bossCinematicTimer - whiteoutStartTime };
-            const float linearT{ std::clamp(timeInFade / WHITEOUT_FADE_DURATION, 0.0f, 1.0f) };
-            // Smoothstep
-            m_whiteAlpha = linearT * linearT * (3.0f - 2.0f * linearT);
-        }
-        // 2. PHASE: HOLD (Force 1.0)
-        else if (m_bossCinematicTimer >= holdStartTime && m_bossCinematicTimer < fadeBackStartTime)
-        {
-            m_whiteAlpha = 1.0f;
-        }
-        // 3. PHASE: FADE BACK
-        else if (m_bossCinematicTimer >= fadeBackStartTime)
-        {
-            const float fadeOutTime{ m_bossCinematicTimer - fadeBackStartTime };
-            m_whiteAlpha = 1.0f - std::clamp(fadeOutTime / FADE_BACK_DURATION, 0.0f, 1.0f);
-
-            if (m_navi)
-            {
-                m_navi->SetPotionedState(true);
-
-                if (m_whiteAlpha <= 0.0f && m_isBossCinematicActive)
-                {
-                    m_navi->StartAttackDelay(3.0f);
+                    if (effHandle >= 0) {
+                        DirectX::XMFLOAT3 rotRad{
+                            DirectX::XMConvertToRadians(m_fakeBossEffectRotation.x),
+                            DirectX::XMConvertToRadians(m_fakeBossEffectRotation.y),
+                            DirectX::XMConvertToRadians(m_fakeBossEffectRotation.z)
+                        };
+                        EffectManager::Instance().SetRotation(effHandle, rotRad);
+                    }
                 }
             }
 
-            // Resume gameplay once fading starts
-            if (m_player)
+            // FASE 4: Player mencet enter nutup jeritan Navi. Kotak dialog otomatis hilang, mulai Fade Putih!
+            if (m_bossEffectTriggered && !m_dialogueBox->IsActive())
             {
-                m_player->SetInputEnabled(true);
-                m_player->SetAimLocked(false); 
-            }
+                // Jalanin timer lagi buat ngitung efek whiteout
+                m_bossCinematicTimer += elapsedTime;
 
-            // Final cleanup
-            if (m_whiteAlpha <= 0.0f)
-            {
-                m_whiteAlpha = 0.0f;
-                m_isBossCinematicActive = false;
+                float timeInFade = m_bossCinematicTimer - BOSS_CINEMATIC_DURATION;
+
+                if (timeInFade < WHITEOUT_FADE_DURATION)
+                {
+                    float linearT = std::clamp(timeInFade / WHITEOUT_FADE_DURATION, 0.0f, 1.0f);
+                    m_whiteAlpha = linearT * linearT * (3.0f - 2.0f * linearT);
+                }
+                else if (timeInFade < WHITEOUT_FADE_DURATION + WHITEOUT_HOLD_DURATION)
+                {
+                    m_whiteAlpha = 1.0f;
+                }
+                else
+                {
+                    // Fade back ke game normal
+                    float fadeOutTime = timeInFade - (WHITEOUT_FADE_DURATION + WHITEOUT_HOLD_DURATION);
+                    m_whiteAlpha = 1.0f - std::clamp(fadeOutTime / FADE_BACK_DURATION, 0.0f, 1.0f);
+
+                    if (m_navi)
+                    {
+                        m_navi->SetPotionedState(true);
+
+                        m_navi->StartAttackDelay(999.0f);
+                    }
+
+                    // Final cleanup pas layarnya udah 100% normal (White alpha 0)
+                    if (m_whiteAlpha <= 0.0f)
+                    {
+                        m_whiteAlpha = 0.0f;
+                        m_isBossCinematicActive = false;
+
+                        // Player masih di-lock, Navi belum nyerang
+                        if (!m_hasTriggeredPoisonDialogue)
+                        {
+                            StartPoisonDialogue();
+                        }
+                    }
+                }
             }
         }
     }
+
     else // NORMAL GAMEPLAY CAMERA
     {
         // 1. Target the Player securely
@@ -533,6 +551,61 @@ void SceneGame::Update(const float elapsedTime)
         }
 
         CameraController::Instance().SetDynamicZoomOffset(targetZoom);
+    }
+
+    if (m_player && m_enemyManager && m_dialogueBox && !m_dialogueBox->IsActive())
+    {
+        // Cek hanya kalau salah satu dialog belum pernah ke-trigger
+        if (!m_hasTriggeredMushroomDialogue || !m_hasTriggeredTrackingDialogue)
+        {
+            const DirectX::XMFLOAT3 pPos = m_player->GetPosition();
+
+            for (const auto& enemy : m_enemyManager->GetEnemies())
+            {
+                if (!enemy || !enemy->IsActive()) continue;
+
+                const DirectX::XMFLOAT3 ePos = enemy->GetPosition();
+                const float dx = pPos.x - ePos.x;
+                const float dz = pPos.z - ePos.z;
+                const float distSq = (dx * dx) + (dz * dz);
+
+                if (distSq < 150.0f)
+                {
+                    if (!m_hasTriggeredMushroomDialogue && enemy->GetType() == EnemyType::MushroomNone)
+                    {
+                        m_hasTriggeredMushroomDialogue = true;
+                        StartMushroomDialogue();
+                        break;
+                    }
+                    else if (!m_hasTriggeredTrackingDialogue && enemy->GetAttackType() == AttackType::Tracking)
+                    {
+                        m_hasTriggeredTrackingDialogue = true;
+                        StartTrackingDialogue();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    if (m_isPoisonDialogueActive && m_dialogueBox && !m_dialogueBox->IsActive())
+    {
+        // Kotak dialog udah hilang karena player mencet Enter di teks terakhir.
+        m_isPoisonDialogueActive = false;
+
+        // Lepas lock input player biar bisa gerak
+        if (m_player)
+        {
+            m_player->SetInputEnabled(true);
+            m_player->SetAimLocked(false);
+        }
+
+        // Navi langsung nyerang player! (Kasih delay tipis 0.5 detik biar dramatis)
+        if (m_navi)
+        {
+            m_navi->StartAttackDelay(0.5f);
+        }
+
     }
 
     // Finally, commit all calculations to the actual CameraController
@@ -599,6 +672,49 @@ void SceneGame::StartIntroDialogueTest()
     }
 }
 
+void SceneGame::StartMushroomDialogue()
+{
+    if (m_dialogueBox)
+    {
+        std::vector<std::string> dialogPages = {
+            u8"あのキノコを見て。今は大人しく見えるけれど…\n気を抜かないで。",
+            u8"この森の奥は奇妙な薬液で汚染されているわ。\n凶暴化した個体もいるはずよ。"
+        };
+
+        m_dialogueBox->StartDialogue(dialogPages);
+    }
+}
+
+void SceneGame::StartTrackingDialogue()
+{
+    if (m_dialogueBox)
+    {
+        std::vector<std::string> dialogPages = {
+            u8"危ない！あのキノコは他と違うわ！\nあなたを狙って自爆する気よ！",
+            u8"近づかれる前に早く撃ち落として！"
+        };
+
+        m_dialogueBox->StartDialogue(dialogPages);
+    }
+}
+
+void SceneGame::StartPoisonDialogue()
+{
+    if (m_dialogueBox)
+    {
+        std::vector<std::string> dialogPages = {
+            u8"あ……あ、ぁ…………",
+            u8"あつい……からだが……とける……",
+            u8"にげて……わたし、もう…………",
+            u8"あはッ……アはハハハハハハハッ！！！！"
+        };
+
+        m_hasTriggeredPoisonDialogue = true;
+        m_isPoisonDialogueActive = true;
+
+        m_dialogueBox->StartDialogue(dialogPages);
+    }
+}
 void SceneGame::ResetLevel()
 {
     const bool isBossStage = m_bossCinematicTriggered;
@@ -890,6 +1006,7 @@ void SceneGame::StartBossCinematic()
     m_bossCinematicTriggered = true;
     m_isBossCinematicActive = true;
     m_bossCinematicTimer = 0.0f;
+    m_bossDialogueStarted = false;
 
     // Lock the Player securely
     m_player->SetInputEnabled(false);
