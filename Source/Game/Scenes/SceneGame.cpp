@@ -167,8 +167,9 @@ SceneGame::SceneGame()
     m_postProcess = std::make_unique<PostProcessManager>();
     m_postProcess->Initialize(static_cast<int>(screenW), static_cast<int>(screenH));
 
-    ResourceManager::Instance().LoadFont("JP_FONT", "Data/Font/JP_Dialog_32px_0.png", "Data/Font/JP_Dialog_32px.fnt");
-    m_dialogPrimitive = std::make_unique<Primitive>(Graphics::Instance().GetDevice());
+    m_dialogueBox = std::make_unique<UIDialogueBox>();
+
+    m_dialogueBox->Initialize();
 
     m_fadeSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Game/Black.png");
     m_whiteSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Game/White.png");
@@ -303,7 +304,10 @@ void SceneGame::Update(const float elapsedTime)
         StartIntroDialogueTest();
     }
 
-    UpdateDialogue(elapsedTime);
+    if (m_dialogueBox)
+    {
+        m_dialogueBox->Update(elapsedTime);
+    }
 
     if (m_scene) {
         m_scene->simulate(elapsedTime);
@@ -580,27 +584,19 @@ void SceneGame::StartNaviDefeatSequence()
 void SceneGame::StartIntroDialogueTest()
 {
     m_hasIntroDialogueTestStarted = true;
-    m_dialogVisible = true;
-    m_dialogSpeaker = "NAVI";
-    m_dialogText =
-        "\xE3\x81\x93\xE3\x82\x8C\xE3\x81\xAF\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88"
-        "\xE7\x94\xA8\xE3\x81\xAE\xE3\x83\x80\xE3\x82\xA4\xE3\x82\xA2\xE3\x83\xAD"
-        "\xE3\x82\xB0\xE3\x81\xA7\xE3\x81\x99\xE3\x80\x82\x0A\xE3\x81\x82\xE3\x81"
-        "\xA8\xE3\x81\xA7\xE5\x86\x85\xE5\xAE\xB9\xE3\x82\x92\xE8\xAA\xBF\xE6\x95"
-        "\xB4\xE3\x81\xA7\xE3\x81\x8D\xE3\x81\xBE\xE3\x81\x99\xE3\x80\x82";
-    m_dialogVisibleCharacters = 0;
-    m_dialogTotalCharacters = CountUtf8Characters(m_dialogText);
-    m_dialogTypeTimer = 0.0f;
-}
 
-void SceneGame::UpdateDialogue(float elapsedTime)
-{
-    if (!m_dialogVisible) return;
-    if (m_dialogVisibleCharacters >= m_dialogTotalCharacters) return;
+    if (m_dialogueBox)
+    {
+        // Masukkan dialog per halaman/tekanan tombol
+        std::vector<std::string> dialogPages = {
+            u8"目を覚まして。戦いの時間が来たわ。\n「Space」で攻撃よ。遠くの敵は撃ち抜き、\n近づけばその刃で斬り裂くの。",
+            u8"そして、よく覚えておいて。\nいずれそのキーは、敵の牙を弾き返す\n「Parry」の要にもなるわ。魂に刻み込んで。",
+            u8"次は「Shift」を試して。\n風のように「Dash」して、敵の弾幕をすり抜けるのよ。\n\nさあ、あなたの力を見せて。"
+        };
 
-    m_dialogTypeTimer += elapsedTime * DIALOG_CHARACTERS_PER_SECOND;
-    const int nextVisibleCharacters = static_cast<int>(m_dialogTypeTimer);
-    m_dialogVisibleCharacters = (std::min)(nextVisibleCharacters, m_dialogTotalCharacters);
+        m_dialogueBox->SetPosition(536.0f, 750.0f);
+        m_dialogueBox->StartDialogue(dialogPages);
+    }
 }
 
 void SceneGame::ResetLevel()
@@ -750,7 +746,10 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
         m_postProcess->EndCapture(elapsedTime);
     }
 
-    RenderDialogue();
+    if (m_dialogueBox)
+    {
+        m_dialogueBox->Render(dc);
+    }
 
     if (m_fadeAlpha > 0.001f && m_fadeSprite)
     {
@@ -804,72 +803,6 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
     }
 }
 
-void SceneGame::RenderDialogue()
-{
-    if (!m_dialogVisible || !m_dialogPrimitive || m_fadeAlpha > 0.001f || m_isNaviDefeatSequenceActive) return;
-
-    auto dc{ Graphics::Instance().GetDeviceContext() };
-    auto rs{ Graphics::Instance().GetRenderState() };
-
-    float screenW{ Config::DEFAULT_SCREEN_W };
-    float screenH{ Config::DEFAULT_SCREEN_H };
-    if (auto window{ Framework::Instance()->GetMainWindow() }) {
-        screenW = static_cast<float>(window->GetWidth());
-        screenH = static_cast<float>(window->GetHeight());
-    }
-
-    const float uiScale{ (std::min)(screenW / Config::DEFAULT_SCREEN_W, screenH / Config::DEFAULT_SCREEN_H) };
-    const float margin{ 96.0f * uiScale };
-    const float panelW{ (std::min)(1120.0f * uiScale, screenW - (margin * 2.0f)) };
-    const float panelH{ 150.0f * uiScale };
-    const float panelX{ (screenW - panelW) * 0.5f };
-    const float panelY{ screenH - (190.0f * uiScale) };
-    const float border{ 2.0f * uiScale };
-
-    dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
-    dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
-
-    m_dialogPrimitive->Rect(panelX + (6.0f * uiScale), panelY + (6.0f * uiScale), panelW, panelH,
-        0.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 0.35f);
-    m_dialogPrimitive->Rect(panelX, panelY, panelW, panelH,
-        0.0f, 0.0f, 0.0f,
-        0.92f, 0.92f, 0.86f, 0.62f);
-    m_dialogPrimitive->Rect(panelX + border, panelY + border, panelW - (border * 2.0f), panelH - (border * 2.0f),
-        0.0f, 0.0f, 0.0f,
-        0.02f, 0.025f, 0.03f, 0.78f);
-
-    const float nameW{ 132.0f * uiScale };
-    const float nameH{ 34.0f * uiScale };
-    m_dialogPrimitive->Rect(panelX + (24.0f * uiScale), panelY - (18.0f * uiScale), nameW, nameH,
-        0.0f, 0.0f, 0.0f,
-        0.95f, 0.76f, 0.25f, 0.96f);
-
-    m_dialogPrimitive->Render(dc);
-
-    BitmapFont* speakerFont{ ResourceManager::Instance().GetFont("VGA_FONT") };
-    BitmapFont* bodyFont{ ResourceManager::Instance().GetFont("JP_FONT") };
-    if (!bodyFont) bodyFont = speakerFont;
-
-    if (speakerFont)
-    {
-        speakerFont->Draw(m_dialogSpeaker,
-            panelX + (43.0f * uiScale),
-            panelY - (12.0f * uiScale),
-            0.46f * uiScale,
-            0.08f, 0.07f, 0.04f, 1.0f);
-    }
-
-    if (bodyFont)
-    {
-        const std::string visibleText{ Utf8Prefix(m_dialogText, m_dialogVisibleCharacters) };
-        bodyFont->Draw(visibleText,
-            panelX + (34.0f * uiScale),
-            panelY + (36.0f * uiScale),
-            0.70f * uiScale,
-            0.94f, 0.95f, 0.98f, 1.0f);
-    }
-}
 
 void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
 {

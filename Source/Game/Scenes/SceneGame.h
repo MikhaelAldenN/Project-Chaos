@@ -15,6 +15,7 @@
 #include "System/Light.h"
 #include "System/Sprite.h"
 #include "UberShader.h"
+#include "UIDialogueBox.h"
 
 // ==========================================
 // FORWARD DECLARATIONS
@@ -87,12 +88,12 @@ private:
     std::unique_ptr<ItemManager> m_itemManager{};
     std::unique_ptr<Stage> m_stage{};
     std::shared_ptr<Camera> m_mainCamera{};
+    std::unique_ptr<UIDialogueBox> m_dialogueBox{};
 
     DirectX::XMFLOAT3 m_cameraPosition{ 0.0f, 18.0f, 0.0f };
     DirectX::XMFLOAT3 m_cameraTarget{ 0.0f, 0.0f, 0.0f };
     LightManager m_lightManager{};
     std::unique_ptr<PostProcessManager> m_postProcess{};
-    std::unique_ptr<Primitive> m_dialogPrimitive{};
     UberShader::UberData m_uberParams{};
     PostProcessState m_fxState{};
 
@@ -128,12 +129,7 @@ private:
     float m_naviDefeatTimer{ 0.0f };
     bool m_isNaviDefeatReadyForNextScene{ false };
     bool m_hasIntroDialogueTestStarted{ false };
-    bool m_dialogVisible{ false };
-    std::string m_dialogSpeaker{};
-    std::string m_dialogText{};
-    int m_dialogVisibleCharacters{ 0 };
-    int m_dialogTotalCharacters{ 0 };
-    float m_dialogTypeTimer{ 0.0f };
+  
 
     static constexpr float DEATH_DELAY_DURATION{ 0.5f };
     static constexpr float DEATH_FADE_DURATION{ 3.0f };
