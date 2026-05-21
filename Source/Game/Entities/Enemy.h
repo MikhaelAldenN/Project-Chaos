@@ -38,12 +38,18 @@ public:
     void SetPatrolLimitsZ(float minOffset, float maxOffset);
     void SetPosition(const DirectX::XMFLOAT3& pos);
     void SetRotation(const DirectX::XMFLOAT3& rot);
+    void Reinitialize(ID3D11Device* device, const char* filePath, const DirectX::XMFLOAT3& startPos,
+        const DirectX::XMFLOAT3& startRot, const DirectX::XMFLOAT4& startColor,
+        EnemyType type, AttackType attackType, float minX, float maxX,
+        float minZ, float maxZ, MoveDir dir);
     void RenderDebugProjectiles(ShapeRenderer* renderer);
     void RenderProjectiles(ModelRenderer* renderer);
 
     DirectX::XMFLOAT3 GetPosition() const;
     DirectX::XMFLOAT3 GetRotation() const;
-    DirectX::XMFLOAT4 color;
+    [[nodiscard]] DirectX::XMFLOAT4 GetRenderColor() const;
+    [[nodiscard]] DirectX::XMFLOAT4 GetBaseColor() const { return m_baseColor; }
+    [[nodiscard]] DirectX::XMFLOAT4& GetMutableBaseColor() { return m_baseColor; }
     DirectX::XMFLOAT3 GetOriginalPosition() const { return originalPosition; }
     DirectX::XMFLOAT3 GetOriginalRotation() const { return originalRotation; }
 
@@ -84,16 +90,17 @@ private:
     // ATTACK SETTINGS 
     // ==========================================
     float m_attackTimer = 0.0f;
-    float m_fireRate = 1.5f;
+    float m_aggroTimer = 0.0f;
+    float m_fireRate = 0.7f;
     float m_projectileSpeed = 7.0f;
-    float m_activationDistance = 35.0f;
+    float m_activationDistance = 15.0f;
     float m_despawnDistance = 55.0f;
     float m_patrolMinX = 0.0f;
     float m_patrolMaxX = 0.0f;
     float m_patrolMinZ = 0.0f;
     float m_patrolMaxZ = 0.0f;
     float m_currentSpeed = 0.0f;
-    float m_baseMoveSpeed = 2.0f;
+    float m_baseMoveSpeed = 0.0f;
 
     float GetRandomFloat(float min, float max);
     DirectX::XMFLOAT3 m_randomTargetPos;
@@ -104,6 +111,12 @@ private:
 
     bool m_isActive = false;
     MoveDir m_moveDir;
+
+    DirectX::XMFLOAT4 m_baseColor{ 1.0f, 1.0f, 1.0f, 1.0f }; 
+
+    float m_blinkTimer{ 0.0f };
+    float m_lifeTime{ 0.0f };
+    static constexpr float BLINK_DURATION{ 0.1f };
 
     DirectX::XMFLOAT4 m_projectileColor = { 1.0f, 1.0f, 1.0f, 1.0f };
     DirectX::XMFLOAT3 m_scale = { 1.0f, 1.0f, 1.0f };

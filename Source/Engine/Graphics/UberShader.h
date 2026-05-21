@@ -29,6 +29,11 @@ public:
     static constexpr float SMOOTHNESS_MIN       = 0.000001f;
     static constexpr float ROUNDNESS_POWER      = 6.0f;
     static constexpr UINT  VERTEX_COUNT         = 3;
+    static constexpr bool  DEFAULT_PSX_ENABLED      { true };
+    static constexpr float DEFAULT_PSX_RES_WIDTH    { 720.0f };
+    static constexpr float DEFAULT_PSX_RES_HEIGHT   { 370.0f };
+    static constexpr float DEFAULT_PSX_COLOR_DEPTH  { 32.0f }; 
+    static constexpr float DEFAULT_PSX_DITHER       { 1.0f };
 
     // =========================================================
     // DATA STRUCTURE - "UberData" (Holds EVERYTHING)
@@ -47,10 +52,10 @@ public:
         float             blurStrength          = 0.01f;
         float             distortion            = 0.015f;
         float             glitchStrength        = 0.01f;
-        float             chromaticAberration   = 0.0f;
+        float             chromaticAberration   = 0.00351f;
         float             time                  = 0.0f;
-        float             bloomThreshold        = 0.87f;
-        float             bloomIntensity        = 1.5f;
+        float             bloomThreshold        = 0.300f;
+        float             bloomIntensity        = 0.150f;
 
         // Scanlines
         float             scanlineStrength      = 0.2f;
@@ -59,6 +64,44 @@ public:
         float             fineOpacity           = 1.0f;
         float             fineDensity           = 30.0f;
         float             fineRotation          = 0.0f;
+
+		// PSX Emulation
+        bool  psxEnabled        { DEFAULT_PSX_ENABLED };
+        float psxResWidth       { DEFAULT_PSX_RES_WIDTH };
+        float psxResHeight      { DEFAULT_PSX_RES_HEIGHT };
+        float psxColorDepth     { DEFAULT_PSX_COLOR_DEPTH };
+        float psxDitherStrength { DEFAULT_PSX_DITHER };
+
+        bool operator==(const UberData& other) const
+        {
+            auto IsEqual = [](float a, float b) { return std::abs(a - b) < 0.0001f; };
+
+            return enabled == other.enabled &&
+                IsEqual(color.x, other.color.x) && IsEqual(color.y, other.color.y) && IsEqual(color.z, other.color.z) &&
+                IsEqual(center.x, other.center.x) && IsEqual(center.y, other.center.y) &&
+                IsEqual(intensity, other.intensity) &&
+                IsEqual(smoothness, other.smoothness) &&
+                rounded == other.rounded &&
+                IsEqual(roundness, other.roundness) &&
+                IsEqual(blurStrength, other.blurStrength) &&
+                IsEqual(distortion, other.distortion) &&
+                IsEqual(glitchStrength, other.glitchStrength) &&
+                IsEqual(chromaticAberration, other.chromaticAberration) &&
+                IsEqual(time, other.time) &&
+                IsEqual(bloomThreshold, other.bloomThreshold) &&
+                IsEqual(bloomIntensity, other.bloomIntensity) &&
+                IsEqual(scanlineStrength, other.scanlineStrength) &&
+                IsEqual(scanlineSpeed, other.scanlineSpeed) &&
+                IsEqual(scanlineSize, other.scanlineSize) &&
+                IsEqual(fineOpacity, other.fineOpacity) &&
+                IsEqual(fineDensity, other.fineDensity) &&
+                IsEqual(fineRotation, other.fineRotation) &&
+                psxEnabled == other.psxEnabled &&
+                IsEqual(psxResWidth, other.psxResWidth) &&
+                IsEqual(psxResHeight, other.psxResHeight) &&
+                IsEqual(psxColorDepth, other.psxColorDepth) &&
+                IsEqual(psxDitherStrength, other.psxDitherStrength);
+        }
     };
 
     // =========================================================
@@ -98,7 +141,12 @@ private:
         float fineRotation;
         float bloomThreshold;
         float bloomIntensity;
-        float padding[1];
+        float psxEnabled;
+        float psxResWidth;
+        float psxResHeight;
+        float psxColorDepth;
+        float psxDitherStrength;
+        float padding_psx[3];
     };
 
     Microsoft::WRL::ComPtr<ID3D11VertexShader>  vertexShader;

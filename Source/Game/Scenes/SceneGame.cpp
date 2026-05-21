@@ -15,6 +15,7 @@
 #include "ItemManager.h"
 #include "NaviAlly.h"
 #include "Player.h"
+#include "PlayerStates.h"
 #include "Stage.h"
 
 using namespace DirectX;
@@ -80,10 +81,15 @@ SceneGame::SceneGame()
     
     m_player = std::make_unique<Player>();
 
+    m_player->SetPosition(m_playerSpawnPos);
     m_player->InitPhysics(m_controllerManager.get(), m_defaultMaterial.get());
+    m_stage->InitPhysics(m_physics.get(), m_scene.get(), m_defaultMaterial.get());
 
-    m_player->SetMoveSpeed(15.0f);
-    m_player->SetInputEnabled(true);
+    PlayerConfig gameConfig{};            
+    gameConfig.moveSpeed = 8.0f;         
+    gameConfig.dashSpeed = 28.0f;         
+
+    m_player->ApplyConfig(gameConfig);
     m_player->GetMovement()->SetRotationY(DirectX::XM_PI);
 
     m_enemyManager = std::make_unique<EnemyManager>();
@@ -105,19 +111,82 @@ SceneGame::SceneGame()
     m_postProcess = std::make_unique<PostProcessManager>();
     m_postProcess->Initialize(static_cast<int>(screenW), static_cast<int>(screenH));
 
+    m_fadeSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Game/Black.png");
     EffectManager::Instance().PreloadEffect("Data/Effect/Hit.efk");
 }
 
 SceneGame::~SceneGame()
 {
     CameraController::Instance().ClearCamera();
+
     m_player.reset();
+    m_stage.reset();
+    m_enemyManager.reset();
+    m_itemManager.reset();
 }
 
 void SceneGame::Update(const float elapsedTime)
 {
     m_globalTime += elapsedTime;
     if (m_globalTime > Config::TIME_LOOP_MAX) m_globalTime -= Config::TIME_LOOP_MAX;
+
+    if (m_player && m_player->GetHP() <= 0 && !m_isDying && m_respawnTimer <= 0.0f)
+    {
+        StartPlayerDeathSequence();
+    }
+
+    if (m_isDying)
+    {
+        m_deathTimer += elapsedTime;
+
+        if (m_deathTimer < DEATH_DELAY_DURATION)
+        {
+            m_uberParams.smoothness = FX_BASE_SMOOTHNESS;
+            m_uberParams.intensity = FX_BASE_INTENSITY;
+            m_fadeAlpha = 0.0f;
+        }
+        else
+        {
+            const float fadeTime{ m_deathTimer - DEATH_DELAY_DURATION };
+            const float t{ std::clamp(fadeTime / DEATH_FADE_DURATION, 0.0f, 1.0f) };
+
+            // LERP towards pitch black
+            m_uberParams.smoothness = FX_BASE_SMOOTHNESS + (FX_BLACK_SMOOTHNESS - FX_BASE_SMOOTHNESS) * t;
+            m_uberParams.intensity = FX_BASE_INTENSITY + (FX_BLACK_INTENSITY - FX_BASE_INTENSITY) * t;
+
+            m_fadeAlpha = t;
+
+            if (t >= 1.0f)
+            {
+                ResetLevel(); // Perform the zero-cost reset
+                m_isDying = false;
+                m_respawnTimer = RESPAWN_FADE_DURATION;
+
+                // Force screen to stay black for the first frame of respawn
+                m_uberParams.smoothness = FX_BLACK_SMOOTHNESS;
+                m_uberParams.intensity = FX_BLACK_INTENSITY;
+                m_fadeAlpha = 1.0f;
+            }
+        }
+    }
+    else if (m_respawnTimer > 0.0f)
+    {
+        m_respawnTimer -= elapsedTime;
+
+        // Quadratic Ease-Out for a smoother fade-in curve
+        const float linearT{ std::clamp(m_respawnTimer / RESPAWN_FADE_DURATION, 0.0f, 1.0f) };
+        const float t{ linearT * linearT };
+
+        m_uberParams.smoothness = FX_BASE_SMOOTHNESS + (FX_BLACK_SMOOTHNESS - FX_BASE_SMOOTHNESS) * t;
+        m_uberParams.intensity = FX_BASE_INTENSITY + (FX_BLACK_INTENSITY - FX_BASE_INTENSITY) * t;
+        m_fadeAlpha = t;
+    }
+    else
+    {
+        // Normal Gameplay Lighting
+        m_uberParams.smoothness = FX_BASE_SMOOTHNESS;
+        m_fadeAlpha = 0.0f;
+    }
 
     if (m_scene) {
         m_scene->simulate(elapsedTime);
@@ -163,8 +232,11 @@ void SceneGame::Update(const float elapsedTime)
 
         m_player->Update(elapsedTime, activeCam);
         if (m_navi) m_navi->Update(elapsedTime, activeCam);
-        CameraController::Instance().SetTarget(m_player->GetPosition());
-        m_director->Update(elapsedTime, m_player->GetMovement()->GetPosition());
+        if (m_fadeAlpha < 0.95f)
+        {
+            CameraController::Instance().SetTarget(m_player->GetPosition());
+            m_director->Update(elapsedTime, m_player->GetMovement()->GetPosition());
+        }
     }
 
     if (m_enemyManager) {
@@ -180,55 +252,145 @@ void SceneGame::Update(const float elapsedTime)
     if (m_collisionManager) m_collisionManager->Update(elapsedTime);
 
 	// Furi style cinematic combat camera 
-    float targetZoom = 0.0f; 
+    static float targetZoom{ 0.0f };
+    static int   frameCounter{ 0 };
+    static const Enemy* cachedClosestEnemy{ nullptr };
 
-    if (m_enemyManager && m_player)
+    // SEARCH PHASE: Only run once every 10 frames (~6 times per second at 60fps)
+    if (frameCounter++ % 10 == 0)
     {
-        float closestDistSq = 999999.0f;
-        DirectX::XMFLOAT3 pPos = m_player->GetPosition();
-
-        // Find the closest active enemy
-        for (const auto& enemy : m_enemyManager->GetEnemies())
+        if (m_enemyManager && m_player)
         {
-            if (!enemy->IsActive()) continue;
+            float closestDistSq{ 999999.0f };
+            const DirectX::XMFLOAT3 pPos{ m_player->GetPosition() };
+            const Enemy* currentClosest{ nullptr };
 
-            DirectX::XMFLOAT3 ePos = enemy->GetPosition();
-            float dx = pPos.x - ePos.x;
-            float dz = pPos.z - ePos.z;
-            float distSq = dx * dx + dz * dz;
+            // O(N) Search happens here, but ONLY 10% of the time.
+            for (const auto& enemy : m_enemyManager->GetEnemies())
+            {
+                if (!enemy || !enemy->IsActive()) continue;
 
-            if (distSq < closestDistSq) {
-                closestDistSq = distSq;
+                const DirectX::XMFLOAT3 ePos{ enemy->GetPosition() };
+                const float dx{ pPos.x - ePos.x };
+                const float dz{ pPos.z - ePos.z };
+                const float distSq{ (dx * dx) + (dz * dz) };
+
+                if (distSq < closestDistSq)
+                {
+                    closestDistSq = distSq;
+                    currentClosest = enemy.get();
+                }
+            }
+
+            // Update our cached pointer
+            cachedClosestEnemy = currentClosest;
+
+            // Update the zoom target only during the search frame
+            if (cachedClosestEnemy)
+            {
+                constexpr float combatRadius{ 25.0f };
+                constexpr float maxZoomIn{ -8.0f };
+
+                const float dist{ std::sqrt(closestDistSq) };
+                const float intensity{ std::clamp(1.0f - (dist / combatRadius), 0.0f, 1.0f) };
+                targetZoom = maxZoomIn * intensity;
+            }
+            else
+            {
+                targetZoom = 0.0f;
             }
         }
+    }
 
-        // Evaluate Combat Tension
-        float combatRadius = 25.0f; // How close the enemy needs to be to trigger zoom
-        float maxZoomIn = -8.0f;    // How much lower the camera drops (-8 units down)
-
-        if (closestDistSq < (combatRadius * combatRadius))
-        {
-            float dist = std::sqrt(closestDistSq);
-            float intensity = 1.0f - (dist / combatRadius);
-
-            targetZoom = maxZoomIn * intensity;
-        }
+    // VALIDATION PHASE: Run every frame to prevent Dangling Pointers
+    // If the enemy we found 5 frames ago died, we must reset zoom immediately.
+    if (cachedClosestEnemy && !cachedClosestEnemy->IsActive())
+    {
+        cachedClosestEnemy = nullptr;
+        targetZoom = 0.0f;
     }
 
     CameraController::Instance().SetDynamicZoomOffset(targetZoom);
     CameraController::Instance().Update(elapsedTime);
 
     EffectManager::Instance().Update(elapsedTime);
+}
 
-    m_uberParams.fineOpacity = 1.0f;
-    m_uberParams.fineDensity = m_configFineDensity;
-    m_uberParams.fineRotation = 0.0f;
-    m_uberParams.scanlineStrength = Config::FX_CRT_BASE_STRENGTH;
-    m_uberParams.glitchStrength = 0.0f;
-    m_uberParams.distortion = 0.0f;
-    m_uberParams.chromaticAberration = 0.0f;
-    m_uberParams.smoothness = 0.2f;
-    m_uberParams.intensity = 0.38f;
+void SceneGame::StartPlayerDeathSequence()
+{
+    if (m_isDying) return;
+    m_isDying = true;
+    m_deathTimer = 0.0f;
+
+    //AudioManager::Instance().PlaySFX("Data/Sound/SE_Explosion.wav", 0.4f);
+
+    // Redundancy: Ensure the player is fully hidden and disabled
+    if (m_player)
+    {
+        m_player->SetInputEnabled(false);
+        m_player->scale = { 0.0f, 0.0f, 0.0f };
+    }
+}
+
+void SceneGame::ResetLevel()
+{
+    // 1. Reset Player State (Zero allocation)
+    if (m_player)
+    {
+        m_player->SetPosition(m_playerSpawnPos); // Updates PhysX automatically
+        m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
+        m_player->SetMaxHP(100);
+        m_player->SetInputEnabled(true);
+        m_player->scale = { 1.0f, 1.0f, 1.0f };
+        m_player->GetStateMachine()->ChangeState(m_player.get(), std::make_unique<PlayerIdle>());
+
+        // Clean up any bullets the player shot right before dying
+        m_player->GetProjectiles().clear();
+    }
+
+    // 2. Reset Enemies (Safe Object Pool Wipe)
+    if (m_enemyManager)
+    {
+        m_enemyManager->GetEnemies().clear();
+        m_enemyManager->Initialize(Graphics::Instance().GetDevice());
+    }
+
+    // 3. Reset Items
+    if (m_itemManager)
+    {
+        m_itemManager->GetItems().clear();
+        m_itemManager->Initialize(Graphics::Instance().GetDevice());
+    }
+
+    // 4. Reset Navi Ally
+    if (m_navi)
+    {
+        m_navi->GetProjectiles().clear();
+
+        // Snap navi back to the player's shoulder instantly
+        DirectX::XMFLOAT3 naviPos{ m_playerSpawnPos };
+        naviPos.x += 1.0f;
+        naviPos.y += 2.0f; // HOVER_HEIGHT
+        naviPos.z += 0.5f;
+        m_navi->SetPosition(naviPos);
+    }
+
+	// 5. Reset Camera
+    if (m_mainCamera)
+    {
+        XMFLOAT3 resetPos{ m_cameraPosition };
+        resetPos.x = 0.0f;
+        resetPos.z = -14.0f;
+        resetPos.y = Config::CAM_START_HEIGHT;
+
+        m_mainCamera->SetPosition(resetPos);
+        m_mainCamera->LookAt(m_cameraTarget);
+
+        // Force the CameraController to snap to the new position
+        CameraController::Instance().SetFixedSetting(resetPos);
+        CameraController::Instance().SetTarget(m_playerSpawnPos);
+        CameraController::Instance().Update(0.0f); 
+    }
 }
 
 void SceneGame::Render(float elapsedTime, Camera* camera)
@@ -239,15 +401,30 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
 
     m_postProcess->SetEnabled(m_fxState.MasterEnabled);
 
+    UberShader::UberData& activeData{ m_postProcess->GetData() };
+    activeData = this->m_uberParams; 
+
+    activeData.psxEnabled = (m_fxState.MasterEnabled && m_fxState.EnablePSX);
+
+    if (!m_fxState.EnableVignette && !m_isDying && m_respawnTimer <= 0.0f)  
+    {
+        activeData.intensity = 0.0f;
+    }
+    if (!m_fxState.EnableLens) { activeData.glitchStrength = 0.0f; activeData.distortion = 0.0f; }
+    if (!m_fxState.EnableChromatic) activeData.chromaticAberration = 0.0f;
+    if (!m_fxState.EnableCRT) { activeData.scanlineStrength = 0.0f; activeData.fineOpacity = 0.0f; }
+    if (!m_fxState.EnableBloom)     activeData.bloomIntensity = 0.0f;
+
     if (m_fxState.MasterEnabled) {
         m_postProcess->BeginCapture();
     }
     else {
+        // Fallback clear if post-process is bypassed
         ID3D11RenderTargetView* originalRTV{ nullptr };
         ID3D11DepthStencilView* originalDSV{ nullptr };
         dc->OMGetRenderTargets(1, &originalRTV, &originalDSV);
         if (originalRTV) {
-            float clearColor[4]{ 0.0f, 0.0f, 0.2f, 1.0f };
+            float clearColor[4]{ 0.0f, 0.0f, 0.0f, 1.0f }; // Solid black
             dc->ClearRenderTargetView(originalRTV, clearColor);
             originalRTV->Release();
         }
@@ -267,26 +444,66 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
         auto shapeRenderer{ Graphics::Instance().GetShapeRenderer() };
         auto primRenderer{ Graphics::Instance().GetPrimitiveRenderer() };
 
-        primRenderer->DrawGrid(50, 1.0f);
+        //primRenderer->DrawGrid(50, 1.0f);
 
         if (m_itemManager) m_itemManager->RenderDebug(shapeRenderer);
         if (m_stage) m_stage->RenderDebug(shapeRenderer, primRenderer);
         if (m_enemyManager) m_enemyManager->RenderDebug(shapeRenderer);
+
+		// Player hitbox (green), Enemy hitboxes (red)
+        //if (m_player)
+        //{
+        //    DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
+        //    constexpr float PLAYER_RADIUS = 0.25f;
+        //    shapeRenderer->DrawSphere(pPos, PLAYER_RADIUS, { 0.0f, 1.0f, 0.0f, 1.0f });
+        //}
+        //if (m_enemyManager && m_collisionManager)
+        //{
+        //    for (const auto& enemy : m_enemyManager->GetEnemies())
+        //    {
+        //        if (!enemy || !enemy->IsActive()) continue;
+
+        //        DirectX::XMFLOAT3 ePos = enemy->GetPosition();
+
+        //        // Ask the collision manager how big this specific enemy's hitbox is
+        //        float radius = m_collisionManager->GetEnemyPushRadius(enemy.get());
+
+        //        shapeRenderer->DrawSphere(ePos, radius, { 1.0f, 0.0f, 0.0f, 0.5f });
+        //    }
+        //}
 
         shapeRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection());
         primRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection(), D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
     }
 
     if (m_fxState.MasterEnabled) {
-        UberShader::UberData& activeData{ m_postProcess->GetData() };
-        activeData = this->m_uberParams;
-
-        if (!m_fxState.EnableVignette) activeData.intensity = 0.0f;
-        if (!m_fxState.EnableLens) { activeData.glitchStrength = 0.0f; activeData.distortion = 0.0f; }
-        if (!m_fxState.EnableChromatic) { activeData.chromaticAberration = 0.0f; }
-        if (!m_fxState.EnableCRT) { activeData.scanlineStrength = 0.0f; activeData.fineOpacity = 0.0f; }
-
         m_postProcess->EndCapture(elapsedTime);
+    }
+
+    if (m_fadeAlpha > 0.001f && m_fadeSprite)
+    {
+        // Get dynamic screen size
+        float screenW{ Config::DEFAULT_SCREEN_W };
+        float screenH{ Config::DEFAULT_SCREEN_H };
+        if (auto window{ Framework::Instance()->GetMainWindow() }) {
+            screenW = static_cast<float>(window->GetWidth());
+            screenH = static_cast<float>(window->GetHeight());
+        }
+
+        // Enable 2D Transparency
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
+        // Draw the sprite over the whole screen.
+        m_fadeSprite->Render(
+            dc,
+            0.0f, 0.0f, 0.0f,      // dx, dy, dz
+            screenW, screenH,      // dw, dh
+            0.0f, 0.0f,            // sx, sy (左上)
+            1920.0f, 1080.0f,      // sw, sh (テクスチャサイズに合わせて適宜変更)
+            0.0f,                  // angle
+            0.0f, 0.0f, 0.0f, m_fadeAlpha // r, g, b, a
+        );
     }
 }
 
@@ -296,6 +513,10 @@ void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
     auto dc{ Graphics::Instance().GetDeviceContext() };
     auto modelRenderer{ Graphics::Instance().GetModelRenderer() };
     RenderContext rc{ dc, Graphics::Instance().GetRenderState(), camera, &m_lightManager };
+
+    rc.psxEnabled = (m_fxState.MasterEnabled && m_fxState.EnablePSX);
+    rc.psxResWidth = m_uberParams.psxResWidth;
+    rc.psxResHeight = m_uberParams.psxResHeight;
 
     if (m_player)
     {

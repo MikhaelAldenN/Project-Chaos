@@ -4,4 +4,8 @@ cbuffer CbScene : register(b7)
 	float4				lightDirection;
 	float4				lightColor;
 	float4				cameraPosition;
+    float               psxEnabled;
+    float               psxResWidth;
+    float               psxResHeight;
+    float               padding;
 };

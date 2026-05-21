@@ -30,7 +30,7 @@ NaviAlly::NaviAlly(ID3D11Device* device, const Player* targetPlayer, EnemyManage
 void NaviAlly::Update(float elapsedTime, Camera* camera)
 {
     UpdateHoverLogic(elapsedTime);
-    UpdateShootingLogic(elapsedTime, camera);
+    //UpdateShootingLogic(elapsedTime, camera);
     UpdateProjectiles(elapsedTime, camera);
 }
 
@@ -164,6 +164,13 @@ void NaviAlly::UpdateProjectiles(float elapsedTime, Camera* camera)
             bullet->SetActive(false);
         }
     }
+}
+
+void NaviAlly::SetPosition(const DirectX::XMFLOAT3& pos)
+{
+    movement->SetPosition(pos);
+
+    SyncData();
 }
 
 void NaviAlly::Render(ModelRenderer* renderer)

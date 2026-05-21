@@ -105,6 +105,18 @@ void Player::InitPhysics(physx::PxControllerManager* manager, physx::PxMaterial*
     m_physxController = manager->createController(desc);
 }
 
+void Player::ApplyConfig(const PlayerConfig& config) noexcept
+{
+    moveSpeed = config.moveSpeed;
+    dashSpeed = config.dashSpeed;
+    dashDuration = config.dashDuration;
+    dashCooldown = config.dashCooldown;
+    acceleration = config.acceleration;
+    deceleration = config.deceleration;
+    gravityEnabled = config.gravityEnabled;
+    invertControls = config.invertControls;
+}
+
 void Player::Update(float elapsedTime, Camera* camera)
 {
     if (m_invincibilityTimer > 0.0f)
@@ -399,15 +411,26 @@ void Player::ApplyWorldMatrix(float smoothedYaw, bool shouldAim, float relativeA
 
     if (m_capeSimulator)
     {
-        DirectX::XMFLOAT3 trueVelocity = movement->GetVelocity();
+        DirectX::XMFLOAT3 trueVelocity{ movement->GetVelocity() };
 
+        // Fallback to input velocity if true velocity is zero 
         if (trueVelocity.x == 0.0f && trueVelocity.z == 0.0f)
         {
             trueVelocity.x = currentSmoothInput.x * moveSpeed;
             trueVelocity.z = currentSmoothInput.y * moveSpeed;
         }
 
-        m_capeSimulator->Update(0.016f, trueVelocity);
+        const float totalYaw{ smoothedYaw + relativeAngle };
+        const float sinYaw{ std::sin(totalYaw) };
+        const float cosYaw{ std::cos(totalYaw) };
+
+        // 2D Rotation Matrix projection (World -> Local)
+        const float localVz{ (trueVelocity.x * sinYaw) + (trueVelocity.z * cosYaw) };
+        const float localVx{ (trueVelocity.x * cosYaw) - (trueVelocity.z * sinYaw) };
+
+        const DirectX::XMFLOAT3 localVelocity{ localVx, trueVelocity.y, localVz };
+
+        m_capeSimulator->Update(0.016f, localVelocity);
     }
 
     if (model) model->UpdateTransform(worldMatrix);
@@ -544,8 +567,7 @@ void Player::RenderProjectiles(ModelRenderer* renderer)
             DirectX::XMFLOAT4X4 worldMatrix;
             DirectX::XMStoreFloat4x4(&worldMatrix, S * R * T * bulletRot * bulletTrans);
 
-            // Draw ONCE using standard Phong! The PostProcessor will see the HDR color and bloom it automatically!
-            renderer->Draw(ShaderId::Basic, m_playerbulletModel, m_playerbulletColor, worldMatrix);
+            renderer->Draw(ShaderId::Phong, m_playerbulletModel, m_playerbulletColor, worldMatrix);
         }
         else
         {

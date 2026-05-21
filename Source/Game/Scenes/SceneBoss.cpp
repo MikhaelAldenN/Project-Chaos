@@ -58,11 +58,14 @@ SceneBoss::SceneBoss()
     m_player = std::make_unique<Player>();
     m_player->InitPhysics(m_controllerManager.get(), m_defaultMaterial.get(),
         PlayerConst::CapsuleHalfHeight);  // Kaki tepat di Y=0, gravity off
-    m_player->SetGravityEnabled(false);
-    m_player->SetInvertControls(false);
+    PlayerConfig bossConfig{};
+    bossConfig.moveSpeed = 20.0f;         // Fast movement
+    bossConfig.dashSpeed = 60.0f;         // Fast dash
+    bossConfig.gravityEnabled = false;    // No gravity for Top-Down Boss mode
+
+    m_player->ApplyConfig(bossConfig);
+
     m_player->SetPosition(0.0f, 0.0f, -8.0f);
-    m_player->SetMoveSpeed(20.0f);
-	m_player->SetDashSpeed(60.0f);
 
     //// --- TAMBAHKAN INISIALISASI MANAGER DI SINI ---
     //auto device = Graphics::Instance().GetDevice();
@@ -1246,9 +1249,14 @@ void SceneBoss::ResetEverything()
 
     m_player = std::make_unique<Player>();
     m_player->InitPhysics(m_controllerManager.get(), m_defaultMaterial.get(), PlayerConst::CapsuleHalfHeight);
+    PlayerConfig bossConfig{};
+    bossConfig.moveSpeed = 20.0f;
+    bossConfig.dashSpeed = 60.0f;         // Kembalikan nilai dash
+    bossConfig.gravityEnabled = false;    // Pastikan gravity mati saat reset!
+
+    m_player->ApplyConfig(bossConfig);
+
     m_player->SetPosition(0.0f, 0.0f, -8.0f);
-    m_player->SetMoveSpeed(20.0f);
-    m_player->SetDashSpeed(60.0f); // Kembalikan nilai dash
 
     m_stage = std::make_unique<Stage>(device);
 

@@ -159,6 +159,21 @@ static float DistancePointToLineSegment2D(const DirectX::XMFLOAT3& A, const Dire
     return std::sqrt((dx * dx) + (dz * dz));
 }
 
+[[nodiscard]] inline AABB CreateSweptAABB(const DirectX::XMFLOAT3& startPos,
+    const DirectX::XMFLOAT3& endPos,
+    const float radius) noexcept
+{
+    return AABB{
+        { (std::min)(startPos.x, endPos.x) - radius,
+          (std::min)(startPos.y, endPos.y) - radius,
+          (std::min)(startPos.z, endPos.z) - radius },
+
+        { (std::max)(startPos.x, endPos.x) + radius,
+          (std::max)(startPos.y, endPos.y) + radius,
+          (std::max)(startPos.z, endPos.z) + radius }
+    };
+}
+
 // =========================================================
 // INITIALIZATION OVERLOADS
 // =========================================================
@@ -188,8 +203,7 @@ void CollisionManager::Initialize(Player* p, Stage* s, EnemyManager* em, ItemMan
 void CollisionManager::Update(float elapsedTime)
 {
     CheckEnemyProjectilesFull(elapsedTime);
-    CheckStageCollision();
-    CheckPlayerProjectilesVsEnemies();
+    CheckPlayerProjectilesVsEnemies(elapsedTime);
     CheckPlayerVsEnemies();
     CheckPlayerVsCheckpointLines();
     CheckPlayerVsTriggerLines();
@@ -409,134 +423,93 @@ void CollisionManager::CheckEnemyProjectilesFull(float elapsedTime)
     }
 }
 
-void CollisionManager::CheckStageCollision()
+float CollisionManager::GetEnemyPushRadius(const Enemy* enemy) const
 {
-    if (!m_player || !m_stage) return;
+    float scale = enemy->GetScale().x;
 
-    float playerRadius = 0.5f;
-    auto* moveComp = m_player->GetMovement();
-    int iterations = 4;
-
-    for (int iter = 0; iter < iterations; ++iter)
+    switch (enemy->GetType())
     {
-        XMFLOAT3 playerPos = moveComp->GetPosition();
-        XMFLOAT3 vel = moveComp->GetVelocity();
-        bool collidedAny = false;
-
-        for (const auto& wall : m_stage->m_debugWalls)
-        {
-            float maxScale = (std::max)(wall.Scale.x, wall.Scale.z);
-            float dx = playerPos.x - wall.Position.x;
-            float dz = playerPos.z - wall.Position.z;
-            float distSq = (dx * dx) + (dz * dz);
-            float checkDist = maxScale + playerRadius + 2.0f;
-            if (distSq > (checkDist * checkDist)) continue;
-
-            XMVECTOR vLocalPos = TransformToLocal(playerPos, wall);
-            XMFLOAT3 localPos;
-            XMStoreFloat3(&localPos, vLocalPos);
-
-            float closestX = (std::max)(-wall.Scale.x, (std::min)(localPos.x, wall.Scale.x));
-            float closestZ = (std::max)(-wall.Scale.z, (std::min)(localPos.z, wall.Scale.z));
-
-            float localDx = localPos.x - closestX;
-            float localDz = localPos.z - closestZ;
-            float localDistSq = (localDx * localDx) + (localDz * localDz);
-
-            if (localDistSq < (playerRadius * playerRadius) && localDistSq > 0.00001f)
-            {
-                float localDist = sqrt(localDistSq);
-                float penetrationDepth = playerRadius - localDist;
-
-                XMVECTOR vLocalNormal = XMVectorSet(localDx / localDist, 0.0f, localDz / localDist, 0.0f);
-                XMVECTOR vWorldNormal = TransformNormalToWorld(vLocalNormal, wall);
-
-                XMVECTOR vPush = XMVectorScale(vWorldNormal, penetrationDepth);
-                XMVECTOR vCurrentPos = XMLoadFloat3(&playerPos);
-                vCurrentPos = XMVectorAdd(vCurrentPos, vPush);
-                XMStoreFloat3(&playerPos, vCurrentPos);
-
-                collidedAny = true;
-
-                XMVECTOR vVel = XMLoadFloat3(&vel);
-                float dot = XMVectorGetX(XMVector3Dot(vVel, vWorldNormal));
-                if (dot < 0.0f) {
-                    vVel = XMVectorSubtract(vVel, XMVectorScale(vWorldNormal, dot));
-                    XMStoreFloat3(&vel, vVel);
-                }
-            }
-        }
-
-        if (collidedAny) {
-            moveComp->SetPosition(playerPos);
-            moveComp->SetVelocity(vel);
-        }
+    case EnemyType::Pentagon:   return 4.0f * scale;
+    case EnemyType::Paddle:     return 0.8f * scale;
+    case EnemyType::FakeBoss:   return 1.9f * scale;
+    default:                    return 1.2f * scale; 
     }
 }
 
 void CollisionManager::CheckPlayerVsEnemies()
 {
+    // FAST FAIL: Guard clauses
     if (!m_player || !m_enemyManager) return;
 
-    // Use references (&) to prevent copying heavy arrays into local memory
-    auto& enemies = m_enemyManager->GetEnemies();
-    DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
-    DirectX::XMFLOAT3 playerVel = m_player->GetMovement()->GetVelocity();
+    // CPU OPTIMIZATION: If player is already dead, skip all enemy physics!
+    if (m_player->GetHP() <= 0) return;
 
-    constexpr float PLAYER_RADIUS = 0.25f;
-    bool collidedAny = false;
+    auto& enemies{ m_enemyManager->GetEnemies() };
+    DirectX::XMFLOAT3 playerPos{ m_player->GetMovement()->GetPosition() };
+    DirectX::XMFLOAT3 playerVel{ m_player->GetMovement()->GetVelocity() };
 
-    for (auto& enemy : enemies)
+    constexpr float PLAYER_RADIUS{ 0.25f };
+    bool collidedAny{ false };
+
+    for (const auto& enemy : enemies)
     {
-        // EARLY EXIT: Skip empty pointers and dead enemies
         if (!enemy || !enemy->IsActive()) continue;
 
-        DirectX::XMFLOAT3 ePos = enemy->GetPosition();
+        const DirectX::XMFLOAT3 ePos{ enemy->GetPosition() };
 
-        // DYNAMIC HITBOXES
-        // If you make an enemy 2x bigger, its physical wall becomes 2x bigger automatically.
-        float enemyScale = enemy->GetScale().x;
-        float enemyRadius = 0.1f * enemyScale;
+        const float enemyRadius{ GetEnemyPushRadius(enemy.get()) };
+        const float combinedRadius{ PLAYER_RADIUS + enemyRadius };
 
-        if (enemy->GetType() == EnemyType::Pentagon) enemyRadius = 4.0f * enemyScale;
-        else if (enemy->GetType() == EnemyType::Paddle) enemyRadius = 0.8f * enemyScale;
+        // Zero-copy math
+        float dx{ playerPos.x - ePos.x };
+        float dz{ playerPos.z - ePos.z };
+        const float distSq{ (dx * dx) + (dz * dz) };
 
-        float combinedRadius = PLAYER_RADIUS + enemyRadius;
-
-        float dx = playerPos.x - ePos.x;
-        float dz = playerPos.z - ePos.z;
-        float distSq = (dx * dx) + (dz * dz);
-
-        // Check if player is penetrating the enemy's radius
         if (distSq < (combinedRadius * combinedRadius))
         {
-            float dist = std::sqrt(distSq);
-
-            // BUG PREVENTION: The Divide-By-Zero Guard
-            if (dist < 0.0001f)
+            // =======================================================
+            // THE KAMIKAZE INSTA-KILL MECHANIC 
+            // =======================================================
+            if (enemy->GetAttackType() == AttackType::Tracking && !m_player->IsInvincible())
             {
-                dx = 1.0f;
-                dz = 0.0f;
-                dist = 1.0f;
+                // 1. Instantly nuke player HP
+                m_player->TakeDamage(9999);
+
+                // 2. Trigger standard death sequence
+                m_player->scale = { 0.0f, 0.0f, 0.0f }; // Hide 3D model
+                m_player->SetInputEnabled(false);       // Lock controls
+                m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f }); // Stop sliding
+                m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
+
+                // 3. Kill the kamikaze enemy so it doesn't survive the explosion
+                enemy->TakeDamage(9999);
+
+                // 4. INSTANT EXIT: Player is dead, absolutely zero need to check other enemies!
+                return;
             }
 
-            // Calculate exactly how deep the player is inside the enemy
-            float overlap = combinedRadius - dist;
+            // =======================================================
+            // NORMAL PUSH PHYSICS (For Static / Standard Enemies)
+            // =======================================================
+            float dist{ std::sqrt(distSq) };
 
-            // Push the player backward out of the enemy
-            float pushX = (dx / dist) * overlap;
-            float pushZ = (dz / dist) * overlap;
+            // Divide-By-Zero Guard (NaN propagation)
+            if (dist < 0.0001f)
+            {
+                dx = 1.0f; dz = 0.0f; dist = 1.0f;
+            }
 
-            playerPos.x += pushX;
-            playerPos.z += pushZ;
+            const float overlap{ combinedRadius - dist };
+            playerPos.x += (dx / dist) * overlap;
+            playerPos.z += (dz / dist) * overlap;
 
             collidedAny = true;
 
-            // BUG PREVENTION: The "Sticky Wall" Fix
-            DirectX::XMVECTOR vVel = DirectX::XMLoadFloat3(&playerVel);
-            DirectX::XMVECTOR vNormal = DirectX::XMVectorSet(dx / dist, 0.0f, dz / dist, 0.0f);
+            // "Sticky Wall" Velocity Fix
+            DirectX::XMVECTOR vVel{ DirectX::XMLoadFloat3(&playerVel) };
+            const DirectX::XMVECTOR vNormal{ DirectX::XMVectorSet(dx / dist, 0.0f, dz / dist, 0.0f) };
 
-            float dot = DirectX::XMVectorGetX(DirectX::XMVector3Dot(vVel, vNormal));
+            const float dot{ DirectX::XMVectorGetX(DirectX::XMVector3Dot(vVel, vNormal)) };
             if (dot < 0.0f)
             {
                 vVel = DirectX::XMVectorSubtract(vVel, DirectX::XMVectorScale(vNormal, dot));
@@ -545,7 +518,7 @@ void CollisionManager::CheckPlayerVsEnemies()
         }
     }
 
-    // Only update the player's transform if a collision actually happened
+    // Only update memory if a collision actually happened
     if (collidedAny)
     {
         m_player->SetPosition(playerPos);
@@ -684,12 +657,13 @@ void CollisionManager::CheckPlayerVsItems()
     }
 }
 
-void CollisionManager::CheckPlayerProjectilesVsEnemies()
+void CollisionManager::CheckPlayerProjectilesVsEnemies(const float elapsedTime)
 {
+    // Bug Anticipation: Always check pointers before dereferencing in a hot loop.
     if (!m_player || !m_enemyManager) return;
 
-    auto& projectiles = m_player->GetProjectiles();
-    auto& enemies = m_enemyManager->GetEnemies();
+    auto& projectiles{ m_player->GetProjectiles() };
+    const auto& enemies{ m_enemyManager->GetEnemies() }; // const auto& to prevent copying the vector
 
     //constexpr int PLAYER_BULLET_DAMAGE = 10;
     constexpr float BULLET_HITBOX_RADIUS = 1.0f;
@@ -698,20 +672,45 @@ void CollisionManager::CheckPlayerProjectilesVsEnemies()
     {
         if (!bullet || !bullet->IsActive()) continue;
 
-        DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+        const DirectX::XMFLOAT3 currentPos{ bullet->GetMovement()->GetPosition() };
+        const DirectX::XMFLOAT3 velocity{ bullet->GetVelocity() };
 
-        for (auto& enemy : enemies)
+        // Calculate where the bullet was last frame
+        const DirectX::XMFLOAT3 prevPos{
+            currentPos.x - (velocity.x * elapsedTime),
+            currentPos.y - (velocity.y * elapsedTime),
+            currentPos.z - (velocity.z * elapsedTime)
+        };
+
+        // 1. Generate the Swept AABB for the bullet
+        const AABB bulletAABB{ CreateSweptAABB(prevPos, currentPos, BULLET_HITBOX_RADIUS) };
+
+        for (const auto& enemy : enemies)
         {
             if (!enemy || !enemy->IsActive()) continue;
 
-            DirectX::XMFLOAT3 ePos = enemy->GetPosition();
+            const DirectX::XMFLOAT3 ePos{ enemy->GetPosition() };
+            const float enemyRadius{ GetEnemyPushRadius(enemy.get()) };
 
-            if (CheckSphereCollision(bPos, ePos, BULLET_HITBOX_RADIUS))
+            // 2. Generate the static AABB for the enemy
+            const AABB enemyAABB{
+                { ePos.x - enemyRadius, ePos.y - enemyRadius, ePos.z - enemyRadius },
+                { ePos.x + enemyRadius, ePos.y + enemyRadius, ePos.z + enemyRadius }
+            };
+
+            // 3. BROAD-PHASE: Are they even close? 
+            // This is a simple float comparison. It costs almost nothing.
+            if (!CheckAABBIntersection(bulletAABB, enemyAABB))
+            {
+                continue; // Skip the expensive math entirely!
+            }
+
+            // 4. NARROW-PHASE: The expensive exact math (Only runs if broad-phase passes)
+            if (CheckSphereCollision(currentPos, ePos, BULLET_HITBOX_RADIUS + enemyRadius))
             {
                 enemy->TakeDamage(bullet->GetDamage());
                 bullet->SetActive(false);
-
-                break;
+                break; // Stop checking this bullet against other enemies
             }
         }
     }

@@ -4,12 +4,21 @@
 #include <cmath>
 #include <DirectXMath.h>
 #include <memory>
+#include "System/Misc.h"
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <PxPhysicsAPI.h>
+#include <cooking/PxCooking.h>
+#include <geometry/PxTriangleMesh.h>
+#include <geometry/PxTriangleMeshGeometry.h>
 #include "System/ModelRenderer.h"
 #include "System/ShapeRenderer.h" 
 #include "System/PrimitiveRenderer.h"
+#pragma comment(lib, "PhysXCooking_64.lib") 
+#pragma comment(lib, "PhysXCommon_64.lib")
+#pragma comment(lib, "PhysXFoundation_64.lib")
+
 
 // ==========================================
 // STAGE CONFIGURATION 
@@ -112,11 +121,11 @@ struct SpatialHashGrid
 
 namespace StageConfig
 {
-    static const char* MODEL_PATH = "Data/Model/Stage/StageBeyondBreaker.glb";
-    static const DirectX::XMFLOAT3 DEFAULT_POS = { 0.0f, -0.3f, -30.0f };
-    static const DirectX::XMFLOAT3 DEFAULT_ROT = { 0.0f, 270.0f, 0.0f };
-    static const DirectX::XMFLOAT3 DEFAULT_SCALE = { 900.0f, 900.0f, 900.0f };
-    static const DirectX::XMFLOAT4 DEFAULT_COLOR = { 0.275f, 0.275f, 0.275f, 1.0f };
+    static const char* MODEL_PATH = "Data/Model/Stage/MDL_Stage.glb";
+    static const DirectX::XMFLOAT3 DEFAULT_POS = { 0.0f, 0.0f, 0.0f };
+    static const DirectX::XMFLOAT3 DEFAULT_ROT = { 0.0f, 0.0f, 0.1f };
+    static const DirectX::XMFLOAT3 DEFAULT_SCALE = { 1.5f, 1.5f, 1.5f };
+    static const DirectX::XMFLOAT4 DEFAULT_COLOR = { 0.8235f, 0.8235f, 0.8235f, 1.0f };
 
     static const DirectX::XMFLOAT3 WALL_DEFAULT_SCALE = { 1.0f, 1.0f, 1.0f };
     static const DirectX::XMFLOAT3 LINE_DEFAULT_SCALE = { 10.0f, 0.0f, 0.0f };
@@ -130,11 +139,18 @@ namespace StageConfig
     };
 
     // =========================================================
-    // VOID LINES (Cyan) - Causes falling
+    // VOID LINES (Cyan) - Cannot through pass
     // =========================================================
     static const std::vector<DebugLineData> DEBUG_LINES_VOID =
     {
+        // Line Void 1
+        { {-2.5,0.7,0.8}, {0,43.1,0}, {17.1,0,0} },
+
+        // Line Void 2
+        { {8.2,1.2,-4.4}, {0,0,0}, {8.1,0,0} },
         
+        // Line Void 3
+        { {-2.3,0.9,5.6}, {0,-51.2,0}, {5.9,0,0} }
     };
 
     // =========================================================
@@ -168,7 +184,7 @@ class Stage
 {
 public:
     Stage(ID3D11Device* device);
-    ~Stage() = default;
+    ~Stage();
 
     void UpdateTransform();
     void Render(ModelRenderer* renderer);
@@ -181,6 +197,10 @@ public:
     void SetWallHighlight(int index) { m_highlightWallIndex = index; }
     void ClearLineHighlight() { m_highlightState.index = -1; }
     void ClearWallHighlight() { m_highlightWallIndex = -1; }
+
+    // Physics Engine Hooks
+    void InitPhysics(physx::PxPhysics* physics, physx::PxScene* scene, physx::PxMaterial* material);
+    void RebuildPhysics();
 
     std::shared_ptr<Model> GetModel() const { return model; }
     const SpatialHashGrid& GetSpatialGrid() const { return m_spatialGrid; }
@@ -209,4 +229,11 @@ private:
 
     SpatialHashGrid m_spatialGrid;
     std::shared_ptr<Model> model;
+
+    physx::PxPhysics* m_physics{ nullptr };
+    physx::PxScene* m_scene{ nullptr };
+    physx::PxMaterial* m_material{ nullptr };
+    physx::PxRigidStatic* m_physxActor{ nullptr };
+
+    std::vector<physx::PxTriangleMesh*> m_collisionMeshes;
 };

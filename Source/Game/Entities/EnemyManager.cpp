@@ -19,6 +19,7 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
 {
     ID3D11Device* device = Graphics::Instance().GetDevice();
     const char* modelPath{ nullptr };
+    DirectX::XMFLOAT3 finalScale{ config.Scale };
 
     // ---> Behavior-Driven Model Selection <---
     switch (config.Type)
@@ -37,6 +38,10 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
 
     case EnemyType::FakeBoss:
         modelPath = "Data/Model/Character/ENEMY_mdl_EnemyFakeBoss.glb";
+        if (finalScale.x == 0.5f && finalScale.y == 0.5f && finalScale.z == 0.5f)
+        {
+            finalScale = { 2.0f, 2.0f, 2.0f };
+        }
         break;
 
     case EnemyType::Ball:
@@ -53,43 +58,76 @@ void EnemyManager::SpawnEnemy(const EnemySpawnConfig& config)
         break;
     }
 
-    auto newEnemy{ std::make_unique<Enemy>(
-        device,
-        modelPath,
-        config.Position,
-        config.Rotation,
-        config.Color,           
-        config.Type,
-        config.AttackBehavior,
-        config.MinX,
-        config.MaxX,
-        config.MinZ,
-        config.MaxZ,
-        config.Direction
-    ) };
+    const int finalHP{ (config.AttackBehavior == AttackType::Tracking) ? 70 : config.MaxHP };
 
-    newEnemy->SetScale(config.Scale);
-    newEnemy->SetBaseMoveSpeed(config.BaseSpeed);
-    newEnemy->SetMaxHP(config.MaxHP);
+    if (!m_enemyPool.empty())
+    {
+        // FAST PATH: Pull from the pool.
+        std::unique_ptr<Enemy> pooledEnemy{ std::move(m_enemyPool.back()) };
+        m_enemyPool.pop_back();
 
-    m_enemies.push_back(std::move(newEnemy));
+        pooledEnemy->Reinitialize(
+            device, modelPath, config.Position, config.Rotation, config.Color,
+            config.Type, config.AttackBehavior, config.MinX, config.MaxX,
+            config.MinZ, config.MaxZ, config.Direction
+        );
+
+        pooledEnemy->SetScale(finalScale);
+        pooledEnemy->SetBaseMoveSpeed(config.BaseSpeed);
+        pooledEnemy->SetMaxHP(finalHP); 
+
+        m_enemies.push_back(std::move(pooledEnemy));
+    }
+    else
+    {
+        // SLOW PATH: Allocate new memory 
+        auto newEnemy{ std::make_unique<Enemy>(
+            device, modelPath, config.Position, config.Rotation, config.Color,
+            config.Type, config.AttackBehavior, config.MinX, config.MaxX,
+            config.MinZ, config.MaxZ, config.Direction
+        ) };
+
+        newEnemy->SetScale(finalScale);
+        newEnemy->SetBaseMoveSpeed(config.BaseSpeed);
+        newEnemy->SetMaxHP(finalHP); 
+
+        m_enemies.push_back(std::move(newEnemy));
+    }
 }
 
-void EnemyManager::Update(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack)
+void EnemyManager::Update(const float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, const bool allowAttack)
 {
-    auto it = m_enemies.begin();
-    while (it != m_enemies.end())
+    for (size_t i{ 0 }; i < m_enemies.size(); ) // Notice: No ++i here!
     {
-        if (!(*it)->IsActive())
+        // We use a reference to avoid copying the unique_ptr
+        auto& currentEnemy{ m_enemies[i] };
+
+        if (!currentEnemy->IsActive())
         {
-            it = m_enemies.erase(it);
+            // Move the dead enemy to the graveyard pool
+            m_enemyPool.push_back(std::move(currentEnemy));
+
+            // SWAP-AND-POP: Overwrite this dead slot with the LAST active enemy in the vector.
+            // This prevents the slow O(N) memory shift of std::vector::erase.
+            if (i != m_enemies.size() - 1)
+            {
+                m_enemies[i] = std::move(m_enemies.back());
+            }
+
+            // Destroy the now-duplicate last element
+            m_enemies.pop_back();
+
+            // DO NOT increment 'i' here! The enemy we just swapped into the 'i' slot 
+            // still needs to be updated this frame.
         }
         else
         {
-            (*it)->Update(elapsedTime, camera);
-            (*it)->UpdateTracking(elapsedTime, camera, playerPos, allowAttack);
+            // Enemy is alive. Update it.
+            currentEnemy->Update(elapsedTime, camera);
+            currentEnemy->UpdateTracking(elapsedTime, camera, playerPos, allowAttack);
 
-            ++it; 
+            // Move to the next element
+            ++i;
         }
     }
 }
@@ -123,7 +161,7 @@ void EnemyManager::Render(ModelRenderer* renderer, Camera* camera)
 
         if (isBodyVisible)
         {
-            renderer->Draw(ShaderId::Phong, enemy->GetModel(), enemy->color);
+            renderer->Draw(ShaderId::Phong, enemy->GetModel(), enemy->GetRenderColor());
         }
 
         // Projectiles tetap dirender terpisah (selalu render)
@@ -148,7 +186,7 @@ void EnemyManager::RespawnEnemyAs(size_t index, AttackType attack, MoveDir dir, 
     EnemySpawnConfig config;
     config.Position = e->GetPosition();
     config.Rotation = e->GetRotation();
-    config.Color = e->color;
+    config.Color = e->GetBaseColor();
     config.Type = e->GetType();
     config.AttackBehavior = attack;
     config.Direction = dir;

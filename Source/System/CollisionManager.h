@@ -23,6 +23,21 @@ class Boss;
 class NaviAlly;
 class NaviBoss;
 
+// Axis-Aligned Bounding Box for rapid broad-phase rejection
+struct AABB
+{
+    DirectX::XMFLOAT3 minPoint{};
+    DirectX::XMFLOAT3 maxPoint{};
+};
+
+// inline and noexcept allow the compiler to heavily optimize this (zero-cost abstraction).
+[[nodiscard]] inline bool CheckAABBIntersection(const AABB& a, const AABB& b) noexcept
+{
+    return (a.minPoint.x <= b.maxPoint.x && a.maxPoint.x >= b.minPoint.x) &&
+        (a.minPoint.y <= b.maxPoint.y && a.maxPoint.y >= b.minPoint.y) &&
+        (a.minPoint.z <= b.maxPoint.z && a.maxPoint.z >= b.minPoint.z);
+}
+
 class CollisionManager
 {
 public:
@@ -40,6 +55,7 @@ public:
     void SetOnLevelCompleteCallback(std::function<void()> callback) { m_onLevelCompleteCallback = callback; }
     void SetOnPlayerDeathCallback(std::function<void()> callback) { m_onPlayerDeathCallback = callback; }
     void SetOnPlayerHitCallback(std::function<void()> callback) { m_onPlayerHitCallback = callback; }
+    [[nodiscard]] float GetEnemyPushRadius(const Enemy* enemy) const;
     [[nodiscard]] Enemy* GetTargetInSlashCone(const DirectX::XMFLOAT3& playerPos, const DirectX::XMFLOAT3& aimDir, float reach, float minDotProduct) const;
     bool GetParryableProjectile(const DirectX::XMFLOAT3& playerPos, float threshold, class Bullet** outBullet, Enemy** outNearestEnemy);
     void SetNavi(NaviAlly* navi) { m_navi = navi; }
@@ -50,11 +66,10 @@ private:
     void CheckPlayerVsCheckpointLines();
     void CheckPlayerVsEnemies();
     void CheckPlayerVsItems();
-    void CheckPlayerProjectilesVsEnemies();
+    void CheckPlayerProjectilesVsEnemies(float elapsedTime);
     void CheckPlayerVsTriggerLines();
     void CheckPlayerVsVoidLines();
     bool CheckSphereCollision(const DirectX::XMFLOAT3& posA, const DirectX::XMFLOAT3& posB, float threshold);
-    void CheckStageCollision();
     void CheckEnemyProjectilesFull(float elapsedTime);
     void CheckBossFilesVsPlayer();
     void CheckNaviProjectilesVsEnemies(float elapsedTime);
