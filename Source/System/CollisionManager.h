@@ -60,6 +60,7 @@ public:
     [[nodiscard]] Enemy* GetTargetInSlashCone(const DirectX::XMFLOAT3& playerPos, const DirectX::XMFLOAT3& aimDir, float reach, float minDotProduct) const;
     bool GetParryableProjectile(const DirectX::XMFLOAT3& playerPos, float threshold, class Bullet** outBullet, Enemy** outNearestEnemy);
     void SetNavi(NaviAlly* navi) { m_navi = navi; }
+    NaviAlly* GetNavi() const { return m_navi; }
     void SetNaviBoss(NaviBoss* naviBoss) { m_naviBoss = naviBoss; }
     NaviBoss* GetNaviBoss() const { return m_naviBoss; }
 
@@ -68,12 +69,14 @@ private:
     void CheckPlayerVsEnemies();
     void CheckPlayerVsItems();
     void CheckPlayerProjectilesVsEnemies(float elapsedTime);
+    void CheckPlayerProjectilesVsNavi(float elapsedTime);
     void CheckPlayerVsTriggerLines();
     void CheckPlayerVsVoidLines();
     bool CheckSphereCollision(const DirectX::XMFLOAT3& posA, const DirectX::XMFLOAT3& posB, float threshold);
     void CheckEnemyProjectilesFull(float elapsedTime);
     void CheckBossFilesVsPlayer();
     void CheckNaviProjectilesVsEnemies(float elapsedTime);
+    void CheckNaviAllyProjectilesVsPlayer(float elapsedTime);
     void CheckNaviBossProjectilesVsPlayer(float elapsedTime);
     void CheckNaviBossProjectilesVsBoss(float elapsedTime); // Fungsi pantulan
 

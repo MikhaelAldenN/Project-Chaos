@@ -1,7 +1,9 @@
-﻿#include "System/Input.h"
+﻿#include "System/CollisionManager.h"
+#include "System/Input.h"
 #include "System/Graphics.h"
 #include "AnimationController.h"
 #include "Camera.h"
+#include "NaviAlly.h"
 #include "Player.h"
 #include "PlayerConstants.h"
 #include "PlayerStates.h"
@@ -494,8 +496,28 @@ void Player::RotateModelToPoint(const DirectX::XMFLOAT3& targetPos)
 void Player::FireProjectile()
 {
     DirectX::XMFLOAT3 myPos = movement->GetPosition();
+    DirectX::XMFLOAT3 aimPos = m_aimTarget;
+
+    if (m_collisionManager && m_collisionManager->GetNavi())
+    {
+        NaviAlly* navi = m_collisionManager->GetNavi();
+        DirectX::XMFLOAT3 nPos = navi->GetMovement()->GetPosition();
+
+        // Define how "sticky" the auto-aim is
+        constexpr float AUTO_AIM_RADIUS_SQ = 2.0f * 2.0f;
+
+        float distSq = (nPos.x - aimPos.x) * (nPos.x - aimPos.x) +
+            (nPos.z - aimPos.z) * (nPos.z - aimPos.z);
+
+        if (distSq < AUTO_AIM_RADIUS_SQ)
+        {
+            // SNAP Y: Ask Navi where to aim instead of guessing
+            aimPos.y = navi->GetAimPoint().y;
+        }
+    }
 
     float dx = m_aimTarget.x - myPos.x;
+    float dy = aimPos.y - (myPos.y + PlayerConst::BulletSpawnY);
     float dz = m_aimTarget.z - myPos.z;
     float angleToMouse = atan2f(dx, dz);
     DirectX::XMFLOAT3 fwd = { sinf(angleToMouse), 0.0f, cosf(angleToMouse) };

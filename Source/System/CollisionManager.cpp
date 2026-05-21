@@ -202,6 +202,8 @@ void CollisionManager::Update(float elapsedTime)
 {
     CheckEnemyProjectilesFull(elapsedTime);
     CheckPlayerProjectilesVsEnemies(elapsedTime);
+    CheckPlayerProjectilesVsNavi(elapsedTime);
+    CheckNaviAllyProjectilesVsPlayer(elapsedTime);
     CheckPlayerVsEnemies();
     CheckPlayerVsCheckpointLines();
     CheckPlayerVsTriggerLines();
@@ -745,6 +747,78 @@ void CollisionManager::CheckNaviProjectilesVsEnemies(float elapsedTime)
                 bullet->SetActive(false); // Send back to Object Pool instantly
                 break; // Stop checking this bullet against other enemies
             }
+        }
+    }
+}
+
+void CollisionManager::CheckPlayerProjectilesVsNavi(float elapsedTime)
+{
+    if (!m_player || !m_navi || !m_navi->IsAlive() || !m_navi->IsPotioned()) return;
+
+    auto& projectiles = m_player->GetProjectiles();
+    DirectX::XMFLOAT3 naviPos = m_navi->GetMovement()->GetPosition();
+
+    constexpr float NAVI_HITBOX_RADIUS_XZ = 0.8f;
+    constexpr float NAVI_HITBOX_RADIUS_Y = 1.9f;
+    constexpr int PLAYER_BULLET_DAMAGE = 10; 
+
+    for (auto& bullet : projectiles)
+    {
+        if (!bullet || !bullet->IsActive()) continue;
+
+        DirectX::XMFLOAT3 currentPos = bullet->GetMovement()->GetPosition();
+        DirectX::XMFLOAT3 vel = bullet->GetVelocity();
+        DirectX::XMFLOAT3 prevPos = {
+            currentPos.x - (vel.x * elapsedTime),
+            currentPos.y - (vel.y * elapsedTime),
+            currentPos.z - (vel.z * elapsedTime)
+        };
+
+        float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, naviPos);
+        float verticalDist = std::abs(currentPos.y - naviPos.y);
+
+        if (distToPath <= NAVI_HITBOX_RADIUS_XZ && verticalDist < NAVI_HITBOX_RADIUS_Y)
+        {
+            // Trigger proper OOP damage
+            m_navi->TakeDamage(PLAYER_BULLET_DAMAGE);
+            bullet->SetActive(false); // Return bullet to pool
+
+            continue;
+        }
+    }
+}
+
+void CollisionManager::CheckNaviAllyProjectilesVsPlayer(float elapsedTime)
+{
+    if (!m_player || !m_navi || m_player->GetHP() <= 0 || !m_navi->IsPotioned()) return;
+
+    auto& projectiles = m_navi->GetProjectiles();
+    DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
+
+    constexpr float PLAYER_HURTBOX_RADIUS = 0.3f;
+
+    for (auto& bullet : projectiles)
+    {
+        if (!bullet || !bullet->IsActive()) continue;
+
+        DirectX::XMFLOAT3 currentPos = bullet->GetMovement()->GetPosition();
+        DirectX::XMFLOAT3 vel = bullet->GetVelocity();
+        DirectX::XMFLOAT3 prevPos = {
+            currentPos.x - (vel.x * elapsedTime),
+            currentPos.y - (vel.y * elapsedTime),
+            currentPos.z - (vel.z * elapsedTime)
+        };
+
+        float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, playerPos);
+        float combinedRadius = PLAYER_HURTBOX_RADIUS + bullet->GetRadius();
+
+        // Hit!
+        if (distToPath <= combinedRadius)
+        {
+            bullet->SetActive(false); // Destroy the bullet visually
+
+            // INTENTIONAL: Do NOT call m_player->TakeDamage() here yet.
+            // We just want to confirm the collision math works.
         }
     }
 }

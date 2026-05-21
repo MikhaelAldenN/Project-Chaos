@@ -336,18 +336,43 @@ void SceneGame::Update(const float elapsedTime)
         }
 
         const float whiteoutStartTime{ BOSS_CINEMATIC_DURATION + BOSS_CINEMATIC_HOLD_DURATION + BOSS_EFFECT_WHITEOUT_DELAY };
+        const float holdStartTime{ whiteoutStartTime + WHITEOUT_FADE_DURATION };
+        const float fadeBackStartTime{ holdStartTime + WHITEOUT_HOLD_DURATION };
 
-        if (m_bossCinematicTimer >= whiteoutStartTime)
+        // 1. PHASE: DROP CURTAIN
+        if (m_bossCinematicTimer >= whiteoutStartTime && m_bossCinematicTimer < holdStartTime)
         {
-            // Calculate how far into the 3-second drop we are (0.0 to 1.0)
             const float timeInFade{ m_bossCinematicTimer - whiteoutStartTime };
-
-            // Smoothstep makes the curtain accelerate as it drops and gently slow down as it hits the floor
             const float linearT{ std::clamp(timeInFade / WHITEOUT_FADE_DURATION, 0.0f, 1.0f) };
-            const float smoothT{ linearT * linearT * (3.0f - 2.0f * linearT) };
+            // Smoothstep
+            m_whiteAlpha = linearT * linearT * (3.0f - 2.0f * linearT);
+        }
+        // 2. PHASE: HOLD (Force 1.0)
+        else if (m_bossCinematicTimer >= holdStartTime && m_bossCinematicTimer < fadeBackStartTime)
+        {
+            m_whiteAlpha = 1.0f;
+        }
+        // 3. PHASE: FADE BACK
+        else if (m_bossCinematicTimer >= fadeBackStartTime)
+        {
+            const float fadeOutTime{ m_bossCinematicTimer - fadeBackStartTime };
+            m_whiteAlpha = 1.0f - std::clamp(fadeOutTime / FADE_BACK_DURATION, 0.0f, 1.0f);
 
-            // We repurpose 'm_whiteAlpha' to act as our Curtain Progress Tracker
-            m_whiteAlpha = smoothT;
+            if (m_navi) m_navi->SetPotionedState(true);
+
+            // Resume gameplay once fading starts
+            if (m_player)
+            {
+                m_player->SetInputEnabled(true);
+                m_player->SetAimLocked(false); 
+            }
+
+            // Final cleanup
+            if (m_whiteAlpha <= 0.0f)
+            {
+                m_whiteAlpha = 0.0f;
+                m_isBossCinematicActive = false;
+            }
         }
     }
     else // NORMAL GAMEPLAY CAMERA
@@ -581,6 +606,9 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
         //        shapeRenderer->DrawSphere(ePos, radius, { 1.0f, 0.0f, 0.0f, 0.5f });
         //    }
         //}
+
+		// Navi hitboxes (blue)
+        //if (m_navi) m_navi->RenderDebug(shapeRenderer);
 
         shapeRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection());
         primRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection(), D3D11_PRIMITIVE_TOPOLOGY_LINELIST);

@@ -125,6 +125,8 @@ private:
     static constexpr float DEATH_DELAY_DURATION{ 0.5f };
     static constexpr float DEATH_FADE_DURATION{ 3.0f };
     static constexpr float RESPAWN_FADE_DURATION{ 3.0f };
+    static constexpr float WHITEOUT_HOLD_DURATION{ 15.0f };
+    static constexpr float FADE_BACK_DURATION{ 2.0f };
 
     // Post-Process Values for Fading to Black
     static constexpr float FX_BASE_SMOOTHNESS{ 0.2f };
