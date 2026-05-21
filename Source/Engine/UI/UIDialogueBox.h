@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <string>
 #include <vector>
@@ -27,9 +27,11 @@ public:
     void Update(float dt);
     void Render(ID3D11DeviceContext* dc);
 
+    // Render ke window tracking — koordinat relatif ke ukuran window itu sendiri
+    void RenderToWindow(ID3D11DeviceContext* dc, float windowW, float windowH);
+
     bool IsActive() const { return m_state != State::Hidden; }
 
-    // [NEW] Untuk sinkronisasi event di luar classa
     int GetCurrentDialogueIndex() const { return m_currentIndex; }
 
     void SetShowBackground(bool show) { m_showBackground = show; }
@@ -38,9 +40,12 @@ public:
     void SetWorldPosition(DirectX::XMFLOAT3 pos) { m_worldPos = pos; m_is3D = true; }
     void Render3D(ID3D11DeviceContext* dc, Camera* camera);
 
-    void SetAutoAdvance(bool enable, float delay = 1.5f) {
+    // strict = true  → wajib tunggu timer, input skip diabaikan
+    // strict = false → timer ATAU tombol skip (default lama)
+    void SetAutoAdvance(bool enable, float delay = 1.5f, bool strict = false) {
         m_autoAdvance = enable;
         m_autoAdvanceDelay = delay;
+        m_strictAutoAdvance = strict;
     }
 
 private:
@@ -74,7 +79,8 @@ private:
     DirectX::XMFLOAT3 m_worldPos = { 0.0f, 0.0f, 0.0f };
 
     // Auto-advance
-    bool m_autoAdvance = false;
+    bool  m_autoAdvance = false;
     float m_autoAdvanceTimer = 0.0f;
     float m_autoAdvanceDelay = 1.5f;
+    bool  m_strictAutoAdvance = false; // true = player wajib tunggu timer, tidak bisa skip
 };

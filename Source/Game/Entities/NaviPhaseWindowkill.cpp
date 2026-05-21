@@ -100,7 +100,7 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
         m_isPlayerCaged = true;
         m_aiTarget->SetPosition(0, 0, -8.0f);
         m_cageMaxHP = 600; // Sesuaikan dengan total HP yang kamu inginkan
-        m_cageHP = m_cageMaxHP;        
+        m_cageHP = m_cageMaxHP;
         m_cagePos = m_aiTarget->GetPosition(); // Kunci posisi kandang di lokasi player saat ini
         m_cageWindowPos = m_cagePos;
         m_cageShakeTimer = 0.0f;
@@ -131,15 +131,82 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     }
 
     m_overdriveAlpha = 0.0f;
+
+    // =========================================================
+    // [BARU] OPENING DIALOGUE — TRACKING WINDOW
+    // Window ini mengambang mengikuti posisi m_dialogueWorldPos
+    // (titik di atas/samping bos), transparan, no background.
+    // Player tetap bisa bergerak — AI saja yang belum aktif.
+    // =========================================================
+    // Hitung offset agar window muncul CENTERED di atas bos.
+    // Sistem tracking menaruh pojok kiri-atas window di posisi world,
+    // jadi kita geser -halfWidth di X dan +sedikit di Z agar ada di atas bos.
+    {
+        float p2u = windowSystem->GetPixelToUnitRatio();
+        float halfW = (m_dialogueWindowW * 0.5f) / p2u;
+        // Bos ada di Z=7, window diletakkan sedikit di atasnya (Z lebih kecil = lebih ke atas layar)
+        m_dialogueWorldPos = { -halfW, 0.0f, 1.5f };
+    }
+
+    {
+        TrackedWindowConfig diagCfg;
+        diagCfg.name = m_dialogueWindowName;
+        diagCfg.title = "N.A.V.I";           // Judul window bar atas
+        diagCfg.width = (int)m_dialogueWindowW;
+        diagCfg.height = (int)m_dialogueWindowH;
+        diagCfg.role = WindowRole::TRACKED_ENTITY;
+        diagCfg.isTransparent = false;                // Solid — sama seperti kandang & bullet
+        diagCfg.priority = 5;
+
+        windowSystem->AddTrackedWindow(diagCfg,
+            [this]() { return m_dialogueWorldPos; },
+            [this]() { return DirectX::XMFLOAT2(m_dialogueWindowW, m_dialogueWindowH); }
+        );
+
+        auto* diagWin = windowSystem->GetTrackedWindow(m_dialogueWindowName);
+        if (diagWin && diagWin->window) {
+            m_dialogueWindow = diagWin->window;
+            m_dialogueCamera = diagWin->camera;
+            m_dialogueWindow->SetBackgroundAlpha(1.0f); // Background solid
+            m_dialogueWindow->SetClickThrough(false);
+            m_dialogueWindow->SetBorderVisible(true);   // Border OS tetap tampil
+            m_dialogueWindow->SetDraggable(false);
+        }
+    }
+
+    m_dialogueBox = std::make_unique<UIDialogueBox>();
+    m_dialogueBox->Initialize();
+    m_dialogueBox->SetShowBackground(false);  // No background — teks melayang di window transparan
+
+    // Autoadvance ON, strict OFF → player bebas gerak, dialog jalan sendiri
+    m_dialogueBox->SetAutoAdvance(true, 2.5f, false);
+    m_dialogueBox->StartDialogue({
+        u8"...",
+        u8"Dialogue1",
+        u8"Dialogue2",
+        u8"Dialogue3"
+        });
+
+    m_isDialogueActive = true;
+    // AI belum aktif sampai dialog selesai, tapi input player TIDAK dikunci
+    m_aiEnabled = false;
+    if (m_aiTarget) {
+        m_aiTarget->SetInputEnabled(true); // Player tetap bisa gerak dari awal
+    }
 }
 
 void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
     // BERSIH-BERSIH TOTAL SAAT FASE SELESAI!
     if (boss && boss->GetWindowSystem()) {
         boss->GetWindowSystem()->RemoveTrackedWindow("navi_fx");
+        boss->GetWindowSystem()->RemoveTrackedWindow(m_dialogueWindowName);
     }
     m_fxWindow = nullptr;
     m_fxCamera.reset();
+    m_dialogueWindow = nullptr;
+    m_dialogueCamera.reset();
+    m_dialogueBox.reset();
+    m_isDialogueActive = false;
     m_wingSprite.reset(); // Bebaskan tekstur dari VRAM
     m_leftWingData.clear();
     m_rightWingData.clear();
@@ -237,6 +304,42 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
         if (m_hitFlashTimer < 0.0f) m_hitFlashTimer = 0.0f;
     }
 
+    // =========================================================
+    // [BARU] DIALOGUE UPDATE — berjalan paralel, tidak memblokir
+    // gameplay. Player bebas bergerak. AI aktif setelah dialog
+    // selesai saja.
+    // =========================================================
+    if (m_isDialogueActive && m_dialogueBox) {
+        if (m_dialogueBox->IsActive()) {
+            m_dialogueBox->Update(dt);
+
+            // Geser posisi anchor window per baris dialog jika diperlukan
+            int diagIdx = m_dialogueBox->GetCurrentDialogueIndex();
+            if (boss && boss->GetWindowSystem()) {
+                float p2u = boss->GetWindowSystem()->GetPixelToUnitRatio();
+                float halfW = (m_dialogueWindowW * 0.5f) / p2u;
+                if (diagIdx == 0) {
+                    m_dialogueWorldPos = { -halfW, 0.0f, 1.5f };
+                }
+                else {
+                    m_dialogueWorldPos = { -halfW, 0.0f, 1.5f };
+                }
+                // Tambah kondisi lain di sini untuk pindahkan window per baris
+            }
+        }
+        else {
+            // Dialog selesai → tutup window, aktifkan AI
+            m_isDialogueActive = false;
+            if (boss && boss->GetWindowSystem()) {
+                boss->GetWindowSystem()->RemoveTrackedWindow(m_dialogueWindowName);
+            }
+            m_dialogueWindow = nullptr;
+            m_dialogueCamera.reset();
+            m_dialogueBox.reset();
+            m_aiEnabled = (m_aiTarget != nullptr);
+        }
+    }
+
     if (m_bossHP <= 0) {
         m_aiEnabled = false;
     }
@@ -257,7 +360,60 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
     // Syarat: Player sudah uncapped DAN kandang masih belum hancur
     if (m_aiTarget && m_aiTarget->IsPowerUncapped() && m_isPlayerCaged) {
         m_overdriveAlpha += m_overdriveFadeSpeed * dt;
-        if (m_overdriveAlpha > 1.0f) m_overdriveAlpha = 1.0f; // Mentok di 1.0 (Solid)
+        if (m_overdriveAlpha > 1.0f) m_overdriveAlpha = 1.0f;
+
+        // ---- One-shot: munculkan dialogue baru pertama kali overdrive aktif ----
+        if (!m_overdriveDialogueTriggered) {
+            m_overdriveDialogueTriggered = true;
+
+            // Tutup window dialogue lama jika masih ada
+            if (m_isDialogueActive && boss && boss->GetWindowSystem()) {
+                boss->GetWindowSystem()->RemoveTrackedWindow(m_dialogueWindowName);
+                m_dialogueWindow = nullptr;
+                m_dialogueCamera.reset();
+                m_isDialogueActive = false;
+            }
+
+            // Spawn window tracking baru untuk overdrive dialogue
+            if (boss && boss->GetWindowSystem()) {
+                m_dialogueWorldPos = { 0.0f, 0.0f, 3.0f };
+
+                TrackedWindowConfig diagCfg;
+                diagCfg.name = m_dialogueWindowName;
+                diagCfg.title = "N.A.V.I";
+                diagCfg.width = (int)m_dialogueWindowW;
+                diagCfg.height = (int)m_dialogueWindowH;
+                diagCfg.role = WindowRole::TRACKED_ENTITY;
+                diagCfg.isTransparent = false;
+                diagCfg.priority = 5;
+
+                boss->GetWindowSystem()->AddTrackedWindow(diagCfg,
+                    [this]() { return m_dialogueWorldPos; },
+                    [this]() { return DirectX::XMFLOAT2(m_dialogueWindowW, m_dialogueWindowH); }
+                );
+
+                auto* diagWin = boss->GetWindowSystem()->GetTrackedWindow(m_dialogueWindowName);
+                if (diagWin && diagWin->window) {
+                    m_dialogueWindow = diagWin->window;
+                    m_dialogueCamera = diagWin->camera;
+                    m_dialogueWindow->SetBackgroundAlpha(1.0f);
+                    m_dialogueWindow->SetClickThrough(false);
+                    m_dialogueWindow->SetBorderVisible(true);
+                    m_dialogueWindow->SetDraggable(false);
+                }
+            }
+
+            // Inisialisasi dialogue baru — autoadvance, player bebas gerak
+            m_dialogueBox = std::make_unique<UIDialogueBox>();
+            m_dialogueBox->Initialize();
+            m_dialogueBox->SetShowBackground(false);
+            m_dialogueBox->SetAutoAdvance(true, 3.0f, true);
+            m_dialogueBox->StartDialogue({
+                u8"OverdriveDialogue1",
+                u8"OverdriveDialogue2"
+                });
+            m_isDialogueActive = true;
+        }
     }
     else {
         // Jika kandang hancur (atau belum overdrive), alpha dikembalikan ke 0 (menghilang)
@@ -1033,8 +1189,22 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
     if (!currentCamera || !m_wingSprite || !boss) return;
 
     bool isFXCam = (currentCamera == m_fxCamera.get());
-    bool isMainCam = !isFXCam;
+    bool isDialogueCam = m_dialogueCamera && (currentCamera == m_dialogueCamera.get());
+    bool isMainCam = !isFXCam && !isDialogueCam;
     auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
+
+    // =========================================================
+    // RENDER DIALOGUE KE TRACKING WINDOW-NYA SENDIRI
+    // Engine memanggil Render() untuk setiap kamera aktif.
+    // Saat giliran kamera dialogue, hanya teks yang dirender —
+    // window ini transparan & no background, isi cuma font.
+    // =========================================================
+    if (isDialogueCam) {
+        if (m_isDialogueActive && m_dialogueBox && m_dialogueBox->IsActive()) {
+            m_dialogueBox->RenderToWindow(context, m_dialogueWindowW, m_dialogueWindowH);
+        }
+        return; // Tidak ada hal lain yang perlu dirender di window ini
+    }
 
     // 1. RENDER SAYAP (Sistem Sprite 3D)
     // Sayap adalah objek 3D, jadi otomatis muncul di semua window portal!

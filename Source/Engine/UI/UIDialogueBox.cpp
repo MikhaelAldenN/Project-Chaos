@@ -1,4 +1,4 @@
-#include "UIDialogueBox.h"
+ï»¿#include "UIDialogueBox.h"
 #include "System/Graphics.h"
 #include "System/Input.h"
 #include <windows.h>
@@ -11,7 +11,7 @@ void UIDialogueBox::Initialize()
     m_panelSprite = std::make_unique<Sprite>(device, "Data/Sprite/UI/Sprite_DialogueBox.png");
 
     // Daftarkan Unicode Codepoint Kanji Jepang yang kamu ketik di naskah dialogmu
-    // Žn = 0x59CB, Ž€ = 0x6B7B
+    // ï¿½n = 0x59CB, ï¿½ï¿½ = 0x6B7B
     //std::vector<uint32_t> requiredKanji = { 0x59CB, 0x6B7B };
     std::vector<uint32_t> requiredKanji = { 0x6D88, 0x5F85, 0x76DB };
 
@@ -53,6 +53,14 @@ void UIDialogueBox::Update(float dt)
     if (m_state == State::Hidden) return;
 
     bool isConfirmPressed = Input::Instance().GetKeyboard().IsTriggered(VK_SPACE);
+
+    // Strict mode: matikan input skip di SEMUA state â€” Typing maupun WaitingForInput
+    if (m_strictAutoAdvance)
+        isConfirmPressed = false;
+
+    // Strict mode: input skip diabaikan sepenuhnya, wajib tunggu timer
+    if (m_autoAdvance && m_strictAutoAdvance)
+        isConfirmPressed = false;
 
     if (m_state == State::Typing)
     {
@@ -148,7 +156,36 @@ void UIDialogueBox::Render3D(ID3D11DeviceContext* dc, Camera* camera)
     dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
     dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestOnly), 0);
 
-    // Render Teks di dunia 3D. 
-    // Perhatikan scale-nya! Di 3D kita pakai nilai kecil (cth: 0.05f) karena ini satuan meter, bukan piksel.
     m_font->Draw3D(m_displayedText, camera, m_worldPos, 0.05f, { 1.0f, 1.0f, 1.0f, 1.0f });
+}
+
+// ---------------------------------------------------------------
+// RenderToWindow
+// Dipanggil saat engine merender kamera milik tracking window
+// dialogue. Koordinat dihitung dari ukuran window itu sendiri
+// (windowW x windowH), bukan dari ukuran layar penuh.
+// ---------------------------------------------------------------
+void UIDialogueBox::RenderToWindow(ID3D11DeviceContext* dc, float windowW, float windowH)
+{
+    if (m_state == State::Hidden || !m_font) return;
+
+    auto rs = Graphics::Instance().GetRenderState();
+    dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+    dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestOnly), 0);
+
+    // Background panel opsional (biasanya false untuk window solid ini,
+    // karena background sudah dari warna window OS-nya sendiri)
+    if (m_showBackground && m_panelSprite) {
+        m_panelSprite->Render(dc,
+            0.0f, 0.0f, 0.0f,
+            windowW, windowH,
+            0.0f,
+            1.0f, 1.0f, 1.0f, 1.0f
+        );
+    }
+
+    // Teks dengan margin dari tepi client area window
+    const float marginX = 14.0f;
+    const float marginY = 12.0f;
+    m_font->Draw(m_displayedText, marginX, marginY, 1.0f, { 1.0f, 1.0f, 1.0f, 1.0f });
 }

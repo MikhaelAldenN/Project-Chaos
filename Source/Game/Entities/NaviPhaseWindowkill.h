@@ -7,7 +7,8 @@
 #include "Camera.h"
 #include "Bullet.h"
 #include "Primitive.h"
-#include "EffectManager.h" 
+#include "EffectManager.h"
+#include "UIDialogueBox.h"
 
 class Sprite;
 class Player;
@@ -148,7 +149,7 @@ public:
 
         Effekseer::Handle chargeEffectHandle = -1;
         Effekseer::Handle fireEffectHandle = -1; // [NEW] Handle untuk efek tembakan (LASER.efk)
-    
+
         bool isTargeted = false;
     };
 
@@ -300,7 +301,7 @@ private:
 
     float m_pixelToUnit = 40.0f;
     float m_wingGlobalScale = 2.5f;
-    
+
     //---- bullets ------
     std::vector<BouncingWindowBullet> m_bouncingBullets;
     int m_bounceCounter = 0;
@@ -376,6 +377,19 @@ private:
     std::unique_ptr<Sprite> m_overdriveSprite;
     float m_overdriveSpriteScale = 0.02f;
 
-    float m_overdriveAlpha = 0.0f;        // Nilai transparansi saat ini (0.0 - 1.0)
+    float m_overdriveAlpha = 0.0f;
     float m_overdriveFadeSpeed = 2.0f;
+
+    // ----- Opening Dialogue (tracking window, mengikuti posisi bos) -----
+    std::unique_ptr<UIDialogueBox> m_dialogueBox;
+    Beyond::Window* m_dialogueWindow = nullptr;
+    std::shared_ptr<Camera> m_dialogueCamera;
+    DirectX::XMFLOAT3      m_dialogueWorldPos = { 0.0f, 0.0f, 0.0f }; // Titik anchor di dunia
+    const float            m_dialogueWindowW = 420.0f;
+    const float            m_dialogueWindowH = 160.0f;
+    const std::string      m_dialogueWindowName = "navi_dialogue";
+    bool                   m_isDialogueActive = false;
+
+    // ----- Overdrive Dialogue (one-shot saat player masuk overdrive) -----
+    bool m_overdriveDialogueTriggered = false; // Guard agar hanya muncul sekali
 };
