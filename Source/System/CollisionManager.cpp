@@ -551,53 +551,32 @@ void CollisionManager::CheckPlayerVsCheckpointLines()
 
 void CollisionManager::CheckPlayerVsTriggerLines()
 {
-    //if (!m_player || !m_stage) return;
-    //if (m_player->IsFalling()) return;
+    // Fast Fail: Guard against missing data or dead player
+    if (!m_player || !m_stage || m_player->GetHP() <= 0) return;
 
-    //const float TRIGGER_RANGE_Z = 1.0f;
+    const float TRIGGER_RANGE_Z = 2.0f;
 
-    //for (const auto& line : m_stage->m_linesDisable)
-    //{
-    //    XMVECTOR vLocalPos = TransformToLocalLine(m_player->GetMovement()->GetPosition(), line);
-    //    XMFLOAT3 localPos;
-    //    XMStoreFloat3(&localPos, vLocalPos);
-    //    float lineHalfLength = line.Scale.x * 0.5f;
+    for (int i = 0; i < m_stage->m_linesEnable.size(); ++i)
+    {
+        const auto& line = m_stage->m_linesEnable[i];
 
-    //    if (localPos.x >= -lineHalfLength && localPos.x <= lineHalfLength &&
-    //        localPos.z > -TRIGGER_RANGE_Z && localPos.z < TRIGGER_RANGE_Z)
-    //    {
-    //        m_player->SetAbilityShield(false);
-    //    }
-    //}
+        // Transform player pos into the line's local space
+        DirectX::XMVECTOR vLocalPos = TransformToLocalLine(m_player->GetMovement()->GetPosition(), line);
+        DirectX::XMFLOAT3 localPos;
+        DirectX::XMStoreFloat3(&localPos, vLocalPos);
 
-    //for (int i = 0; i < m_stage->m_linesEnable.size(); ++i)
-    //{
-    //    const auto& line = m_stage->m_linesEnable[i];
+        float lineHalfLength = line.Scale.x * 0.5f;
 
-    //    XMVECTOR vLocalPos = TransformToLocalLine(m_player->GetMovement()->GetPosition(), line);
-    //    XMFLOAT3 localPos;
-    //    XMStoreFloat3(&localPos, vLocalPos);
-    //    float lineHalfLength = line.Scale.x * 0.5f;
-
-    //    if (localPos.x >= -lineHalfLength && localPos.x <= lineHalfLength &&
-    //        localPos.z > -TRIGGER_RANGE_Z && localPos.z < TRIGGER_RANGE_Z)
-    //    {
-    //        if (i == 0)
-    //        {
-    //            m_player->SetAbilityShield(true);
-    //        }
-    //        else if (i == 1)
-    //        {
-    //            m_player->SetAbilityShield(true);
-    //            m_player->SetAbilityShoot(true);
-    //        }
-    //        else if (i == 2)
-    //        {
-    //            m_player->SetAbilityShield(true);
-    //            if (m_onLevelCompleteCallback) m_onLevelCompleteCallback();
-    //        }
-    //    }
-    //}
+        // Check if player is standing on the line
+        if (localPos.x >= -lineHalfLength && localPos.x <= lineHalfLength &&
+            localPos.z > -TRIGGER_RANGE_Z && localPos.z < TRIGGER_RANGE_Z)
+        {
+            if (m_onEnableLineReachCallback)
+            {
+                m_onEnableLineReachCallback(i);
+            }
+        }
+    }
 }
 
 void CollisionManager::CheckPlayerVsVoidLines()

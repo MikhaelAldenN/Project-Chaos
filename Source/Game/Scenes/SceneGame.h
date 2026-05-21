@@ -96,6 +96,8 @@ private:
     std::unique_ptr<Sprite> m_fadeSprite{};
     float m_fadeAlpha{ 1.0f };
     DirectX::XMFLOAT4 m_bgSpriteColor{ 1.0f, 1.0f, 1.0f, 1.0f };
+    std::unique_ptr<Sprite> m_whiteSprite{};
+    float m_whiteAlpha{ 0.0f };
 
     float m_globalTime{ 0.0f };
     float m_configFineDensity{ 30.0f };
@@ -133,4 +135,25 @@ private:
 
     void StartPlayerDeathSequence();
     void ResetLevel();
+
+    // Cinematic States
+    bool AreTrackingEnemiesDead() const;
+    class Enemy* GetFakeBoss() const;
+    void StartBossCinematic();
+
+    bool m_bossCinematicTriggered{ false };
+    bool m_isBossCinematicActive{ false };
+    float m_bossCinematicTimer{ 0.0f };
+    bool m_bossEffectTriggered{ false };
+
+    // Configurable: 4 seconds for a slow, dramatic pan
+    static constexpr float BOSS_CINEMATIC_DURATION{ 4.0f };
+    static constexpr float BOSS_CINEMATIC_HOLD_DURATION{ 3.0f };
+    static constexpr float BOSS_EFFECT_WHITEOUT_DELAY{ 4.5f }; 
+    static constexpr float WHITEOUT_FADE_DURATION{ 3.0f };
+    float m_fakeBossEffectScale{ 3.000f };
+    DirectX::XMFLOAT3 m_fakeBossEffectOffset{ 9.690f, 0.000f, 24.600f };
+    DirectX::XMFLOAT3 m_fakeBossEffectRotation{ 0.000f, 25.000f, 0.000f };
+    DirectX::XMFLOAT3 m_cinematicStartTarget{ 0.0f, 0.0f, 0.0f };
+    DirectX::XMFLOAT3 m_cinematicEndTarget{ 0.0f, 0.0f, 0.0f };
 };

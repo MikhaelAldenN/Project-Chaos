@@ -11,6 +11,7 @@
 
 // Game Objects
 #include "EffectManager.h"
+#include "Enemy.h"
 #include "EnemyManager.h"
 #include "ItemManager.h"
 #include "NaviAlly.h"
@@ -105,6 +106,15 @@ SceneGame::SceneGame()
     m_collisionManager->SetNavi(m_navi.get());
 
     m_player->SetCollisionManager(m_collisionManager.get());
+    m_collisionManager->SetOnEnableLineReachCallback([this](int lineIndex) {
+        if (lineIndex == 0 && !m_bossCinematicTriggered)
+        {
+            if (AreTrackingEnemiesDead())
+            {
+                StartBossCinematic();
+            }
+        }
+    });
 
     m_director = std::make_unique<CinematicDirector>();
 
@@ -112,7 +122,9 @@ SceneGame::SceneGame()
     m_postProcess->Initialize(static_cast<int>(screenW), static_cast<int>(screenH));
 
     m_fadeSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Game/Black.png");
+    m_whiteSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Game/White.png");
     EffectManager::Instance().PreloadEffect("Data/Effect/Hit.efk");
+    EffectManager::Instance().PreloadEffect("Data/Effect/FakeBossPoison.efk");
 }
 
 SceneGame::~SceneGame()
@@ -246,11 +258,6 @@ void SceneGame::Update(const float elapsedTime)
 
         m_player->Update(elapsedTime, activeCam);
         if (m_navi) m_navi->Update(elapsedTime, activeCam);
-        if (m_fadeAlpha < 0.99f)
-        {
-            CameraController::Instance().SetTarget(m_player->GetPosition());
-            m_director->Update(elapsedTime, m_player->GetMovement()->GetPosition());
-        }
     }
 
     if (m_enemyManager) {
@@ -270,61 +277,137 @@ void SceneGame::Update(const float elapsedTime)
     static int   frameCounter{ 0 };
     static const Enemy* cachedClosestEnemy{ nullptr };
 
-    // SEARCH PHASE: Only run once every 10 frames (~6 times per second at 60fps)
-    if (frameCounter++ % 10 == 0)
+    if (m_isBossCinematicActive)
     {
-        if (m_enemyManager && m_player)
+        m_bossCinematicTimer += elapsedTime;
+        float t = std::clamp(m_bossCinematicTimer / BOSS_CINEMATIC_DURATION, 0.0f, 1.0f);
+
+        // Zero-Cost Math: Smoothstep (Creates a buttery-smooth ease-in and ease-out)
+        float smoothT = t * t * (3.0f - 2.0f * t);
+
+        DirectX::XMFLOAT3 currentTarget = {
+            m_cinematicStartTarget.x + (m_cinematicEndTarget.x - m_cinematicStartTarget.x) * smoothT,
+            m_cinematicStartTarget.y + (m_cinematicEndTarget.y - m_cinematicStartTarget.y) * smoothT,
+            m_cinematicStartTarget.z + (m_cinematicEndTarget.z - m_cinematicStartTarget.z) * smoothT
+        };
+
+        // Force zoom out to the base Furi style view during cinematic
+        CameraController::Instance().SetDynamicZoomOffset(0.0f);
+        CameraController::Instance().SetTarget(currentTarget);
+
+        if (!m_bossEffectTriggered && m_bossCinematicTimer >= (BOSS_CINEMATIC_DURATION + BOSS_CINEMATIC_HOLD_DURATION))
         {
-            float closestDistSq{ 999999.0f };
-            const DirectX::XMFLOAT3 pPos{ m_player->GetPosition() };
-            const Enemy* currentClosest{ nullptr };
+            m_bossEffectTriggered = true;
 
-            // O(N) Search happens here, but ONLY 10% of the time.
-            for (const auto& enemy : m_enemyManager->GetEnemies())
+            if (Enemy* fakeBoss = GetFakeBoss())
             {
-                if (!enemy || !enemy->IsActive()) continue;
+                DirectX::XMFLOAT3 spawnPos = fakeBoss->GetPosition();
 
-                const DirectX::XMFLOAT3 ePos{ enemy->GetPosition() };
-                const float dx{ pPos.x - ePos.x };
-                const float dz{ pPos.z - ePos.z };
-                const float distSq{ (dx * dx) + (dz * dz) };
+                spawnPos.x += m_fakeBossEffectOffset.x;
+                spawnPos.y += m_fakeBossEffectOffset.y;
+                spawnPos.z += m_fakeBossEffectOffset.z;
 
-                if (distSq < closestDistSq)
+                // 1. Save the lightweight Handle
+                Effekseer::Handle effHandle = EffectManager::Instance().Play(
+                    "Data/Effect/FakeBossPoison.efk",
+                    spawnPos,
+                    m_fakeBossEffectScale
+                );
+
+                // 2. Apply Rotation (Convert GUI Degrees to Effekseer Radians)
+                if (effHandle >= 0)
                 {
-                    closestDistSq = distSq;
-                    currentClosest = enemy.get();
+                    DirectX::XMFLOAT3 rotRad{
+                        DirectX::XMConvertToRadians(m_fakeBossEffectRotation.x),
+                        DirectX::XMConvertToRadians(m_fakeBossEffectRotation.y),
+                        DirectX::XMConvertToRadians(m_fakeBossEffectRotation.z)
+                    };
+                    EffectManager::Instance().SetRotation(effHandle, rotRad);
                 }
             }
+        }
 
-            // Update our cached pointer
-            cachedClosestEnemy = currentClosest;
+        const float whiteoutStartTime{ BOSS_CINEMATIC_DURATION + BOSS_CINEMATIC_HOLD_DURATION + BOSS_EFFECT_WHITEOUT_DELAY };
 
-            // Update the zoom target only during the search frame
-            if (cachedClosestEnemy)
-            {
-                constexpr float combatRadius{ 25.0f };
-                constexpr float maxZoomIn{ -8.0f };
+        if (m_bossCinematicTimer >= whiteoutStartTime)
+        {
+            // Calculate how far into the 3-second drop we are (0.0 to 1.0)
+            const float timeInFade{ m_bossCinematicTimer - whiteoutStartTime };
 
-                const float dist{ std::sqrt(closestDistSq) };
-                const float intensity{ std::clamp(1.0f - (dist / combatRadius), 0.0f, 1.0f) };
-                targetZoom = maxZoomIn * intensity;
-            }
-            else
-            {
-                targetZoom = 0.0f;
-            }
+            // Smoothstep makes the curtain accelerate as it drops and gently slow down as it hits the floor
+            const float linearT{ std::clamp(timeInFade / WHITEOUT_FADE_DURATION, 0.0f, 1.0f) };
+            const float smoothT{ linearT * linearT * (3.0f - 2.0f * linearT) };
+
+            // We repurpose 'm_whiteAlpha' to act as our Curtain Progress Tracker
+            m_whiteAlpha = smoothT;
         }
     }
-
-    // VALIDATION PHASE: Run every frame to prevent Dangling Pointers
-    // If the enemy we found 5 frames ago died, we must reset zoom immediately.
-    if (cachedClosestEnemy && !cachedClosestEnemy->IsActive())
+    else // NORMAL GAMEPLAY CAMERA
     {
-        cachedClosestEnemy = nullptr;
-        targetZoom = 0.0f;
+        // 1. Target the Player securely
+        if (m_player && m_fadeAlpha < 0.99f)
+        {
+            CameraController::Instance().SetTarget(m_player->GetPosition());
+            m_director->Update(elapsedTime, m_player->GetMovement()->GetPosition());
+        }
+
+        // 2. Furi style cinematic combat zoom 
+        static float targetZoom{ 0.0f };
+        static int   frameCounter{ 0 };
+        static const Enemy* cachedClosestEnemy{ nullptr };
+
+        if (frameCounter++ % 10 == 0)
+        {
+            if (m_enemyManager && m_player)
+            {
+                float closestDistSq{ 999999.0f };
+                const DirectX::XMFLOAT3 pPos{ m_player->GetPosition() };
+                const Enemy* currentClosest{ nullptr };
+
+                for (const auto& enemy : m_enemyManager->GetEnemies())
+                {
+                    if (!enemy || !enemy->IsActive()) continue;
+
+                    const DirectX::XMFLOAT3 ePos{ enemy->GetPosition() };
+                    const float dx{ pPos.x - ePos.x };
+                    const float dz{ pPos.z - ePos.z };
+                    const float distSq{ (dx * dx) + (dz * dz) };
+
+                    if (distSq < closestDistSq)
+                    {
+                        closestDistSq = distSq;
+                        currentClosest = enemy.get();
+                    }
+                }
+
+                cachedClosestEnemy = currentClosest;
+
+                if (cachedClosestEnemy)
+                {
+                    constexpr float combatRadius{ 25.0f };
+                    constexpr float maxZoomIn{ -8.0f };
+
+                    const float dist{ std::sqrt(closestDistSq) };
+                    const float intensity{ std::clamp(1.0f - (dist / combatRadius), 0.0f, 1.0f) };
+                    targetZoom = maxZoomIn * intensity;
+                }
+                else
+                {
+                    targetZoom = 0.0f;
+                }
+            }
+        }
+
+        if (cachedClosestEnemy && !cachedClosestEnemy->IsActive())
+        {
+            cachedClosestEnemy = nullptr;
+            targetZoom = 0.0f;
+        }
+
+        CameraController::Instance().SetDynamicZoomOffset(targetZoom);
     }
 
-    CameraController::Instance().SetDynamicZoomOffset(targetZoom);
+    // Finally, commit all calculations to the actual CameraController
     CameraController::Instance().Update(elapsedTime);
 
     if (m_player)
@@ -524,6 +607,31 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
             0.0f, 0.0f, 0.0f, m_fadeAlpha // r, g, b, a
         );
     }
+
+    if (m_whiteAlpha > 0.001f && m_whiteSprite)
+    {
+        float screenW{ Config::DEFAULT_SCREEN_W };
+        float screenH{ Config::DEFAULT_SCREEN_H };
+        if (auto window{ Framework::Instance()->GetMainWindow() }) {
+            screenW = static_cast<float>(window->GetWidth());
+            screenH = static_cast<float>(window->GetHeight());
+        }
+
+        // Enable 2D Transparency
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
+        // Draw the white sprite over the whole screen.
+        m_whiteSprite->Render(
+            dc,
+            0.0f, 0.0f, 0.0f,      // dx, dy, dz
+            screenW, screenH,      // dw, dh
+            0.0f, 0.0f,            // sx, sy 
+            1920.0f, 1080.0f,      // sw, sh (texture size)
+            0.0f,                  // angle
+            1.0f, 1.0f, 1.0f, m_whiteAlpha // Apply fading alpha
+        );
+    }
 }
 
 void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
@@ -569,4 +677,58 @@ void SceneGame::OnResize(int width, int height)
         m_mainCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(Config::CAM_FOV), static_cast<float>(width) / static_cast<float>(height), Config::CAM_NEAR, Config::CAM_FAR);
     }
     if (m_postProcess) m_postProcess->OnResize(width, height);
+}
+
+bool SceneGame::AreTrackingEnemiesDead() const
+{
+    if (!m_enemyManager) return false;
+
+    // CPU Optimization: Range-based for loop.
+    for (const auto& enemy : m_enemyManager->GetEnemies())
+    {
+        // If we find even ONE active tracking enemy, abort.
+        if (enemy && enemy->IsActive() && enemy->GetAttackType() == AttackType::Tracking)
+        {
+            return false;
+        }
+    }
+    return true; 
+}
+
+Enemy* SceneGame::GetFakeBoss() const
+{
+    if (!m_enemyManager) return nullptr;
+
+    for (const auto& enemy : m_enemyManager->GetEnemies())
+    {
+        if (enemy && enemy->IsActive() && enemy->GetType() == EnemyType::FakeBoss)
+        {
+            return enemy.get();
+        }
+    }
+    return nullptr;
+}
+
+void SceneGame::StartBossCinematic()
+{
+    if (m_bossCinematicTriggered) return;
+
+    Enemy* fakeBoss = GetFakeBoss();
+
+    if (!fakeBoss || !m_player) return;
+
+    m_bossCinematicTriggered = true;
+    m_isBossCinematicActive = true;
+    m_bossCinematicTimer = 0.0f;
+
+    // Lock the Player securely
+    m_player->SetInputEnabled(false);
+    m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
+    m_player->GetStateMachine()->ChangeState(m_player.get(), std::make_unique<PlayerIdle>());
+    m_player->SetAimLocked(true);
+    m_player->ForceAimTarget(fakeBoss->GetPosition());
+
+    // Set LERP anchors
+    m_cinematicStartTarget = m_player->GetPosition();
+    m_cinematicEndTarget = fakeBoss->GetPosition();
 }
