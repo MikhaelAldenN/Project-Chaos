@@ -146,6 +146,7 @@ public:
 	// --- Health ---
     void TakeDamage(int damage);
     void SetMaxHP(int hp) { m_hp = hp; }
+    void Heal(int amount);
     [[nodiscard]] int GetHP() const { return m_hp; }
 
 	// --- Invincibility (used by PlayerDash and PlayerHit states) ---
@@ -252,6 +253,9 @@ private:
 
     float m_uncapMoveSpeed = 30.0f;
     float m_uncapDashSpeed = 80.0f;
+    float m_uncapHealthRegenPerSecond = 8.0f;
+    int   m_uncapMaxRegenHP = 100;
+    float m_uncapRegenAccumulator = 0.0f;
     DirectX::XMFLOAT4 m_uncapColor = { 1.5f, 1.5f, 1.5f, 1.0f };
 
     float m_normalMoveSpeed = PlayerConst::MoveSpeed;

@@ -133,6 +133,18 @@ void Player::Update(float elapsedTime, Camera* camera)
         m_invincibilityTimer -= elapsedTime;
     }
 
+    if (m_isPowerUncapped && m_hp > 0 && m_hp < m_uncapMaxRegenHP) {
+        m_uncapRegenAccumulator += m_uncapHealthRegenPerSecond * elapsedTime;
+        int healAmount = static_cast<int>(m_uncapRegenAccumulator);
+        if (healAmount > 0) {
+            Heal(healAmount);
+            m_uncapRegenAccumulator -= static_cast<float>(healAmount);
+        }
+    }
+    else {
+        m_uncapRegenAccumulator = 0.0f;
+    }
+
     UpdateDashCooldown(elapsedTime);
 
     SetCamera(camera);
@@ -663,6 +675,15 @@ void Player::TakeDamage(int damage)
     }
 }
 
+void Player::Heal(int amount)
+{
+    if (amount <= 0 || m_hp <= 0) return;
+    m_hp += amount;
+    if (m_hp > m_uncapMaxRegenHP) {
+        m_hp = m_uncapMaxRegenHP;
+    }
+}
+
 // ============================================================
 // HELPERS
 // ============================================================
@@ -695,6 +716,7 @@ void Player::ReleasePowerCap()
 {
     if (m_isPowerUncapped) return;
     m_isPowerUncapped = true;
+    m_uncapRegenAccumulator = 0.0f;
 
     // Simpan nilai saat ini sebelum ditimpa, agar bisa dikembalikan nanti
     m_normalMoveSpeed = moveSpeed;
@@ -711,6 +733,7 @@ void Player::RestorePowerCap()
 {
     if (!m_isPowerUncapped) return;
     m_isPowerUncapped = false;
+    m_uncapRegenAccumulator = 0.0f;
 
     // Kembalikan atribut ke nilai normal
     moveSpeed = m_normalMoveSpeed;
@@ -767,6 +790,8 @@ void Player::DrawDebugGUI()
             // Jika slider digeser saat Uncap aktif, langsung terapkan nilainya secara real-time
             if (ImGui::DragFloat("Uncap Walk Speed", &m_uncapMoveSpeed, 0.1f, 10.0f, 100.0f, "%.1f")) moveSpeed = m_uncapMoveSpeed;
             if (ImGui::DragFloat("Uncap Dash Speed", &m_uncapDashSpeed, 0.5f, 10.0f, 200.0f, "%.1f")) dashSpeed = m_uncapDashSpeed;
+            ImGui::DragFloat("Uncap HP Regen / Sec", &m_uncapHealthRegenPerSecond, 0.1f, 0.0f, 100.0f, "%.1f");
+            ImGui::DragInt("Uncap Regen Max HP", &m_uncapMaxRegenHP, 1.0f, 1, 9999);
             if (ImGui::ColorEdit4("Uncap Glow Color", (float*)&m_uncapColor)) color = m_uncapColor;
 
             ImGui::Unindent();

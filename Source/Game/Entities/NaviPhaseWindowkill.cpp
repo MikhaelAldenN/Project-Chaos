@@ -10,6 +10,7 @@
 #include <SDL3/SDL.h>
 #include <System/AudioManager.h>
 #include "EffectManager.h"
+#include "CameraController.h"
 
 using namespace DirectX;
 
@@ -76,6 +77,16 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     EffectManager::Instance().PreloadEffect(m_blasterParams.fireEffectPath);
 
     m_bossRef = boss; // Simpan referensi boss untuk dipakai saat jendela hancur
+    m_bossMaxHP = 10000;
+    m_bossHP = m_bossMaxHP;
+    m_hitFlashTimer = 0.0f;
+    m_aiEnabled = false;
+    m_aiGlobalCooldown = 1.0f;
+    m_cdBouncing = 1.0f;
+    m_cdBoomerang = 4.0f;
+    m_cdOrbitalBlaster = 7.0f;
+    m_cdTargetedBlaster = 10.0f;
+    m_cdUndyne = 13.0f;
 
     if (windowSystem->GetTrackedWindow("player")) {
         windowSystem->RemoveTrackedWindow("player");
@@ -143,6 +154,11 @@ void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
         if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(bw.windowName);
     }
     m_boomerangs.clear();
+
+    for (auto& spear : m_undyneSpears) {
+        if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(spear.windowName);
+    }
+    m_undyneSpears.clear();
 }
 
 // =========================================================
@@ -204,6 +220,15 @@ void NaviPhaseWindowkill::GenerateButterflyWings() {
 void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
     m_glitchTimer += dt;
 
+    if (m_hitFlashTimer > 0.0f) {
+        m_hitFlashTimer -= dt;
+        if (m_hitFlashTimer < 0.0f) m_hitFlashTimer = 0.0f;
+    }
+
+    if (m_bossHP <= 0) {
+        m_aiEnabled = false;
+    }
+
     // =========================================================
         // [FIX] KURUNG PEMAIN DI DALAM KANDANG (HITBOX & VISUAL SINKRON)
         // =========================================================
@@ -251,6 +276,8 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
         // Terapkan posisi baru! (Sumbu Y tetap 0 agar tidak naik-turun)
         boss->SetPosition({ newX, 0.0f, newZ });
     }
+
+    UpdateAI(dt, boss);
 
     if (m_wingState == WingState::Expanding) {
         m_wingStateTimer += dt;
@@ -953,6 +980,7 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
 
             if (bPos.x < -40.0f || bPos.x > 40.0f || bPos.z < -40.0f || bPos.z > 40.0f) {
                 spear.isPreparedForDestroy = true;
+                spear.bullet->SetActive(false);
                 auto extracted = boss->GetWindowSystem()->ExtractForPool(spear.windowName);
                 if (extracted && extracted->window) {
                     WindowManager::Instance().DestroyWindow(extracted->window);
@@ -1089,6 +1117,66 @@ void NaviPhaseWindowkill::TriggerBouncingWindows(NaviBoss* boss) {
     m_bouncingSpawnTimer = m_bouncingParams.spawnDelay; // Paksa spawn peluru pertama instan
 }
 
+void NaviPhaseWindowkill::UpdateAI(float dt, NaviBoss* boss) {
+    if (!boss || !m_aiTarget || !m_aiEnabled || m_isPlayerCaged || m_bossHP <= 0) return;
+
+    std::mt19937 gen(std::random_device{}());
+
+    bool hasActiveUndyne = false;
+    for (const auto& spear : m_undyneSpears) {
+        if (!spear.isPreparedForDestroy) {
+            hasActiveUndyne = true;
+            break;
+        }
+    }
+
+    bool isBusy = m_isSpawningBouncing || m_isSpawningBoomerangs ||
+        m_isSpawningBlasters || m_isSpawningTargetedBlasters || m_isSpawningUndynes ||
+        !m_bouncingBullets.empty() || !m_boomerangs.empty() || !m_blasters.empty() ||
+        hasActiveUndyne;
+
+    if (!isBusy) {
+        if (m_aiGlobalCooldown > 0.0f) {
+            m_aiGlobalCooldown -= dt;
+        }
+        else {
+            m_cdBouncing -= dt;
+            m_cdBoomerang -= dt;
+            m_cdOrbitalBlaster -= dt;
+            m_cdTargetedBlaster -= dt;
+            m_cdUndyne -= dt;
+        }
+    }
+
+    if (isBusy || m_aiGlobalCooldown > 0.0f) return;
+
+    if (m_cdUndyne <= 0.0f) {
+        TriggerUndyneSpear(boss);
+        m_cdUndyne = std::uniform_real_distribution<float>(12.0f, 18.0f)(gen);
+        m_aiGlobalCooldown = 0.8f;
+    }
+    else if (m_cdTargetedBlaster <= 0.0f) {
+        TriggerTargetedBlaster(boss);
+        m_cdTargetedBlaster = std::uniform_real_distribution<float>(9.0f, 14.0f)(gen);
+        m_aiGlobalCooldown = 0.6f;
+    }
+    else if (m_cdOrbitalBlaster <= 0.0f) {
+        TriggerOrbitalBlaster(boss);
+        m_cdOrbitalBlaster = std::uniform_real_distribution<float>(7.0f, 12.0f)(gen);
+        m_aiGlobalCooldown = 0.6f;
+    }
+    else if (m_cdBoomerang <= 0.0f) {
+        TriggerBoomerang(boss);
+        m_cdBoomerang = std::uniform_real_distribution<float>(4.0f, 8.0f)(gen);
+        m_aiGlobalCooldown = 0.4f;
+    }
+    else if (m_cdBouncing <= 0.0f) {
+        TriggerBouncingWindows(boss);
+        m_cdBouncing = std::uniform_real_distribution<float>(2.0f, 5.0f)(gen);
+        m_aiGlobalCooldown = 0.3f;
+    }
+}
+
 std::vector<Bullet*> NaviPhaseWindowkill::GetProjectiles() {
     std::vector<Bullet*> activeBullets;
     for (auto& bwb : m_bouncingBullets) {
@@ -1104,7 +1192,7 @@ std::vector<Bullet*> NaviPhaseWindowkill::GetProjectiles() {
     }
 
     for (auto& spear : m_undyneSpears) {
-        if (spear.bullet && spear.bullet->IsActive() && spear.state == 2) {
+        if (!spear.isPreparedForDestroy && spear.bullet && spear.bullet->IsActive() && spear.state == 2) {
             // Hanya berbahaya saat State = 2 (Meluncur)
             activeBullets.push_back(spear.bullet.get());
         }
@@ -1202,6 +1290,8 @@ void NaviPhaseWindowkill::DamageCage(int dmg) {
     // =========================================================
     if (m_cageHP <= 0) {
         m_isPlayerCaged = false;
+        m_aiEnabled = true;
+        m_aiGlobalCooldown = 1.0f;
 
         CameraController::Instance().AddTrauma(0.6f);
         AudioManager::Instance().PlaySFX("Data/Sound/SE_GlassShatter.wav", 0.4f);
@@ -1213,4 +1303,15 @@ void NaviPhaseWindowkill::DamageCage(int dmg) {
             }
         }
     }
+}
+
+void NaviPhaseWindowkill::TakeDamage(int damage, DirectX::XMFLOAT3 hitPos) {
+    if (m_bossHP <= 0) return;
+
+    m_bossHP = max(0, m_bossHP - damage);
+    m_hitFlashTimer = 0.05f;
+
+    CameraController::Instance().AddTrauma(0.3f);
+    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Hit.wav", 0.1f);
+    EffectManager::Instance().Play("Data/Effect/VFX_Boss_Hit.efk", hitPos, 0.3f);
 }

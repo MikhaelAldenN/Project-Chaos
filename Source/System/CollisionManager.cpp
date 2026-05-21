@@ -252,6 +252,27 @@ void CollisionManager::Update(float elapsedTime)
                 }
             }
         }
+        else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_naviBoss->GetCurrentPhase())) {
+            if (!wkPhase->IsPlayerCaged() && !wkPhase->IsDead()) {
+                DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();
+
+                float halfW = 2.5f;
+                float halfD = 2.5f;
+
+                for (auto& bullet : m_player->GetProjectiles()) {
+                    if (!bullet->IsActive()) continue;
+
+                    DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
+
+                    if (bPos.x > (bossPos.x - halfW) && bPos.x < (bossPos.x + halfW) &&
+                        bPos.z >(bossPos.z - halfD) && bPos.z < (bossPos.z + halfD))
+                    {
+                        bullet->SetActive(false);
+                        wkPhase->TakeDamage(bullet->GetDamage(), bPos);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1112,6 +1133,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
     if (wkPhase) {
         const auto& blasters = wkPhase->GetBlasters(); // Ambil array blasters
         const auto& p = wkPhase->GetBlasterParams();
+        const auto& targetedParams = wkPhase->GetTargetedBlasterParams();
 
         for (auto& bPtr : blasters) {
             auto& blaster = *bPtr;
@@ -1119,7 +1141,10 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
             if (blaster.active && blaster.state == 3) {
                 DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
 
-                float halfWidth = p.beamHitboxWidth * 0.5f;
+                float beamHitboxWidth = blaster.isTargeted ? targetedParams.beamHitboxWidth : p.beamHitboxWidth;
+                int beamDamage = blaster.isTargeted ? targetedParams.beamDamage : p.beamDamage;
+
+                float halfWidth = beamHitboxWidth * 0.5f;
                 float currentLaserLength = blaster.beamCurrentLength;
 
                 float zStart = blaster.pos.z;
@@ -1130,7 +1155,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
                     pPos.z < zStart && pPos.z > zEnd)
                 {
                     if (!m_player->IsInvincible()) {
-                        m_player->TakeDamage(p.beamDamage);
+                        m_player->TakeDamage(beamDamage);
 
                         if (m_player->GetHP() <= 0) {
                             m_player->scale = { 0.0f, 0.0f, 0.0f };

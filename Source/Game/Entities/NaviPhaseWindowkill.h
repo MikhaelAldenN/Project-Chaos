@@ -69,6 +69,8 @@ struct TargetedBlasterParams {
     float chargeDelay = 0.2f;     // Waktu peringatan (Laser transparan) sebelum nembak!
     float fireDuration = 1.0f;
     float fixedTargetZ = 10.0f;   // Sumbu Z tetap agar sejajar dengan blaster acak
+    float beamHitboxWidth = 3.0f;
+    int   beamDamage = 20;
 };
 
 class NaviPhaseWindowkill : public INaviPhase {
@@ -120,6 +122,14 @@ public:
     void TriggerTargetedBlaster(NaviBoss* boss); // Deklarasikan fungsi triggernya
 
     void SetAITarget(Player* p) { m_aiTarget = p; }
+    void SetAIEnabled(bool val) { m_aiEnabled = val; }
+    bool IsAIEnabled() const { return m_aiEnabled; }
+
+    void TakeDamage(int damage, DirectX::XMFLOAT3 hitPos);
+    void SetHP(int hp) { m_bossHP = hp; }
+    int  GetHP() const { return m_bossHP; }
+    int  GetMaxHP() const { return m_bossMaxHP; }
+    bool IsDead() const { return m_bossHP <= 0; }
 
     struct OrbitalBlaster {
         bool active = false;
@@ -250,6 +260,7 @@ public:
 
 private:
     void GenerateButterflyWings();
+    void UpdateAI(float dt, NaviBoss* boss);
 
 private:
     // Komponen FX
@@ -331,6 +342,17 @@ private:
     std::vector<int> m_undyneSpawnIndices;
 
     Player* m_aiTarget = nullptr;
+    bool    m_aiEnabled = false;
+    float   m_aiGlobalCooldown = 1.0f;
+    float   m_cdBouncing = 1.0f;
+    float   m_cdBoomerang = 4.0f;
+    float   m_cdOrbitalBlaster = 7.0f;
+    float   m_cdTargetedBlaster = 10.0f;
+    float   m_cdUndyne = 13.0f;
+
+    int   m_bossMaxHP = 10000;
+    int   m_bossHP = 10000;
+    float m_hitFlashTimer = 0.0f;
 
     // [BARU] Parameter Kandang
     NaviBoss* m_bossRef = nullptr; // Untuk menyimpan pointer boss sementara

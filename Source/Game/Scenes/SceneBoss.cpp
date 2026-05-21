@@ -872,7 +872,18 @@ void SceneBoss::DrawGUI()
                     ImGui::PopStyleColor();
                 }
                 else {
-                    ImGui::Text("Boss HP (Tracked): [Windowkill Phase Active]");
+                    if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+                        int bHP = wkPhase->GetHP();
+                        int bMaxHP = wkPhase->GetMaxHP();
+                        float bHpProgress = (bMaxHP > 0) ? (float)bHP / bMaxHP : 0.0f;
+                        ImGui::Text("Boss HP (Tracked): %d / %d", bHP, bMaxHP);
+                        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+                        ImGui::ProgressBar(bHpProgress, ImVec2(-1.0f, 18.0f));
+                        ImGui::PopStyleColor();
+                    }
+                    else {
+                        ImGui::Text("Boss HP (Tracked): [Windowkill Phase Active]");
+                    }
                 }
             }
             ImGui::Separator();
@@ -1124,6 +1135,8 @@ void SceneBoss::DrawGUI()
                     ImGui::DragFloat("Targeted Charge", &tParams.chargeDelay, 0.05f, 0.1f, 2.0f, "%.2f sec");
                     ImGui::DragFloat("Targeted Fire Dur", &tParams.fireDuration, 0.05f, 0.1f, 3.0f, "%.2f sec");
                     ImGui::DragFloat("Targeted Fixed Z", &tParams.fixedTargetZ, 0.5f, -20.0f, 50.0f, "%.1f");
+                    ImGui::DragFloat("Targeted Hitbox Width", &tParams.beamHitboxWidth, 0.1f, 0.1f, 20.0f, "%.1f");
+                    ImGui::SliderInt("Targeted Damage per Tick", &tParams.beamDamage, 1, 100);
                 }
                 ImGui::PopID();
 
@@ -1237,7 +1250,18 @@ void SceneBoss::DrawGUI()
                     ImGui::PopStyleColor();
                 }
                 else {
-                    ImGui::Text("Boss HP (Tracked): [Windowkill Phase Active]");
+                    if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+                        int bHP = wkPhase->GetHP();
+                        int bMaxHP = wkPhase->GetMaxHP();
+                        float bHpProgress = (bMaxHP > 0) ? (float)bHP / bMaxHP : 0.0f;
+                        ImGui::Text("Boss HP (Tracked): %d / %d", bHP, bMaxHP);
+                        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+                        ImGui::ProgressBar(bHpProgress, ImVec2(-1.0f, 18.0f));
+                        ImGui::PopStyleColor();
+                    }
+                    else {
+                        ImGui::Text("Boss HP (Tracked): [Windowkill Phase Active]");
+                    }
                 }
             }
             ImGui::Separator();
