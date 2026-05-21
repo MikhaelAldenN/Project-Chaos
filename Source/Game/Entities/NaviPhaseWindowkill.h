@@ -266,6 +266,8 @@ public:
 private:
     void GenerateButterflyWings();
     void UpdateAI(float dt, NaviBoss* boss);
+    void TriggerCageFirstHitDialogue(NaviBoss* boss);
+
 
 private:
     // Komponen FX
@@ -392,4 +394,6 @@ private:
 
     // ----- Overdrive Dialogue (one-shot saat player masuk overdrive) -----
     bool m_overdriveDialogueTriggered = false; // Guard agar hanya muncul sekali
+
+    bool m_cageFirstHitTriggered = false;
 };

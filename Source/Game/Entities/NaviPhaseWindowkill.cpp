@@ -193,6 +193,9 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     if (m_aiTarget) {
         m_aiTarget->SetInputEnabled(true); // Player tetap bisa gerak dari awal
     }
+
+    m_cageFirstHitTriggered = false;
+    m_overdriveDialogueTriggered = false;
 }
 
 void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
@@ -1489,6 +1492,12 @@ void NaviPhaseWindowkill::TriggerTargetedBlaster(NaviBoss* boss) {
 void NaviPhaseWindowkill::DamageCage(int dmg) {
     if (!m_isPlayerCaged) return;
 
+    bool isFirstHit = !m_cageFirstHitTriggered;
+    if (isFirstHit) {
+        m_cageFirstHitTriggered = true;
+        TriggerCageFirstHitDialogue(m_bossRef);
+    }
+
     m_cageHP -= dmg;
     if (m_cageHP < 0) m_cageHP = 0;
 
@@ -1542,6 +1551,26 @@ void NaviPhaseWindowkill::DamageCage(int dmg) {
             }
         }
     }
+}
+
+void NaviPhaseWindowkill::TriggerCageFirstHitDialogue(NaviBoss* boss)
+{
+    // Batalkan dialog yang sedang berjalan (Dialogue1/2/3 yang belum sempat tampil)
+    // dengan mengganti seluruh m_dialogueBox dengan instance baru berisi dialog alternate.
+    if (!m_isDialogueActive || !m_dialogueBox) return;
+
+    // Reset dialogueBox lama — cukup replace kontennya tanpa rebuild window,
+    // karena window tracking-nya masih aktif dan kita ingin tetap tampil di posisi yang sama.
+    m_dialogueBox = std::make_unique<UIDialogueBox>();
+    m_dialogueBox->Initialize();
+    m_dialogueBox->SetShowBackground(false);
+    m_dialogueBox->SetAutoAdvance(true, 2.5f); // Sama dengan setting semula
+
+    m_dialogueBox->StartDialogue({
+        u8"AlternateDialogue — reaksi bos saat cage kena tembak pertama"
+        });
+
+    // m_isDialogueActive tetap true — window tracking tidak perlu disentuh
 }
 
 void NaviPhaseWindowkill::TakeDamage(int damage, DirectX::XMFLOAT3 hitPos) {

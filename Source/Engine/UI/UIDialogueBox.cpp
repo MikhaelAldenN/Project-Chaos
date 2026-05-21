@@ -52,15 +52,11 @@ void UIDialogueBox::Update(float dt)
 {
     if (m_state == State::Hidden) return;
 
-    bool isConfirmPressed = Input::Instance().GetKeyboard().IsTriggered(VK_SPACE);
-
-    // Strict mode: matikan input skip di SEMUA state — Typing maupun WaitingForInput
-    if (m_strictAutoAdvance)
-        isConfirmPressed = false;
-
-    // Strict mode: input skip diabaikan sepenuhnya, wajib tunggu timer
-    if (m_autoAdvance && m_strictAutoAdvance)
-        isConfirmPressed = false;
+    // Jika auto-advance aktif, input player SELALU diabaikan sepenuhnya
+    // (baik strict maupun non-strict — auto-advance berarti sistem yang kontrol)
+    bool isConfirmPressed = false;
+    if (!m_autoAdvance)
+        isConfirmPressed = Input::Instance().GetKeyboard().IsTriggered(VK_SPACE);
 
     if (m_state == State::Typing)
     {
@@ -69,14 +65,12 @@ void UIDialogueBox::Update(float dt)
             m_typeTimer = 0.0f;
             if (m_charIndex < m_currentLine.length()) {
 
-                // [FIX] Cek panjang Byte huruf UTF-8 agar mesin tik tidak patah-patah
                 unsigned char c = m_currentLine[m_charIndex];
                 int charLength = 1;
                 if ((c & 0xE0) == 0xC0) charLength = 2;
-                else if ((c & 0xF0) == 0xE0) charLength = 3; // Huruf Jepang (Hiragana/Katakana/Kanji) selalu 3 byte
+                else if ((c & 0xF0) == 0xE0) charLength = 3;
                 else if ((c & 0xF8) == 0xF0) charLength = 4;
 
-                // Masukkan seluruh Byte karakter utuh ke layar
                 for (int i = 0; i < charLength && m_charIndex < m_currentLine.length(); ++i) {
                     m_displayedText += m_currentLine[m_charIndex];
                     m_charIndex++;
@@ -87,6 +81,7 @@ void UIDialogueBox::Update(float dt)
             }
         }
 
+        // Skip animasi mesin tik hanya jika BUKAN auto-advance
         if (isConfirmPressed) {
             m_displayedText = m_currentLine;
             m_charIndex = static_cast<int>(m_currentLine.length());
@@ -97,12 +92,10 @@ void UIDialogueBox::Update(float dt)
     {
         if (m_autoAdvance) {
             m_autoAdvanceTimer += dt;
-            // Lanjut jika timer habis ATAU player menekan tombol skip (opsional)
-            if (m_autoAdvanceTimer >= m_autoAdvanceDelay || isConfirmPressed) {
+            if (m_autoAdvanceTimer >= m_autoAdvanceDelay) {
                 m_autoAdvanceTimer = 0.0f;
                 AdvanceDialogue();
             }
-
         }
         else {
             if (isConfirmPressed) {
@@ -186,6 +179,6 @@ void UIDialogueBox::RenderToWindow(ID3D11DeviceContext* dc, float windowW, float
 
     // Teks dengan margin dari tepi client area window
     const float marginX = 14.0f;
-    const float marginY = 12.0f;
+    const float marginY = 30.0f;
     m_font->Draw(m_displayedText, marginX, marginY, 1.0f, { 1.0f, 1.0f, 1.0f, 1.0f });
 }
