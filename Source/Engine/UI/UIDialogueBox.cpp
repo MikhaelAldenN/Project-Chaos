@@ -94,6 +94,7 @@ void UIDialogueBox::Update(float dt)
                 m_autoAdvanceTimer = 0.0f;
                 AdvanceDialogue();
             }
+
         }
         else {
             if (isConfirmPressed) {

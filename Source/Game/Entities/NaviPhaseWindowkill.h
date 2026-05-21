@@ -44,7 +44,7 @@ struct BoomerangWindowBullet {
 // UNDYNE SPEAR STRUCT & PARAMS
 // =========================================================
 struct UndyneSpearParams {
-    int   count = 20;                // Parameter: Spawn Count
+    int   count = 10;                // Parameter: Spawn Count
     float spawnDelay = 0.4f;        // Parameter: Spawn Delay
     float hoverDuration = 1.0f;     // Parameter: Waktu Membidik
     float telegraphDuration = 1.0f; // Parameter: Shoot Delay (Laser menyala)

@@ -76,13 +76,13 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
 
     // Matikan background dan atur posisi teks MELAYANG di dunia 3D (misal: di atas bos)
     m_dialogueBox->SetShowBackground(false);
-    m_dialogueBox->SetWorldPosition({ -3.0f, 0.0f, 0.0f }); // X, Y, Z (Sesuaikan kordinatnya)
+    m_dialogueBox->SetWorldPosition({ -20.0f, -10.0f, 0.0f }); // X, Y, Z (Sesuaikan kordinatnya)
 
     m_dialogueBox->SetAutoAdvance(true, 1.5f);
     m_dialogueBox->StartDialogue({
-        u8"やばっ！ウチのモデル消しちゃったんだけど～うけるwww", // "Yaba! Model gue kehapus dong~ wkwkwk"
-        u8"ちょい待ち～～",                                   // "Tunggu bentar~~"
-        u8"これ、どう？"                                      // "Kalo gini, gimana?"
+        u8"Dialogue1",
+        u8"Dialogue2",                 
+        u8"Dialogue3"   
         });
 
     m_isOpeningEvent = true;
