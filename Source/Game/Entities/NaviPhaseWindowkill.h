@@ -59,6 +59,18 @@ struct UndyneSpearParams {
     float arcMaxAngle = 160.0f;   // Sudut maksimal (Derajat)
 };
 
+// =========================================================
+// [BARU] Parameter Khusus Targeted Blaster
+// =========================================================
+struct TargetedBlasterParams {
+    int   spawnCount = 5;
+    float spawnDelay = 0.8f;      // Jeda antar kemunculan meriam
+    float dropInDuration = 0.3f;  // Meriam jatuh lebih cepat dari atas
+    float chargeDelay = 0.4f;     // Waktu peringatan (Laser transparan) sebelum nembak!
+    float fireDuration = 1.0f;
+    float fixedTargetZ = 10.0f;   // Sumbu Z tetap agar sejajar dengan blaster acak
+};
+
 class NaviPhaseWindowkill : public INaviPhase {
 public:
     NaviPhaseWindowkill();
@@ -105,6 +117,7 @@ public:
     std::vector<Bullet*> GetProjectiles();
 
     void TriggerOrbitalBlaster(NaviBoss* boss);
+    void TriggerTargetedBlaster(NaviBoss* boss); // Deklarasikan fungsi triggernya
 
     void SetAITarget(Player* p) { m_aiTarget = p; }
 
@@ -122,6 +135,8 @@ public:
 
         Effekseer::Handle chargeEffectHandle = -1;
         Effekseer::Handle fireEffectHandle = -1; // [NEW] Handle untuk efek tembakan (LASER.efk)
+    
+        bool isTargeted = false;
     };
 
     // ==========================================
@@ -165,6 +180,7 @@ public:
     };
     BlasterParams& GetBlasterParams() { return m_blasterParams; }
     const std::vector<std::shared_ptr<OrbitalBlaster>>& GetBlasters() const { return m_blasters; }
+    TargetedBlasterParams& GetTargetedBlasterParams() { return m_targetedBlasterParams; }
 
     // ==========================================
     // PARAMETER WINDOW MEMANTUL (REFINED)
@@ -272,14 +288,20 @@ private:
     OrbitalBlaster m_testBlaster; // Untuk dicoba 1 dulu
 
     BlasterParams m_blasterParams; // Instance parameter
+    TargetedBlasterParams m_targetedBlasterParams;
+
     BouncingBulletParams m_bouncingParams; // Instance parameter
 
     std::unique_ptr<Primitive> m_solidRenderer;
+
 
     std::vector<std::shared_ptr<OrbitalBlaster>> m_blasters;
     bool  m_isSpawningBlasters = false;
     int   m_blastersSpawned = 0;
     float m_blasterSpawnTimer = 0.0f;
+    bool  m_isSpawningTargetedBlasters = false;
+    int   m_targetedBlastersSpawned = 0;
+    float m_targetedBlasterSpawnTimer = 0.0f;
 
     std::vector<BoomerangWindowBullet> m_boomerangs;
     BoomerangParams m_boomerangParams;

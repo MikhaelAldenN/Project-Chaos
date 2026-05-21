@@ -1030,12 +1030,18 @@ void SceneBoss::DrawGUI()
                     ImGui::SliderFloat("Time Scale", &m_timeScale, 0.1f, 3.0f, "%.1fx");
                     if (ImGui::Button("Reset Time (1.0x)")) m_timeScale = 1.0f;
                 }
-
                 ImGui::PushID("OrbitalLaserBlock");
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
-                if (ImGui::Button("FIRE ORBITAL LASER", ImVec2(-1.0f, 40.0f))) {
+
+                if (ImGui::Button("FIRE ORBITAL LASER (RANDOM)", ImVec2(-1.0f, 40.0f))) {
                     wkPhase->TriggerOrbitalBlaster(m_navi.get());
+                }
+
+                // [BARU] Tombol untuk Targeted Blaster
+                if (ImGui::Button("FIRE ORBITAL LASER (TARGETED)", ImVec2(-1.0f, 40.0f))) {
+                    wkPhase->TriggerTargetedBlaster(m_navi.get());
+                    AddLog("Targeted Orbital Blaster Triggered!");
                 }
                 ImGui::PopStyleColor(2);
 
@@ -1062,6 +1068,17 @@ void SceneBoss::DrawGUI()
                     ImGui::SliderFloat("Spawn Spread (Width)", &bp.spawnSpreadX, 10.0f, 100.0f);
                     ImGui::SliderFloat("Charge Delay (Telegraph)", &bp.chargeDelay, 0.1f, 3.0f, "%.2f sec");
                     ImGui::SliderFloat("Fire Duration", &bp.fireDuration, 0.1f, 3.0f, "%.2f sec");
+                }
+
+                // [BARU] Menu tuning parameter Targeted Blaster
+                if (ImGui::CollapsingHeader("Targeted Blaster Config", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    auto& tParams = wkPhase->GetTargetedBlasterParams(); // Pastikan kamu buat Getter-nya di .h ya!
+                    ImGui::SliderInt("Targeted Count", &tParams.spawnCount, 1, 20);
+                    ImGui::DragFloat("Targeted Spawn Delay", &tParams.spawnDelay, 0.05f, 0.05f, 2.0f, "%.2f sec");
+                    ImGui::DragFloat("Targeted Drop In", &tParams.dropInDuration, 0.05f, 0.1f, 2.0f, "%.2f sec");
+                    ImGui::DragFloat("Targeted Charge", &tParams.chargeDelay, 0.05f, 0.1f, 2.0f, "%.2f sec");
+                    ImGui::DragFloat("Targeted Fire Dur", &tParams.fireDuration, 0.05f, 0.1f, 3.0f, "%.2f sec");
+                    ImGui::DragFloat("Targeted Fixed Z", &tParams.fixedTargetZ, 0.5f, -20.0f, 50.0f, "%.1f");
                 }
                 ImGui::PopID();
 

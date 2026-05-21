@@ -602,6 +602,10 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
 
         b->timer += dt;
 
+        float activeDropIn = b->isTargeted ? m_targetedBlasterParams.dropInDuration : m_blasterParams.dropInDuration;
+        float activeCharge = b->isTargeted ? m_targetedBlasterParams.chargeDelay : m_blasterParams.chargeDelay;
+        float activeFire = b->isTargeted ? m_targetedBlasterParams.fireDuration : m_blasterParams.fireDuration;
+
         // [PRO APPROACH] Hitung posisi efek satu kali saja untuk frame ini
         DirectX::XMFLOAT3 vfxPos = {
             b->pos.x + m_blasterParams.effectOffset.x,
@@ -612,7 +616,7 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
         if (b->state == 1) { // DROP IN
             b->pos.z += (b->targetPos.z - b->pos.z) * 12.0f * dt;
 
-            if (b->timer >= m_blasterParams.dropInDuration) {
+            if (b->timer >= activeDropIn) {
                 b->state = 2;
                 b->timer = 0.0f;
                 AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Laser_Charge.wav", 0.1f);
@@ -637,7 +641,7 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
             EffectManager::Instance().SetPosition(b->chargeEffectHandle, vfxPos);
             EffectManager::Instance().SetTargetPosition(b->chargeEffectHandle, vfxPos);
 
-            if (b->timer >= m_blasterParams.chargeDelay) {
+            if (b->timer >= activeCharge) {
                 b->state = 3;
                 b->timer = 0.0f;
                 CameraController::Instance().AddTrauma(0.6f);
@@ -667,7 +671,7 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
             EffectManager::Instance().SetPosition(b->fireEffectHandle, vfxPos);
             EffectManager::Instance().SetTargetPosition(b->fireEffectHandle, vfxPos);
 
-            if (b->timer >= m_blasterParams.fireDuration) {
+            if (b->timer >= activeFire) {
                 b->state = 4;
                 b->timer = 0.0f;
 
@@ -701,6 +705,87 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
             }
         }
         ++it;
+    }
+
+    // =========================================================
+        // [BARU] Logika Spawner Targeted Blaster (Hanya X-Axis)
+        // =========================================================
+    if (m_isSpawningTargetedBlasters) {
+        m_targetedBlasterSpawnTimer += dt;
+
+        while (m_isSpawningTargetedBlasters && m_targetedBlasterSpawnTimer >= m_targetedBlasterParams.spawnDelay) {
+            if (m_targetedBlasterParams.spawnDelay > 0.0f) m_targetedBlasterSpawnTimer -= m_targetedBlasterParams.spawnDelay;
+            else m_targetedBlasterSpawnTimer = 1.0f;
+
+            // 1. Ambil posisi X player saja!
+            float lockX = 0.0f;
+            if (m_aiTarget) {
+                lockX = m_aiTarget->GetPosition().x;
+            }
+
+            auto blaster = std::make_shared<OrbitalBlaster>();
+            blaster->active = true;
+            blaster->state = 1;
+            blaster->timer = 0.0f;
+
+            // [PENTING] Tandai bahwa ini blaster khusus!
+            blaster->isTargeted = true;
+
+            // 3. KUNCI POSISI X SAJA! Z menggunakan parameter fixedTargetZ
+            blaster->baseX = lockX;
+            blaster->pos = { lockX, 1.0f, m_targetedBlasterParams.fixedTargetZ + 15.0f };
+            blaster->targetPos = { lockX, 1.0f, m_targetedBlasterParams.fixedTargetZ };
+
+            blaster->beamScaleX = 0.0f;
+            blaster->beamCurrentLength = 0.0f;
+            int uniqueID = rand() % 100000;
+            blaster->beamWindowName = "targeted_beam_" + std::to_string(uniqueID);
+            blaster->windowName = "targeted_cannon_" + std::to_string(uniqueID);
+
+            // A. SPAWN LASER WINDOW
+            TrackedWindowConfig beamCfg;
+            beamCfg.name = blaster->beamWindowName;
+            beamCfg.title = "!!! TARGETED BEAM !!!";
+            beamCfg.isTransparent = false;
+            beamCfg.priority = 1;
+
+            boss->GetWindowSystem()->AddTrackedWindow(beamCfg,
+                [ptr = blaster.get()]() {
+                    if (ptr->state < 2) return DirectX::XMFLOAT3(ptr->pos.x, ptr->pos.y, -10000.0f);
+                    return ptr->pos;
+                },
+                [ptr = blaster.get(), this, boss]() {
+                    if (ptr->state < 2) return DirectX::XMFLOAT2(1.0f, 1.0f);
+                    float p2u = boss->GetWindowSystem()->GetPixelToUnitRatio();
+                    float w = max(50.0f, (ptr->beamScaleX + 1.5f) * p2u);
+                    float h = max(1.0f, ptr->beamCurrentLength * p2u);
+                    return DirectX::XMFLOAT2(w, h);
+                }
+            );
+
+            // B. SPAWN CANNON WINDOW
+            TrackedWindowConfig cfg;
+            cfg.name = blaster->windowName;
+            cfg.title = "DANGER: TARGETED CANNON";
+            cfg.width = (int)m_blasterParams.cannonWindowSize;
+            cfg.height = (int)m_blasterParams.cannonWindowSize;
+            cfg.role = WindowRole::TRACKED_ENTITY;
+            cfg.isTransparent = false;
+            cfg.priority = 10;
+
+            boss->GetWindowSystem()->AddTrackedWindow(cfg,
+                [ptr = blaster.get()]() { return ptr->pos; },
+                [this]() { return DirectX::XMFLOAT2(m_blasterParams.cannonWindowSize, m_blasterParams.cannonWindowSize); }
+            );
+
+            // 4. Masukkan ke list utama agar dieksekusi di blok "2. UPDATE PERILAKU"
+            m_blasters.push_back(blaster);
+            m_targetedBlastersSpawned++;
+
+            if (m_targetedBlastersSpawned >= m_blasterParams.spawnCount) {
+                m_isSpawningTargetedBlasters = false;
+            }
+        }
     }
 
     // =========================================================
@@ -1004,4 +1089,18 @@ void NaviPhaseWindowkill::TriggerUndyneSpear(NaviBoss* boss) {
     // Acak urutan angkanya (misal menjadi: 3, 0, 5, 1...)
     static std::mt19937 gen(std::random_device{}());
     std::shuffle(m_undyneSpawnIndices.begin(), m_undyneSpawnIndices.end(), gen);
+}
+
+void NaviPhaseWindowkill::TriggerTargetedBlaster(NaviBoss* boss) {
+    if (!boss || !boss->GetWindowSystem()) return;
+
+    if (!m_placeholderModel) {
+        auto device = Graphics::Instance().GetDevice();
+        m_placeholderModel = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_mdl_Ball.glb");
+    }
+
+    // Aktifkan sistem spawner Targeted!
+    m_isSpawningTargetedBlasters = true;
+    m_targetedBlastersSpawned = 0;
+    m_targetedBlasterSpawnTimer = m_blasterParams.spawnDelay;
 }
