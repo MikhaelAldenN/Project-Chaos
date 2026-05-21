@@ -144,12 +144,36 @@ void SceneGame::Update(const float elapsedTime)
     m_globalTime += elapsedTime;
     if (m_globalTime > Config::TIME_LOOP_MAX) m_globalTime -= Config::TIME_LOOP_MAX;
 
-    if (m_player && m_player->GetHP() <= 0 && !m_isDying && m_respawnTimer <= 0.0f)
+    if (m_navi && !m_navi->IsAlive() && !m_isNaviDefeatSequenceActive)
+    {
+        StartNaviDefeatSequence();
+    }
+
+    if (m_player && m_player->GetHP() <= 0 && !m_isDying && !m_isNaviDefeatSequenceActive && m_respawnTimer <= 0.0f)
     {
         StartPlayerDeathSequence();
     }
 
-    if (m_bootTimer > 0.0f)
+    if (m_isNaviDefeatSequenceActive)
+    {
+        m_naviDefeatTimer += elapsedTime;
+
+        const float linearT{ std::clamp(m_naviDefeatTimer / NAVI_DEFEAT_FADE_DURATION, 0.0f, 1.0f) };
+        const float t{ linearT * linearT * (3.0f - 2.0f * linearT) };
+
+        m_uberParams.smoothness = FX_BASE_SMOOTHNESS + (FX_BLACK_SMOOTHNESS - FX_BASE_SMOOTHNESS) * t;
+        m_uberParams.intensity = FX_BASE_INTENSITY + (FX_BLACK_INTENSITY - FX_BASE_INTENSITY) * t;
+        m_fadeAlpha = t;
+
+        if (linearT >= 1.0f)
+        {
+            m_uberParams.smoothness = FX_BLACK_SMOOTHNESS;
+            m_uberParams.intensity = FX_BLACK_INTENSITY;
+            m_fadeAlpha = 1.0f;
+            m_isNaviDefeatReadyForNextScene = true;
+        }
+    }
+    else if (m_bootTimer > 0.0f)
     {
         m_bootTimer -= elapsedTime;
         m_fadeAlpha = 1.0f;
@@ -475,6 +499,25 @@ void SceneGame::StartPlayerDeathSequence()
     }
 }
 
+void SceneGame::StartNaviDefeatSequence()
+{
+    if (m_isNaviDefeatSequenceActive) return;
+
+    m_isNaviDefeatSequenceActive = true;
+    m_naviDefeatTimer = 0.0f;
+    m_isNaviDefeatReadyForNextScene = false;
+
+    AudioManager::Instance().FadeOutMusic(NAVI_DEFEAT_FADE_DURATION);
+
+    if (m_player)
+    {
+        m_player->SetInputEnabled(false);
+        m_player->SetAimLocked(true);
+        m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
+        m_player->GetProjectiles().clear();
+    }
+}
+
 void SceneGame::ResetLevel()
 {
     const bool isBossStage = m_bossCinematicTriggered;
@@ -545,7 +588,7 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
 
     activeData.psxEnabled = (m_fxState.MasterEnabled && m_fxState.EnablePSX);
 
-    if (!m_fxState.EnableVignette && !m_isDying && m_respawnTimer <= 0.0f)  
+    if (!m_fxState.EnableVignette && !m_isDying && !m_isNaviDefeatSequenceActive && m_respawnTimer <= 0.0f)
     {
         activeData.intensity = 0.0f;
     }

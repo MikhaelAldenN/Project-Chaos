@@ -121,9 +121,13 @@ private:
     float m_bootTimer{ 1.1f };
     float m_respawnTimer{ RESPAWN_FADE_DURATION };
     bool m_hasBGMStarted{ false };
+    bool m_isNaviDefeatSequenceActive{ false };
+    float m_naviDefeatTimer{ 0.0f };
+    bool m_isNaviDefeatReadyForNextScene{ false };
 
     static constexpr float DEATH_DELAY_DURATION{ 0.5f };
     static constexpr float DEATH_FADE_DURATION{ 3.0f };
+    static constexpr float NAVI_DEFEAT_FADE_DURATION{ 3.0f };
     static constexpr float RESPAWN_FADE_DURATION{ 3.0f };
     static constexpr float WHITEOUT_HOLD_DURATION{ 15.0f };
     static constexpr float FADE_BACK_DURATION{ 2.0f };
@@ -137,6 +141,7 @@ private:
     const DirectX::XMFLOAT3 m_playerSpawnPos{ 0.0f, 2.0f, 0.0f };
 
     void StartPlayerDeathSequence();
+    void StartNaviDefeatSequence();
     void ResetLevel();
 
     // Cinematic States
