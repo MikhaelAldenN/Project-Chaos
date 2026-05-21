@@ -86,7 +86,7 @@ struct NaviBulletParams {
     float rainActiveDuration = 2.0f;
     float rainWidth = 25.0f;
     float rainDepth = 40.0f;
-    int   rainDamage = 2; // Sudah ada bawaan
+    float rainDamage = 1.0f; // Sudah ada bawaan
 };
 
 // ============================================================
