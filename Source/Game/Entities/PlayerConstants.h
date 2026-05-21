@@ -25,7 +25,7 @@ namespace PlayerConst
     // --- Dash ---
     inline constexpr float DashSpeed = 45.0f;  // Burst speed during dash (units/s)
     inline constexpr float DashDuration = 0.15f;  // How long the dash lasts (s)
-    inline constexpr float DashCooldown = 0.5f;   // Time before dash can be used again (s)
+    inline constexpr float DashCooldown = 1.0f;   // Time before dash can be used again (s)
 
     // --- Slash ---
     inline constexpr float SlashLungeForce = 40.0f;  // Initial velocity burst on slash enter

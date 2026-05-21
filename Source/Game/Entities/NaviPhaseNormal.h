@@ -29,7 +29,7 @@ struct NaviBulletParams {
     float despawnDist = 60.0f;
 
     // ----- Targeted Fan Burst (Shotgun) -----
-    float fanSpeed = 35.5f;
+    float fanSpeed = 35.617f;
     int   fanLines = 5;
     int   fanWaves = 4;
     float fanWaveDelay = 0.133f;
@@ -49,40 +49,40 @@ struct NaviBulletParams {
     float bijuudamaMaxHitboxGrow = 2.0f;
     float bijuudamaVisualMultiplier = 4.0f;
     float bijuudamaSpawnOffsetZ = 2.0f;
-    float bijuudamaShootSpeed = 45.0f;
+    float bijuudamaShootSpeed = 50.0f;
     float bijuudamaAttackMoveSpeed = 3.0f;
     float bijuudamaReturnMoveSpeed = 2.0f;
     float bijuudamaPostFireDelay = 1.0f;
     int   bijuudamaBallDamage = 40; // [BARU] Damage hantaman bola raksasa
 
     // ----- Shatter Bijuudama (Parry burst fragments) -----
-    int   shatterMinFragments = 5;
-    int   shatterMaxFragments = 8;
+    int   shatterMinFragments = 8;
+    int   shatterMaxFragments = 10;
     float shatterMinRadius = 0.2f;
     float shatterMaxRadius = 0.8f;
     float shatterMinDuration = 0.5f;
     float shatterMaxDuration = 0.7f;
-    float shatterCurveOffset = 11.0f;
+    float shatterCurveOffset = 15.0f;
 
     // ----- Glintstone Phalanx (Orbiting homing swords) -----
-    int   phalanxCount = 7;
+    int   phalanxCount = 8;
     float phalanxChargeDelay = 0.2f;
-    float phalanxHoldDuration = 2.0f;
-    float phalanxFireDelay = 0.0f;
-    float phalanxSpeed = 80.0f;
+    float phalanxHoldDuration = 2.5f;
+    float phalanxFireDelay = 0.050f;
+    float phalanxSpeed = 70.0f;
     float phalanxHoverRadius = 4.0f;
-    float phalanxTurnSpeed = 1.5f;
+    float phalanxTurnSpeed = 3.0f;
     float phalanxSmoothSpeed = 12.0f;
     float phalanxPostFireDelay = 1.0f;
-    float phalanxAttackMoveSpeed = 2.0f;
+    float phalanxAttackMoveSpeed = 3.0f;
     float phalanxReturnMoveSpeed = 2.0f;
-    int   phalanxDamage = 25; // [BARU] Damage pedang melayang
+    int   phalanxDamage = 3; // [BARU] Damage pedang melayang
 
 
     // ----- Asgore Rain (Area Denial) -----
     float rainMinSpeed = 50.0f;
     float rainMaxSpeed = 90.0f;
-    float rainWarningDuration = 1.5f;
+    float rainWarningDuration = 1.2f;
     float rainActiveDuration = 2.0f;
     float rainWidth = 25.0f;
     float rainDepth = 40.0f;
