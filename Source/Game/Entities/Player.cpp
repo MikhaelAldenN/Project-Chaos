@@ -232,8 +232,10 @@ void Player::Update(float elapsedTime, Camera* camera)
 
 
     // =========================================================
-        // Logika Standby Dash VFX (Otomatis & Tracking)
-        // =========================================================
+    // Logika Standby Dash VFX (Otomatis & Tracking)
+    // =========================================================
+
+    if (m_hp <= 0) return;
     if (canDash)
     {
         // 1. Jika handle kosong atau efek sebelumnya sudah selesai (mati), putar lagi!
@@ -762,6 +764,25 @@ void Player::RenderWeapon(ModelRenderer* renderer)
     }
 }
 
+void Player::StopAllVFX()
+{
+    // Clear Dash Ready Effect
+    if (m_dashReadyVfxHandle != -1) {
+        EffectManager::Instance().Stop(m_dashReadyVfxHandle);
+        m_dashReadyVfxHandle = -1;
+    }
+    // Clear Dash Standby Effect
+    if (m_dashStandbyVfxHandle != -1) {
+        EffectManager::Instance().Stop(m_dashStandbyVfxHandle);
+        m_dashStandbyVfxHandle = -1;
+    }
+    // Clear Overdrive Effect
+    if (m_overdriveVfxHandle != -1) {
+        EffectManager::Instance().Stop(m_overdriveVfxHandle);
+        m_overdriveVfxHandle = -1;
+    }
+}
+
 // ============================================================
 // DAMAGE SYSTEM
 // ============================================================
@@ -780,6 +801,7 @@ void Player::TakeDamage(int damage)
     if (m_hp <= 0)
     {
         m_hp = 0;
+        StopAllVFX();
     }
 }
 

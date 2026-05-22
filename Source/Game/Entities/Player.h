@@ -277,6 +277,9 @@ private:
 
     int m_overdriveVfxHandle = -1;
 
+	// Stop effect
+    void StopAllVFX();
+
 
 	// --- Glitch Effect ---
     float m_damageGlitchTimer{ 0.0f };
