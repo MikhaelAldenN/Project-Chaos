@@ -11,6 +11,7 @@
 #include <System/AudioManager.h>
 #include "EffectManager.h"
 #include "CameraController.h"
+#include "NaviPhaseTitle.h"
 
 using namespace DirectX;
 
@@ -181,10 +182,7 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     // Autoadvance ON, strict OFF → player bebas gerak, dialog jalan sendiri
     m_dialogueBox->SetAutoAdvance(true, 2.5f, false);
     m_dialogueBox->StartDialogue({
-        u8"...",
-        u8"Dialogue1",
-        u8"Dialogue2",
-        u8"Dialogue3"
+        u8"ウィンドウを撃て"
         });
 
     m_isDialogueActive = true;
@@ -363,6 +361,21 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
                 m_deathVfxHandle = -1;
             }
 
+            // Hentikan musik
+            AudioManager::Instance().StopMusic();
+
+            // Hapus boss head window dari tracking system
+            if (boss->GetWindowSystem()) {
+                boss->GetWindowSystem()->RemoveTrackedWindow("navi_head");
+            }
+            // Sembunyikan main window boss
+            if (boss->GetMainWindow()) {
+                SDL_HideWindow(boss->GetMainWindow()->GetSDLWindow());
+            }
+
+            // Kembali ke title phase
+            boss->ChangePhase(std::make_unique<NaviPhaseTitle>(m_aiTarget));
+            return; // Jangan lanjutkan Update frame ini
         }
 
 
@@ -460,7 +473,7 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
         m_overdriveAlpha += m_overdriveFadeSpeed * dt;
         if (m_overdriveAlpha > 1.0f) m_overdriveAlpha = 1.0f;
 
-        // ---- One-shot: munculkan dialogue baru pertama kali overdrive aktif ----
+        // ---- One-shot: overdrive aktif, dialogue tidak dibutuhkan ----
         if (!m_overdriveDialogueTriggered) {
             m_overdriveDialogueTriggered = true;
 
@@ -471,46 +484,6 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
                 m_dialogueCamera.reset();
                 m_isDialogueActive = false;
             }
-
-            // Spawn window tracking baru untuk overdrive dialogue
-            if (boss && boss->GetWindowSystem()) {
-                m_dialogueWorldPos = { 0.0f, 0.0f, 3.0f };
-
-                TrackedWindowConfig diagCfg;
-                diagCfg.name = m_dialogueWindowName;
-                diagCfg.title = "N.A.V.I";
-                diagCfg.width = (int)m_dialogueWindowW;
-                diagCfg.height = (int)m_dialogueWindowH;
-                diagCfg.role = WindowRole::TRACKED_ENTITY;
-                diagCfg.isTransparent = false;
-                diagCfg.priority = 5;
-
-                boss->GetWindowSystem()->AddTrackedWindow(diagCfg,
-                    [this]() { return m_dialogueWorldPos; },
-                    [this]() { return DirectX::XMFLOAT2(m_dialogueWindowW, m_dialogueWindowH); }
-                );
-
-                auto* diagWin = boss->GetWindowSystem()->GetTrackedWindow(m_dialogueWindowName);
-                if (diagWin && diagWin->window) {
-                    m_dialogueWindow = diagWin->window;
-                    m_dialogueCamera = diagWin->camera;
-                    m_dialogueWindow->SetBackgroundAlpha(1.0f);
-                    m_dialogueWindow->SetClickThrough(false);
-                    m_dialogueWindow->SetBorderVisible(true);
-                    m_dialogueWindow->SetDraggable(false);
-                }
-            }
-
-            // Inisialisasi dialogue baru — autoadvance, player bebas gerak
-            m_dialogueBox = std::make_unique<UIDialogueBox>();
-            m_dialogueBox->Initialize();
-            m_dialogueBox->SetShowBackground(false);
-            m_dialogueBox->SetAutoAdvance(true, 3.0f, true);
-            m_dialogueBox->StartDialogue({
-                u8"OverdriveDialogue1",
-                u8"OverdriveDialogue2"
-                });
-            m_isDialogueActive = true;
         }
     }
     else {
@@ -1650,22 +1623,7 @@ void NaviPhaseWindowkill::DamageCage(int dmg) {
 
 void NaviPhaseWindowkill::TriggerCageFirstHitDialogue(NaviBoss* boss)
 {
-    // Batalkan dialog yang sedang berjalan (Dialogue1/2/3 yang belum sempat tampil)
-    // dengan mengganti seluruh m_dialogueBox dengan instance baru berisi dialog alternate.
-    if (!m_isDialogueActive || !m_dialogueBox) return;
-
-    // Reset dialogueBox lama — cukup replace kontennya tanpa rebuild window,
-    // karena window tracking-nya masih aktif dan kita ingin tetap tampil di posisi yang sama.
-    m_dialogueBox = std::make_unique<UIDialogueBox>();
-    m_dialogueBox->Initialize();
-    m_dialogueBox->SetShowBackground(false);
-    m_dialogueBox->SetAutoAdvance(true, 2.5f); // Sama dengan setting semula
-
-    m_dialogueBox->StartDialogue({
-        u8"AlternateDialogue — reaksi bos saat cage kena tembak pertama"
-        });
-
-    // m_isDialogueActive tetap true — window tracking tidak perlu disentuh
+    // Dialog tidak dibutuhkan — fungsi dikosongkan dengan sengaja.
 }
 
 void NaviPhaseWindowkill::TakeDamage(int damage, DirectX::XMFLOAT3 hitPos) {

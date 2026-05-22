@@ -150,6 +150,7 @@
     <ClInclude Include="Source\Engine\Legacy\TextDatabase.h" />
     <ClInclude Include="Source\Engine\UI\ButtonManager.h" />
     <ClInclude Include="Source\Engine\UI\CursorBlock.h" />
+    <ClInclude Include="Source\Engine\UI\HUDRenderer.h" />
     <ClInclude Include="Source\Engine\UI\TUIBuilder.h" />
     <ClInclude Include="Source\Engine\UI\UIButton.h" />
     <ClInclude Include="Source\Engine\UI\UIButtonPrimitive.h" />
@@ -180,6 +181,7 @@
     <ClInclude Include="Source\Game\Entities\NaviAlly.h" />
     <ClInclude Include="Source\Game\Entities\NaviBoss.h" />
     <ClInclude Include="Source\Game\Entities\NaviPhaseNormal.h" />
+    <ClInclude Include="Source\Game\Entities\NaviPhaseTitle.h" />
     <ClInclude Include="Source\Game\Entities\NaviPhaseWindowkill.h" />
     <ClInclude Include="Source\Game\Entities\Player.h" />
     <ClInclude Include="Source\Game\Entities\PlayerConstants.h" />
@@ -252,6 +254,7 @@
     <ClCompile Include="Source\Engine\Legacy\TerminalMonitor1.cpp" />
     <ClCompile Include="Source\Engine\Legacy\TextDatabase.cpp" />
     <ClCompile Include="Source\Engine\UI\CursorBlock.cpp" />
+    <ClCompile Include="Source\Engine\UI\HUDRenderer.cpp" />
     <ClCompile Include="Source\Engine\UI\TUIBuilder.cpp" />
     <ClCompile Include="Source\Engine\UI\UIComponents.cpp" />
     <ClCompile Include="Source\Engine\UI\UIDialogueBox.cpp" />
@@ -278,6 +281,7 @@
     <ClCompile Include="Source\Game\Entities\NaviAlly.cpp" />
     <ClCompile Include="Source\Game\Entities\NaviBoss.cpp" />
     <ClCompile Include="Source\Game\Entities\NaviPhaseNormal.cpp" />
+    <ClCompile Include="Source\Game\Entities\NaviPhaseTitle.cpp" />
     <ClCompile Include="Source\Game\Entities\NaviPhaseWindowkill.cpp" />
     <ClCompile Include="Source\Game\Entities\Player.cpp" />
     <ClCompile Include="Source\Game\Entities\Weapon.cpp" />

@@ -10,10 +10,36 @@ void UIDialogueBox::Initialize()
     auto device = Graphics::Instance().GetDevice();
     m_panelSprite = std::make_unique<Sprite>(device, "Data/Sprite/UI/Sprite_DialogueBox.png");
 
-    // Daftarkan Unicode Codepoint Kanji Jepang yang kamu ketik di naskah dialogmu
-    // �n = 0x59CB, �� = 0x6B7B
-    //std::vector<uint32_t> requiredKanji = { 0x59CB, 0x6B7B };
-    std::vector<uint32_t> requiredKanji = { 0x6D88, 0x5F85, 0x76DB };
+    // Semua karakter yang dipakai di dialog Jepang (kana + kanji + tanda baca)
+    // Di-generate dari: "WASDで移動" / "カーソルで狙い、スペースで射撃" / "シフトでダッシュ" / "ウィンドウを撃て"
+    std::vector<uint32_t> requiredKanji = {
+        0x3001, // 、
+        0x3044, // い
+        0x3066, // て
+        0x3067, // で
+        0x3092, // を
+        0x30A3, // ィ
+        0x30A6, // ウ
+        0x30AB, // カ
+        0x30B7, // シ
+        0x30B9, // ス
+        0x30BD, // ソ
+        0x30C0, // ダ
+        0x30C3, // ッ
+        0x30C8, // ト
+        0x30C9, // ド
+        0x30D5, // フ
+        0x30DA, // ペ
+        0x30E5, // ュ
+        0x30EB, // ル
+        0x30F3, // ン
+        0x30FC, // ー
+        0x52D5, // 動
+        0x5C04, // 射
+        0x6483, // 撃
+        0x72D9, // 狙
+        0x79FB, // 移
+    };
 
     m_font = std::make_unique<FontTTF>();
     // Inisialisasi file font ttf langsung dengan ukuran pixel tajam (misal 24px atau 32px)

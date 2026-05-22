@@ -80,9 +80,9 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
 
     m_dialogueBox->SetAutoAdvance(true, 1.5f);
     m_dialogueBox->StartDialogue({
-        u8"Dialogue1",
-        u8"Dialogue2",                 
-        u8"Dialogue3"   
+        u8"WASDで移動",
+        u8"カーソルで狙い、スペースで射撃",
+        u8"シフトでダッシュ"
         });
 
     m_isOpeningEvent = true;
@@ -182,7 +182,7 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
 
             WindowShatterManager::Instance().WakeUpAll();
             boss->ChangePhase(std::make_unique<NaviPhaseWindowkill>(m_aiTarget));
-           
+
         }
 
         return; // Hentikan sisa logika Update Normal Phase saat bos sedang mati
@@ -229,7 +229,7 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
 
             // Otomatis putar musik pertarungan
             AudioManager::Instance().PlayMusic("Data/Sound/BGM_Boss_Phase_01.wav", 0.05f * m_params.bgmVolumeMultiplier, true);
-        
+
             //m_bossGlitchVfxHandle = EffectManager::Instance().Play("Data/Effect/VFX_Boss_Glitch.efk", boss->GetPosition(), 3.0f);
         }
     }
@@ -449,7 +449,7 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
                             bullet->SetTurnSpeed(m_params.phalanxTurnSpeed);
                             bullet->SetDamage(m_params.phalanxDamage);
 
-                            
+
                             bullet->AttachVFX("Data/Effect/VFX_Boss_Phalanx_Smoke.efk", 0.3f);
 
                             m_phalanxBullets.push_back(bullet.get());
@@ -683,7 +683,7 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
 
             // Resolve: charge timer expired — fire the ball
             if (m_laserTimer >= m_params.laserDuration) {
-                
+
                 if (m_chargeEffectHandle != -1) {
                     EffectManager::Instance().Stop(m_chargeEffectHandle);
                     m_chargeEffectHandle = -1;

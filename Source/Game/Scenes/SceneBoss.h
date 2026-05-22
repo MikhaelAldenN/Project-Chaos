@@ -16,6 +16,7 @@
 #include "BeyondWindow.h"
 #include "PhysXUtils.h"
 #include "NaviBoss.h"
+#include "HUDRenderer.h"
 
 // =========================================================
 // SCENE BOSS - WINDOWKILL MODE
@@ -56,7 +57,7 @@ private:
     void SpawnDebugWindow();
     void SpawnTransparentWindow(float bgAlpha, const std::string& typeSuffix);
     void AddLog(const std::string& message);
-    
+
 private:
     // =========================================================
     // LOCAL CONSTANTS
@@ -87,6 +88,11 @@ private:
     std::unique_ptr<Boss>                 m_boss;
     std::unique_ptr<CollisionManager>     m_collisionManager;
     std::unique_ptr<NaviBoss>             m_navi;
+
+    // =========================================================
+    // HUD
+    // =========================================================
+    std::unique_ptr<HUDRenderer>          m_hud;
 
     // =========================================================
     // PHYSX (minimal — no ground plane, no gravity)
@@ -131,9 +137,9 @@ private:
 
     DirectX::XMFLOAT4 m_clearColor = { 0.0f, 0.0f, 0.0f, 1.0f }; // Default: Abu-abu Gelap (R, G, B, A)
 
-    private:
-        // --- Pengaturan Desain Keseimbangan Game (Tuning) ---
-        float m_overdriveBossHpTriggerPercent = 30.0f; // Default: Uncap aktif saat HP Boss di bawah 30%
-        bool  m_forceUncapOverride = false;            // Kontrol manual untuk memaksa mode Uncap
-        bool  m_lastUncapState = false;                // Menyimpan status state frame sebelumnya
+private:
+    // --- Pengaturan Desain Keseimbangan Game (Tuning) ---
+    float m_overdriveBossHpTriggerPercent = 30.0f; // Default: Uncap aktif saat HP Boss di bawah 30%
+    bool  m_forceUncapOverride = false;            // Kontrol manual untuk memaksa mode Uncap
+    bool  m_lastUncapState = false;                // Menyimpan status state frame sebelumnya
 };

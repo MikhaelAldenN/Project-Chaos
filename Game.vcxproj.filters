@@ -312,6 +312,12 @@
     <ClCompile Include="Source\Game\Entities\NaviPhaseNormal.cpp">
       <Filter>Source\Game\Entities</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Game\Entities\NaviPhaseTitle.cpp">
+      <Filter>Source\Game\Entities</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\UI\HUDRenderer.cpp">
+      <Filter>Source\Engine\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -627,6 +633,12 @@
     </ClInclude>
     <ClInclude Include="Source\Game\Entities\NaviPhaseNormal.h">
       <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\NaviPhaseTitle.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\UI\HUDRenderer.h">
+      <Filter>Source\Engine\UI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
