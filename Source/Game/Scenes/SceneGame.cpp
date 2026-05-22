@@ -396,7 +396,7 @@ void SceneGame::Update(const float elapsedTime)
         if (m_player) {
             targetPos = m_player->GetPosition();
         }
-        bool canAttack{ true };
+        bool canAttack = (m_player && m_player->GetHP() > 0);
         m_enemyManager->Update(elapsedTime, activeCam, targetPos, canAttack);
     }
 
