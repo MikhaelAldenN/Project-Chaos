@@ -347,6 +347,9 @@ void Player::UpdateDashCooldown(float dt)
         canDash = true;
 
         // [MODIFIKASI] Play VFX dan simpan handle-nya
+        DirectX::XMFLOAT3 pos = movement->GetPosition();
+        pos.y += m_dashReadyOffsetY;
+
         m_dashReadyVfxHandle = EffectManager::Instance().Play("Data/Effect/VFX_Player_Dash_Ready.efk", movement->GetPosition(), 0.5f);
         AudioManager::Instance().PlaySFX("Data/Sound/SE_Player_Dash_Ready_01.wav", 0.3f);
     }

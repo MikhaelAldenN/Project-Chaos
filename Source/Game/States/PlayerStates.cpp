@@ -453,7 +453,6 @@ void PlayerParry::Exit(Player* player)
 
 void PlayerShoot::Enter(Player* player)
 {
-    player->color = { 1.0f, 1.0f, 0.0f, 1.0f }; // Flash yellow
 
     std::string dashSounds[] = {
         "Data/Sound/SE_Player_Shoot_01.wav",

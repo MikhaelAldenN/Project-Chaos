@@ -270,7 +270,7 @@ private:
 
     // [BARU] Handle & Offset untuk efek Dash
     int m_dashReadyVfxHandle = -1;
-    float m_dashReadyOffsetY = 1.0f;
+    float m_dashReadyOffsetY = 0.0f;
 
     // [BARU] Timer untuk efek standby berulang
     int m_dashStandbyVfxHandle = -1;

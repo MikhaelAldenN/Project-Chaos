@@ -731,10 +731,10 @@ void SceneGame::StartPoisonDialogue()
     if (m_dialogueBox)
     {
         std::vector<std::string> dialogPages = {
-            u8"あ……あ、ぁ…………",
-            u8"あつい……からだが……とける……",
-            u8"にげて……わたし、もう…………",
-            u8"あはッ……アはハハハハハハハッ！！！！"
+            u8"あ....あ、ぁ....",
+            u8"あつい....からだが...とける....",
+            u8"にげて...わたし、もう.....",
+            u8"あはッ......アはハハハハハハハッ！！！！"
         };
 
         m_hasTriggeredPoisonDialogue = true;
