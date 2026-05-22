@@ -241,6 +241,21 @@ void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
         if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(spear.windowName);
     }
     m_undyneSpears.clear();
+
+    // Matikan efek kematian jika di-respawn paksa di tengah animasi
+    if (m_deathVfxHandle != -1) {
+        EffectManager::Instance().Stop(m_deathVfxHandle);
+        m_deathVfxHandle = -1;
+    }
+
+    // Kembalikan main window ke state normal
+    Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
+    if (mainWindow && mainWindow->GetSDLWindow()) {
+        SDL_SetWindowAlwaysOnTop(mainWindow->GetSDLWindow(), false);
+        mainWindow->SetPriority(50);
+        WindowManager::Instance().MarkPriorityDirty();
+    }
+    m_deathWindowRaised = false;
 }
 
 // =========================================================
@@ -301,6 +316,86 @@ void NaviPhaseWindowkill::GenerateButterflyWings() {
 
 void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
     m_glitchTimer += dt;
+
+    // =========================================================
+// [DEATH SEQUENCE] Boss Mati
+// =========================================================
+    if (m_bossHP <= 0) {
+        if (!m_isDying) {
+            m_isDying = true;
+            m_deathTimer = 0.0f;
+
+            // 1. Matikan AI dan hentikan semua serangan aktif
+            m_aiEnabled = false;
+            m_isSpawningBlasters = false;
+            m_isSpawningTargetedBlasters = false;
+            m_isSpawningBoomerangs = false;
+            m_isSpawningBouncing = false;
+            m_isSpawningUndynes = false;
+
+            // 2. Mainkan VFX Kematian di posisi bos
+            DirectX::XMFLOAT3 deathVfxPos = boss->GetPosition();
+            deathVfxPos.y += 5.0f; // Offset Y — naikkan sesuai selera
+            m_deathVfxHandle = EffectManager::Instance().Play(
+                "Data/Effect/VFX_Boss_Death.efk", deathVfxPos, 2.0f);
+            if (m_deathVfxHandle != -1) {
+                float rotX = DirectX::XMConvertToRadians(90.0f);
+                EffectManager::Instance().SetRotation(m_deathVfxHandle, { rotX, 0.0f, 0.0f });
+            }
+
+            // 3. Pre-load pecahan window agar tidak lag saat meledak nanti
+            DirectX::XMFLOAT3 pos = boss->GetPosition();
+        }
+
+        m_deathTimer += dt;
+
+        // VFX mengikuti posisi bos
+        if (m_deathVfxHandle != -1 && EffectManager::Instance().IsPlaying(m_deathVfxHandle)) {
+            DirectX::XMFLOAT3 trackPos = boss->GetPosition();
+            trackPos.y += 5.0f; // Sama dengan offset spawn
+            EffectManager::Instance().SetPosition(m_deathVfxHandle, trackPos);
+        }
+
+        // 4. Setelah 5 detik — stop VFX, lanjut ke scene berikutnya / game over
+        if (m_deathTimer >= 7.0f) {
+            if (m_deathVfxHandle != -1) {
+                EffectManager::Instance().Stop(m_deathVfxHandle);
+                m_deathVfxHandle = -1;
+            }
+
+        }
+
+
+
+        // =========================================================
+        // [BARU] Angkat main window ke paling depan sebagai
+        // full-screen borderless renderer untuk model & efek
+        // =========================================================
+        int screenW = GetSystemMetrics(SM_CXSCREEN);
+        int screenH = GetSystemMetrics(SM_CYSCREEN);
+
+        Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
+        if (mainWindow && mainWindow->GetSDLWindow()) {
+            SDL_Window* sdlWin = mainWindow->GetSDLWindow();
+
+            SDL_SetWindowBordered(sdlWin, false);
+            SDL_SetWindowResizable(sdlWin, false);
+            SDL_SetWindowPosition(sdlWin, 0, 0);
+            SDL_SetWindowSize(sdlWin, screenW, screenH + 1); // +1 anti exclusive fullscreen
+            SDL_SetWindowAlwaysOnTop(sdlWin, true);
+
+            mainWindow->SetPriority(0); // Prioritas tertinggi — di atas semua window OS
+            WindowManager::Instance().MarkPriorityDirty();
+        }
+
+        // Turunkan prioritas window FX & tracking agar tidak menutupi main window
+        if (m_fxWindow) {
+            m_fxWindow->SetPriority(10);
+            WindowManager::Instance().MarkPriorityDirty();
+        }
+
+        m_deathWindowRaised = true;
+    }
 
     if (m_hitFlashTimer > 0.0f) {
         m_hitFlashTimer -= dt;
@@ -1195,6 +1290,7 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
     bool isDialogueCam = m_dialogueCamera && (currentCamera == m_dialogueCamera.get());
     bool isMainCam = !isFXCam && !isDialogueCam;
     auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
+    bool isDeathMainCam = m_isDying && isMainCam;
 
     // =========================================================
     // RENDER DIALOGUE KE TRACKING WINDOW-NYA SENDIRI
@@ -1209,13 +1305,14 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
         return; // Tidak ada hal lain yang perlu dirender di window ini
     }
 
-    // 1. RENDER SAYAP (Sistem Sprite 3D)
-    // Sayap adalah objek 3D, jadi otomatis muncul di semua window portal!
-    if (isFXCam) {
+    // =========================================================
+    // 1. RENDER SAYAP
+    // Normalnya hanya di FX cam, tapi saat mati juga di main cam
+    // =========================================================
+    if (isFXCam || isDeathMainCam) {
         std::vector<Sprite::Sprite3DBatchData> batchData;
         DirectX::XMFLOAT3 bossPos = boss->GetPosition();
 
-        // (Logika Batching Sayap tetap sama...)
         float leftWingX = bossPos.x - m_wingXOffset;
         for (const auto& node : m_leftWingData) {
             if (node.animScale <= 0.0f) continue;
@@ -1227,7 +1324,6 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
                 DirectX::XMConvertToRadians(90.0f), 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f
                 });
         }
-        // (Ulangi untuk sayap kanan...)
         float rightWingX = bossPos.x + m_wingXOffset;
         for (const auto& node : m_rightWingData) {
             if (node.animScale <= 0.0f) continue;
@@ -1244,7 +1340,6 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
             m_wingSprite->Render3DBatch(context, currentCamera, batchData);
         }
     }
-
 
     // =========================================================
         // [UPDATE] RENDER OVERDRIVE SPRITE (DECAL LANTAI)

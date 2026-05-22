@@ -243,8 +243,16 @@ void SceneBoss::Update(float elapsedTime)
 
     Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
 
-    if (m_navi && dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
-        m_autoSyncMainWindow = true;
+    if (m_navi) {
+        auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase());
+        if (wkPhase && !wkPhase->IsDead()) {
+            m_autoSyncMainWindow = true;
+        }
+        if (wkPhase && wkPhase->IsDead())
+        {
+            m_autoSyncMainWindow = false;
+
+        }
     }
 
     // --- Sync main window size ---
@@ -614,17 +622,17 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
         }
     }
 
-    // C. RENDER MUSUH & ITEM (Hanya di jendela fisik/portal, jangan di SFX)
+    // C. RENDER MUSUH & ITEM — tetap skip di wing camera
     if (!isWingCamera) {
         if (m_enemyManager) m_enemyManager->Render(modelRenderer);
         if (m_itemManager) m_itemManager->Render(modelRenderer);
     }
 
-    // --- 3. RENDER NAVI ---
+    // --- 3. RENDER NAVI (termasuk wajah & background) ---
+    // Saat mati, paksa render di main cam meski isWingCamera false sudah benar
     if (m_navi) m_navi->Render(dc, camera);
 
     modelRenderer->Render(rc);
-
     EffectManager::Instance().Render(camera);
 
 }

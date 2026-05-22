@@ -396,4 +396,11 @@ private:
     bool m_overdriveDialogueTriggered = false; // Guard agar hanya muncul sekali
 
     bool m_cageFirstHitTriggered = false;
+
+    // ----- Boss Death Sequence -----
+    bool  m_isDying = false;
+    float m_deathTimer = 0.0f;
+    Effekseer::Handle m_deathVfxHandle = -1;
+
+    bool m_deathWindowRaised = false;
 };
