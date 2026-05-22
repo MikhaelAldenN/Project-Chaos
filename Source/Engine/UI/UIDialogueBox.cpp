@@ -63,9 +63,9 @@ void UIDialogueBox::Update(float dt)
 
     // Jika auto-advance aktif, input player SELALU diabaikan sepenuhnya
     // (baik strict maupun non-strict — auto-advance berarti sistem yang kontrol)
-    bool isConfirmPressed = false;
-    if (!m_autoAdvance)
-        isConfirmPressed = Input::Instance().GetKeyboard().IsTriggered(VK_SPACE);
+    //bool isConfirmPressed = false;
+    //if (!m_autoAdvance)
+    //    isConfirmPressed = Input::Instance().GetKeyboard().IsTriggered(VK_SPACE);
     bool isConfirmPressed = Input::Instance().GetKeyboard().IsTriggered(VK_RETURN);
 
     if (m_state == State::Typing)

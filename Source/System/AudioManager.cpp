@@ -98,7 +98,7 @@ void AudioManager::Update(float elapsedTime) {
             ++it;
         }
     }
-}
+
 
     if (m_ambientFadeState != 0 && m_ambientStream)
     {
@@ -225,7 +225,7 @@ void AudioManager::FadeOutAmbientSFX(float duration)
     m_ambientFadeSpeed = m_ambientVolume / duration;
     m_ambientFadeState = -1; // Flag Fading Out
 }
-}
+
 
 void AudioManager::PlaySFXDelayed(const std::string& filePath, float volume, float delaySeconds) {
     m_delayedSounds.push_back({ filePath, volume, delaySeconds });

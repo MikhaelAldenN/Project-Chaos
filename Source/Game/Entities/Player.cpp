@@ -229,7 +229,7 @@ void Player::Update(float elapsedTime, Camera* camera)
     {
         m_damageGlitchTimer = (std::max)(0.0f, m_damageGlitchTimer - elapsedTime);
     }
-}
+
 
     // =========================================================
         // Logika Standby Dash VFX (Otomatis & Tracking)

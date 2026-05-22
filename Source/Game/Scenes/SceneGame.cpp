@@ -290,7 +290,8 @@ void SceneGame::Update(const float elapsedTime)
 
         if (!m_hasBGMStarted)
         {
-            AudioManager::Instance().PlayMusic("Data/Sound/BGM_Game.wav", true);
+            AudioManager::Instance().PlayMusic("Data/Sound/BGM_Game.wav", 0.1f, true);
+
             m_hasBGMStarted = true; 
         }
     }

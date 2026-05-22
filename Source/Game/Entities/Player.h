@@ -276,7 +276,7 @@ private:
     int m_dashStandbyVfxHandle = -1;
 
     int m_overdriveVfxHandle = -1;
-};
+
 
 	// --- Glitch Effect ---
     float m_damageGlitchTimer{ 0.0f };
