@@ -44,6 +44,7 @@ void UIDialogueBox::Initialize()
     m_font = std::make_unique<FontTTF>();
     // Inisialisasi file font ttf langsung dengan ukuran pixel tajam (misal 24px atau 32px)
     m_font->Initialize("Data/Font/zpix.ttf", 28.0f, requiredKanji);
+    m_font->Initialize("Data/Font/PixelMplus10-Regular.ttf", 32.0f, requiredKanji);
 }
 
 void UIDialogueBox::StartDialogue(const std::vector<std::string>& dialogues)
@@ -80,9 +81,10 @@ void UIDialogueBox::Update(float dt)
 
     // Jika auto-advance aktif, input player SELALU diabaikan sepenuhnya
     // (baik strict maupun non-strict — auto-advance berarti sistem yang kontrol)
-    bool isConfirmPressed = false;
-    if (!m_autoAdvance)
-        isConfirmPressed = Input::Instance().GetKeyboard().IsTriggered(VK_SPACE);
+    //bool isConfirmPressed = false;
+    //if (!m_autoAdvance)
+    //    isConfirmPressed = Input::Instance().GetKeyboard().IsTriggered(VK_SPACE);
+    bool isConfirmPressed = Input::Instance().GetKeyboard().IsTriggered(VK_RETURN);
 
     if (m_state == State::Typing)
     {
@@ -91,12 +93,14 @@ void UIDialogueBox::Update(float dt)
             m_typeTimer = 0.0f;
             if (m_charIndex < m_currentLine.length()) {
 
+                // [FIX] Cek panjang Byte huruf UTF-8 agar mesin tik tidak patah-patah
                 unsigned char c = m_currentLine[m_charIndex];
                 int charLength = 1;
                 if ((c & 0xE0) == 0xC0) charLength = 2;
                 else if ((c & 0xF0) == 0xE0) charLength = 3;
                 else if ((c & 0xF8) == 0xF0) charLength = 4;
 
+                // Masukkan seluruh Byte karakter utuh ke layar
                 for (int i = 0; i < charLength && m_charIndex < m_currentLine.length(); ++i) {
                     m_displayedText += m_currentLine[m_charIndex];
                     m_charIndex++;
@@ -175,6 +179,8 @@ void UIDialogueBox::Render3D(ID3D11DeviceContext* dc, Camera* camera)
     dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
     dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestOnly), 0);
 
+    // Render Teks di dunia 3D. 
+    // Perhatikan scale-nya! Di 3D kita pakai nilai kecil (cth: 0.05f) karena ini satuan meter, bukan piksel.
     m_font->Draw3D(m_displayedText, camera, m_worldPos, 0.05f, { 1.0f, 1.0f, 1.0f, 1.0f });
 }
 

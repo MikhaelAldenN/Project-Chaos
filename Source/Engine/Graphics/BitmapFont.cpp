@@ -3,6 +3,53 @@
 #include "Camera.h"
 #include <fstream>
 #include <sstream>
+#include <algorithm>
+
+namespace
+{
+    size_t NextUtf8Offset(const std::string& text, size_t offset)
+    {
+        if (offset >= text.size()) return text.size();
+
+        const unsigned char lead = static_cast<unsigned char>(text[offset]);
+        size_t length = 1;
+
+        if ((lead & 0x80) == 0x00) length = 1;
+        else if ((lead & 0xE0) == 0xC0) length = 2;
+        else if ((lead & 0xF0) == 0xE0) length = 3;
+        else if ((lead & 0xF8) == 0xF0) length = 4;
+
+        return (std::min)(offset + length, text.size());
+    }
+
+    int DecodeUtf8Codepoint(const std::string& text, size_t offset, size_t nextOffset)
+    {
+        const unsigned char c0 = static_cast<unsigned char>(text[offset]);
+        const size_t length = nextOffset - offset;
+
+        if (length == 1) return c0;
+        if (length == 2)
+        {
+            return ((c0 & 0x1F) << 6) |
+                (static_cast<unsigned char>(text[offset + 1]) & 0x3F);
+        }
+        if (length == 3)
+        {
+            return ((c0 & 0x0F) << 12) |
+                ((static_cast<unsigned char>(text[offset + 1]) & 0x3F) << 6) |
+                (static_cast<unsigned char>(text[offset + 2]) & 0x3F);
+        }
+        if (length == 4)
+        {
+            return ((c0 & 0x07) << 18) |
+                ((static_cast<unsigned char>(text[offset + 1]) & 0x3F) << 12) |
+                ((static_cast<unsigned char>(text[offset + 2]) & 0x3F) << 6) |
+                (static_cast<unsigned char>(text[offset + 3]) & 0x3F);
+        }
+
+        return c0;
+    }
+}
 
 BitmapFont::BitmapFont(const std::string& texturePath, const std::string& fontDataPath)
 {
@@ -62,16 +109,19 @@ void BitmapFont::Draw(const std::string& text, float startX, float startY, float
     // Jarak antar baris (bisa disesuaikan manual atau ambil dari common lineHeight di .fnt)
     float lineHeight = 38.0f * scale;
 
-    for (char c : text)
+    for (size_t offset = 0; offset < text.size(); )
     {
-        if (c == '\n') // Handle Enter/Baris Baru
+        const size_t nextOffset = NextUtf8Offset(text, offset);
+        const int id = DecodeUtf8Codepoint(text, offset, nextOffset);
+        offset = nextOffset;
+
+        if (id == '\n') // Handle Enter/Baris Baru
         {
             cursorX = startX;
             cursorY += lineHeight;
             continue;
         }
 
-        int id = (unsigned char)c;
         // Jika huruf tidak ada di data, lewati
         if (chars.find(id) == chars.end()) continue;
 
@@ -134,16 +184,19 @@ void BitmapFont::Draw3D(const std::string& text, const Camera* camera,
     // DirectX::XMFLOAT2 size = MeasureText(text, scale);
     // cursorX = -size.x / 2.0f; 
 
-    for (char c : text)
+    for (size_t offset = 0; offset < text.size(); )
     {
-        if (c == '\n')
+        const size_t nextOffset = NextUtf8Offset(text, offset);
+        const int id = DecodeUtf8Codepoint(text, offset, nextOffset);
+        offset = nextOffset;
+
+        if (id == '\n')
         {
             cursorX = 0.0f; // Reset X
             cursorY -= lineHeight; // Di 3D, Y ke bawah itu negatif
             continue;
         }
 
-        int id = (unsigned char)c;
         if (chars.find(id) == chars.end()) continue;
 
         CharData& data = chars[id];
@@ -184,23 +237,37 @@ void BitmapFont::Draw3D(const std::string& text, const Camera* camera,
 DirectX::XMFLOAT2 BitmapFont::MeasureText(const std::string& text, float scale)
 {
     float width = 0.0f;
+    float maxWidth = 0.0f;
+    int lineCount = 1;
     float lineHeight = 38.0f * scale; // Hardcoded sesuai Draw() kamu. Idealnya ini dibaca dari file .fnt ("common lineHeight")
 
     // Kalau kosong, return 0
     if (text.empty()) return { 0.0f, 0.0f };
 
     // Hitung Lebar
-    for (char c : text)
+    for (size_t offset = 0; offset < text.size(); )
     {
-        int id = (unsigned char)c;
+        const size_t nextOffset = NextUtf8Offset(text, offset);
+        const int id = DecodeUtf8Codepoint(text, offset, nextOffset);
+        offset = nextOffset;
+
+        if (id == '\n')
+        {
+            maxWidth = (std::max)(maxWidth, width);
+            width = 0.0f;
+            ++lineCount;
+            continue;
+        }
+
         if (chars.find(id) != chars.end())
         {
             // xadvance adalah jarak kursor berpindah ke huruf selanjutnya
             width += chars[id].xadvance * scale;
         }
     }
+    maxWidth = (std::max)(maxWidth, width);
 
     // Untuk tinggi, tombol biasanya cuma 1 baris, jadi kita return tinggi font default
     // Kalau mau support multiline, logicnya harus hitung berapa kali '\n' muncul.
-    return { width, lineHeight };
+    return { maxWidth, lineHeight * static_cast<float>(lineCount) };
 }

@@ -1267,4 +1267,69 @@ void GameBreakerGUI::DrawObjectTransformTab(SceneGame* scene)
             ImGui::Unindent();
         }
     }
+
+    // 7. BOSS CINEMATIC EFFECT TUNING
+    ImGui::Spacing();
+    if (ImGui::CollapsingHeader("Boss Effect Transform", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Indent();
+
+        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "LOCAL OFFSET POSITION");
+        ImGui::DragFloat3("XYZ##BossEffOff", &scene->m_fakeBossEffectOffset.x, 0.01f);
+
+        ImGui::Spacing();
+        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "LOCAL OFFSET ROTATION");
+        ImGui::DragFloat3("Pitch/Yaw/Roll##BossEffRot", &scene->m_fakeBossEffectRotation.x, 1.0f, -180.0f, 180.0f);
+
+        ImGui::Spacing();
+        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "SCALE MULTIPLIER");
+        ImGui::DragFloat("Scale##BossEffScl", &scene->m_fakeBossEffectScale, 0.05f, 0.1f, 100.0f);
+
+        ImGui::Spacing();
+        ImGui::Separator();
+
+        if (ImGui::Button("Play Test Effect Now (Preview)", ImVec2(-1, 30)))
+        {
+            if (Enemy* fakeBoss = scene->GetFakeBoss())
+            {
+                DirectX::XMFLOAT3 testPos = fakeBoss->GetPosition();
+                testPos.x += scene->m_fakeBossEffectOffset.x;
+                testPos.y += scene->m_fakeBossEffectOffset.y;
+                testPos.z += scene->m_fakeBossEffectOffset.z;
+
+                Effekseer::Handle effHandle = EffectManager::Instance().Play(
+                    "Data/Effect/FakeBossPoison.efk",
+                    testPos,
+                    scene->m_fakeBossEffectScale
+                );
+
+                if (effHandle >= 0)
+                {
+                    DirectX::XMFLOAT3 rotRad{
+                        DirectX::XMConvertToRadians(scene->m_fakeBossEffectRotation.x),
+                        DirectX::XMConvertToRadians(scene->m_fakeBossEffectRotation.y),
+                        DirectX::XMConvertToRadians(scene->m_fakeBossEffectRotation.z)
+                    };
+                    EffectManager::Instance().SetRotation(effHandle, rotRad);
+                }
+            }
+        }
+
+        ImGui::Spacing();
+        if (ImGui::Button("Copy Boss Effect Code", ImVec2(-1, 30)))
+        {
+            char buffer[256];
+            snprintf(buffer, sizeof(buffer),
+                "float m_fakeBossEffectScale{ %.3ff };\n"
+                "DirectX::XMFLOAT3 m_fakeBossEffectOffset{ %.3ff, %.3ff, %.3ff };\n"
+                "DirectX::XMFLOAT3 m_fakeBossEffectRotation{ %.3ff, %.3ff, %.3ff };",
+                scene->m_fakeBossEffectScale,
+                scene->m_fakeBossEffectOffset.x, scene->m_fakeBossEffectOffset.y, scene->m_fakeBossEffectOffset.z,
+                scene->m_fakeBossEffectRotation.x, scene->m_fakeBossEffectRotation.y, scene->m_fakeBossEffectRotation.z
+            );
+            ImGui::SetClipboardText(buffer);
+        }
+
+        ImGui::Unindent();
+    }
 }

@@ -62,6 +62,8 @@ public:
 
 
 
+    float GetLifeTime() const { return m_lifeTime; }
+
 private:
     NaviBoss* m_bossTarget = nullptr;
 
@@ -84,4 +86,6 @@ private:
     int m_vfxHandle = -1;
     float m_vfxScaleMultiplier = 1.0f; // <--- [BARU] Tambahkan ini
     float m_vfxForwardOffsetMult = 0.0f;
+    float m_lifeTime = 0.0f;
+
 };

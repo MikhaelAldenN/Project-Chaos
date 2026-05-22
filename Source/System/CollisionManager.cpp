@@ -1,6 +1,7 @@
 #include "CollisionManager.h"
 #include "NaviBoss.h"        
 #include "NaviPhaseNormal.h" 
+#include "EffectManager.h"
 #include "TimeManager.h"
 #include <CameraController.h>
 #include "NaviPhaseWindowkill.h"
@@ -204,6 +205,8 @@ void CollisionManager::Update(float elapsedTime)
 {
     CheckEnemyProjectilesFull(elapsedTime);
     CheckPlayerProjectilesVsEnemies(elapsedTime);
+    CheckPlayerProjectilesVsNavi(elapsedTime);
+    CheckNaviAllyProjectilesVsPlayer(elapsedTime);
     CheckPlayerVsEnemies();
     CheckPlayerVsCheckpointLines();
     CheckPlayerVsTriggerLines();
@@ -574,53 +577,32 @@ void CollisionManager::CheckPlayerVsCheckpointLines()
 
 void CollisionManager::CheckPlayerVsTriggerLines()
 {
-    //if (!m_player || !m_stage) return;
-    //if (m_player->IsFalling()) return;
+    // Fast Fail: Guard against missing data or dead player
+    if (!m_player || !m_stage || m_player->GetHP() <= 0) return;
 
-    //const float TRIGGER_RANGE_Z = 1.0f;
+    const float TRIGGER_RANGE_Z = 2.0f;
 
-    //for (const auto& line : m_stage->m_linesDisable)
-    //{
-    //    XMVECTOR vLocalPos = TransformToLocalLine(m_player->GetMovement()->GetPosition(), line);
-    //    XMFLOAT3 localPos;
-    //    XMStoreFloat3(&localPos, vLocalPos);
-    //    float lineHalfLength = line.Scale.x * 0.5f;
+    for (int i = 0; i < m_stage->m_linesEnable.size(); ++i)
+    {
+        const auto& line = m_stage->m_linesEnable[i];
 
-    //    if (localPos.x >= -lineHalfLength && localPos.x <= lineHalfLength &&
-    //        localPos.z > -TRIGGER_RANGE_Z && localPos.z < TRIGGER_RANGE_Z)
-    //    {
-    //        m_player->SetAbilityShield(false);
-    //    }
-    //}
+        // Transform player pos into the line's local space
+        DirectX::XMVECTOR vLocalPos = TransformToLocalLine(m_player->GetMovement()->GetPosition(), line);
+        DirectX::XMFLOAT3 localPos;
+        DirectX::XMStoreFloat3(&localPos, vLocalPos);
 
-    //for (int i = 0; i < m_stage->m_linesEnable.size(); ++i)
-    //{
-    //    const auto& line = m_stage->m_linesEnable[i];
+        float lineHalfLength = line.Scale.x * 0.5f;
 
-    //    XMVECTOR vLocalPos = TransformToLocalLine(m_player->GetMovement()->GetPosition(), line);
-    //    XMFLOAT3 localPos;
-    //    XMStoreFloat3(&localPos, vLocalPos);
-    //    float lineHalfLength = line.Scale.x * 0.5f;
-
-    //    if (localPos.x >= -lineHalfLength && localPos.x <= lineHalfLength &&
-    //        localPos.z > -TRIGGER_RANGE_Z && localPos.z < TRIGGER_RANGE_Z)
-    //    {
-    //        if (i == 0)
-    //        {
-    //            m_player->SetAbilityShield(true);
-    //        }
-    //        else if (i == 1)
-    //        {
-    //            m_player->SetAbilityShield(true);
-    //            m_player->SetAbilityShoot(true);
-    //        }
-    //        else if (i == 2)
-    //        {
-    //            m_player->SetAbilityShield(true);
-    //            if (m_onLevelCompleteCallback) m_onLevelCompleteCallback();
-    //        }
-    //    }
-    //}
+        // Check if player is standing on the line
+        if (localPos.x >= -lineHalfLength && localPos.x <= lineHalfLength &&
+            localPos.z > -TRIGGER_RANGE_Z && localPos.z < TRIGGER_RANGE_Z)
+        {
+            if (m_onEnableLineReachCallback)
+            {
+                m_onEnableLineReachCallback(i);
+            }
+        }
+    }
 }
 
 void CollisionManager::CheckPlayerVsVoidLines()
@@ -822,6 +804,96 @@ void CollisionManager::CheckNaviProjectilesVsEnemies(float elapsedTime)
                 enemy->TakeDamage(NAVI_BULLET_DAMAGE);
                 bullet->SetActive(false); // Send back to Object Pool instantly
                 break; // Stop checking this bullet against other enemies
+            }
+        }
+    }
+}
+
+void CollisionManager::CheckPlayerProjectilesVsNavi(float elapsedTime)
+{
+    if (!m_player || !m_navi || !m_navi->IsAlive() || !m_navi->IsPotioned()) return;
+
+    auto& projectiles = m_player->GetProjectiles();
+    DirectX::XMFLOAT3 naviPos = m_navi->GetMovement()->GetPosition();
+
+    constexpr float NAVI_HITBOX_RADIUS_XZ = 0.8f;
+    constexpr float NAVI_HITBOX_RADIUS_Y = 1.9f;
+    constexpr int PLAYER_BULLET_DAMAGE = 10; 
+
+    for (auto& bullet : projectiles)
+    {
+        if (!bullet || !bullet->IsActive()) continue;
+
+        DirectX::XMFLOAT3 currentPos = bullet->GetMovement()->GetPosition();
+        DirectX::XMFLOAT3 vel = bullet->GetVelocity();
+        DirectX::XMFLOAT3 prevPos = {
+            currentPos.x - (vel.x * elapsedTime),
+            currentPos.y - (vel.y * elapsedTime),
+            currentPos.z - (vel.z * elapsedTime)
+        };
+
+        float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, naviPos);
+        float verticalDist = std::abs(currentPos.y - naviPos.y);
+
+        if (distToPath <= NAVI_HITBOX_RADIUS_XZ && verticalDist < NAVI_HITBOX_RADIUS_Y)
+        {
+            // Trigger proper OOP damage
+            m_navi->TakeDamage(PLAYER_BULLET_DAMAGE);
+            EffectManager::Instance().Play("Data/Effect/Hit.efk", m_navi->GetMovement()->GetPosition(), 1.0f);
+            bullet->SetActive(false); // Return bullet to pool
+
+            continue;
+        }
+    }
+}
+
+void CollisionManager::CheckNaviAllyProjectilesVsPlayer(float elapsedTime)
+{
+    // Validate pointers
+    if (!m_player || !m_navi || m_player->GetHP() <= 0 || !m_navi->IsPotioned()) return;
+
+    auto& projectiles = m_navi->GetProjectiles();
+    DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
+
+    constexpr float PLAYER_HURTBOX_RADIUS = 0.3f;
+    constexpr int NAVI_BULLET_DAMAGE = 10; // Match standard enemy damage
+
+    for (auto& bullet : projectiles)
+    {
+        if (!bullet || !bullet->IsActive()) continue;
+
+        DirectX::XMFLOAT3 currentPos = bullet->GetMovement()->GetPosition();
+        DirectX::XMFLOAT3 vel = bullet->GetVelocity();
+        DirectX::XMFLOAT3 prevPos = {
+            currentPos.x - (vel.x * elapsedTime),
+            currentPos.y - (vel.y * elapsedTime),
+            currentPos.z - (vel.z * elapsedTime)
+        };
+
+        float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, playerPos);
+        float combinedRadius = PLAYER_HURTBOX_RADIUS + bullet->GetRadius();
+
+        if (distToPath <= combinedRadius)
+        {
+            bullet->SetActive(false); // Destroy the bullet
+
+            // --- Apply Damage ---
+            m_player->TakeDamage(NAVI_BULLET_DAMAGE);
+
+            // --- Death Sequence Logic ---
+            if (m_player->GetHP() <= 0)
+            {
+                // Visual & State Reset
+                m_player->scale = { 0.0f, 0.0f, 0.0f };
+                m_player->SetInputEnabled(false);
+                m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
+                m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
+
+                // Trigger Fade via Callback (Ensures SceneGame manages the UI transition)
+                if (m_onPlayerDeathCallback)
+                {
+                    m_onPlayerDeathCallback();
+                }
             }
         }
     }

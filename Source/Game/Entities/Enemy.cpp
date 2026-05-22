@@ -377,15 +377,36 @@ void Enemy::Reinitialize(ID3D11Device* device, const char* filePath, const Direc
 
 void Enemy::RenderProjectiles(ModelRenderer* renderer)
 {
+    // 1. Color Constants (Static for Zero-Allocation)
+    static constexpr DirectX::XMFLOAT4 TOXIC_GREEN{ 0.4f, 0.9f, 0.2f, 1.0f };
+    static constexpr DirectX::XMFLOAT4 ELECTRIC_PINK{ 1.0f, 0.0f, 1.0f, 1.0f };
+    static constexpr float PULSE_SPEED{ 15.0f };
+
     for (auto& bullet : m_projectiles)
     {
-        if (bullet->IsActive()) renderer->Draw(ShaderId::Phong, bullet->GetModel(), m_projectileColor);
+        if (bullet && bullet->IsActive())
+        {
+            // 2. Calculate the sine pulse (Result: 0.0 to 1.0)
+            // Using bullet->GetLifeTime() ensures each bullet pulses independently
+            const float pulse{ (std::sin(bullet->GetLifeTime() * PULSE_SPEED) + 1.0f) * 0.5f };
+
+            // 3. Interpolate (LERP) between Toxic Green and Electric Pink
+            const DirectX::XMFLOAT4 pulseColor{
+                TOXIC_GREEN.x + (ELECTRIC_PINK.x - TOXIC_GREEN.x) * pulse,
+                TOXIC_GREEN.y + (ELECTRIC_PINK.y - TOXIC_GREEN.y) * pulse,
+                TOXIC_GREEN.z + (ELECTRIC_PINK.z - TOXIC_GREEN.z) * pulse,
+                1.0f
+            };
+
+            // 4. Render using Phong to ensure the Bloom/HDR glow activates
+            renderer->Draw(ShaderId::Phong, bullet->GetModel(), pulseColor);
+        }
     }
 }
 
 void Enemy::RenderDebugProjectiles(ShapeRenderer* renderer)
 {
-    for (const auto& bullet : m_projectiles)
+    /*for (const auto& bullet : m_projectiles)
     {
         if (bullet && bullet->IsActive())
         {
@@ -399,7 +420,7 @@ void Enemy::RenderDebugProjectiles(ShapeRenderer* renderer)
     {
         DirectX::XMFLOAT3 pos = movement->GetPosition();
         renderer->DrawBox(pos, { 0.0f, 0.0f, 0.0f }, { 2.0f, 1.0f, 1.0f }, { 0.0f, 1.0f, 0.0f, 1.0f });
-    }
+    }*/
 }
 
 DirectX::XMFLOAT4 Enemy::GetRenderColor() const
@@ -462,11 +483,14 @@ void Enemy::UpdateOriginalTransform(const DirectX::XMFLOAT3& pos, const DirectX:
 
 void Enemy::TakeDamage(int damage)
 {
-    // If the enemy is already dead/inactive but hasn't been cleaned up yet, ignore the hit.
-    if (!m_isActive || m_hp <= 0) return;
+    // Guard Clause: If invincible OR inactive, ignore the hit entirely.
+    if (m_isInvincible || !m_isActive || m_hp <= 0) return;
 
     m_hp -= damage;
     m_blinkTimer = BLINK_DURATION; // Trigger blink effect
+
+    static const std::string HIT_SFX_PATH{ "Data/Sound/SE_Enemy_Hit.wav" };
+    AudioManager::Instance().PlaySFX(HIT_SFX_PATH, 0.6f);
 
 	// Play visual effect
     EffectManager::Instance().Play("Data/Effect/Hit.efk", GetPosition(), 1.0f);

@@ -98,6 +98,33 @@ void AudioManager::Update(float elapsedTime) {
             ++it;
         }
     }
+
+
+    if (m_ambientFadeState != 0 && m_ambientStream)
+    {
+        if (m_ambientFadeState == 1) 
+        {
+            m_ambientVolume += m_ambientFadeSpeed * elapsedTime;
+            if (m_ambientVolume >= m_ambientTargetVolume)
+            {
+                m_ambientVolume = m_ambientTargetVolume;
+                m_ambientFadeState = 0; 
+            }
+        }
+        else if (m_ambientFadeState == -1)
+        {
+            m_ambientVolume -= m_ambientFadeSpeed * elapsedTime;
+            if (m_ambientVolume <= 0.0f)
+            {
+                m_ambientVolume = 0.0f;
+                m_ambientFadeState = 0;
+                SDL_UnbindAudioStream(m_ambientStream);
+                SDL_DestroyAudioStream(m_ambientStream);
+                m_ambientStream = nullptr;
+            }
+        }
+        SDL_SetAudioStreamGain(m_ambientStream, m_ambientVolume);
+    }
 }
 
 AudioManager::SoundData* AudioManager::LoadWav(const std::string& path) {
@@ -163,6 +190,42 @@ void AudioManager::PlaySFX(const std::string& filePath, float volume) {
         m_activeSFXStreams.push_back(stream);
     }
 }
+
+void AudioManager::PlayAmbientSFX(const std::string& filePath, float targetVolume, float fadeDuration)
+{
+    if (m_ambientStream)
+    {
+        SDL_UnbindAudioStream(m_ambientStream);
+        SDL_DestroyAudioStream(m_ambientStream);
+        m_ambientStream = nullptr;
+    }
+
+    SoundData* data = LoadWav(filePath);
+    if (!data) return;
+
+    m_ambientStream = SDL_CreateAudioStream(&data->spec, NULL);
+    if (!m_ambientStream) return;
+
+    SDL_BindAudioStream(m_deviceId, m_ambientStream);
+    SDL_PutAudioStreamData(m_ambientStream, data->buffer, data->length);
+
+    m_ambientVolume = 0.0f; 
+    m_ambientTargetVolume = targetVolume;
+    m_ambientFadeSpeed = targetVolume / fadeDuration;
+    m_ambientFadeState = 1; // Flag Fading In
+
+    SDL_SetAudioStreamGain(m_ambientStream, m_ambientVolume);
+}
+
+void AudioManager::FadeOutAmbientSFX(float duration)
+{
+    if (!m_ambientStream || m_ambientFadeState == -1) return;
+
+    m_ambientTargetVolume = 0.0f;
+    m_ambientFadeSpeed = m_ambientVolume / duration;
+    m_ambientFadeState = -1; // Flag Fading Out
+}
+
 
 void AudioManager::PlaySFXDelayed(const std::string& filePath, float volume, float delaySeconds) {
     m_delayedSounds.push_back({ filePath, volume, delaySeconds });

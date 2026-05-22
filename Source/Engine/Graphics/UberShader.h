@@ -49,8 +49,8 @@ public:
         float             roundness             = DEFAULT_ROUNDNESS;
 
         // Effects
-        float             blurStrength          = 0.01f;
-        float             distortion            = 0.015f;
+        float             blurStrength          = 0.0f;
+        float             distortion            = 0.0f;
         float             glitchStrength        = 0.01f;
         float             chromaticAberration   = 0.00351f;
         float             time                  = 0.0f;

@@ -5,12 +5,17 @@
 #include "Framework.h"
 #include "GUISceneGameBreaker.h" 
 #include "PostProcessManager.h"
+#include "Primitive.h"
+#include "ResourceManager.h"
+#include "System/AudioManager.h"
 #include "System/CollisionManager.h"
 #include "System/Graphics.h"
 #include "InputHelper.h"
+#include <algorithm>
 
 // Game Objects
 #include "EffectManager.h"
+#include "Enemy.h"
 #include "EnemyManager.h"
 #include "ItemManager.h"
 #include "NaviAlly.h"
@@ -19,6 +24,48 @@
 #include "Stage.h"
 
 using namespace DirectX;
+
+namespace
+{
+    size_t NextUtf8Offset(const std::string& text, size_t offset)
+    {
+        if (offset >= text.size()) return text.size();
+
+        const unsigned char lead = static_cast<unsigned char>(text[offset]);
+        size_t length = 1;
+
+        if ((lead & 0x80) == 0x00) length = 1;
+        else if ((lead & 0xE0) == 0xC0) length = 2;
+        else if ((lead & 0xF0) == 0xE0) length = 3;
+        else if ((lead & 0xF8) == 0xF0) length = 4;
+
+        return (std::min)(offset + length, text.size());
+    }
+
+    int CountUtf8Characters(const std::string& text)
+    {
+        int count = 0;
+        for (size_t offset = 0; offset < text.size(); offset = NextUtf8Offset(text, offset))
+        {
+            ++count;
+        }
+        return count;
+    }
+
+    std::string Utf8Prefix(const std::string& text, int characterCount)
+    {
+        if (characterCount <= 0) return {};
+
+        size_t offset = 0;
+        int count = 0;
+        while (offset < text.size() && count < characterCount)
+        {
+            offset = NextUtf8Offset(text, offset);
+            ++count;
+        }
+        return text.substr(0, offset);
+    }
+}
 
 SceneGame::SceneGame()
 {
@@ -105,18 +152,34 @@ SceneGame::SceneGame()
     m_collisionManager->SetNavi(m_navi.get());
 
     m_player->SetCollisionManager(m_collisionManager.get());
+    m_collisionManager->SetOnEnableLineReachCallback([this](int lineIndex) {
+        if (lineIndex == 0 && !m_bossCinematicTriggered)
+        {
+            if (AreTrackingEnemiesDead())
+            {
+                StartBossCinematic();
+            }
+        }
+    });
 
     m_director = std::make_unique<CinematicDirector>();
 
     m_postProcess = std::make_unique<PostProcessManager>();
     m_postProcess->Initialize(static_cast<int>(screenW), static_cast<int>(screenH));
 
+    m_dialogueBox = std::make_unique<UIDialogueBox>();
+
+    m_dialogueBox->Initialize();
+
     m_fadeSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Game/Black.png");
+    m_whiteSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Game/White.png");
     EffectManager::Instance().PreloadEffect("Data/Effect/Hit.efk");
+    EffectManager::Instance().PreloadEffect("Data/Effect/FakeBossPoison.efk");
 }
 
 SceneGame::~SceneGame()
 {
+    AudioManager::Instance().StopMusic();
     CameraController::Instance().ClearCamera();
 
     m_player.reset();
@@ -130,12 +193,50 @@ void SceneGame::Update(const float elapsedTime)
     m_globalTime += elapsedTime;
     if (m_globalTime > Config::TIME_LOOP_MAX) m_globalTime -= Config::TIME_LOOP_MAX;
 
-    if (m_player && m_player->GetHP() <= 0 && !m_isDying && m_respawnTimer <= 0.0f)
+    if (m_navi && !m_navi->IsAlive() && !m_isNaviDefeatSequenceActive)
+    {
+        StartNaviDefeatSequence();
+    }
+
+    if (m_player && m_player->GetHP() <= 0 && !m_isDying && !m_isNaviDefeatSequenceActive && m_respawnTimer <= 0.0f)
     {
         StartPlayerDeathSequence();
     }
 
-    if (m_isDying)
+    if (m_isNaviDefeatSequenceActive)
+    {
+        m_naviDefeatTimer += elapsedTime;
+
+        const float linearT{ std::clamp(m_naviDefeatTimer / NAVI_DEFEAT_FADE_DURATION, 0.0f, 1.0f) };
+        const float t{ linearT * linearT * (3.0f - 2.0f * linearT) };
+
+        m_uberParams.smoothness = FX_BASE_SMOOTHNESS + (FX_BLACK_SMOOTHNESS - FX_BASE_SMOOTHNESS) * t;
+        m_uberParams.intensity = FX_BASE_INTENSITY + (FX_BLACK_INTENSITY - FX_BASE_INTENSITY) * t;
+        m_fadeAlpha = t;
+
+        if (linearT >= 1.0f)
+        {
+            m_uberParams.smoothness = FX_BLACK_SMOOTHNESS;
+            m_uberParams.intensity = FX_BLACK_INTENSITY;
+            m_fadeAlpha = 1.0f;
+            m_isNaviDefeatReadyForNextScene = true;
+        }
+    }
+    else if (m_bootTimer > 0.0f)
+    {
+        m_bootTimer -= elapsedTime;
+        m_fadeAlpha = 1.0f;
+        m_uberParams.smoothness = FX_BLACK_SMOOTHNESS;
+        m_uberParams.intensity = FX_BLACK_INTENSITY;
+
+        if (m_player)
+        {
+            CameraController::Instance().SetTarget(m_player->GetPosition());
+            CameraController::Instance().Update(0.0f); 
+        }
+    }
+
+    else if (m_isDying)
     {
         m_deathTimer += elapsedTime;
 
@@ -186,6 +287,27 @@ void SceneGame::Update(const float elapsedTime)
         // Normal Gameplay Lighting
         m_uberParams.smoothness = FX_BASE_SMOOTHNESS;
         m_fadeAlpha = 0.0f;
+
+        if (!m_hasBGMStarted)
+        {
+            AudioManager::Instance().PlayMusic("Data/Sound/BGM_Game.wav", 0.1f, true);
+
+            m_hasBGMStarted = true; 
+        }
+    }
+
+    if (!m_hasIntroDialogueTestStarted &&
+        m_bootTimer <= 0.0f &&
+        m_respawnTimer <= 0.0f &&
+        !m_isDying &&
+        !m_isNaviDefeatSequenceActive)
+    {
+        StartIntroDialogueTest();
+    }
+
+    if (m_dialogueBox)
+    {
+        m_dialogueBox->Update(elapsedTime);
     }
 
     if (m_scene) {
@@ -232,11 +354,6 @@ void SceneGame::Update(const float elapsedTime)
 
         m_player->Update(elapsedTime, activeCam);
         if (m_navi) m_navi->Update(elapsedTime, activeCam);
-        if (m_fadeAlpha < 0.95f)
-        {
-            CameraController::Instance().SetTarget(m_player->GetPosition());
-            m_director->Update(elapsedTime, m_player->GetMovement()->GetPosition());
-        }
     }
 
     if (m_enemyManager) {
@@ -256,62 +373,255 @@ void SceneGame::Update(const float elapsedTime)
     static int   frameCounter{ 0 };
     static const Enemy* cachedClosestEnemy{ nullptr };
 
-    // SEARCH PHASE: Only run once every 10 frames (~6 times per second at 60fps)
-    if (frameCounter++ % 10 == 0)
+    if (m_isBossCinematicActive)
     {
-        if (m_enemyManager && m_player)
+        // 1. Hitung pergerakan kamera (berhenti di angka 1.0)
+        float t = std::clamp(m_bossCinematicTimer / BOSS_CINEMATIC_DURATION, 0.0f, 1.0f);
+        float smoothT = t * t * (3.0f - 2.0f * t);
+
+        DirectX::XMFLOAT3 currentTarget = {
+            m_cinematicStartTarget.x + (m_cinematicEndTarget.x - m_cinematicStartTarget.x) * smoothT,
+            m_cinematicStartTarget.y + (m_cinematicEndTarget.y - m_cinematicStartTarget.y) * smoothT,
+            m_cinematicStartTarget.z + (m_cinematicEndTarget.z - m_cinematicStartTarget.z) * smoothT
+        };
+
+        CameraController::Instance().SetDynamicZoomOffset(0.0f);
+        CameraController::Instance().SetTarget(currentTarget);
+
+        // 2. State Machine Cinematic
+        if (m_bossCinematicTimer < BOSS_CINEMATIC_DURATION)
         {
-            float closestDistSq{ 999999.0f };
-            const DirectX::XMFLOAT3 pPos{ m_player->GetPosition() };
-            const Enemy* currentClosest{ nullptr };
+            // FASE 1: Kamera masih jalan menuju Boss. Timer jalan terus.
+            m_bossCinematicTimer += elapsedTime;
+        }
+        else if (!m_bossDialogueStarted)
+        {
+            // FASE 2: Kamera sampai. Munculin dialog dan STOP Timer!
+            m_bossDialogueStarted = true;
+            std::vector<std::string> dialogPages = {
+                u8"えっ…？ 何あのキノコ…。\n他のやつらより、ずっと大きい……？",
+                u8"ちょっと待って、様子がおかしいわ。\nなんか…膨らんでない！？",
+                u8"きゃあああああっ！？\n毒ガス！？ ごほっ、げほっ…！"
+            };
+            // Terjemahan kasarnya:
+            // 1. Eh...? Jamur apa itu... Jauh lebih besar dari yang lain?
+            // 2. Tunggu, ada yang aneh. Kok dia... membesar?!
+            // 3. Kyaaaa?! Gas racun?! Uhuk, uhuk!
 
-            // O(N) Search happens here, but ONLY 10% of the time.
-            for (const auto& enemy : m_enemyManager->GetEnemies())
+            m_dialogueBox->StartDialogue(dialogPages);
+        }
+        else if (m_bossDialogueStarted)
+        {
+            // FASE 3: Dialog sedang berjalan, nungguin player mencet Enter
+            int currentLine = m_dialogueBox->GetCurrentDialogueIndex();
+
+            // Pas nyampe di baris ke-3 (index 2) dan efek belum keluar, TRIGGER RACUNNYA!
+            if (currentLine == 2 && !m_bossEffectTriggered)
             {
-                if (!enemy || !enemy->IsActive()) continue;
+                m_bossEffectTriggered = true;
 
-                const DirectX::XMFLOAT3 ePos{ enemy->GetPosition() };
-                const float dx{ pPos.x - ePos.x };
-                const float dz{ pPos.z - ePos.z };
-                const float distSq{ (dx * dx) + (dz * dz) };
+                static const std::string POISON_SFX{ "Data/Sound/SE_FakeBoss_Poison.wav" };
 
-                if (distSq < closestDistSq)
+                AudioManager::Instance().PlayAmbientSFX(POISON_SFX, 1.0f, 0.5f);
+
+                if (Enemy* fakeBoss = GetFakeBoss())
                 {
-                    closestDistSq = distSq;
-                    currentClosest = enemy.get();
+                    DirectX::XMFLOAT3 spawnPos = fakeBoss->GetPosition();
+                    spawnPos.x += m_fakeBossEffectOffset.x;
+                    spawnPos.y += m_fakeBossEffectOffset.y;
+                    spawnPos.z += m_fakeBossEffectOffset.z;
+
+                    Effekseer::Handle effHandle = EffectManager::Instance().Play(
+                        "Data/Effect/FakeBossPoison.efk", spawnPos, m_fakeBossEffectScale
+                    );
+
+                    if (effHandle >= 0) {
+                        DirectX::XMFLOAT3 rotRad{
+                            DirectX::XMConvertToRadians(m_fakeBossEffectRotation.x),
+                            DirectX::XMConvertToRadians(m_fakeBossEffectRotation.y),
+                            DirectX::XMConvertToRadians(m_fakeBossEffectRotation.z)
+                        };
+                        EffectManager::Instance().SetRotation(effHandle, rotRad);
+                    }
                 }
             }
 
-            // Update our cached pointer
-            cachedClosestEnemy = currentClosest;
-
-            // Update the zoom target only during the search frame
-            if (cachedClosestEnemy)
+            // FASE 4: Player mencet enter nutup jeritan Navi. Kotak dialog otomatis hilang, mulai Fade Putih!
+            if (m_bossEffectTriggered && !m_dialogueBox->IsActive())
             {
-                constexpr float combatRadius{ 25.0f };
-                constexpr float maxZoomIn{ -8.0f };
+                AudioManager::Instance().FadeOutAmbientSFX(1.5f);
 
-                const float dist{ std::sqrt(closestDistSq) };
-                const float intensity{ std::clamp(1.0f - (dist / combatRadius), 0.0f, 1.0f) };
-                targetZoom = maxZoomIn * intensity;
-            }
-            else
-            {
-                targetZoom = 0.0f;
+                // Jalanin timer lagi buat ngitung efek whiteout
+                m_bossCinematicTimer += elapsedTime;
+
+                float timeInFade = m_bossCinematicTimer - BOSS_CINEMATIC_DURATION;
+
+                if (timeInFade < WHITEOUT_FADE_DURATION)
+                {
+                    float linearT = std::clamp(timeInFade / WHITEOUT_FADE_DURATION, 0.0f, 1.0f);
+                    m_whiteAlpha = linearT * linearT * (3.0f - 2.0f * linearT);
+                }
+                else if (timeInFade < WHITEOUT_FADE_DURATION + WHITEOUT_HOLD_DURATION)
+                {
+                    m_whiteAlpha = 1.0f;
+                }
+                else
+                {
+                    // Fade back ke game normal
+                    float fadeOutTime = timeInFade - (WHITEOUT_FADE_DURATION + WHITEOUT_HOLD_DURATION);
+                    m_whiteAlpha = 1.0f - std::clamp(fadeOutTime / FADE_BACK_DURATION, 0.0f, 1.0f);
+
+                    if (m_navi)
+                    {
+                        m_navi->SetPotionedState(true);
+
+                        m_navi->StartAttackDelay(999.0f);
+                    }
+
+                    // Final cleanup pas layarnya udah 100% normal (White alpha 0)
+                    if (m_whiteAlpha <= 0.0f)
+                    {
+                        m_whiteAlpha = 0.0f;
+                        m_isBossCinematicActive = false;
+
+                        // Player masih di-lock, Navi belum nyerang
+                        if (!m_hasTriggeredPoisonDialogue)
+                        {
+                            StartPoisonDialogue();
+                        }
+                    }
+                }
             }
         }
     }
 
-    // VALIDATION PHASE: Run every frame to prevent Dangling Pointers
-    // If the enemy we found 5 frames ago died, we must reset zoom immediately.
-    if (cachedClosestEnemy && !cachedClosestEnemy->IsActive())
+    else // NORMAL GAMEPLAY CAMERA
     {
-        cachedClosestEnemy = nullptr;
-        targetZoom = 0.0f;
+        // 1. Target the Player securely
+        if (m_player && m_fadeAlpha < 0.99f)
+        {
+            CameraController::Instance().SetTarget(m_player->GetPosition());
+            m_director->Update(elapsedTime, m_player->GetMovement()->GetPosition());
+        }
+
+        // 2. Furi style cinematic combat zoom 
+        static float targetZoom{ 0.0f };
+        static int   frameCounter{ 0 };
+        static const Enemy* cachedClosestEnemy{ nullptr };
+
+        if (frameCounter++ % 10 == 0)
+        {
+            if (m_enemyManager && m_player)
+            {
+                float closestDistSq{ 999999.0f };
+                const DirectX::XMFLOAT3 pPos{ m_player->GetPosition() };
+                const Enemy* currentClosest{ nullptr };
+
+                for (const auto& enemy : m_enemyManager->GetEnemies())
+                {
+                    if (!enemy || !enemy->IsActive()) continue;
+
+                    const DirectX::XMFLOAT3 ePos{ enemy->GetPosition() };
+                    const float dx{ pPos.x - ePos.x };
+                    const float dz{ pPos.z - ePos.z };
+                    const float distSq{ (dx * dx) + (dz * dz) };
+
+                    if (distSq < closestDistSq)
+                    {
+                        closestDistSq = distSq;
+                        currentClosest = enemy.get();
+                    }
+                }
+
+                cachedClosestEnemy = currentClosest;
+
+                if (cachedClosestEnemy)
+                {
+                    constexpr float combatRadius{ 25.0f };
+                    constexpr float maxZoomIn{ -8.0f };
+
+                    const float dist{ std::sqrt(closestDistSq) };
+                    const float intensity{ std::clamp(1.0f - (dist / combatRadius), 0.0f, 1.0f) };
+                    targetZoom = maxZoomIn * intensity;
+                }
+                else
+                {
+                    targetZoom = 0.0f;
+                }
+            }
+        }
+
+        if (cachedClosestEnemy && !cachedClosestEnemy->IsActive())
+        {
+            cachedClosestEnemy = nullptr;
+            targetZoom = 0.0f;
+        }
+
+        CameraController::Instance().SetDynamicZoomOffset(targetZoom);
     }
 
-    CameraController::Instance().SetDynamicZoomOffset(targetZoom);
+    if (m_player && m_enemyManager && m_dialogueBox && !m_dialogueBox->IsActive())
+    {
+        // Cek hanya kalau salah satu dialog belum pernah ke-trigger
+        if (!m_hasTriggeredMushroomDialogue || !m_hasTriggeredTrackingDialogue)
+        {
+            const DirectX::XMFLOAT3 pPos = m_player->GetPosition();
+
+            for (const auto& enemy : m_enemyManager->GetEnemies())
+            {
+                if (!enemy || !enemy->IsActive()) continue;
+
+                const DirectX::XMFLOAT3 ePos = enemy->GetPosition();
+                const float dx = pPos.x - ePos.x;
+                const float dz = pPos.z - ePos.z;
+                const float distSq = (dx * dx) + (dz * dz);
+
+                if (distSq < 150.0f)
+                {
+                    if (!m_hasTriggeredMushroomDialogue && enemy->GetType() == EnemyType::MushroomNone)
+                    {
+                        m_hasTriggeredMushroomDialogue = true;
+                        StartMushroomDialogue();
+                        break;
+                    }
+                    else if (!m_hasTriggeredTrackingDialogue && enemy->GetAttackType() == AttackType::Tracking)
+                    {
+                        m_hasTriggeredTrackingDialogue = true;
+                        StartTrackingDialogue();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    if (m_isPoisonDialogueActive && m_dialogueBox && !m_dialogueBox->IsActive())
+    {
+        // Kotak dialog udah hilang karena player mencet Enter di teks terakhir.
+        m_isPoisonDialogueActive = false;
+
+        // Lepas lock input player biar bisa gerak
+        if (m_player)
+        {
+            m_player->SetInputEnabled(true);
+            m_player->SetAimLocked(false);
+        }
+
+        // Navi langsung nyerang player! (Kasih delay tipis 0.5 detik biar dramatis)
+        if (m_navi)
+        {
+            m_navi->StartAttackDelay(0.5f);
+        }
+
+    }
+
+    // Finally, commit all calculations to the actual CameraController
     CameraController::Instance().Update(elapsedTime);
+
+    if (m_player)
+    {
+        m_uberParams.glitchStrength = m_player->GetDamageGlitchIntensity();
+    }
 
     EffectManager::Instance().Update(elapsedTime);
 }
@@ -332,30 +642,116 @@ void SceneGame::StartPlayerDeathSequence()
     }
 }
 
-void SceneGame::ResetLevel()
+void SceneGame::StartNaviDefeatSequence()
 {
-    // 1. Reset Player State (Zero allocation)
+    if (m_isNaviDefeatSequenceActive) return;
+
+    m_isNaviDefeatSequenceActive = true;
+    m_naviDefeatTimer = 0.0f;
+    m_isNaviDefeatReadyForNextScene = false;
+
+    AudioManager::Instance().FadeOutMusic(NAVI_DEFEAT_FADE_DURATION);
+
     if (m_player)
     {
-        m_player->SetPosition(m_playerSpawnPos); // Updates PhysX automatically
+        m_player->SetInputEnabled(false);
+        m_player->SetAimLocked(true);
         m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
-        m_player->SetMaxHP(100);
+        m_player->GetProjectiles().clear();
+    }
+}
+
+void SceneGame::StartIntroDialogueTest()
+{
+    m_hasIntroDialogueTestStarted = true;
+
+    if (m_dialogueBox)
+    {
+        // Masukkan dialog per halaman/tekanan tombol
+        std::vector<std::string> dialogPages = {
+            u8"目を覚まして。戦いの時間が来たわ。\n「Space」で攻撃よ。遠くの敵は撃ち抜き、\n近づけばその刃で斬り裂くの。",
+            u8"そして、よく覚えておいて。\nいずれそのキーは、敵の牙を弾き返す\n「Parry」の要にもなるわ。魂に刻み込んで。",
+            u8"次は「Shift」を試して。\n風のように「Dash」して、敵の弾幕をすり抜けるのよ。\n\nさあ、あなたの力を見せて。"
+        };
+
+        m_dialogueBox->SetPosition(536.0f, 750.0f);
+        m_dialogueBox->StartDialogue(dialogPages);
+    }
+}
+
+void SceneGame::StartMushroomDialogue()
+{
+    if (m_dialogueBox)
+    {
+        std::vector<std::string> dialogPages = {
+            u8"あのキノコを見て。今は大人しく見えるけれど…\n気を抜かないで。",
+            u8"この森の奥は奇妙な薬液で汚染されているわ。\n凶暴化した個体もいるはずよ。"
+        };
+
+        m_dialogueBox->StartDialogue(dialogPages);
+    }
+}
+
+void SceneGame::StartTrackingDialogue()
+{
+    if (m_dialogueBox)
+    {
+        std::vector<std::string> dialogPages = {
+            u8"危ない！あのキノコは他と違うわ！\nあなたを狙って自爆する気よ！",
+            u8"近づかれる前に早く撃ち落として！"
+        };
+
+        m_dialogueBox->StartDialogue(dialogPages);
+    }
+}
+
+void SceneGame::StartPoisonDialogue()
+{
+    if (m_dialogueBox)
+    {
+        std::vector<std::string> dialogPages = {
+            u8"あ……あ、ぁ…………",
+            u8"あつい……からだが……とける……",
+            u8"にげて……わたし、もう…………",
+            u8"あはッ……アはハハハハハハハッ！！！！"
+        };
+
+        m_hasTriggeredPoisonDialogue = true;
+        m_isPoisonDialogueActive = true;
+
+        m_dialogueBox->StartDialogue(dialogPages);
+    }
+}
+void SceneGame::ResetLevel()
+{
+    const bool isBossStage = m_bossCinematicTriggered;
+
+    // 1. Calculate Respawn Position
+    DirectX::XMFLOAT3 respawnPos = m_playerSpawnPos;
+    if (isBossStage && m_stage && !m_stage->m_linesEnable.empty())
+    {
+        const auto& line = m_stage->m_linesEnable[0];
+        respawnPos = { line.Position.x, m_playerSpawnPos.y, line.Position.z };
+    }
+
+    // 2. Reset Player State
+    if (m_player)
+    {
+        m_player->SetPosition(respawnPos);
+        m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
+        m_player->SetMaxHP(isBossStage ? 150 : 100);
         m_player->SetInputEnabled(true);
         m_player->scale = { 1.0f, 1.0f, 1.0f };
         m_player->GetStateMachine()->ChangeState(m_player.get(), std::make_unique<PlayerIdle>());
-
-        // Clean up any bullets the player shot right before dying
         m_player->GetProjectiles().clear();
     }
 
-    // 2. Reset Enemies (Safe Object Pool Wipe)
+    // 3. Reset Enemies & Items
     if (m_enemyManager)
     {
         m_enemyManager->GetEnemies().clear();
         m_enemyManager->Initialize(Graphics::Instance().GetDevice());
     }
-
-    // 3. Reset Items
     if (m_itemManager)
     {
         m_itemManager->GetItems().clear();
@@ -365,32 +761,22 @@ void SceneGame::ResetLevel()
     // 4. Reset Navi Ally
     if (m_navi)
     {
-        m_navi->GetProjectiles().clear();
+        m_navi->Reset();
+        m_navi->SetPotionedState(isBossStage);
 
-        // Snap navi back to the player's shoulder instantly
-        DirectX::XMFLOAT3 naviPos{ m_playerSpawnPos };
-        naviPos.x += 1.0f;
-        naviPos.y += 2.0f; // HOVER_HEIGHT
-        naviPos.z += 0.5f;
-        m_navi->SetPosition(naviPos);
+        // Position Navi near Player
+        m_navi->SetPosition({ respawnPos.x + 1.0f, respawnPos.y + 2.0f, respawnPos.z + 0.5f });
+
+        // --- NEW: TRIGGER DELAY ON RESPAWN ---
+        if (isBossStage)
+        {
+            m_navi->StartAttackDelay(3.0f);
+        }
     }
 
-	// 5. Reset Camera
-    if (m_mainCamera)
-    {
-        XMFLOAT3 resetPos{ m_cameraPosition };
-        resetPos.x = 0.0f;
-        resetPos.z = -14.0f;
-        resetPos.y = Config::CAM_START_HEIGHT;
-
-        m_mainCamera->SetPosition(resetPos);
-        m_mainCamera->LookAt(m_cameraTarget);
-
-        // Force the CameraController to snap to the new position
-        CameraController::Instance().SetFixedSetting(resetPos);
-        CameraController::Instance().SetTarget(m_playerSpawnPos);
-        CameraController::Instance().Update(0.0f); 
-    }
+    // 5. Smart Camera Reset
+    CameraController::Instance().SetTarget(respawnPos);
+    CameraController::Instance().Update(0.0f);
 }
 
 void SceneGame::Render(float elapsedTime, Camera* camera)
@@ -406,7 +792,7 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
 
     activeData.psxEnabled = (m_fxState.MasterEnabled && m_fxState.EnablePSX);
 
-    if (!m_fxState.EnableVignette && !m_isDying && m_respawnTimer <= 0.0f)  
+    if (!m_fxState.EnableVignette && !m_isDying && !m_isNaviDefeatSequenceActive && m_respawnTimer <= 0.0f)
     {
         activeData.intensity = 0.0f;
     }
@@ -472,12 +858,20 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
         //    }
         //}
 
+		// Navi hitboxes (blue)
+        //if (m_navi) m_navi->RenderDebug(shapeRenderer);
+
         shapeRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection());
         primRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection(), D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
     }
 
     if (m_fxState.MasterEnabled) {
         m_postProcess->EndCapture(elapsedTime);
+    }
+
+    if (m_dialogueBox)
+    {
+        m_dialogueBox->Render(dc);
     }
 
     if (m_fadeAlpha > 0.001f && m_fadeSprite)
@@ -505,7 +899,33 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
             0.0f, 0.0f, 0.0f, m_fadeAlpha // r, g, b, a
         );
     }
+
+    if (m_whiteAlpha > 0.001f && m_whiteSprite)
+    {
+        float screenW{ Config::DEFAULT_SCREEN_W };
+        float screenH{ Config::DEFAULT_SCREEN_H };
+        if (auto window{ Framework::Instance()->GetMainWindow() }) {
+            screenW = static_cast<float>(window->GetWidth());
+            screenH = static_cast<float>(window->GetHeight());
+        }
+
+        // Enable 2D Transparency
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
+        // Draw the white sprite over the whole screen.
+        m_whiteSprite->Render(
+            dc,
+            0.0f, 0.0f, 0.0f,      // dx, dy, dz
+            screenW, screenH,      // dw, dh
+            0.0f, 0.0f,            // sx, sy 
+            1920.0f, 1080.0f,      // sw, sh (texture size)
+            0.0f,                  // angle
+            1.0f, 1.0f, 1.0f, m_whiteAlpha // Apply fading alpha
+        );
+    }
 }
+
 
 void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
 {
@@ -550,4 +970,59 @@ void SceneGame::OnResize(int width, int height)
         m_mainCamera->SetPerspectiveFov(DirectX::XMConvertToRadians(Config::CAM_FOV), static_cast<float>(width) / static_cast<float>(height), Config::CAM_NEAR, Config::CAM_FAR);
     }
     if (m_postProcess) m_postProcess->OnResize(width, height);
+}
+
+bool SceneGame::AreTrackingEnemiesDead() const
+{
+    if (!m_enemyManager) return false;
+
+    // CPU Optimization: Range-based for loop.
+    for (const auto& enemy : m_enemyManager->GetEnemies())
+    {
+        // If we find even ONE active tracking enemy, abort.
+        if (enemy && enemy->IsActive() && enemy->GetAttackType() == AttackType::Tracking)
+        {
+            return false;
+        }
+    }
+    return true; 
+}
+
+Enemy* SceneGame::GetFakeBoss() const
+{
+    if (!m_enemyManager) return nullptr;
+
+    for (const auto& enemy : m_enemyManager->GetEnemies())
+    {
+        if (enemy && enemy->IsActive() && enemy->GetType() == EnemyType::FakeBoss)
+        {
+            return enemy.get();
+        }
+    }
+    return nullptr;
+}
+
+void SceneGame::StartBossCinematic()
+{
+    if (m_bossCinematicTriggered) return;
+
+    Enemy* fakeBoss = GetFakeBoss();
+
+    if (!fakeBoss || !m_player) return;
+
+    m_bossCinematicTriggered = true;
+    m_isBossCinematicActive = true;
+    m_bossCinematicTimer = 0.0f;
+    m_bossDialogueStarted = false;
+
+    // Lock the Player securely
+    m_player->SetInputEnabled(false);
+    m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
+    m_player->GetStateMachine()->ChangeState(m_player.get(), std::make_unique<PlayerIdle>());
+    m_player->SetAimLocked(true);
+    m_player->ForceAimTarget(fakeBoss->GetPosition());
+
+    // Set LERP anchors
+    m_cinematicStartTarget = m_player->GetPosition();
+    m_cinematicEndTarget = fakeBoss->GetPosition();
 }

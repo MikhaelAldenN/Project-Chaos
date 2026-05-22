@@ -168,6 +168,9 @@ public:
     void RestorePowerCap();
     bool IsPowerUncapped() const { return m_isPowerUncapped; }
 
+	// --- Glitch Effect ---
+    [[nodiscard]] float GetDamageGlitchIntensity() const noexcept;
+
 private:
     // --- Update pipeline (called in order from Update()) ---
     void UpdateDashCooldown(float dt);
@@ -273,4 +276,10 @@ private:
     int m_dashStandbyVfxHandle = -1;
 
     int m_overdriveVfxHandle = -1;
+
+
+	// --- Glitch Effect ---
+    float m_damageGlitchTimer{ 0.0f };
+    static constexpr float DAMAGE_GLITCH_DURATION{ 0.4f };
+    static constexpr float DAMAGE_GLITCH_MAX_INTENSITY{ 0.120f };
 };
