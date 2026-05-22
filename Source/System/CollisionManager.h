@@ -55,10 +55,12 @@ public:
     void SetOnLevelCompleteCallback(std::function<void()> callback) { m_onLevelCompleteCallback = callback; }
     void SetOnPlayerDeathCallback(std::function<void()> callback) { m_onPlayerDeathCallback = callback; }
     void SetOnPlayerHitCallback(std::function<void()> callback) { m_onPlayerHitCallback = callback; }
+    void SetOnEnableLineReachCallback(std::function<void(int)> callback) { m_onEnableLineReachCallback = callback; }
     [[nodiscard]] float GetEnemyPushRadius(const Enemy* enemy) const;
     [[nodiscard]] Enemy* GetTargetInSlashCone(const DirectX::XMFLOAT3& playerPos, const DirectX::XMFLOAT3& aimDir, float reach, float minDotProduct) const;
     bool GetParryableProjectile(const DirectX::XMFLOAT3& playerPos, float threshold, class Bullet** outBullet, Enemy** outNearestEnemy);
     void SetNavi(NaviAlly* navi) { m_navi = navi; }
+    NaviAlly* GetNavi() const { return m_navi; }
     void SetNaviBoss(NaviBoss* naviBoss) { m_naviBoss = naviBoss; }
     NaviBoss* GetNaviBoss() const { return m_naviBoss; }
 
@@ -67,12 +69,14 @@ private:
     void CheckPlayerVsEnemies();
     void CheckPlayerVsItems();
     void CheckPlayerProjectilesVsEnemies(float elapsedTime);
+    void CheckPlayerProjectilesVsNavi(float elapsedTime);
     void CheckPlayerVsTriggerLines();
     void CheckPlayerVsVoidLines();
     bool CheckSphereCollision(const DirectX::XMFLOAT3& posA, const DirectX::XMFLOAT3& posB, float threshold);
     void CheckEnemyProjectilesFull(float elapsedTime);
     void CheckBossFilesVsPlayer();
     void CheckNaviProjectilesVsEnemies(float elapsedTime);
+    void CheckNaviAllyProjectilesVsPlayer(float elapsedTime);
     void CheckNaviBossProjectilesVsPlayer(float elapsedTime);
     void CheckNaviBossProjectilesVsBoss(float elapsedTime); // Fungsi pantulan
 
@@ -86,6 +90,7 @@ private:
     NaviBoss* m_naviBoss = nullptr;
 
     std::function<void(DirectX::XMFLOAT3)> m_onCheckpointReachCallback;
+    std::function<void(int)> m_onEnableLineReachCallback = nullptr;
     std::function<void()> m_onLevelCompleteCallback = nullptr;
     std::function<void()> m_onPlayerDeathCallback;
     std::function<void()> m_onPlayerHitCallback = nullptr;

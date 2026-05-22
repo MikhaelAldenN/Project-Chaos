@@ -32,6 +32,7 @@ public:
 
     bool IsActive() const { return m_state != State::Hidden; }
 
+    // [NEW] Untuk sinkronisasi event di luar classa
     int GetCurrentDialogueIndex() const { return m_currentIndex; }
 
     void SetShowBackground(bool show) { m_showBackground = show; }

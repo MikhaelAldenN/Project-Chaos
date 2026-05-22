@@ -32,6 +32,7 @@ void Bullet::Update(float elapsedTime, Camera* camera)
 {
     if (!isActive) return;
 
+    m_lifeTime += elapsedTime;
     // =========================================================
     // [BARU] LOGIKA KURVA BEZIER (PARABOLA SEMPURNA)
     // =========================================================

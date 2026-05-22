@@ -628,6 +628,20 @@
     <ClInclude Include="Source\Game\Entities\NaviPhaseNormal.h">
       <Filter>Source\Game\Entities</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Engine\Helpers\CapeSimulator.h" />
+    <ClInclude Include="Source\Engine\Helpers\TimeManager.h" />
+    <ClInclude Include="Source\Engine\VFX\EffectManager.h" />
+    <ClInclude Include="Source\Game\Entities\NaviAlly.h" />
+    <ClInclude Include="Source\Game\Entities\Weapon.h" />
+    <ClInclude Include="Source\Engine\Graphics\FontTTF.h">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Graphics\stb_truetype.h">
+      <Filter>Source\Engine\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\UI\UIDialogueBox.h">
+      <Filter>Source\Engine\UI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Basic.hlsli">

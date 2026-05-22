@@ -2,6 +2,7 @@
 
 // Standard Libraries
 #include <memory>
+#include <string>
 #include <DirectXMath.h>
 #include <wrl/client.h> 
 #include <PxPhysicsAPI.h> 
@@ -14,6 +15,7 @@
 #include "System/Light.h"
 #include "System/Sprite.h"
 #include "UberShader.h"
+#include "UIDialogueBox.h"
 
 // ==========================================
 // FORWARD DECLARATIONS
@@ -27,6 +29,7 @@ class ItemManager;
 class NaviAlly;
 class Player;
 class PostProcessManager;
+class Primitive;
 class Stage;
 
 // ==========================================
@@ -71,7 +74,7 @@ private:
     struct PostProcessState {
         bool MasterEnabled{ true };
         bool EnableVignette{ false };
-        bool EnableLens{ false };
+        bool EnableLens{ true };
         bool EnableChromatic{ true };
         bool EnableCRT{ true };
         bool EnableBloom{ true }; 
@@ -85,6 +88,7 @@ private:
     std::unique_ptr<ItemManager> m_itemManager{};
     std::unique_ptr<Stage> m_stage{};
     std::shared_ptr<Camera> m_mainCamera{};
+    std::unique_ptr<UIDialogueBox> m_dialogueBox{};
 
     DirectX::XMFLOAT3 m_cameraPosition{ 0.0f, 18.0f, 0.0f };
     DirectX::XMFLOAT3 m_cameraTarget{ 0.0f, 0.0f, 0.0f };
@@ -94,8 +98,10 @@ private:
     PostProcessState m_fxState{};
 
     std::unique_ptr<Sprite> m_fadeSprite{};
-    float m_fadeAlpha{ 0.0f };
+    float m_fadeAlpha{ 1.0f };
     DirectX::XMFLOAT4 m_bgSpriteColor{ 1.0f, 1.0f, 1.0f, 1.0f };
+    std::unique_ptr<Sprite> m_whiteSprite{};
+    float m_whiteAlpha{ 0.0f };
 
     float m_globalTime{ 0.0f };
     float m_configFineDensity{ 30.0f };
@@ -116,11 +122,27 @@ private:
     // DEATH & RESPAWN SEQUENCE
     bool m_isDying{ false };
     float m_deathTimer{ 0.0f };
-    float m_respawnTimer{ 0.0f };
+    float m_bootTimer{ 1.1f };
+    float m_respawnTimer{ RESPAWN_FADE_DURATION };
+    bool m_hasBGMStarted{ false };
+    bool m_isNaviDefeatSequenceActive{ false };
+    float m_naviDefeatTimer{ 0.0f };
+    bool m_isNaviDefeatReadyForNextScene{ false };
+
+    bool m_hasIntroDialogueTestStarted{ false };
+    bool m_hasTriggeredMushroomDialogue{ false };
+    bool m_hasTriggeredTrackingDialogue{ false };
+    bool m_bossDialogueStarted{ false };
+    bool m_hasTriggeredPoisonDialogue{ false };
+    bool m_isPoisonDialogueActive{ false };
 
     static constexpr float DEATH_DELAY_DURATION{ 0.5f };
     static constexpr float DEATH_FADE_DURATION{ 3.0f };
+    static constexpr float NAVI_DEFEAT_FADE_DURATION{ 3.0f };
     static constexpr float RESPAWN_FADE_DURATION{ 3.0f };
+    static constexpr float WHITEOUT_HOLD_DURATION{ 15.0f };
+    static constexpr float FADE_BACK_DURATION{ 2.0f };
+    static constexpr float DIALOG_CHARACTERS_PER_SECOND{ 18.0f };
 
     // Post-Process Values for Fading to Black
     static constexpr float FX_BASE_SMOOTHNESS{ 0.2f };
@@ -131,5 +153,33 @@ private:
     const DirectX::XMFLOAT3 m_playerSpawnPos{ 0.0f, 2.0f, 0.0f };
 
     void StartPlayerDeathSequence();
+    void StartNaviDefeatSequence();
+    void StartIntroDialogueTest();
+    void UpdateDialogue(float elapsedTime);
+    void RenderDialogue();
+    void StartMushroomDialogue();
+    void StartTrackingDialogue();
+    void StartPoisonDialogue();
     void ResetLevel();
+
+    // Cinematic States
+    bool AreTrackingEnemiesDead() const;
+    class Enemy* GetFakeBoss() const;
+    void StartBossCinematic();
+
+    bool m_bossCinematicTriggered{ false };
+    bool m_isBossCinematicActive{ false };
+    float m_bossCinematicTimer{ 0.0f };
+    bool m_bossEffectTriggered{ false };
+
+    // Configurable: 4 seconds for a slow, dramatic pan
+    static constexpr float BOSS_CINEMATIC_DURATION{ 4.0f };
+    static constexpr float BOSS_CINEMATIC_HOLD_DURATION{ 3.0f };
+    static constexpr float BOSS_EFFECT_WHITEOUT_DELAY{ 4.5f }; 
+    static constexpr float WHITEOUT_FADE_DURATION{ 3.0f };
+    float m_fakeBossEffectScale{ 3.000f };
+    DirectX::XMFLOAT3 m_fakeBossEffectOffset{ 9.690f, 0.000f, 24.600f };
+    DirectX::XMFLOAT3 m_fakeBossEffectRotation{ 0.000f, 25.000f, 0.000f };
+    DirectX::XMFLOAT3 m_cinematicStartTarget{ 0.0f, 0.0f, 0.0f };
+    DirectX::XMFLOAT3 m_cinematicEndTarget{ 0.0f, 0.0f, 0.0f };
 };
