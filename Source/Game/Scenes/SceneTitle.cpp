@@ -86,17 +86,23 @@ void SceneTitle::Update(float elapsedTime)
 
         // Fade out Copyright
         if (m_copyrightAlpha > 0.0f)
-            m_copyrightAlpha = std::clamp(m_copyrightAlpha - (elapsedTime * 2.0f), 0.0f, 1.0f);
+        {
+            m_copyrightAlpha = std::clamp(m_copyrightAlpha - (elapsedTime * 0.8f), 0.0f, 1.0f);
+        }
+
+        else if (m_gapTimer < GAP_DURATION)
+        {
+            m_gapTimer += elapsedTime;
+        }
 
         // Phase 1: Fade In (Only runs while pulseTimer is 0)
-        if (m_pulseTimer == 0.0f)
+        else if (m_pulseTimer == 0.0f)
         {
             m_startAlpha += elapsedTime * 2.0f;
             if (m_startAlpha >= 1.0f)
             {
                 m_startAlpha = 1.0f;
-                // Nudge the timer slightly above 0 so we enter Phase 2 on the next frame
-                m_pulseTimer += 0.001f;
+                m_pulseTimer = 0.5236f;
             }
         }
         // Phase 2: Pulse Effect

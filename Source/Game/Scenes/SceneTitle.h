@@ -64,7 +64,9 @@ private:
     float m_copyrightAlpha{ 1.0f };
     float m_startAlpha{ 0.0f };
     float m_pulseTimer{ 0.0f };
+    float m_gapTimer{ 0.0f };
     static constexpr float BOOT_FADE_DURATION{ 3.0f };
+    static constexpr float GAP_DURATION{ 1.0f };
 
     bool m_isExiting{ false };
     float m_exitTimer{ 0.0f };
