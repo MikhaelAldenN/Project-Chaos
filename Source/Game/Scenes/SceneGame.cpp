@@ -266,8 +266,14 @@ void SceneGame::Update(const float elapsedTime)
 
         if (m_player)
         {
+            m_player->SetInputEnabled(false);
             CameraController::Instance().SetTarget(m_player->GetPosition());
             CameraController::Instance().Update(0.0f); 
+        }
+
+        if (m_bootTimer <= 0.0f && m_player)
+        {
+            m_player->SetInputEnabled(true);
         }
     }
 
@@ -309,6 +315,8 @@ void SceneGame::Update(const float elapsedTime)
     {
         m_respawnTimer -= elapsedTime;
 
+        if (m_player) m_player->SetInputEnabled(false);
+
         // Quadratic Ease-Out for a smoother fade-in curve
         const float linearT{ std::clamp(m_respawnTimer / RESPAWN_FADE_DURATION, 0.0f, 1.0f) };
         const float t{ linearT * linearT };
@@ -316,6 +324,11 @@ void SceneGame::Update(const float elapsedTime)
         m_uberParams.smoothness = FX_BASE_SMOOTHNESS + (FX_BLACK_SMOOTHNESS - FX_BASE_SMOOTHNESS) * t;
         m_uberParams.intensity = FX_BASE_INTENSITY + (FX_BLACK_INTENSITY - FX_BASE_INTENSITY) * t;
         m_fadeAlpha = t;
+
+        if (m_respawnTimer <= 0.0f && m_player)
+        {
+            m_player->SetInputEnabled(true);
+        }
     }
     else
     {
@@ -775,7 +788,7 @@ void SceneGame::ResetLevel()
         m_player->SetPosition(respawnPos);
         m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
         m_player->SetMaxHP(isBossStage ? 150 : 100);
-        m_player->SetInputEnabled(true);
+        m_player->SetInputEnabled(false);
         m_player->scale = { 1.0f, 1.0f, 1.0f };
         m_player->GetStateMachine()->ChangeState(m_player.get(), std::make_unique<PlayerIdle>());
         m_player->GetProjectiles().clear();
