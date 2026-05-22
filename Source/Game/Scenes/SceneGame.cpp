@@ -71,9 +71,23 @@ SceneGame::SceneGame()
 {
     float screenW{ Config::DEFAULT_SCREEN_W };
     float screenH{ Config::DEFAULT_SCREEN_H };
+
     if (auto window{ Framework::Instance()->GetMainWindow() }) {
-        screenW = static_cast<float>(window->GetWidth());
-        screenH = static_cast<float>(window->GetHeight());
+        SDL_Window* sdlWin = window->GetSDLWindow();
+
+        // Disable window borders and the ability to resize
+        SDL_SetWindowBordered(sdlWin, false);
+        SDL_SetWindowResizable(sdlWin, false);
+
+        // Grab monitor size and force the window to match it perfectly
+        int fullW = GetSystemMetrics(SM_CXSCREEN);
+        int fullH = GetSystemMetrics(SM_CYSCREEN);
+        SDL_SetWindowSize(sdlWin, fullW, fullH);
+        SDL_SetWindowPosition(sdlWin, 0, 0);
+
+        // Update local configuration variables
+        screenW = static_cast<float>(fullW);
+        screenH = static_cast<float>(fullH);
     }
 
     auto& camCtrl{ CameraController::Instance() };
@@ -982,7 +996,10 @@ void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
     EffectManager::Instance().Render(camera);
 }
 
-void SceneGame::DrawGUI() { GameBreakerGUI::Draw(this); }
+void SceneGame::DrawGUI() 
+{ 
+    //GameBreakerGUI::Draw(this); 
+}
 
 void SceneGame::OnResize(int width, int height)
 {
