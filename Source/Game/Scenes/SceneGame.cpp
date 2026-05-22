@@ -180,7 +180,7 @@ SceneGame::SceneGame()
 SceneGame::~SceneGame()
 {
     AudioManager::Instance().StopMusic();
-    CameraController::Instance().ClearCamera();
+    //CameraController::Instance().ClearCamera();
 
     m_player.reset();
     m_stage.reset();
@@ -220,6 +220,27 @@ void SceneGame::Update(const float elapsedTime)
             m_uberParams.intensity = FX_BLACK_INTENSITY;
             m_fadeAlpha = 1.0f;
             m_isNaviDefeatReadyForNextScene = true;
+            m_player.reset();
+            m_navi.reset();
+            m_enemyManager.reset();
+            m_itemManager.reset();
+            m_stage.reset();
+            m_collisionManager.reset();
+
+            // Destroy PhysX core components in reverse order of creation
+            m_groundPlane.reset();
+            m_defaultMaterial.reset();
+            m_controllerManager.reset();
+            m_scene.reset();
+            m_dispatcher.reset();
+            m_physics.reset();
+            m_foundation.reset(); // <-- This frees PxFoundation for SceneBoss!
+
+            // Clear the camera so SceneBoss can claim it without it getting overridden
+            CameraController::Instance().ClearCamera();
+            Framework::Instance()->ChangeScene(std::make_unique<SceneBoss>());
+
+            return;
         }
     }
     else if (m_bootTimer > 0.0f)
