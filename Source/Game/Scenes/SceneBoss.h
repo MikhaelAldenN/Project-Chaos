@@ -10,9 +10,12 @@
 #include "Camera.h"
 #include "CameraController.h"
 #include "Player.h"
+#include "PostProcessManager.h"
 #include "Primitive.h"
 #include "WindowTrackingSystem.h"
 #include "System/PrimitiveRenderer.h"
+#include "System/Sprite.h"
+#include "UberShader.h"
 #include "BeyondWindow.h"
 #include "PhysXUtils.h"
 #include "NaviBoss.h"
@@ -136,6 +139,32 @@ private:
     std::vector<std::string> m_debugLogs;
 
     DirectX::XMFLOAT4 m_clearColor = { 0.0f, 0.0f, 0.0f, 1.0f }; // Default: Abu-abu Gelap (R, G, B, A)
+
+private:
+    // =========================================================
+    // DEATH & RESPAWN SEQUENCE
+    // =========================================================
+    bool m_isDying{ false };
+    float m_deathTimer{ 0.0f };
+    float m_respawnTimer{ 0.0f };
+    float m_fadeAlpha{ 0.0f };
+
+    std::unique_ptr<PostProcessManager> m_postProcess{};
+    UberShader::UberData m_uberParams{};
+    std::unique_ptr<Sprite> m_fadeSprite{};
+
+    static constexpr float DEATH_DELAY_DURATION{ 0.5f };
+    static constexpr float DEATH_FADE_DURATION{ 3.0f };
+    static constexpr float RESPAWN_FADE_DURATION{ 3.0f };
+
+    // Post-Process Values for Fading to Black
+    static constexpr float FX_BASE_SMOOTHNESS{ 0.2f };
+    static constexpr float FX_BASE_INTENSITY{ 0.0f }; 
+    static constexpr float FX_BLACK_SMOOTHNESS{ 7.0f };
+    static constexpr float FX_BLACK_INTENSITY{ 5.0f };
+
+    void StartPlayerDeathSequence();
+    void ResetLevel();
 
 private:
     // --- Pengaturan Desain Keseimbangan Game (Tuning) ---

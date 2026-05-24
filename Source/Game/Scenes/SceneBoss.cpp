@@ -117,6 +117,21 @@ SceneBoss::SceneBoss()
     WindowManager::Instance().SetTopmost(m_topmostEnabled);
     InitializeSubWindows();
 
+    // --- Death Fade Effects ---
+    float screenW = static_cast<float>(GetSystemMetrics(SM_CXSCREEN));
+    float screenH = static_cast<float>(GetSystemMetrics(SM_CYSCREEN));
+    if (auto window = Framework::Instance()->GetMainWindow()) {
+        screenW = static_cast<float>(window->GetWidth());
+        screenH = static_cast<float>(window->GetHeight());
+    }
+
+    m_postProcess = std::make_unique<PostProcessManager>();
+    m_postProcess->Initialize(static_cast<int>(screenW), static_cast<int>(screenH));
+
+    m_fadeSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Game/Black.png");
+    m_uberParams.intensity = FX_BASE_INTENSITY;
+    m_uberParams.smoothness = FX_BASE_SMOOTHNESS;
+
     AddLog("SceneBoss initialized. Windowkill system online.");
     PerformanceLogger::Instance().LogInfo("[INIT] SceneBoss constructor complete.");
 }
@@ -235,6 +250,81 @@ void SceneBoss::Update(float elapsedTime)
 
     float activeTimeScale = m_timeScale * TimeManager::Instance().GetHitStopMultiplier();
     const float scaledDt = elapsedTime * activeTimeScale;
+
+
+    // =========================================================
+    // DEATH SEQUENCE LOGIC
+    // =========================================================
+    if (m_player && m_player->GetHP() <= 0 && !m_isDying && m_respawnTimer <= 0.0f)
+    {
+        StartPlayerDeathSequence();
+    }
+
+    if (m_isDying)
+    {
+        m_deathTimer += elapsedTime; 
+
+        if (m_deathTimer < DEATH_DELAY_DURATION)
+        {
+            m_uberParams.smoothness = FX_BASE_SMOOTHNESS;
+            m_uberParams.intensity = FX_BASE_INTENSITY;
+            m_fadeAlpha = 0.0f;
+        }
+        else
+        {
+            const float fadeTime{ m_deathTimer - DEATH_DELAY_DURATION };
+            const float t{ std::clamp(fadeTime / DEATH_FADE_DURATION, 0.0f, 1.0f) };
+
+            m_uberParams.smoothness = FX_BASE_SMOOTHNESS + (FX_BLACK_SMOOTHNESS - FX_BASE_SMOOTHNESS) * t;
+            m_uberParams.intensity = FX_BASE_INTENSITY + (FX_BLACK_INTENSITY - FX_BASE_INTENSITY) * t;
+            m_fadeAlpha = t;
+
+            if (t >= 1.0f)
+            {
+                ResetLevel();
+                m_isDying = false;
+                m_respawnTimer = RESPAWN_FADE_DURATION;
+
+                m_uberParams.smoothness = FX_BLACK_SMOOTHNESS;
+                m_uberParams.intensity = FX_BLACK_INTENSITY;
+                m_fadeAlpha = 1.0f;
+            }
+        }
+    }
+    else if (m_respawnTimer > 0.0f)
+    {
+        m_respawnTimer -= elapsedTime;
+
+        if (m_player) m_player->SetInputEnabled(false);
+
+        const float linearT{ std::clamp(m_respawnTimer / RESPAWN_FADE_DURATION, 0.0f, 1.0f) };
+        const float t{ linearT * linearT }; // Quadratic Ease-Out
+
+        m_uberParams.smoothness = FX_BASE_SMOOTHNESS + (FX_BLACK_SMOOTHNESS - FX_BASE_SMOOTHNESS) * t;
+        m_uberParams.intensity = FX_BASE_INTENSITY + (FX_BLACK_INTENSITY - FX_BASE_INTENSITY) * t;
+        m_fadeAlpha = t;
+
+        if (m_respawnTimer <= 0.0f && m_player)
+        {
+            m_player->SetInputEnabled(true);
+
+            if (m_navi)
+            {
+                if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+                    normalPhase->SetAIEnabled(true);
+                }
+                else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+                    wkPhase->SetAIEnabled(true);
+                }
+            }
+        }
+    }
+    else
+    {
+        m_uberParams.smoothness = FX_BASE_SMOOTHNESS;
+        m_uberParams.intensity = FX_BASE_INTENSITY;
+        m_fadeAlpha = 0.0f;
+    }
 
     // --- PhysX tick ---
     if (m_scene)
@@ -522,7 +612,34 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
     dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestAndWrite), 0);
     dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullBack));
 
+    // =========================================================
+    // POST-PROCESS VIGNETTE (Only applied to Main Window)
+    // =========================================================
+    bool usePostProcess = (!isTransparentWindow && targetCam == m_mainCamera.get() && m_postProcess);
+
+    if (usePostProcess)
+    {
+        m_postProcess->SetEnabled(true);
+        UberShader::UberData& activeData = m_postProcess->GetData();
+        activeData = m_uberParams;
+
+        // Turn off unneeded filters just to be safe
+        activeData.glitchStrength = 0.0f;
+        activeData.distortion = 0.0f;
+        activeData.chromaticAberration = 0.0f;
+        activeData.scanlineStrength = 0.0f;
+        activeData.bloomIntensity = 0.0f;
+        activeData.psxEnabled = false;
+
+        m_postProcess->BeginCapture();
+    }
+
     RenderScene(elapsedTime, targetCam, isTransparentWindow);
+
+    if (usePostProcess)
+    {
+        m_postProcess->EndCapture(elapsedTime);
+    }
 
     if (m_showGrid && m_primitive3D)
     {
@@ -598,6 +715,61 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
         }
 
         m_hud->Render(dc, playerHP, playerMaxHP, bossHP, bossMaxHP);
+    }
+
+    // =========================================================
+    // FADE SPRITE OVERLAY 
+    // =========================================================
+    if (m_fadeAlpha > 0.001f && m_fadeSprite)
+    {
+        float screenW = static_cast<float>(GetSystemMetrics(SM_CXSCREEN));
+        float screenH = static_cast<float>(GetSystemMetrics(SM_CYSCREEN));
+        if (auto window = Framework::Instance()->GetMainWindow()) {
+            screenW = static_cast<float>(window->GetWidth());
+            screenH = static_cast<float>(window->GetHeight());
+        }
+
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
+        m_fadeSprite->Render(
+            dc,
+            0.0f, 0.0f, 0.0f,
+            screenW, screenH,
+            0.0f, 0.0f,
+            1920.0f, 1080.0f,
+            0.0f,
+            0.0f, 0.0f, 0.0f, m_fadeAlpha
+        );
+    }
+}
+
+void SceneBoss::StartPlayerDeathSequence()
+{
+    if (m_isDying) return;
+
+    m_isDying = true;
+    m_deathTimer = 0.0f;
+
+    if (m_player)
+    {
+        m_player->SetInputEnabled(false);
+        m_player->scale = { 0.0f, 0.0f, 0.0f }; // Hide player
+
+        // Stop movement sliding
+        if (m_player->GetMovement()) {
+            m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
+        }
+    }
+
+    if (m_navi)
+    {
+        if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+            normalPhase->SetAIEnabled(false);
+        }
+        else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+            wkPhase->SetAIEnabled(false);
+        }
     }
 }
 
@@ -1411,6 +1583,59 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
             m_debugLogs.erase(m_debugLogs.begin());
     }
 
+    void SceneBoss::ResetLevel()
+    {
+        // Reset Player State (Safe check prevents crashes)
+        if (m_player)
+        {
+            m_player->SetPosition(0.0f, 0.0f, -8.0f);
+            m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
+            m_player->SetMaxHP(100);
+            m_player->SetInputEnabled(false);
+            m_player->scale = { 1.0f, 1.0f, 1.0f };
+
+            if (m_player->GetStateMachine()) {
+                m_player->GetStateMachine()->ChangeState(m_player.get(), std::make_unique<PlayerIdle>());
+            }
+
+            m_player->GetProjectiles().clear();
+            m_player->RestoreShootDelay();
+            m_player->SetAimLocked(false);
+        }
+
+        // Reset Boss 
+        if (m_navi)
+        {
+            if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
+            {
+                normalPhase->SetHP(normalPhase->GetMaxHP());
+                m_playerWindowTransparent = false; // Normal mode = solid player
+            }
+            else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()))
+            {
+                wkPhase->SetHP(wkPhase->GetMaxHP());
+                m_playerWindowTransparent = true;  // Windowkill mode = transparent player
+            }
+        }
+
+        // Clean up the Windowkill environment
+        m_timeScale = 1.0f;
+        WindowShatterManager::Instance().Clear();
+
+        // Smart Camera Reset (Instantly snaps during the black screen)
+        CameraController::Instance().SetDynamicZoomOffset(0.0f);
+        float unifiedHeight = m_windowSystem ? m_windowSystem->GetUnifiedCameraHeight() : 18.0f;
+
+        CameraController::Instance().SetFixedSetting(DirectX::XMFLOAT3(0.0f, unifiedHeight, 0.0f));
+        CameraController::Instance().SetTarget({ 0.0f, 0.0f, 0.0f });
+
+        // Force the camera math to finish instantly
+        for (int i = 0; i < 60; ++i)
+        {
+            CameraController::Instance().Update(0.016f);
+        }
+    }
+
     void SceneBoss::ResetEverything()
     {
         CameraController::Instance().ClearCamera();
@@ -1423,7 +1648,6 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
         m_stage.reset();
         m_boss.reset();
         WindowShatterManager::Instance().Clear();
-        m_player->RestoreShootDelay();
 
 
         if (m_windowSystem) m_windowSystem->ClearAll();
