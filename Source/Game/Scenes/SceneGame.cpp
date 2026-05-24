@@ -125,7 +125,7 @@ SceneGame::SceneGame()
     sceneDesc.gravity = physx::PxVec3(0.0f, Config::GRAVITY, 0.0f);
 
     m_dispatcher.reset(physx::PxDefaultCpuDispatcherCreate(2));
-    sceneDesc.cpuDispatcher = m_dispatcher.get(); 
+    sceneDesc.cpuDispatcher = m_dispatcher.get();
     sceneDesc.filterShader = physx::PxDefaultSimulationFilterShader;
 
     m_scene.reset(m_physics->createScene(sceneDesc));
@@ -139,16 +139,16 @@ SceneGame::SceneGame()
 
     m_groundPlane.reset(physx::PxCreatePlane(*m_physics, physx::PxPlane(0, 1, 0, 0), *m_defaultMaterial));
     m_scene->addActor(*m_groundPlane);
-    
+
     m_player = std::make_unique<Player>();
 
     m_player->SetPosition(m_playerSpawnPos);
     m_player->InitPhysics(m_controllerManager.get(), m_defaultMaterial.get());
     m_stage->InitPhysics(m_physics.get(), m_scene.get(), m_defaultMaterial.get());
 
-    PlayerConfig gameConfig{};            
-    gameConfig.moveSpeed = 8.0f;         
-    gameConfig.dashSpeed = 28.0f;         
+    PlayerConfig gameConfig{};
+    gameConfig.moveSpeed = 8.0f;
+    gameConfig.dashSpeed = 28.0f;
 
     m_player->ApplyConfig(gameConfig);
     m_player->GetMovement()->SetRotationY(DirectX::XM_PI);
@@ -174,7 +174,7 @@ SceneGame::SceneGame()
                 StartBossCinematic();
             }
         }
-    });
+        });
 
     m_director = std::make_unique<CinematicDirector>();
 
@@ -268,7 +268,7 @@ void SceneGame::Update(const float elapsedTime)
         {
             m_player->SetInputEnabled(false);
             CameraController::Instance().SetTarget(m_player->GetPosition());
-            CameraController::Instance().Update(0.0f); 
+            CameraController::Instance().Update(0.0f);
         }
 
         if (m_bootTimer <= 0.0f && m_player)
@@ -340,7 +340,7 @@ void SceneGame::Update(const float elapsedTime)
         {
             AudioManager::Instance().PlayMusic("Data/Sound/BGM_Game.wav", 0.1f, true);
 
-            m_hasBGMStarted = true; 
+            m_hasBGMStarted = true;
         }
     }
 
@@ -396,7 +396,7 @@ void SceneGame::Update(const float elapsedTime)
             if (abs(dir.y) > 0.001f) {
                 float t = -origin.y / dir.y;
                 DirectX::XMFLOAT3 trueMouseWorldPos = { origin.x + dir.x * t, 0.0f, origin.z + dir.z * t };
-                m_player->RotateModelToPoint(trueMouseWorldPos); 
+                m_player->RotateModelToPoint(trueMouseWorldPos);
             }
         }
 
@@ -416,7 +416,7 @@ void SceneGame::Update(const float elapsedTime)
     if (m_itemManager) m_itemManager->Update(elapsedTime, activeCam);
     if (m_collisionManager) m_collisionManager->Update(elapsedTime);
 
-	// Furi style cinematic combat camera 
+    // Furi style cinematic combat camera 
     static float targetZoom{ 0.0f };
     static int   frameCounter{ 0 };
     static const Enemy* cachedClosestEnemy{ nullptr };
@@ -546,7 +546,7 @@ void SceneGame::Update(const float elapsedTime)
     else // NORMAL GAMEPLAY CAMERA
     {
         // 1. Target the Player securely
-        if (m_player && m_fadeAlpha < 0.99f)
+        if (m_player)
         {
             CameraController::Instance().SetTarget(m_player->GetPosition());
             m_director->Update(elapsedTime, m_player->GetMovement()->GetPosition());
@@ -823,8 +823,12 @@ void SceneGame::ResetLevel()
     }
 
     // 5. Smart Camera Reset
+    CameraController::Instance().SetDynamicZoomOffset(0.0f);
     CameraController::Instance().SetTarget(respawnPos);
-    CameraController::Instance().Update(0.0f);
+    for (int i = 0; i < 60; ++i)
+    {
+        CameraController::Instance().Update(0.016f);
+    }
 }
 
 void SceneGame::Render(float elapsedTime, Camera* camera)
@@ -836,7 +840,7 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
     m_postProcess->SetEnabled(m_fxState.MasterEnabled);
 
     UberShader::UberData& activeData{ m_postProcess->GetData() };
-    activeData = this->m_uberParams; 
+    activeData = this->m_uberParams;
 
     activeData.psxEnabled = (m_fxState.MasterEnabled && m_fxState.EnablePSX);
 
@@ -884,7 +888,7 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
         if (m_stage) m_stage->RenderDebug(shapeRenderer, primRenderer);
         if (m_enemyManager) m_enemyManager->RenderDebug(shapeRenderer);
 
-		// Player hitbox (green), Enemy hitboxes (red)
+        // Player hitbox (green), Enemy hitboxes (red)
         //if (m_player)
         //{
         //    DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
@@ -906,7 +910,7 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
         //    }
         //}
 
-		// Navi hitboxes (blue)
+        // Navi hitboxes (blue)
         //if (m_navi) m_navi->RenderDebug(shapeRenderer);
 
         shapeRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection());
@@ -994,11 +998,11 @@ void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
     }
     if (m_navi) {
         m_navi->Render(modelRenderer);
-        m_navi->RenderProjectiles(modelRenderer); 
+        m_navi->RenderProjectiles(modelRenderer);
     }
     if (m_enemyManager) m_enemyManager->Render(modelRenderer);
     if (m_itemManager) m_itemManager->Render(modelRenderer);
-    if (m_stage) 
+    if (m_stage)
     {
         m_stage->UpdateTransform();
         m_stage->Render(modelRenderer);
@@ -1009,8 +1013,8 @@ void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
     EffectManager::Instance().Render(camera);
 }
 
-void SceneGame::DrawGUI() 
-{ 
+void SceneGame::DrawGUI()
+{
     //GameBreakerGUI::Draw(this); 
 }
 
@@ -1036,7 +1040,7 @@ bool SceneGame::AreTrackingEnemiesDead() const
             return false;
         }
     }
-    return true; 
+    return true;
 }
 
 Enemy* SceneGame::GetFakeBoss() const
