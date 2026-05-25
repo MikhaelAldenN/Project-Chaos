@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <random>
 #include <SceneBoss.h>
+#include "Framework.h"
 #include "WindowManager.h" 
 #include <SDL3/SDL.h>
 #include <System/AudioManager.h>
@@ -197,11 +198,16 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
 }
 
 void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
+    m_deathCleanupDone = false;
+    bool isSceneTearingDown = (m_isDying && m_deathTimer >= 7.0f);
+
     // BERSIH-BERSIH TOTAL SAAT FASE SELESAI!
-    if (boss && boss->GetWindowSystem()) {
+    // Hanya hapus window secara manual jika kita BUKAN sedang pindah scene.
+    if (!isSceneTearingDown && boss && boss->GetWindowSystem()) {
         boss->GetWindowSystem()->RemoveTrackedWindow("navi_fx");
         boss->GetWindowSystem()->RemoveTrackedWindow(m_dialogueWindowName);
     }
+
     m_fxWindow = nullptr;
     m_fxCamera.reset();
     m_dialogueWindow = nullptr;
@@ -214,16 +220,15 @@ void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
     m_overdriveSprite.reset();
 
     for (auto& bwb : m_bouncingBullets) {
-        if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(bwb.windowName);
+        if (!isSceneTearingDown && boss && boss->GetWindowSystem()) {
+            boss->GetWindowSystem()->RemoveTrackedWindow(bwb.windowName);
+        }
     }
     m_bouncingBullets.clear();
 
-    // =========================================================
-        // [FIX] BERSIHKAN JUGA WINDOW MERIAM JIKA SEDANG AKTIF!
-        // =========================================================
     for (auto& b : m_blasters) {
         EffectManager::Instance().Stop(b->chargeEffectHandle);
-        if (boss && boss->GetWindowSystem()) {
+        if (!isSceneTearingDown && boss && boss->GetWindowSystem()) {
             boss->GetWindowSystem()->RemoveTrackedWindow(b->beamWindowName);
             boss->GetWindowSystem()->RemoveTrackedWindow(b->windowName);
         }
@@ -231,12 +236,16 @@ void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
     m_blasters.clear();
 
     for (auto& bw : m_boomerangs) {
-        if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(bw.windowName);
+        if (!isSceneTearingDown && boss && boss->GetWindowSystem()) {
+            boss->GetWindowSystem()->RemoveTrackedWindow(bw.windowName);
+        }
     }
     m_boomerangs.clear();
 
     for (auto& spear : m_undyneSpears) {
-        if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(spear.windowName);
+        if (!isSceneTearingDown && boss && boss->GetWindowSystem()) {
+            boss->GetWindowSystem()->RemoveTrackedWindow(spear.windowName);
+        }
     }
     m_undyneSpears.clear();
 
@@ -354,28 +363,30 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
             EffectManager::Instance().SetPosition(m_deathVfxHandle, trackPos);
         }
 
-        // 4. Setelah 5 detik — stop VFX, lanjut ke scene berikutnya / game over
+        // 4. After 7 seconds — stop VFX and change the SCENE to SceneTitle
         if (m_deathTimer >= 7.0f) {
-            if (m_deathVfxHandle != -1) {
-                EffectManager::Instance().Stop(m_deathVfxHandle);
-                m_deathVfxHandle = -1;
-            }
+            if (!m_deathCleanupDone) {
+                m_deathCleanupDone = true;
 
-            // Hentikan musik
-            AudioManager::Instance().StopMusic();
+                if (m_deathVfxHandle != -1) {
+                    EffectManager::Instance().Stop(m_deathVfxHandle);
+                    m_deathVfxHandle = -1;
+                }
 
-            // Hapus boss head window dari tracking system
-            if (boss->GetWindowSystem()) {
-                boss->GetWindowSystem()->RemoveTrackedWindow("navi_head");
-            }
-            // Sembunyikan main window boss
-            if (boss->GetMainWindow()) {
-                SDL_HideWindow(boss->GetMainWindow()->GetSDLWindow());
-            }
+                AudioManager::Instance().StopMusic();
 
-            // Kembali ke title phase
-            boss->ChangePhase(std::make_unique<NaviPhaseTitle>(m_aiTarget));
-            return; // Jangan lanjutkan Update frame ini
+                if (boss && boss->GetWindowSystem()) {
+                    // Guard the remove — only remove if it actually exists
+                    if (boss->GetWindowSystem()->GetTrackedWindow("navi_head")) {
+                        boss->GetWindowSystem()->RemoveTrackedWindow("navi_head");
+                    }
+                }
+
+                if (boss && boss->GetMainWindow() && boss->GetMainWindow()->GetSDLWindow()) {
+                    SDL_HideWindow(boss->GetMainWindow()->GetSDLWindow());
+                }
+            }
+            return;
         }
 
 

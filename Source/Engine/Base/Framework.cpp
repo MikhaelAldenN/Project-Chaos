@@ -35,7 +35,7 @@ Framework::Framework()
     ResourceManager::Instance().LoadFont("VGA_FONT", "Data/Font/IBM_VGA_32px_0.png", "Data/Font/IBM_VGA_32px.fnt");
 
     // Init Scene
-#if 0
+#if 1
     scene = std::make_unique<SceneTitle>();
 #else
     scene = std::make_unique<SceneBoss>();
@@ -67,20 +67,27 @@ void Framework::Update(float elapsedTime)
 {
     if (nextScene)
     {
-        scene = std::move(nextScene);
-        Beyond::Window* mainWin = GetMainWindow();
-        if (mainWin && scene)
-        {
-        }
+        scene = std::move(nextScene); // SceneBoss destructor runs here
+        // SceneBoss destructor re-enables ViewportsEnable but platform
+        // functions (Platform_CreateWindow etc.) are NULL — this crashes NewFrame.
+        // Force it back off until a scene explicitly sets it up.
+        ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
     }
 
     CalculateFrameStats(elapsedTime);
     Input::Instance().Update();
     AudioManager::Instance().Update(elapsedTime);
 
-    ImGuiRenderer::NewFrame();
+    ImGuiRenderer::NewFrame(); // Now safe
 
     if (scene) scene->Update(elapsedTime);
+
+    if (auto* boss = dynamic_cast<SceneBoss*>(scene.get())) {
+        if (boss->IsPendingSceneChange()) {
+            ChangeScene(std::make_unique<SceneTitle>());
+            return;
+        }
+    }
 }
 
 void Framework::ForceUpdateRender()

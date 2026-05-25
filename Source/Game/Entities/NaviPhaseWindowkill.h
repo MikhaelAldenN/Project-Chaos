@@ -135,6 +135,8 @@ public:
     void SetOverdriveSpriteScale(float scale) { m_overdriveSpriteScale = scale; }
     float GetOverdriveSpriteScale() const { return m_overdriveSpriteScale; }
 
+    bool IsReadyToChangeScene() const { return m_isDying && m_deathTimer >= 7.0f; }
+
     struct OrbitalBlaster {
         bool active = false;
         int state = 0;
@@ -401,6 +403,7 @@ private:
     bool  m_isDying = false;
     float m_deathTimer = 0.0f;
     Effekseer::Handle m_deathVfxHandle = -1;
+    bool m_deathCleanupDone = false;
 
     bool m_deathWindowRaised = false;
 };

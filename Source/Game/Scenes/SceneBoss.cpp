@@ -251,6 +251,15 @@ void SceneBoss::Update(float elapsedTime)
     float activeTimeScale = m_timeScale * TimeManager::Instance().GetHitStopMultiplier();
     const float scaledDt = elapsedTime * activeTimeScale;
 
+    if (GetKeyState(VK_F1) & 0x8000) // Press F1 to force switch
+    {
+        if (!m_isPendingSceneChange)
+        {
+            m_isPendingSceneChange = true;
+            Framework::Instance()->ChangeScene(std::make_unique<SceneTitle>());
+            return;
+        }
+    }
 
     // =========================================================
     // DEATH SEQUENCE LOGIC
@@ -478,6 +487,14 @@ void SceneBoss::Update(float elapsedTime)
 
         m_navi->Update(scaledDt);
 
+        if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+            if (!m_isPendingSceneChange && wkPhase->IsReadyToChangeScene()) {
+                m_isPendingSceneChange = true;
+                //Framework::Instance()->ChangeScene(std::make_unique<SceneTitle>());
+                return;
+            }
+        }
+
         bool isWindowkillPhase = (dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()) != nullptr);
 
         if (isWindowkillPhase && !m_playerWindowTransparent) {
@@ -489,6 +506,7 @@ void SceneBoss::Update(float elapsedTime)
             m_playerWindowTransparent = false;
         }
     }
+    if (m_isPendingSceneChange) return;
     if (m_enemyManager) m_enemyManager->Update(scaledDt, activeCam, m_player->GetPosition(), true);
     if (m_itemManager) m_itemManager->Update(scaledDt, activeCam);
     if (m_collisionManager) m_collisionManager->Update(scaledDt);
@@ -848,6 +866,7 @@ void SceneBoss::StartPlayerDeathSequence()
 
     void SceneBoss::DrawGUI()
     {
+        if (m_isPendingSceneChange) return;
         ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(m_debugPanelSize, ImGuiCond_FirstUseEver);
 
