@@ -170,7 +170,13 @@ private:
 
 private:
     bool m_isPendingSceneChange{ false };
+    std::unique_ptr<Sprite> m_whiteSprite{};
+    float m_whiteAlpha{ 0.0f };
+    bool  m_isNaviDefeated{ false };
+    float m_naviDefeatTimer{ 0.0f };
 
+    static constexpr float NAVI_DEATH_ANIM_DURATION{ 4.0f };
+    static constexpr float WHITE_FADE_DURATION{ 2.0f };
 private:
     // --- Pengaturan Desain Keseimbangan Game (Tuning) ---
     float m_overdriveBossHpTriggerPercent = 30.0f; // Default: Uncap aktif saat HP Boss di bawah 30%

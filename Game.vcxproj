@@ -402,7 +402,6 @@
     <ResourceCompile Include="Data\Icon\Resource.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Data\Icon\BeyondBreakerIcon.ico" />
     <Image Include="Data\Icon\ChroniclesOfChaos.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

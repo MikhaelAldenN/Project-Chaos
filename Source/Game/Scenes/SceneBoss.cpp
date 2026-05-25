@@ -129,6 +129,7 @@ SceneBoss::SceneBoss()
     m_postProcess->Initialize(static_cast<int>(screenW), static_cast<int>(screenH));
 
     m_fadeSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Game/Black.png");
+    m_whiteSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Game/White.png");
     m_uberParams.intensity = FX_BASE_INTENSITY;
     m_uberParams.smoothness = FX_BASE_SMOOTHNESS;
 
@@ -346,16 +347,47 @@ void SceneBoss::Update(float elapsedTime)
 
     if (m_navi) {
         auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase());
-        if (wkPhase && !wkPhase->IsDead()) {
-            m_autoSyncMainWindow = false;
-            Beyond::Window* mw = WindowManager::Instance().GetWindowByIndex(0);
-            if (mw && mw->GetSDLWindow())
-                SDL_HideWindow(mw->GetSDLWindow());
-        }
-        if (wkPhase && wkPhase->IsDead())
-        {
-            m_autoSyncMainWindow = false;
 
+        // Trigger the start of the death sequence
+        if (wkPhase && wkPhase->IsDead() && !m_isNaviDefeated)
+        {
+            m_isNaviDefeated = true;
+            m_naviDefeatTimer = 0.0f;
+            AddLog("Navi defeated. Starting death sequence.");
+        }
+
+        // Logic for the Fade-In
+        if (m_isNaviDefeated)
+        {
+            m_naviDefeatTimer += elapsedTime;
+            if (m_naviDefeatTimer > NAVI_DEATH_ANIM_DURATION)
+            {
+                float fadeTime = m_naviDefeatTimer - NAVI_DEATH_ANIM_DURATION;
+                m_whiteAlpha = std::clamp(fadeTime / WHITE_FADE_DURATION, 0.0f, 1.0f);
+            }
+        }
+    }
+
+    // Windowkill Phase Logic (Check for Scene Change)
+    if (m_navi) {
+        auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase());
+        Beyond::Window* mw = WindowManager::Instance().GetWindowByIndex(0);
+
+        if (wkPhase) {
+            // Visibility logic
+            if (!wkPhase->IsDead()) {
+                m_autoSyncMainWindow = false;
+                if (mw && mw->GetSDLWindow()) SDL_HideWindow(mw->GetSDLWindow());
+            }
+            else {
+                if (mw && mw->GetSDLWindow()) SDL_ShowWindow(mw->GetSDLWindow());
+            }
+
+            // ONLY change scene if the White Fade is complete!
+            if (m_whiteAlpha >= 1.0f && !m_isPendingSceneChange) {
+                m_isPendingSceneChange = true;
+                return; // Now it is safe to return/change scene
+            }
         }
     }
 
@@ -770,6 +802,29 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
             1920.0f, 1080.0f,
             0.0f,
             0.0f, 0.0f, 0.0f, m_fadeAlpha
+        );
+    }
+
+    if (m_whiteAlpha > 0.001f && m_whiteSprite)
+    {
+        float screenW = static_cast<float>(GetSystemMetrics(SM_CXSCREEN));
+        float screenH = static_cast<float>(GetSystemMetrics(SM_CYSCREEN));
+        if (auto window = Framework::Instance()->GetMainWindow()) {
+            screenW = static_cast<float>(window->GetWidth());
+            screenH = static_cast<float>(window->GetHeight());
+        }
+
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
+        m_whiteSprite->Render(
+            dc,
+            0.0f, 0.0f, 0.0f,
+            screenW, screenH,
+            0.0f, 0.0f,
+            1920.0f, 1080.0f,
+            0.0f,
+            1.0f, 1.0f, 1.0f, m_whiteAlpha 
         );
     }
 }

@@ -749,7 +749,6 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Data\Icon\BeyondBreakerIcon.ico" />
     <Image Include="Data\Icon\ChroniclesOfChaos.ico">
       <Filter>Source\Icon</Filter>
     </Image>
