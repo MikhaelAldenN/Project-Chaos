@@ -347,7 +347,10 @@ void SceneBoss::Update(float elapsedTime)
     if (m_navi) {
         auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase());
         if (wkPhase && !wkPhase->IsDead()) {
-            m_autoSyncMainWindow = true;
+            m_autoSyncMainWindow = false;
+            Beyond::Window* mw = WindowManager::Instance().GetWindowByIndex(0);
+            if (mw && mw->GetSDLWindow())
+                SDL_HideWindow(mw->GetSDLWindow());
         }
         if (wkPhase && wkPhase->IsDead())
         {
@@ -710,30 +713,30 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
     // =========================================================
     // HUD (health bars) — main camera pass only, skip transparent windows
     // =========================================================
-    if (!isTransparentWindow && targetCam == m_mainCamera.get() && m_hud && m_player)
-    {
-        // Gather HP values
-        int playerHP = m_player->GetHP();
-        int playerMaxHP = 100; // Player max HP は固定 100
+    //if (!isTransparentWindow && targetCam == m_mainCamera.get() && m_hud && m_player)
+    //{
+    //    // Gather HP values
+    //    int playerHP = m_player->GetHP();
+    //    int playerMaxHP = 100; // Player max HP は固定 100
 
-        int bossHP = 0;
-        int bossMaxHP = 0;
-        if (m_navi)
-        {
-            if (auto* np = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
-            {
-                bossHP = np->GetHP();
-                bossMaxHP = np->GetMaxHP();
-            }
-            else if (auto* wk = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()))
-            {
-                bossHP = wk->GetHP();
-                bossMaxHP = wk->GetMaxHP();
-            }
-        }
+    //    int bossHP = 0;
+    //    int bossMaxHP = 0;
+    //    if (m_navi)
+    //    {
+    //        if (auto* np = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
+    //        {
+    //            bossHP = np->GetHP();
+    //            bossMaxHP = np->GetMaxHP();
+    //        }
+    //        else if (auto* wk = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()))
+    //        {
+    //            bossHP = wk->GetHP();
+    //            bossMaxHP = wk->GetMaxHP();
+    //        }
+    //    }
 
-        m_hud->Render(dc, playerHP, playerMaxHP, bossHP, bossMaxHP);
-    }
+    //    m_hud->Render(dc, playerHP, playerMaxHP, bossHP, bossMaxHP);
+    //}
 
     // =========================================================
     // FADE SPRITE OVERLAY 
@@ -866,6 +869,8 @@ void SceneBoss::StartPlayerDeathSequence()
 
     void SceneBoss::DrawGUI()
     {
+        return; // Add this — skips all ImGui rendering for release
+
         if (m_isPendingSceneChange) return;
         ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(m_debugPanelSize, ImGuiCond_FirstUseEver);

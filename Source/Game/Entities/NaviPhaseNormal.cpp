@@ -782,7 +782,7 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
         pPos.y += 1.0f; // Chest height
 
         // Small cyan target dot
-        shapeRenderer->DrawSphere(pPos, m_params.laserTargetRadius, { 0.0f, 1.0f, 1.0f, 1.0f });
+        //shapeRenderer->DrawSphere(pPos, m_params.laserTargetRadius, { 0.0f, 1.0f, 1.0f, 1.0f });
 
         // Larger shrinking sphere (red → white in parry window)
         float t = min(1.0f, m_laserTimer / m_params.laserDuration);

@@ -401,7 +401,7 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
         Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
         if (mainWindow && mainWindow->GetSDLWindow()) {
             SDL_Window* sdlWin = mainWindow->GetSDLWindow();
-
+            SDL_ShowWindow(sdlWin);
             SDL_SetWindowBordered(sdlWin, false);
             SDL_SetWindowResizable(sdlWin, false);
             SDL_SetWindowPosition(sdlWin, 0, 0);

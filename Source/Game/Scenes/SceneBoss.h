@@ -127,7 +127,7 @@ private:
     bool      m_topmostEnabled = false;
     bool      m_playerWindowTransparent = false;
     ImVec2    m_debugPanelSize = { 450.0f, 750.0f };
-    bool      m_showHitboxes = true; // <--- TAMBAHKAN INI (Default True)
+    bool      m_showHitboxes = false; // <--- TAMBAHKAN INI (Default True)
 
     // =========================================================
     // CAMERA COMBAT ZOOM (Furi Style)
