@@ -636,7 +636,16 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
     // =========================================================
     // POST-PROCESS VIGNETTE (Only applied to Main Window)
     // =========================================================
-    bool usePostProcess = (!isTransparentWindow && targetCam == m_mainCamera.get() && m_postProcess);
+    auto* wkPhase = m_navi ? dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()) : nullptr;
+
+    // 2. Determine if Windowkill is active AND the boss is NOT dead
+    bool isWindowkillAndAlive = (wkPhase != nullptr && !wkPhase->IsDead());
+
+    // 3. Use the updated boolean to gate post-processing
+    bool usePostProcess = (!isTransparentWindow &&
+        targetCam == m_mainCamera.get() &&
+        m_postProcess &&
+        isWindowkillAndAlive);
 
     if (usePostProcess)
     {
