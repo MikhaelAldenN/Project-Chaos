@@ -139,13 +139,45 @@ SceneBoss::SceneBoss()
 
 SceneBoss::~SceneBoss()
 {
-    // Restore ImGui multi-viewport for other scenes
-    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    Shutdown();
+}
 
+void SceneBoss::Shutdown()
+{
+    PerformanceLogger::Instance().LogInfo("[TEARDOWN] SceneBoss Shutdown initiated.");
+
+    // CLEAR WINDOWS FIRST (CRITICAL)
+    // Destroys sub-windows and unbinds callbacks before the objects they point to (Navi/Player) are deleted.
+    if (m_windowSystem) {
+        m_windowSystem->ClearAll();
+    }
+
+    // STOP ALL SINGLETON LEAKS
+    // Singletons outlive the Scene. If we don't clear them, they bleed into SceneTitle/SceneGame.
+    AudioManager::Instance().StopMusic();
+    EffectManager::Instance().StopAll();
+    WindowShatterManager::Instance().Clear();
+
+    // RESTORE MAIN WINDOW OS STATES
+    Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
+    if (mainWindow && mainWindow->GetSDLWindow()) {
+        SDL_SetWindowAlwaysOnTop(mainWindow->GetSDLWindow(), false);
+        mainWindow->SetPriority(50);
+        WindowManager::Instance().MarkPriorityDirty();
+    }
+    WindowManager::Instance().SetTopmost(false);
+
+    // RESTORE ENGINE STATES
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     CameraController::Instance().ClearCamera();
 
-    // Player must be destroyed before PhysX (it holds a PxController raw ptr)
+    // EXPLICIT ENTITY DESTRUCTION ORDER
+    m_navi.reset();
     m_player.reset();
+    m_boss.reset();
+    m_enemyManager.reset();
+    m_itemManager.reset();
+    m_collisionManager.reset();
 
     PerformanceLogger::Instance().Shutdown();
 }

@@ -199,63 +199,59 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
 
 void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
     m_deathCleanupDone = false;
-    bool isSceneTearingDown = (m_isDying && m_deathTimer >= 7.0f);
 
-    // BERSIH-BERSIH TOTAL SAAT FASE SELESAI!
-    // Hanya hapus window secara manual jika kita BUKAN sedang pindah scene.
-    if (!isSceneTearingDown && boss && boss->GetWindowSystem()) {
+    // 1. BERSIH-BERSIH WINDOW & TRACKING SYSTEM
+    if (boss && boss->GetWindowSystem()) {
         boss->GetWindowSystem()->RemoveTrackedWindow("navi_fx");
         boss->GetWindowSystem()->RemoveTrackedWindow(m_dialogueWindowName);
+
+        // Clean up the Player Cage if it still exists!
+        boss->GetWindowSystem()->RemoveTrackedWindow(m_cageWindowName);
+
+        for (auto& bwb : m_bouncingBullets) {
+            boss->GetWindowSystem()->RemoveTrackedWindow(bwb.windowName);
+        }
+        for (auto& b : m_blasters) {
+            boss->GetWindowSystem()->RemoveTrackedWindow(b->beamWindowName);
+            boss->GetWindowSystem()->RemoveTrackedWindow(b->windowName);
+        }
+        for (auto& bw : m_boomerangs) {
+            boss->GetWindowSystem()->RemoveTrackedWindow(bw.windowName);
+        }
+        for (auto& spear : m_undyneSpears) {
+            boss->GetWindowSystem()->RemoveTrackedWindow(spear.windowName);
+        }
     }
 
+    // 2. BERSIH-BERSIH EFEK PARTIKEL (VFX)
+    for (auto& b : m_blasters) {
+        EffectManager::Instance().Stop(b->chargeEffectHandle);
+        EffectManager::Instance().Stop(b->fireEffectHandle); // Fixed: Stop the firing laser too
+    }
+
+    if (m_deathVfxHandle != -1) {
+        EffectManager::Instance().Stop(m_deathVfxHandle);
+        m_deathVfxHandle = -1;
+    }
+
+    // 3. RESET POINTER & STATE
     m_fxWindow = nullptr;
     m_fxCamera.reset();
     m_dialogueWindow = nullptr;
     m_dialogueCamera.reset();
     m_dialogueBox.reset();
     m_isDialogueActive = false;
-    m_wingSprite.reset(); // Bebaskan tekstur dari VRAM
+    m_wingSprite.reset();
     m_leftWingData.clear();
     m_rightWingData.clear();
     m_overdriveSprite.reset();
 
-    for (auto& bwb : m_bouncingBullets) {
-        if (!isSceneTearingDown && boss && boss->GetWindowSystem()) {
-            boss->GetWindowSystem()->RemoveTrackedWindow(bwb.windowName);
-        }
-    }
     m_bouncingBullets.clear();
-
-    for (auto& b : m_blasters) {
-        EffectManager::Instance().Stop(b->chargeEffectHandle);
-        if (!isSceneTearingDown && boss && boss->GetWindowSystem()) {
-            boss->GetWindowSystem()->RemoveTrackedWindow(b->beamWindowName);
-            boss->GetWindowSystem()->RemoveTrackedWindow(b->windowName);
-        }
-    }
     m_blasters.clear();
-
-    for (auto& bw : m_boomerangs) {
-        if (!isSceneTearingDown && boss && boss->GetWindowSystem()) {
-            boss->GetWindowSystem()->RemoveTrackedWindow(bw.windowName);
-        }
-    }
     m_boomerangs.clear();
-
-    for (auto& spear : m_undyneSpears) {
-        if (!isSceneTearingDown && boss && boss->GetWindowSystem()) {
-            boss->GetWindowSystem()->RemoveTrackedWindow(spear.windowName);
-        }
-    }
     m_undyneSpears.clear();
 
-    // Matikan efek kematian jika di-respawn paksa di tengah animasi
-    if (m_deathVfxHandle != -1) {
-        EffectManager::Instance().Stop(m_deathVfxHandle);
-        m_deathVfxHandle = -1;
-    }
-
-    // Kembalikan main window ke state normal
+    // 4. KEMBALIKAN MAIN WINDOW KE STATE NORMAL
     Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
     if (mainWindow && mainWindow->GetSDLWindow()) {
         SDL_SetWindowAlwaysOnTop(mainWindow->GetSDLWindow(), false);

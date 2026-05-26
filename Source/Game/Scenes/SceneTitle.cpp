@@ -5,6 +5,7 @@ SceneTitle::SceneTitle()
     if (auto window{ Framework::Instance()->GetMainWindow() }) {
         SDL_Window* sdlWin = window->GetSDLWindow();
 
+        SDL_ShowWindow(sdlWin);
         // Disable window borders and the ability to resize
         SDL_SetWindowBordered(sdlWin, false);
         SDL_SetWindowResizable(sdlWin, false);
