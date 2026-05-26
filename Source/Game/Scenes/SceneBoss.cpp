@@ -252,16 +252,6 @@ void SceneBoss::Update(float elapsedTime)
     float activeTimeScale = m_timeScale * TimeManager::Instance().GetHitStopMultiplier();
     const float scaledDt = elapsedTime * activeTimeScale;
 
-    if (GetKeyState(VK_F1) & 0x8000) // Press F1 to force switch
-    {
-        if (!m_isPendingSceneChange)
-        {
-            m_isPendingSceneChange = true;
-            Framework::Instance()->ChangeScene(std::make_unique<SceneTitle>());
-            return;
-        }
-    }
-
     // =========================================================
     // DEATH SEQUENCE LOGIC
     // =========================================================

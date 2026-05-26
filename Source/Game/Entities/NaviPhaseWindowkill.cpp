@@ -181,7 +181,7 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     m_dialogueBox->SetShowBackground(false);  // No background — teks melayang di window transparan
 
     // Autoadvance ON, strict OFF → player bebas gerak, dialog jalan sendiri
-    m_dialogueBox->SetAutoAdvance(true, 2.5f, false);
+    m_dialogueBox->SetAutoAdvance(false);
     m_dialogueBox->StartDialogue({
         u8"ウィンドウを撃て"
         });
@@ -426,38 +426,26 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
         if (m_hitFlashTimer < 0.0f) m_hitFlashTimer = 0.0f;
     }
 
-    // =========================================================
-    // [BARU] DIALOGUE UPDATE — berjalan paralel, tidak memblokir
-    // gameplay. Player bebas bergerak. AI aktif setelah dialog
-    // selesai saja.
-    // =========================================================
     if (m_isDialogueActive && m_dialogueBox) {
-        if (m_dialogueBox->IsActive()) {
-            m_dialogueBox->Update(dt);
+        // Tetap panggil Update agar jika ada animasi teks, dia tetap jalan
+        m_dialogueBox->Update(dt);
 
-            // Geser posisi anchor window per baris dialog jika diperlukan
-            int diagIdx = m_dialogueBox->GetCurrentDialogueIndex();
-            if (boss && boss->GetWindowSystem()) {
-                float p2u = boss->GetWindowSystem()->GetPixelToUnitRatio();
-                float halfW = (m_dialogueWindowW * 0.5f) / p2u;
-                if (diagIdx == 0) {
-                    m_dialogueWorldPos = { -halfW, 0.0f, 1.5f };
-                }
-                else {
-                    m_dialogueWorldPos = { -halfW, 0.0f, 1.5f };
-                }
-                // Tambah kondisi lain di sini untuk pindahkan window per baris
-            }
-        }
-        else {
-            // Dialog selesai → tutup window, aktifkan AI
+        // KITA HAPUS 'else' otomatis. 
+        // Dialog hanya ditutup jika kondisi pemain (Cage hancur/Overdrive) terpenuhi.
+        if (!m_isPlayerCaged || m_overdriveAlpha > 0.0f) {
             m_isDialogueActive = false;
+
+            // Bersihkan window dari sistem tracking
             if (boss && boss->GetWindowSystem()) {
                 boss->GetWindowSystem()->RemoveTrackedWindow(m_dialogueWindowName);
             }
+
+            // Cleanup pointer
             m_dialogueWindow = nullptr;
-            m_dialogueCamera.reset();
+            m_dialogueCamera.reset(); // <--- WAJIB ada agar camera bersih
             m_dialogueBox.reset();
+
+            // Aktifkan AI setelah misi selesai
             m_aiEnabled = (m_aiTarget != nullptr);
         }
     }

@@ -795,15 +795,18 @@ void SceneGame::ResetLevel()
     }
 
     // 3. Reset Enemies & Items
-    if (m_enemyManager)
+    if (!isBossStage)
     {
-        m_enemyManager->GetEnemies().clear();
-        m_enemyManager->Initialize(Graphics::Instance().GetDevice());
-    }
-    if (m_itemManager)
-    {
-        m_itemManager->GetItems().clear();
-        m_itemManager->Initialize(Graphics::Instance().GetDevice());
+        if (m_enemyManager)
+        {
+            m_enemyManager->GetEnemies().clear();
+            m_enemyManager->Initialize(Graphics::Instance().GetDevice());
+        }
+        if (m_itemManager)
+        {
+            m_itemManager->GetItems().clear();
+            m_itemManager->Initialize(Graphics::Instance().GetDevice());
+        }
     }
 
     // 4. Reset Navi Ally
