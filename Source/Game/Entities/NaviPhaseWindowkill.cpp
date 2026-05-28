@@ -39,10 +39,11 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     auto device = Graphics::Instance().GetDevice();
     auto windowSystem = boss->GetWindowSystem();
 
-    m_solidRenderer = std::make_unique<Primitive>(device);
-    m_hudRenderer = std::make_unique<HUDRenderer>(device);
+
     m_screenW = (float)GetSystemMetrics(SM_CXSCREEN);
     m_screenH = (float)GetSystemMetrics(SM_CYSCREEN);
+
+    m_hudRenderer = std::make_unique<HUDRenderer>(device);
 
     // Ciptakan jendela FX SECARA DINAMIS hanya ketika fase ini dimulai!
     TrackedWindowConfig fxCfg = { "navi_fx", "N.A.V.I - FX", (int)m_screenW, (int)m_screenH, 3 };
