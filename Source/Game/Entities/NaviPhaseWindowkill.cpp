@@ -235,7 +235,7 @@ void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
         for (auto& spear : m_undyneSpears) {
             boss->GetWindowSystem()->RemoveTrackedWindow(spear.windowName);
         }
-    }
+    
 
     // 2. BERSIH-BERSIH EFEK PARTIKEL (VFX)
     for (auto& b : m_blasters) {

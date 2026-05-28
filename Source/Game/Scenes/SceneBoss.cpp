@@ -1688,7 +1688,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
     }
 
     ImGui::End();
-#endif // NAVI_DEBUG_GUI
+
 }
 
 void SceneBoss::OnResize(int /*width*/, int /*height*/)
