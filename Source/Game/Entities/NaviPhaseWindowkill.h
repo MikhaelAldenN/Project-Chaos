@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "INaviPhase.h"
 #include <DirectXMath.h>
 #include <vector>
@@ -9,6 +9,7 @@
 #include "Primitive.h"
 #include "EffectManager.h"
 #include "UIDialogueBox.h"
+#include "HUDRenderer.h"
 
 class Sprite;
 class Player;
@@ -374,6 +375,9 @@ private:
     float m_cageShakeIntensity = 0.22f;
     float m_cageSizeWorld = 7.5f;  // Hasil dari 300px / PixelToUnitRatio
     std::string m_cageWindowName = "player_cage_window";
+
+    // HUD Renderer — dirender ke FX window
+    std::unique_ptr<HUDRenderer> m_hudRenderer;
 
     // [BARU] Overdrive Sprite
     std::unique_ptr<Sprite> m_overdriveSprite;

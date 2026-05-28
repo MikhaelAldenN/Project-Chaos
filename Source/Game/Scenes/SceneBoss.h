@@ -3,7 +3,13 @@
 #include <memory>
 #include <vector>
 #include <string>
+// =========================================================
+// Untuk mengaktifkan kembali ImGui debug panel, uncomment baris ini:
+// #define NAVI_DEBUG_GUI
+// =========================================================
+#ifdef NAVI_DEBUG_GUI
 #include <imgui.h>
+#endif
 #include <PxPhysicsAPI.h>
 
 #include "Scene.h"
@@ -121,7 +127,9 @@ private:
     bool      m_autoSyncMainWindow = false;
     bool      m_topmostEnabled = false;
     bool      m_playerWindowTransparent = false;
+#ifdef NAVI_DEBUG_GUI
     ImVec2    m_debugPanelSize = { 450.0f, 750.0f };
+#endif
     bool      m_showHitboxes = true; // <--- TAMBAHKAN INI (Default True)
 
     // =========================================================

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "INaviPhase.h"
 #include "Bullet.h"
 #include "Primitive.h"
@@ -118,7 +118,7 @@ public:
             EffectManager::Instance().Stop(m_chargeEffectHandle);
             m_chargeEffectHandle = -1;
         }
-        
+
         m_isLaserLocked = false;
         m_bijuudamaBall = nullptr;
         m_laserTimer = 0.0f;
@@ -145,7 +145,7 @@ public:
 
     // ----- Boss HP -----
     void TakeDamage(int damage, DirectX::XMFLOAT3 hitPos);
-    void SetHP(int hp) { m_bossHP = hp; } // <--- [’Ç‰Á] ‚±‚ê‚ÅƒGƒ‰[‚ª’¼‚è‚Ü‚·I
+    void SetHP(int hp) { m_bossHP = hp; } // <--- [ï¿½Ç‰ï¿½] ï¿½ï¿½ï¿½ï¿½ÅƒGï¿½ï¿½ï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ü‚ï¿½ï¿½I
     int  GetHP()    const { return m_bossHP; }
     int  GetMaxHP() const { return m_bossMaxHP; }
     bool IsDead()   const { return m_bossHP <= 0; }
@@ -214,7 +214,7 @@ private:
     float             m_rainSweepDir = 1.0f;
     DirectX::XMFLOAT3 m_rainCenter = { 0, 0, 0 };
     DirectX::XMFLOAT3 m_rainCenter2 = { 0, 0, 0 };
-    
+
     std::vector<int> m_rainVfxHandles;
     void ClearRainVFX();
 
@@ -223,8 +223,8 @@ private:
     std::unique_ptr<Primitive> m_zonePrimitive;
 
     // ----- Boss HP & Hit Flash -----
-    int   m_bossMaxHP = 1500;
-    int   m_bossHP = 1500;
+    int   m_bossMaxHP = 2000;
+    int   m_bossHP = 2000;
     float m_hitFlashTimer = 0.0f;
 
     // ----- AI Director -----
