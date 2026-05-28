@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "INaviPhase.h"
 #include <DirectXMath.h>
 #include <vector>
@@ -9,10 +9,11 @@
 #include "Primitive.h"
 #include "EffectManager.h"
 #include "UIDialogueBox.h"
+#include "HUDRenderer.h"
 #include "IBossAttackPattern.h"
 #include "BossAIController.h"
 
-// [FIX] V‚µ‚¢UŒ‚ƒpƒ^[ƒ“‚Ìƒwƒbƒ_[‚ğ“Ç‚İ‚Şi‚±‚ê‚É‚æ‚èParams\‘¢‘Ì‚ªg‚¦‚é‚æ‚¤‚É‚È‚è‚Ü‚·j
+// [FIX] æ–°ã—ã„æ”»æ’ƒãƒ‘ã‚¿ãƒ¼ãƒ³ã®ãƒ˜ãƒƒãƒ€ãƒ¼ã‚’èª­ã¿è¾¼ã‚€ï¼ˆã“ã‚Œã«ã‚ˆã‚ŠParamsæ§‹é€ ä½“ãŒä½¿ãˆã‚‹ã‚ˆã†ã«ãªã‚Šã¾ã™ï¼‰
 #include "AttackBouncing.h"
 #include "AttackBoomerangs.h"
 #include "AttackBlasters.h"
@@ -92,7 +93,7 @@ public:
     bool HasActiveAttacks() const { return !m_activeAttacks.empty(); }
     Player* GetAITarget() const { return m_aiTarget; }
 
-    // [FIX] ŠeAttack.h ‚É’è‹`‚³‚ê‚½ Params \‘¢‘Ì‚ğ•Ô‚· Getter
+    // [FIX] å„Attack.h ã«å®šç¾©ã•ã‚ŒãŸ Params æ§‹é€ ä½“ã‚’è¿”ã™ Getter
     BouncingBulletParams& GetBouncingParams() { return m_bouncingParams; }
     BoomerangParams& GetBoomerangParams() { return m_boomerangParams; }
     BlasterParams& GetBlasterParams() { return m_blasterParams; }
@@ -141,7 +142,7 @@ private:
     float m_wingGlobalScale = 2.5f;
 
     // ==========================================
-    // UŒ‚ƒpƒ‰ƒ[ƒ^‚ÌÀ‘ÌiUI‚©‚ç’²®‰Â”\j
+    // æ”»æ’ƒãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã®å®Ÿä½“ï¼ˆUIã‹ã‚‰èª¿æ•´å¯èƒ½ï¼‰
     // ==========================================
     BouncingBulletParams m_bouncingParams;
     BoomerangParams m_boomerangParams;
@@ -167,6 +168,10 @@ private:
     float m_cageSizeWorld = 7.5f;
     std::string m_cageWindowName = "player_cage_window";
 
+    // HUD Renderer â€” dirender ke FX window
+    std::unique_ptr<HUDRenderer> m_hudRenderer;
+
+    // [BARU] Overdrive Sprite
     std::unique_ptr<Sprite> m_overdriveSprite;
     float m_overdriveSpriteScale = 0.02f;
     float m_overdriveAlpha = 0.0f;

@@ -3,7 +3,13 @@
 #include <memory>
 #include <vector>
 #include <string>
+// =========================================================
+// Untuk mengaktifkan kembali ImGui debug panel, uncomment baris ini:
+// #define NAVI_DEBUG_GUI
+// =========================================================
+
 #include <imgui.h>
+
 #include <PxPhysicsAPI.h>
 
 #include "Scene.h"
@@ -126,8 +132,10 @@ private:
     bool      m_autoSyncMainWindow = false;
     bool      m_topmostEnabled = false;
     bool      m_playerWindowTransparent = false;
+
     ImVec2    m_debugPanelSize = { 450.0f, 750.0f };
-    bool      m_showHitboxes = false; // <--- TAMBAHKAN INI (Default True)
+
+    bool      m_showHitboxes = true; // <--- TAMBAHKAN INI (Default True)
 
     // =========================================================
     // CAMERA COMBAT ZOOM (Furi Style)

@@ -31,13 +31,16 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
     if (mainWindow && mainWindow->GetSDLWindow()) {
         SDL_Window* sdlWin = mainWindow->GetSDLWindow();
-        SDL_SetWindowBordered(sdlWin, true);   // Munculkan border lagi
-        SDL_SetWindowResizable(sdlWin, true); // Izinkan resize
+
+        // Sembunyikan window utama agar fokus ke window mekanik Windowkill
+        SDL_HideWindow(sdlWin);
     }
 
     auto device = Graphics::Instance().GetDevice();
     auto windowSystem = boss->GetWindowSystem();
 
+    m_solidRenderer = std::make_unique<Primitive>(device);
+    m_hudRenderer = std::make_unique<HUDRenderer>(device);
     m_screenW = (float)GetSystemMetrics(SM_CXSCREEN);
     m_screenH = (float)GetSystemMetrics(SM_CYSCREEN);
 
@@ -79,7 +82,7 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     EffectManager::Instance().PreloadEffect(m_blasterParams.fireEffectPath);
 
     m_bossRef = boss; // Simpan referensi boss untuk dipakai saat jendela hancur
-    m_bossMaxHP = 7000;
+    m_bossMaxHP = 4000;
     m_bossHP = m_bossMaxHP;
     m_hitFlashTimer = 0.0f;
     m_aiEnabled = false;
@@ -226,6 +229,7 @@ void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
     // 5. KEMBALIKAN MAIN WINDOW KE STATE NORMAL
     Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
     if (mainWindow && mainWindow->GetSDLWindow()) {
+        SDL_ShowWindow(mainWindow->GetSDLWindow());
         SDL_SetWindowAlwaysOnTop(mainWindow->GetSDLWindow(), false);
         mainWindow->SetPriority(50);
         WindowManager::Instance().MarkPriorityDirty();
@@ -298,6 +302,22 @@ void NaviPhaseWindowkill::AddAttack(std::unique_ptr<IBossAttackPattern> attack) 
 
 void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
     m_glitchTimer += dt;
+    
+    if (m_aiTarget && m_aiTarget->GetHP() <= 0) {
+        // Hentikan semua BGM yang sedang berjalan
+        AudioManager::Instance().StopMusic();
+
+        // Sembunyikan main window boss jika perlu agar transisi bersih
+        if (boss && boss->GetMainWindow()) {
+            SDL_HideWindow(boss->GetMainWindow()->GetSDLWindow());
+        }
+
+        // Transisi kembali ke Title Screen
+        boss->ChangePhase(std::make_unique<NaviPhaseTitle>(m_aiTarget));
+
+        // Return segera agar logika boss/AI di bawahnya tidak dieksekusi
+        return;
+    }
 
     // =========================================================
     // [DEATH SEQUENCE] Boss Mati
@@ -558,7 +578,27 @@ void NaviPhaseWindowkill::Render(ID3D11DeviceContext* context, Camera* currentCa
         return;
     }
 
-    // 2. RENDER WINGS
+    // =========================================================
+    // RENDER HUD (HP BAR PLAYER & BOSS) — hanya di FX window
+    // =========================================================
+    if (isFXCam && m_hudRenderer)
+    {
+        int playerHP = 0;
+        int playerMaxHP = 0;
+        if (m_aiTarget)
+        {
+            playerHP = m_aiTarget->GetHP();
+            playerMaxHP = 100; // HP maksimal player standar
+        }
+        m_hudRenderer->Render(context,
+            playerHP, playerMaxHP,
+            m_bossHP, m_bossMaxHP);
+    }
+
+    // =========================================================
+    // 1. RENDER SAYAP
+    // Normalnya hanya di FX cam, tapi saat mati juga di main cam
+    // =========================================================
     if (isFXCam || isDeathMainCam) {
         std::vector<Sprite::Sprite3DBatchData> batchData;
         DirectX::XMFLOAT3 bossPos = boss->GetPosition();

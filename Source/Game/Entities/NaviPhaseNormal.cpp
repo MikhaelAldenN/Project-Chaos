@@ -17,6 +17,7 @@
 #include "NaviPhaseWindowkill.h"
 #include "WindowShatter.h"
 #include <SceneBoss.h>
+#include "NaviPhaseTitle.h"
 
 using namespace DirectX;
 
@@ -31,35 +32,60 @@ NaviPhaseNormal::NaviPhaseNormal(Player* target)
 // ============================================================
 
 void NaviPhaseNormal::Enter(NaviBoss* boss) {
+    // =========================================================
+    // [BARU] 1. RESET TOTAL STATUS FASE & BOS
+    // =========================================================
+    m_bossMaxHP = 2000;
+    m_bossHP = m_bossMaxHP;
+    m_isDying = false;
+    m_deathTimer = 0.0f;
+    m_aiEnabled = false;
+
+    // Reset status dialog opening
+    m_isOpeningEvent = true;
+    m_hasSpawnedWindow = false;
+
+    // Reset status semua serangan agar tidak ada yang "nyangkut"
+    m_isFiring = false;
+    m_isFiringFan = false;
+    m_phalanxState = 0;
+    m_rainState = 0;
+    m_isLaserLocked = false;
+    m_isBijuudamaRecovering = false;
+
+    // Reset cooldown serangan AI
+    m_cdRadial = 2.0f;
+    m_cdFan = 4.0f;
+    m_cdPhalanx = 6.0f;
+    m_cdRain = 10.0f;
+    m_cdBijuudama = 15.0f;
+    m_aiGlobalCooldown = 0.5f;
+
+    // =========================================================
+    // 2. SETUP JENDELA (OS WINDOW)
+    // =========================================================
     int screenW = GetSystemMetrics(SM_CXSCREEN);
     int screenH = GetSystemMetrics(SM_CYSCREEN);
 
-    // --- Configure main game window ---
     Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
     if (mainWindow && mainWindow->GetSDLWindow()) {
         SDL_Window* sdlWin = mainWindow->GetSDLWindow();
 
-        // Demote main window so boss window can sit above it
         mainWindow->SetPriority(50);
         SDL_SetWindowAlwaysOnTop(sdlWin, false);
         SDL_SetWindowBordered(sdlWin, false);
         SDL_SetWindowPosition(sdlWin, 0, 0);
-
-        // +1px height hack: prevents Windows from treating this as an
-        // exclusive fullscreen window, keeping our Z-order control intact
         SDL_SetWindowSize(sdlWin, screenW, screenH + 1);
     }
 
-    // Boss window stays at the top of the Z-order hierarchy
-    if (boss->GetMainWindow()) {
+    if (boss && boss->GetMainWindow()) {
         boss->GetMainWindow()->SetPriority(0);
         WindowManager::Instance().MarkPriorityDirty();
     }
 
-    // Disable breathing so boss is static during the opening event
-    boss->SetCoreBreathParams(1.0f, 0.0f);
-
-    // --- Pre-allocate bullet pool ---
+    // =========================================================
+    // 3. PRE-ALLOCATE MEMORY & UI
+    // =========================================================
     m_bulletPool.clear();
     m_bulletPool.reserve(200);
     for (int i = 0; i < 200; ++i) {
@@ -70,11 +96,8 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
 
     m_zonePrimitive = std::make_unique<Primitive>(Graphics::Instance().GetDevice());
 
-    // --- Primitives & UI ---
     m_dialogueBox = std::make_unique<UIDialogueBox>();
     m_dialogueBox->Initialize();
-
-    // Matikan background dan atur posisi teks MELAYANG di dunia 3D (misal: di atas bos)
     m_dialogueBox->SetShowBackground(false);
     m_dialogueBox->SetWorldPosition({ -20.0f, -10.0f, -3.0f }); // X, Y, Z (Sesuaikan kordinatnya)
 
@@ -85,24 +108,42 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
     u8"ほら、あなたの武器も、足元の地面も……\n全部、私の色に染まっちゃったわ。"
         });
 
-    m_isOpeningEvent = true;
-    m_aiEnabled = false;
-    m_aiTarget->SetShootDelay(0.0f);
-
-    // --- MENGATUR POSISI BOS & PLAYER ---
+    // =========================================================
+    // 4. MENGATUR POSISI BOS & RESET NAFAS
+    // =========================================================
     if (boss) {
         boss->SetGridGrowthLimit(1.0f);
         boss->SetFaceSpriteVisible(false);
-        boss->SetPosition({ 0.0f, 0.0f, 3.0f }); // Posisi awal Boss
+        boss->SetPosition({ 0.0f, 0.0f, 3.0f });
+        boss->SetCoreBreathParams(1.0f, 0.0f); // Matikan animasi nafas sementara
     }
 
-    // [NEW] Teleport Player menggunakan m_aiTarget
+    // =========================================================
+    // [BARU] 5. RESET TOTAL STATUS PLAYER
+    // =========================================================
     if (m_aiTarget) {
+        // Reset posisi
         DirectX::XMFLOAT3 startPos = { 0.0f, 0.0f, -10.0f };
         m_aiTarget->SetPosition(startPos);
 
-        // [TAMBAHKAN INI] Kunci input player
+        // Kembalikan HP penuh & ukuran normal
+        m_aiTarget->SetMaxHP(100);
+        m_aiTarget->scale = { 1.0f, 1.0f, 1.0f };
+
+        // Matikan mode overdrive jika mati saat sedang overdrive
+        m_aiTarget->RestorePowerCap();
+
+        // Reset delay tembakan & input
+        m_aiTarget->RestoreShootDelay();
+        m_aiTarget->SetAimLocked(false);
+
+        // Kunci input selama opening dialog
         m_aiTarget->SetInputEnabled(false);
+
+        // Paksa animasi dan state engine kembali ke "Idle" agar bersih
+        if (m_aiTarget->GetStateMachine()) {
+            m_aiTarget->GetStateMachine()->Initialize(std::make_unique<PlayerIdle>(), m_aiTarget);
+        }
     }
 }
 
@@ -138,6 +179,22 @@ void NaviPhaseNormal::Exit(NaviBoss* boss) {
 
 void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
     if (!boss) return;
+
+    // =========================================================
+    if (m_aiTarget && m_aiTarget->GetHP() <= 0) {
+        // Hentikan BGM Normal Phase
+        AudioManager::Instance().StopMusic();
+
+        // (Opsional) Sembunyikan window boss utama agar transisi ke title rapi
+        if (boss->GetMainWindow()) {
+            SDL_HideWindow(boss->GetMainWindow()->GetSDLWindow());
+        }
+
+        // Lempar kembali ke Title Phase
+        boss->ChangePhase(std::make_unique<NaviPhaseTitle>(m_aiTarget));
+
+        return; // Cegah eksekusi logika boss di frame ini
+    }
 
     // =========================================================
         // [DEATH SEQUENCE] Boss Mati
