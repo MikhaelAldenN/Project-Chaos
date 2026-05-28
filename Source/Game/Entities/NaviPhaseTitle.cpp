@@ -25,7 +25,6 @@ void NaviPhaseTitle::Enter(NaviBoss* boss)
 {
     // Build the title sprite from disk.
     auto device = Graphics::Instance().GetDevice();
-    m_titleSprite = std::make_unique<Sprite>(device, "Data/Sprite/SystemChaos.png");
 
     // --- Resize main window to bordered fullscreen ---
     {

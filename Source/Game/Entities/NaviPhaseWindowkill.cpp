@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <random>
 #include <SceneBoss.h>
+#include "Framework.h"
 #include "WindowManager.h" 
 #include <SDL3/SDL.h>
 #include <System/AudioManager.h>
@@ -182,7 +183,7 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
     m_dialogueBox->SetShowBackground(false);  // No background — teks melayang di window transparan
 
     // Autoadvance ON, strict OFF → player bebas gerak, dialog jalan sendiri
-    m_dialogueBox->SetAutoAdvance(true, 2.5f, false);
+    m_dialogueBox->SetAutoAdvance(false);
     m_dialogueBox->StartDialogue({
         u8"ウィンドウを撃て"
         });
@@ -199,7 +200,9 @@ void NaviPhaseWindowkill::Enter(NaviBoss* boss) {
 }
 
 void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
-    // BERSIH-BERSIH TOTAL SAAT FASE SELESAI!
+    m_deathCleanupDone = false;
+
+    // 1. BERSIH-BERSIH WINDOW & TRACKING SYSTEM
     if (boss && boss->GetWindowSystem()) {
         boss->GetWindowSystem()->RemoveTrackedWindow("navi_fx");
         boss->GetWindowSystem()->RemoveTrackedWindow(m_dialogueWindowName);
@@ -216,40 +219,53 @@ void NaviPhaseWindowkill::Exit(NaviBoss* boss) {
     m_rightWingData.clear();
     m_overdriveSprite.reset();
 
-    for (auto& bwb : m_bouncingBullets) {
-        if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(bwb.windowName);
-    }
-    m_bouncingBullets.clear();
+        // Clean up the Player Cage if it still exists!
+        boss->GetWindowSystem()->RemoveTrackedWindow(m_cageWindowName);
 
-    // =========================================================
-        // [FIX] BERSIHKAN JUGA WINDOW MERIAM JIKA SEDANG AKTIF!
-        // =========================================================
-    for (auto& b : m_blasters) {
-        EffectManager::Instance().Stop(b->chargeEffectHandle);
-        if (boss && boss->GetWindowSystem()) {
+        for (auto& bwb : m_bouncingBullets) {
+            boss->GetWindowSystem()->RemoveTrackedWindow(bwb.windowName);
+        }
+        for (auto& b : m_blasters) {
             boss->GetWindowSystem()->RemoveTrackedWindow(b->beamWindowName);
             boss->GetWindowSystem()->RemoveTrackedWindow(b->windowName);
         }
+        for (auto& bw : m_boomerangs) {
+            boss->GetWindowSystem()->RemoveTrackedWindow(bw.windowName);
+        }
+        for (auto& spear : m_undyneSpears) {
+            boss->GetWindowSystem()->RemoveTrackedWindow(spear.windowName);
+        }
     }
-    m_blasters.clear();
 
-    for (auto& bw : m_boomerangs) {
-        if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(bw.windowName);
+    // 2. BERSIH-BERSIH EFEK PARTIKEL (VFX)
+    for (auto& b : m_blasters) {
+        EffectManager::Instance().Stop(b->chargeEffectHandle);
+        EffectManager::Instance().Stop(b->fireEffectHandle); // Fixed: Stop the firing laser too
     }
-    m_boomerangs.clear();
 
-    for (auto& spear : m_undyneSpears) {
-        if (boss && boss->GetWindowSystem()) boss->GetWindowSystem()->RemoveTrackedWindow(spear.windowName);
-    }
-    m_undyneSpears.clear();
-
-    // Matikan efek kematian jika di-respawn paksa di tengah animasi
     if (m_deathVfxHandle != -1) {
         EffectManager::Instance().Stop(m_deathVfxHandle);
         m_deathVfxHandle = -1;
     }
 
-    // Kembalikan main window ke state normal
+    // 3. RESET POINTER & STATE
+    m_fxWindow = nullptr;
+    m_fxCamera.reset();
+    m_dialogueWindow = nullptr;
+    m_dialogueCamera.reset();
+    m_dialogueBox.reset();
+    m_isDialogueActive = false;
+    m_wingSprite.reset();
+    m_leftWingData.clear();
+    m_rightWingData.clear();
+    m_overdriveSprite.reset();
+
+    m_bouncingBullets.clear();
+    m_blasters.clear();
+    m_boomerangs.clear();
+    m_undyneSpears.clear();
+
+    // 4. KEMBALIKAN MAIN WINDOW KE STATE NORMAL
     Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
     if (mainWindow && mainWindow->GetSDLWindow()) {
         SDL_ShowWindow(mainWindow->GetSDLWindow());
@@ -374,28 +390,30 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
             EffectManager::Instance().SetPosition(m_deathVfxHandle, trackPos);
         }
 
-        // 4. Setelah 5 detik — stop VFX, lanjut ke scene berikutnya / game over
+        // 4. After 7 seconds — stop VFX and change the SCENE to SceneTitle
         if (m_deathTimer >= 7.0f) {
-            if (m_deathVfxHandle != -1) {
-                EffectManager::Instance().Stop(m_deathVfxHandle);
-                m_deathVfxHandle = -1;
-            }
+            if (!m_deathCleanupDone) {
+                m_deathCleanupDone = true;
 
-            // Hentikan musik
-            AudioManager::Instance().StopMusic();
+                if (m_deathVfxHandle != -1) {
+                    EffectManager::Instance().Stop(m_deathVfxHandle);
+                    m_deathVfxHandle = -1;
+                }
 
-            // Hapus boss head window dari tracking system
-            if (boss->GetWindowSystem()) {
-                boss->GetWindowSystem()->RemoveTrackedWindow("navi_head");
-            }
-            // Sembunyikan main window boss
-            if (boss->GetMainWindow()) {
-                SDL_HideWindow(boss->GetMainWindow()->GetSDLWindow());
-            }
+                AudioManager::Instance().StopMusic();
 
-            // Kembali ke title phase
-            boss->ChangePhase(std::make_unique<NaviPhaseTitle>(m_aiTarget));
-            return; // Jangan lanjutkan Update frame ini
+                if (boss && boss->GetWindowSystem()) {
+                    // Guard the remove — only remove if it actually exists
+                    if (boss->GetWindowSystem()->GetTrackedWindow("navi_head")) {
+                        boss->GetWindowSystem()->RemoveTrackedWindow("navi_head");
+                    }
+                }
+
+                if (boss && boss->GetMainWindow() && boss->GetMainWindow()->GetSDLWindow()) {
+                    SDL_HideWindow(boss->GetMainWindow()->GetSDLWindow());
+                }
+            }
+            return;
         }
 
 
@@ -410,9 +428,7 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
         Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
         if (mainWindow && mainWindow->GetSDLWindow()) {
             SDL_Window* sdlWin = mainWindow->GetSDLWindow();
-
             SDL_ShowWindow(sdlWin);
-
             SDL_SetWindowBordered(sdlWin, false);
             SDL_SetWindowResizable(sdlWin, false);
             SDL_SetWindowPosition(sdlWin, 0, 0);
@@ -437,38 +453,26 @@ void NaviPhaseWindowkill::Update(float dt, NaviBoss* boss) {
         if (m_hitFlashTimer < 0.0f) m_hitFlashTimer = 0.0f;
     }
 
-    // =========================================================
-    // [BARU] DIALOGUE UPDATE — berjalan paralel, tidak memblokir
-    // gameplay. Player bebas bergerak. AI aktif setelah dialog
-    // selesai saja.
-    // =========================================================
     if (m_isDialogueActive && m_dialogueBox) {
-        if (m_dialogueBox->IsActive()) {
-            m_dialogueBox->Update(dt);
+        // Tetap panggil Update agar jika ada animasi teks, dia tetap jalan
+        m_dialogueBox->Update(dt);
 
-            // Geser posisi anchor window per baris dialog jika diperlukan
-            int diagIdx = m_dialogueBox->GetCurrentDialogueIndex();
-            if (boss && boss->GetWindowSystem()) {
-                float p2u = boss->GetWindowSystem()->GetPixelToUnitRatio();
-                float halfW = (m_dialogueWindowW * 0.5f) / p2u;
-                if (diagIdx == 0) {
-                    m_dialogueWorldPos = { -halfW, 0.0f, 1.5f };
-                }
-                else {
-                    m_dialogueWorldPos = { -halfW, 0.0f, 1.5f };
-                }
-                // Tambah kondisi lain di sini untuk pindahkan window per baris
-            }
-        }
-        else {
-            // Dialog selesai → tutup window, aktifkan AI
+        // KITA HAPUS 'else' otomatis. 
+        // Dialog hanya ditutup jika kondisi pemain (Cage hancur/Overdrive) terpenuhi.
+        if (!m_isPlayerCaged || m_overdriveAlpha > 0.0f) {
             m_isDialogueActive = false;
+
+            // Bersihkan window dari sistem tracking
             if (boss && boss->GetWindowSystem()) {
                 boss->GetWindowSystem()->RemoveTrackedWindow(m_dialogueWindowName);
             }
+
+            // Cleanup pointer
             m_dialogueWindow = nullptr;
-            m_dialogueCamera.reset();
+            m_dialogueCamera.reset(); // <--- WAJIB ada agar camera bersih
             m_dialogueBox.reset();
+
+            // Aktifkan AI setelah misi selesai
             m_aiEnabled = (m_aiTarget != nullptr);
         }
     }

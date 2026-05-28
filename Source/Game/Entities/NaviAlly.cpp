@@ -223,6 +223,8 @@ void NaviAlly::FireFanBurst(const DirectX::XMFLOAT3& targetPos) noexcept
 
 void NaviAlly::UpdateShootingLogic(float elapsedTime, Camera* camera)
 {
+    if (m_targetPlayer && m_targetPlayer->GetHP() <= 0) return;
+
     if (m_attackDelayTimer > 0.0f) return;
 
     if (m_isPotioned)

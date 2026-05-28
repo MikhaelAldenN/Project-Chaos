@@ -52,7 +52,7 @@ struct EnemySpawnConfig
     DirectX::XMFLOAT3 Scale = { 0.5f, 0.5f, 0.5f };
     float BaseSpeed = 2.0f;
 
-    int MaxHP = 30;
+    int MaxHP = 50;
 };
 
 namespace EnemyLevelData
@@ -104,10 +104,10 @@ namespace EnemyLevelData
             { { 55.614f, 1.1f, 109.4f }, Rot::Left, Potioned, EnemyType::MushroomStatic, AttackType::Static },
 
             // 3. TRACKING: Slowly chases the player around the map.
-            { { 31.514f, 1.1f, 99.7f }, Rot::Forward, Potioned, EnemyType::MushroomTracking, AttackType::Tracking },
+            { { 31.514f, 1.1f, 99.7f }, Rot::Left, Potioned, EnemyType::MushroomTracking, AttackType::Tracking },
             { { 55.814f, 1.1f, 92.4f }, Rot::Left, Potioned, EnemyType::MushroomStatic, AttackType::Tracking },
             { { 53.514f, 1.1f, 75.2f }, Rot::Left, Potioned, EnemyType::MushroomTracking, AttackType::Tracking },
-            { { 45.314f, 1.1f, 70.0f }, Rot::Forward, Potioned, EnemyType::MushroomStatic, AttackType::Tracking }
+            { { 26.714f, 1.1f, 73.4f }, Rot::Right, Potioned, EnemyType::MushroomStatic, AttackType::Tracking }
     } };
 }
 

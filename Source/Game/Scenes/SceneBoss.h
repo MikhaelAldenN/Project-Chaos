@@ -16,9 +16,12 @@
 #include "Camera.h"
 #include "CameraController.h"
 #include "Player.h"
+#include "PostProcessManager.h"
 #include "Primitive.h"
 #include "WindowTrackingSystem.h"
 #include "System/PrimitiveRenderer.h"
+#include "System/Sprite.h"
+#include "UberShader.h"
 #include "BeyondWindow.h"
 #include "PhysXUtils.h"
 #include "NaviBoss.h"
@@ -41,12 +44,14 @@ public:
     ~SceneBoss() override;
 
     void Update(float elapsedTime) override;
+    void Shutdown();
     void Render(float elapsedTime, Camera* camera = nullptr) override;
     void DrawGUI() override;
     void OnResize(int width, int height) override;
 
     [[nodiscard]] Camera* GetMainCamera() const { return m_mainCamera.get(); }
     [[nodiscard]] Player* GetPlayer()     const { return m_player.get(); }
+    bool IsPendingSceneChange() const { return m_isPendingSceneChange; }
 
     void CloseSubWindowBySDLID(Uint32 sdlWindowID);
 
@@ -145,6 +150,41 @@ private:
 
     DirectX::XMFLOAT4 m_clearColor = { 0.0f, 0.0f, 0.0f, 1.0f }; // Default: Abu-abu Gelap (R, G, B, A)
 
+private:
+    // =========================================================
+    // DEATH & RESPAWN SEQUENCE
+    // =========================================================
+    bool m_isDying{ false };
+    float m_deathTimer{ 0.0f };
+    float m_respawnTimer{ 0.0f };
+    float m_fadeAlpha{ 0.0f };
+
+    std::unique_ptr<PostProcessManager> m_postProcess{};
+    UberShader::UberData m_uberParams{};
+    std::unique_ptr<Sprite> m_fadeSprite{};
+
+    static constexpr float DEATH_DELAY_DURATION{ 0.5f };
+    static constexpr float DEATH_FADE_DURATION{ 3.0f };
+    static constexpr float RESPAWN_FADE_DURATION{ 3.0f };
+
+    // Post-Process Values for Fading to Black
+    static constexpr float FX_BASE_SMOOTHNESS{ 0.2f };
+    static constexpr float FX_BASE_INTENSITY{ 0.0f }; 
+    static constexpr float FX_BLACK_SMOOTHNESS{ 7.0f };
+    static constexpr float FX_BLACK_INTENSITY{ 5.0f };
+
+    void StartPlayerDeathSequence();
+    void ResetLevel();
+
+private:
+    bool m_isPendingSceneChange{ false };
+    std::unique_ptr<Sprite> m_whiteSprite{};
+    float m_whiteAlpha{ 0.0f };
+    bool  m_isNaviDefeated{ false };
+    float m_naviDefeatTimer{ 0.0f };
+
+    static constexpr float NAVI_DEATH_ANIM_DURATION{ 4.0f };
+    static constexpr float WHITE_FADE_DURATION{ 2.0f };
 private:
     // --- Pengaturan Desain Keseimbangan Game (Tuning) ---
     float m_overdriveBossHpTriggerPercent = 30.0f; // Default: Uncap aktif saat HP Boss di bawah 30%

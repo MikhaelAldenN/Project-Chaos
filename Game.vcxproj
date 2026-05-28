@@ -399,10 +399,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Data\Icon\BeyondBreakerIcon.ico" />
+    <ResourceCompile Include="Data\Icon\Resource.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Data\Icon\Resource.rc" />
+    <Image Include="Data\Icon\ChroniclesOfChaos.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

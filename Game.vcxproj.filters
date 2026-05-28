@@ -744,13 +744,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Data\Icon\BeyondBreakerIcon.ico">
-      <Filter>Source\Icon</Filter>
-    </Image>
-  </ItemGroup>
-  <ItemGroup>
     <ResourceCompile Include="Data\Icon\Resource.rc">
       <Filter>Source\Icon</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Data\Icon\ChroniclesOfChaos.ico">
+      <Filter>Source\Icon</Filter>
+    </Image>
   </ItemGroup>
 </Project>

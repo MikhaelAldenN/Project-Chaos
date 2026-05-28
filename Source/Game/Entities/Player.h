@@ -233,7 +233,7 @@ private:
     DirectX::XMFLOAT3 m_playerbulletOffsetPos{ 0.000f, 0.460f, -0.950f };
     DirectX::XMFLOAT3 m_playerbulletOffsetRot{ 0.000f, 0.000f, 0.000f };
     DirectX::XMFLOAT3 m_playerbulletOffsetScale{ 20.000f, 20.000f, 70.000f };
-    DirectX::XMFLOAT4 m_playerbulletColor{ 1.000f, 1.000f, 1.000f, 1.000f };
+    DirectX::XMFLOAT4 m_playerbulletColor{ 4.000f, 4.000f, 4.000f, 1.000f };
     std::deque<std::unique_ptr<Bullet>> m_projectiles;
     float m_bulletSpeed = PlayerConst::BulletSpeed;
 
@@ -270,12 +270,15 @@ private:
 
     // [BARU] Handle & Offset untuk efek Dash
     int m_dashReadyVfxHandle = -1;
-    float m_dashReadyOffsetY = 1.0f;
+    float m_dashReadyOffsetY = 0.0f;
 
     // [BARU] Timer untuk efek standby berulang
     int m_dashStandbyVfxHandle = -1;
 
     int m_overdriveVfxHandle = -1;
+
+	// Stop effect
+    void StopAllVFX();
 
 
 	// --- Glitch Effect ---

@@ -124,9 +124,12 @@ void EnemyManager::Update(const float elapsedTime, Camera* camera, const DirectX
         }
         else
         {
-            // Enemy is alive. Update it.
-            currentEnemy->Update(elapsedTime, camera);
-            currentEnemy->UpdateTracking(elapsedTime, camera, playerPos, allowAttack);
+            // Only update enemy logic if the player is alive
+            if (allowAttack)
+            {
+                currentEnemy->Update(elapsedTime, camera);
+                currentEnemy->UpdateTracking(elapsedTime, camera, playerPos, allowAttack);
+            }
 
             // Move to the next element
             ++i;

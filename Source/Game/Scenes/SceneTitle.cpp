@@ -1,203 +1,45 @@
 #include "SceneTitle.h"
 
-
 SceneTitle::SceneTitle()
 {
+    if (auto window{ Framework::Instance()->GetMainWindow() }) {
+        SDL_Window* sdlWin = window->GetSDLWindow();
+
+        SDL_ShowWindow(sdlWin);
+        // Disable window borders and the ability to resize
+        SDL_SetWindowBordered(sdlWin, false);
+        SDL_SetWindowResizable(sdlWin, false);
+
+        // Grab monitor size and force the window to match it perfectly
+        int fullW = GetSystemMetrics(SM_CXSCREEN);
+        int fullH = GetSystemMetrics(SM_CYSCREEN);
+        SDL_SetWindowSize(sdlWin, fullW, fullH);
+        SDL_SetWindowPosition(sdlWin, 0, 0);
+    }
+
     // 1. Initialize Core Systems
     camera = std::make_unique<Camera>();
     camera->SetOrthographic(1920.0f, 1080.0f, 0.1f, 1000.0f);
     camera->SetPosition(0.0f, 0.0f, -10.0f);
 
-    TextDatabase::Instance().Initialize();
-
-    primitiveBatcher = std::make_unique<Primitive>(Graphics::Instance().GetDevice());
-    uiManager = std::make_unique<ButtonManager>();
-
     postProcess = std::make_unique<PostProcessManager>();
     postProcess->Initialize(1920, 1080);
 
-    // 2. Configure Default Menu Theme
-    menuConfig.styleStandby = { {0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f}, {0.96f, 0.80f, 0.23f, 1.0f} };
-    menuConfig.styleHover = { {0.0f, 0.0f, 0.8f, 1.0f}, {0.0f, 0.0f, 0.8f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
-    menuConfig.stylePress = { {0.0f, 0.0f, 0.8f, 1.0f}, {0.0f, 0.0f, 0.8f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f} };
+    m_uberParams.center = { 0.5f, 0.5f };     
+    m_uberParams.roundness = 1.0f;            
 
-    // 4. Load Assets & Finalize Setup
-    bgSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Sprite_BorderBrickDos.png");
+    // Standar Resolusi PSX (Bisa diturunin misal ke 640x480 kalo mau lebih retro)
+    m_uberParams.psxResWidth = 1920.0f;
+    m_uberParams.psxResHeight = 1080.0f;
+    m_uberParams.psxColorDepth = 256.0f;      
+    m_uberParams.psxDitherStrength = 1.0f;
 
-    // [SETUP PANEL]
-    float panelW = 600.0f;
-    float panelH = 300.0f;
-    float panelX = (1920.0f - panelW) / 2.0f;
-    float panelY = (1080.0f - panelH) / 2.0f;
-
-    exitPopup = std::make_unique<UIPanel>(primitiveBatcher.get(), panelX, panelY, panelW, panelH, "Exit?");
-
-    // Teks panjang otomatis turun baris, tidak perlu manual \n!
-    exitPopup->SetMessage("Are you sure you want to\nterminate the session?");
-
-    float btnY = 200.0f; // Posisi Y relatif dari atas panel
-
-    // Tombol YES
-    exitPopup->AddButton("YES", 75.0f, btnY, 200.0f, 40.0f, [this]() {
-        Framework::Instance()->Quit();
-        });
-
-    // Tombol NO
-    exitPopup->AddButton("NO", 325.0f, btnY, 200.0f, 40.0f, [this]() {
-
-        this->exitPopup->Hide();
-
-        // 1. Matikan Tombol Exit (Current)
-        if (this->currentActiveButton)
-        {
-            this->currentActiveButton->SetSelected(false);
-            this->currentActiveButton->SetState(ButtonState::STANDBY);
-        }
-
-        // 2. Cari Tombol "ReadMe.txt" di daftar menu
-        for (auto* btn : this->menuButtons)
-        {
-            // Cek apakah teks tombol mengandung kata "ReadMe.txt"
-            if (btn->GetText().find("ReadMe.txt") != std::string::npos)
-            {
-                // JADIKAN AKTIF
-                this->currentActiveButton = btn;
-                this->currentActiveButton->SetSelected(true);
-                this->currentActiveButton->SetState(ButtonState::PRESSED); // Paksa Nyala Biru
-
-                // Jangan lupa update Panel Kanan (Deskripsi) biar sinkron
-                this->selectedFileName = btn->GetText();
-                this->UpdateDescriptionText(this->selectedFileName);
-
-                break; // Stop loop kalau sudah ketemu
-            }
-        }
-        });
-
-    exitPopup->Hide();
-
-    SetupLayout();
-    SetupContent();
-    BuildMenu("ROOT");
-}
-
-void SceneTitle::BuildMenu(const std::string& folderName)
-{
-    // 1. Bersihkan Tombol Lama
-    menuButtons.clear();
-    uiManager->Clear();
-
-    currentFolder = folderName;
-
-    // 2. Siapkan Builder Ulang
-    TUIBuilder builder(uiManager.get(), primitiveBatcher.get());
-
-    // Setup Theme (Copy dari config)
-    TUITheme theme;
-    theme.styleStandby = menuConfig.styleStandby;
-    theme.styleHover = menuConfig.styleHover;
-    theme.stylePress = menuConfig.stylePress;
-    theme.textScale = menuConfig.textScale;
-    theme.padding = menuConfig.paddingX;
-    theme.verticalAdj = menuConfig.verticalAdj;
-    theme.align = (TextAlignment)menuConfig.alignment;
-
-    builder.SetTheme(theme);
-    builder.SetButtonSize(menuConfig.btnWidth, menuConfig.btnHeight);
-
-    // =========================================================
-    // [MODIFIKASI START]
-    // =========================================================
-
-    // A. Logic Dekorasi (Header)
-    if (folderName == "ROOT")
-    {
-        builder.SetStartPosition(menuConfig.startX, 260.0f);
-        builder.AddDecoration(" VOL (C:)          <SYS>");
-    }
-
-    // B. Logic Posisi Tombol
-    float currentListY = menuConfig.startY;
-
-    if (folderName != "ROOT")
-    {
-        currentListY = 260.0f;
-    }
-
-    builder.SetStartPosition(menuConfig.startX, currentListY);
-    builder.SetSpacing(menuConfig.spacing);
-
-    // =========================================================
-    // [MODIFIKASI END]
-    // =========================================================
-
-    // 3. Ambil File dari Database berdasarkan Folder
-    const auto& fileList = TextDatabase::Instance().GetFiles(folderName);
-
-    for (const auto& fileName : fileList)
-    {
-        UIButtonPrimitive* btn = builder.AddButton(fileName, nullptr);
-
-        btn->SetVisibleChars(0);
-        btn->SetOnClick([this, fileName, btn]() {
-
-            // --- [LOGIC NAVIGASI] ---
-
-            if (fileName.find("Exit.exe") != std::string::npos)
-            {
-                if (this->currentActiveButton)
-                {
-                    this->currentActiveButton->SetSelected(false);
-                    this->currentActiveButton->SetState(ButtonState::STANDBY);
-                }
-
-                this->currentActiveButton = btn;
-                this->currentActiveButton->SetSelected(true);
-                this->currentActiveButton->SetState(ButtonState::PRESSED);
-
-                this->exitPopup->Show();
-                return;
-            }
-
-            // --- [LOGIC SELECT BIASA] ---
-            if (currentActiveButton && currentActiveButton != btn) {
-                currentActiveButton->SetSelected(false);
-            }
-            currentActiveButton = btn;
-            currentActiveButton->SetSelected(true);
-
-            this->selectedFileName = fileName;
-            this->UpdateDescriptionText(fileName);
-
-            });
-
-        menuButtons.push_back(btn);
-    }
-
-    // Reset State Animasi
-    animButtonIndex = 0;
-    animTimer = 0.0f;
-
-    if (!menuButtons.empty()) btnExit = menuButtons.back();
-
-    if (folderName == "ROOT")
-    {
-        for (auto* btn : menuButtons)
-        {
-            if (btn->GetText().find("ReadMe.txt") != std::string::npos)
-            {
-                if (currentActiveButton) currentActiveButton->SetSelected(false);
-
-                currentActiveButton = btn;
-                currentActiveButton->SetSelected(true);
-
-                this->selectedFileName = btn->GetText();
-                this->UpdateDescriptionText(selectedFileName);
-
-                break;
-            }
-        }
-    }
+    // Load Assets & Finalize Setup
+    bgSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Back_Title.png");
+    logoSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Sprite_Title_Logo.png");
+    copyrightSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Sprite_Title_Copyright.png");
+    startSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Sprite_Title_Start.png");
+    m_fadeSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Game/Black.png");
 }
 
 // =========================================================
@@ -206,68 +48,113 @@ void SceneTitle::BuildMenu(const std::string& folderName)
 
 void SceneTitle::Update(float elapsedTime)
 {
-    // ==============================================================
-    // 2. CEK POPUP / MODAL (BLOCKING AREA)
-    // ==============================================================
-    if (exitPopup && exitPopup->IsVisible())
+    // =========================================================
+    // 1. EXIT PHASE (Triggered by Enter key)
+    // =========================================================
+    if (m_isExiting)
     {
-        exitPopup->Update();
-        return; // Return preventing interaction behind popup
-    }
+        m_exitTimer += elapsedTime;
 
-    // ==============================================================
-    // 3. UPDATE MENU UTAMA 
-    // ==============================================================
-    if (!pendingFolder.empty())
-    {
-        BuildMenu(pendingFolder);
-        pendingFolder = "";
-    }
+        // Fade to black smoothly over BOOT_FADE_DURATION
+        m_fadeAlpha = std::clamp(m_exitTimer / BOOT_FADE_DURATION, 0.0f, 1.0f);
 
-    if (uiManager)
-    {
-        uiManager->Update();
-    }
-
-    if (animButtonIndex < menuButtons.size())
-    {
-        animTimer += elapsedTime;
-        while (animTimer >= animSpeed)
+        // Once fully black, change the scene!
+        if (m_exitTimer >= BOOT_FADE_DURATION)
         {
-            animTimer -= animSpeed;
-            UIButtonPrimitive* currentBtn = menuButtons[animButtonIndex];
-            int currentChars = currentBtn->GetVisibleChars();
-            currentBtn->SetVisibleChars(currentChars + 1);
+            Framework::Instance()->ChangeScene(std::make_unique<SceneGame>());
+        }
 
-            if (currentBtn->IsFinishedTyping())
+        return; // Stop updating the menu while fading out
+    }
+
+    // =========================================================
+    // 2. NORMAL BOOT & TITLE PHASE
+    // =========================================================
+    if (m_bootTimer > 0.0f)
+    {
+        m_bootTimer -= elapsedTime;
+        m_fadeAlpha = std::clamp(m_bootTimer / BOOT_FADE_DURATION, 0.0f, 1.0f);
+    }
+    // SHOW COPYRIGHT (Wait Phase)
+    else if (m_copyrightTimer > 0.0f)
+    {
+        m_fadeAlpha = 0.0f; // Screen is fully visible
+        m_copyrightTimer -= elapsedTime;
+    }
+    else
+    {
+        m_fadeAlpha = 0.0f;
+
+        // Fade out Copyright
+        if (m_copyrightAlpha > 0.0f)
+        {
+            m_copyrightAlpha = std::clamp(m_copyrightAlpha - (elapsedTime * 0.8f), 0.0f, 1.0f);
+        }
+
+        else if (m_gapTimer < GAP_DURATION)
+        {
+            m_gapTimer += elapsedTime;
+        }
+
+        // Phase 1: Fade In (Only runs while pulseTimer is 0)
+        else if (m_pulseTimer == 0.0f)
+        {
+            m_startAlpha += elapsedTime * 2.0f;
+            if (m_startAlpha >= 1.0f)
             {
-                animButtonIndex++;
-                if (animButtonIndex >= menuButtons.size()) break;
+                m_startAlpha = 1.0f;
+                m_pulseTimer = 0.5236f;
+            }
+        }
+        // Phase 2: Pulse Effect
+        else
+        {
+            m_pulseTimer += elapsedTime;
+            m_startAlpha = 0.6f + 0.4f * sinf(m_pulseTimer * 3.0f);
+
+            // ALLOW INPUT ONLY WHEN START TEXT IS PULSING
+            if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN))
+            {
+                m_isExiting = true;
+                m_exitTimer = 0.0f;
+
+                // You can play your Enter SFX here if you have one!
+                // AudioManager::Instance().PlaySFX("Data/Sound/SE_Start.wav");
             }
         }
     }
-
-    if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN))
-    {
-        if (selectedFileName.find("BEYONDBREAKER.exe") != std::string::npos)
-        {
-            ShowCursor(TRUE);
-            Framework::Instance()->ChangeScene(std::make_unique<SceneBoss>());
-        }
-    }
+    m_uberParams.smoothness = FX_BASE_SMOOTHNESS;
+    m_uberParams.intensity = FX_BASE_INTENSITY;
 }
 
-void SceneTitle::Render(float dt, Camera* targetCamera)
+void SceneTitle::Render(float dt, Camera * targetCamera)
 {
     auto dc = Graphics::Instance().GetDeviceContext();
     auto rs = Graphics::Instance().GetRenderState();
 
-    // --- STEP 1: Post-Process Capture ---
+    // ==============================================================
+    // --- STEP 1: Sinkronisasi Data Post-Process (Harus di Atas!) ---
+    // ==============================================================
     postProcess->SetEnabled(m_fxState.MasterEnabled);
 
+    UberShader::UberData& activeData = postProcess->GetData();
+    activeData = this->m_uberParams; // <-- Pastikan pakai m_uberParams
+
+    // Evaluasi Flags & Masking Efek
+    activeData.psxEnabled = (m_fxState.MasterEnabled && m_fxState.EnablePSX);
+    if (!m_fxState.EnableVignette)   activeData.intensity = 0.0f;
+    if (!m_fxState.EnableLens) { activeData.glitchStrength = 0.0f; activeData.distortion = 0.0f; activeData.blurStrength = 0.0f; }
+    if (!m_fxState.EnableChromatic)  activeData.chromaticAberration = 0.0f;
+    if (!m_fxState.EnableCRT) { activeData.scanlineStrength = 0.0f; activeData.fineOpacity = 0.0f; }
+    if (!m_fxState.EnableBloom)      activeData.bloomIntensity = 0.0f;
+
+    // ==============================================================
+    // --- STEP 2: Mulai Capture ---
+    // ==============================================================
     if (m_fxState.MasterEnabled)
     {
         postProcess->BeginCapture();
+        postProcess->EndCapture(dt);
     }
     else
     {
@@ -287,58 +174,63 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
         }
     }
 
-    // --- STEP 2: Render Scene Objects ---
-    dc->OMSetBlendState(Graphics::Instance().GetAlphaBlendState(), nullptr, 0xFFFFFFFF);
-    dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestAndWrite), 0);
+    // ==============================================================
+    // --- STEP 3: UI & Background Pass ---
+    // ==============================================================
+    dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+    dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
     dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullNone));
 
+    float t = 1.0f - std::clamp(m_bootTimer / BOOT_FADE_DURATION, 0.0f, 1.0f);
+
+    // 2. Apply a curve to the alpha. 
+    // t * t creates an "Ease-In" effect (starts very slow).
+    // If you want it even slower, use t * t * t
+    float bootAlpha = t * t;
+
+    // 3. Render your background, logo, and copyright with this alpha
     if (bgSprite)
     {
-        bgSprite->Render(dc, camera.get(), 0, 0, 0, 1920.0f, 1080.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+        bgSprite->Render(dc, camera.get(), 0, 0, 0, 1920.0f, 1080.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, bootAlpha);
     }
 
-    uiManager->Render(dc, targetCamera);
-    primitiveBatcher->Render(dc);
-
-    // Text Rendering
-    BitmapFont* font = ResourceManager::Instance().GetFont("VGA_FONT");
-    if (font)
+    if (logoSprite)
     {
-        auto DrawPanelText = [&](const std::string& txt, const PanelLayout& p) {
-            font->Draw(txt.c_str(), p.x, p.y, p.scale, p.color[0], p.color[1], p.color[2], p.color[3]);
-            };
-
-        DrawPanelText(textStatusOnline, panelStatus);
-        DrawPanelText(textDirectoryHeader, panelDirectory);
-        font->Draw(textTUIMenuBar.c_str(), 400.0f, 960.0f, 0.625f, 0.96f, 0.80f, 0.23f, 1.0f);
-
-        // Draw the cached description text instantly
-        float currentY = panelDescription.y + 30.0f;
-        for (const std::string& line : currentDescriptionLines)
-        {
-            font->Draw(line.c_str(), panelDescription.x, currentY, panelDescription.scale,
-                panelDescription.color[0], panelDescription.color[1], panelDescription.color[2], panelDescription.color[3]);
-            currentY += panelDescription.lineSpacing;
-        }
+        logoSprite->Render(dc, 461.5f, 200.0f, 0.0f, 997.0f, 547.0f, 0.0f, 0.0f, 997.0f, 547.0f, 0.0f, 1.0f, 1.0f, 1.0f, bootAlpha);
     }
 
-    if (exitPopup)
+    float finalCopyrightAlpha = (m_bootTimer > 0.0f) ? bootAlpha : m_copyrightAlpha;
+
+    if (copyrightSprite && finalCopyrightAlpha > 0.0f)
     {
-        exitPopup->Render(dc);
+        copyrightSprite->Render(dc, 327.5f, 867.0f, 0.0f, 1265.0f, 105.0f, 0.0f, 0.0f, 1265.0f, 105.0f, 0.0f, 1.0f, 1.0f, 1.0f, finalCopyrightAlpha);
     }
 
-    // --- STEP 3: Apply Post-Processing & Present ---
+    // RENDER START
+    if (startSprite && m_startAlpha > 0.0f)
+    {
+        startSprite->Render(dc, 739.5f, 906.5f, 0.0f, 441.0f, 26.0f, 0.0f, 0.0f, 441.0f, 26.0f, 0.0f, 1.0f, 1.0f, 1.0f, m_startAlpha);
+    }
+
+    if (m_fadeAlpha > 0.001f && m_fadeSprite)
+    {
+        // Get screen size
+        float screenW = 1920.0f; 
+        float screenH = 1080.0f;
+
+        m_fadeSprite->Render(
+            dc,
+            0.0f, 0.0f, 0.0f,          // x, y, z
+            screenW, screenH,          // width, height
+            0.0f, 0.0f,                // sx, sy
+            1920.0f, 1080.0f,          // sw, sh
+            0.0f,                      // angle
+            0.0f, 0.0f, 0.0f, m_fadeAlpha // r, g, b, a (Fade alpha here)
+        );
+    }
+
     if (m_fxState.MasterEnabled)
     {
-        // Sync GUI sliders to Shader Data
-        UberShader::UberData& activeData = postProcess->GetData();
-        activeData = this->uberParams;
-
-        // Apply Logic Masks
-        if (!m_fxState.EnableVignette) activeData.intensity = 0.0f;
-        if (!m_fxState.EnableLens) { activeData.glitchStrength = 0.0f; activeData.distortion = 0.0f; activeData.blurStrength = 0.0f; }
-        if (!m_fxState.EnableCRT) { activeData.scanlineStrength = 0.0f; activeData.fineOpacity = 0.0f; }
-
         postProcess->EndCapture(dt);
     }
 }
@@ -346,67 +238,6 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
 void SceneTitle::OnResize(int width, int height)
 {
     if (postProcess) postProcess->OnResize(width, height);
-}
-
-// =========================================================
-// INTERNAL LOGIC
-// =========================================================
-
-void SceneTitle::SetupLayout()
-{
-    panelStatus = { "Status Panel", 341.0f, 132.0f, 0.0f, 0.625f, {0.96f, 0.80f, 0.23f, 1.0f} };
-    panelDirectory = { "Directory Panel", 395.0f, 234.0f, 40.0f, 0.625f, {0.96f, 0.80f, 0.23f, 1.0f} };
-    panelDescription = { "Desc Panel", 844.0f, 96.0f, 30.0f, 0.625f, {0.96f, 0.80f, 0.23f, 1.0f} };
-}
-
-void SceneTitle::SetupContent()
-{
-    textStatusOnline = TextDatabase::Instance().GetSystemString("StatusOnline");
-    textDirectoryHeader = TextDatabase::Instance().GetSystemString("DirectoryHeader");
-    textTUIMenuBar = TextDatabase::Instance().GetSystemString("TUIMenuBar");
-}
-
-void SceneTitle::ApplyMenuLayout()
-{
-    for (int i = 0; i < menuButtons.size(); ++i)
-    {
-        UIButtonPrimitive* btn = menuButtons[i];
-        float currentY = menuConfig.startY + (i * (menuConfig.btnHeight + menuConfig.spacing));
-
-        btn->SetPosition(menuConfig.startX, currentY);
-        btn->SetSize(menuConfig.btnWidth, menuConfig.btnHeight);
-        btn->SetPadding(menuConfig.paddingX);
-        btn->SetTextScale(menuConfig.textScale);
-        btn->SetVerticalAdjustment(menuConfig.verticalAdj);
-        btn->SetAlignment((TextAlignment)menuConfig.alignment);
-
-        btn->SetStyle(ButtonState::STANDBY, menuConfig.styleStandby);
-        btn->SetStyle(ButtonState::HOVER, menuConfig.styleHover);
-        btn->SetStyle(ButtonState::PRESSED, menuConfig.stylePress);
-    }
-}
-
-void SceneTitle::UpdateDescriptionText(const std::string& key)
-{
-    currentDescriptionLines.clear();
-
-    if (key.empty()) {
-        return;
-    }
-
-    std::string cleanKey = key;
-    size_t spacePos = key.find(" ");
-    if (spacePos != std::string::npos) cleanKey = key.substr(0, spacePos);
-
-    const FileMetadata* data = TextDatabase::Instance().GetMetadata(cleanKey);
-
-    if (!data) {
-        printf("[Warning] Metadata not found for key: '%s'\n", cleanKey.c_str());
-        return;
-    }
-
-    // Assign the lines to draw them instantly in Render()
-    currentDescriptionLines = data->lines;
 }
 
 // =========================================================
@@ -419,30 +250,6 @@ void SceneTitle::DrawGUI()
 
     if (ImGui::BeginTabBar("InspectorTabs"))
     {
-        if (ImGui::BeginTabItem("UI Layout"))
-        {
-            if (ImGui::CollapsingHeader("Text Layouts", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-                ImGui::Indent();
-                ImGuiEditPanel(panelStatus);
-                ImGuiEditPanel(panelDirectory);
-                ImGuiEditPanel(panelDescription);
-                ImGui::Unindent();
-            }
-
-            if (ImGui::CollapsingHeader("Menu Group Settings"))
-            {
-                if (ImGui::Button("Apply Layout")) ApplyMenuLayout();
-            }
-            ImGui::EndTabItem();
-        }
-
-        if (ImGui::BeginTabItem("Data Debugger"))
-        {
-            ImGui::TextColored({ 0.0f, 1.0f, 0.0f, 1.0f }, "Selected: %s", selectedFileName.empty() ? "NONE" : selectedFileName.c_str());
-            ImGui::EndTabItem();
-        }
-
         if (ImGui::BeginTabItem("Post-Process & FX"))
         {
             GUIPostProcessTab();
@@ -451,18 +258,6 @@ void SceneTitle::DrawGUI()
         ImGui::EndTabBar();
     }
     ImGui::End();
-}
-
-void SceneTitle::ImGuiEditPanel(PanelLayout& layout)
-{
-    if (ImGui::TreeNode(layout.name))
-    {
-        ImGui::DragFloat("Pos X", &layout.x, 1.0f, 0.0f, 1920.0f);
-        ImGui::DragFloat("Pos Y", &layout.y, 1.0f, 0.0f, 1080.0f);
-        ImGui::DragFloat("Scale", &layout.scale, 0.01f, 0.1f, 5.0f);
-        ImGui::ColorEdit4("Color", layout.color);
-        ImGui::TreePop();
-    }
 }
 
 void SceneTitle::GUIPostProcessTab()
@@ -490,10 +285,10 @@ void SceneTitle::GUIPostProcessTab()
     if (ImGui::CollapsingHeader("Vignette & Color", ImGuiTreeNodeFlags_DefaultOpen))
     {
         CheckboxLayer("ACTIVATE: Vignette", m_fxState.EnableVignette);
-        ImGui::ColorEdit3("Tint", &uberParams.color.x);
-        ImGui::SliderFloat("Intensity", &uberParams.intensity, 0.0f, 3.0f);
-        ImGui::SliderFloat("Smoothness", &uberParams.smoothness, 0.01f, 1.0f);
-        ImGui::Checkbox("Rounded", &uberParams.rounded);
+        ImGui::ColorEdit3("Tint", &m_uberParams.color.x);
+        ImGui::SliderFloat("Intensity", &m_uberParams.intensity, 0.0f, 3.0f);
+        ImGui::SliderFloat("Smoothness", &m_uberParams.smoothness, 0.01f, 1.0f);
+        ImGui::Checkbox("Rounded", &m_uberParams.rounded);
         if (!m_fxState.EnableVignette) ImGui::PopStyleVar();
     }
 
@@ -501,9 +296,9 @@ void SceneTitle::GUIPostProcessTab()
     if (ImGui::CollapsingHeader("Lens Distortion"))
     {
         CheckboxLayer("ACTIVATE: Lens", m_fxState.EnableLens);
-        ImGui::SliderFloat("Fisheye", &uberParams.distortion, -0.5f, 0.5f);
-        ImGui::SliderFloat("Chroma", &uberParams.blurStrength, 0.0f, 0.05f);
-        ImGui::SliderFloat("Glitch", &uberParams.glitchStrength, 0.0f, 1.0f);
+        ImGui::SliderFloat("Fisheye", &m_uberParams.distortion, -0.5f, 0.5f);
+        ImGui::SliderFloat("Chroma", &m_uberParams.blurStrength, 0.0f, 0.05f);
+        ImGui::SliderFloat("Glitch", &m_uberParams.glitchStrength, 0.0f, 1.0f);
         if (!m_fxState.EnableLens) ImGui::PopStyleVar();
     }
 
@@ -511,10 +306,10 @@ void SceneTitle::GUIPostProcessTab()
     if (ImGui::CollapsingHeader("CRT Monitor"))
     {
         CheckboxLayer("ACTIVATE: CRT", m_fxState.EnableCRT);
-        ImGui::SliderFloat("Density", &uberParams.fineDensity, 10.0f, 500.0f);
-        ImGui::SliderFloat("Opacity", &uberParams.fineOpacity, 0.0f, 1.0f);
-        ImGui::SliderFloat("Speed", &uberParams.scanlineSpeed, -10.0f, 10.0f);
-        ImGui::SliderFloat("Scan Opacity", &uberParams.scanlineStrength, 0.0f, 1.0f);
+        ImGui::SliderFloat("Density", &m_uberParams.fineDensity, 10.0f, 500.0f);
+        ImGui::SliderFloat("Opacity", &m_uberParams.fineOpacity, 0.0f, 1.0f);
+        ImGui::SliderFloat("Speed", &m_uberParams.scanlineSpeed, -10.0f, 10.0f);
+        ImGui::SliderFloat("Scan Opacity", &m_uberParams.scanlineStrength, 0.0f, 1.0f);
         if (!m_fxState.EnableCRT) ImGui::PopStyleVar();
     }
 }

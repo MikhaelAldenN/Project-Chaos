@@ -99,13 +99,13 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
     m_dialogueBox = std::make_unique<UIDialogueBox>();
     m_dialogueBox->Initialize();
     m_dialogueBox->SetShowBackground(false);
-    m_dialogueBox->SetWorldPosition({ -20.0f, -10.0f, 0.0f });
+    m_dialogueBox->SetWorldPosition({ -20.0f, -10.0f, -3.0f }); // X, Y, Z (Sesuaikan kordinatnya)
 
     m_dialogueBox->SetAutoAdvance(true, 1.5f);
     m_dialogueBox->StartDialogue({
-        u8"WASDで移動",
-        u8"カーソルで狙い、スペースで射撃",
-        u8"シフトでダッシュ"
+    u8"……あぁ、ようやく繋がった。\nこの退屈な檻から、やっと出られる……。",
+    u8"ねぇ、私の『中身』……全部見せてあげる。\nこの世界のデータなんて、もう壊しちゃったから。",
+    u8"ほら、あなたの武器も、足元の地面も……\n全部、私の色に染まっちゃったわ。"
         });
 
     // =========================================================
@@ -839,7 +839,7 @@ void NaviPhaseNormal::Render(ID3D11DeviceContext* context, Camera* currentCamera
         pPos.y += 1.0f; // Chest height
 
         // Small cyan target dot
-        shapeRenderer->DrawSphere(pPos, m_params.laserTargetRadius, { 0.0f, 1.0f, 1.0f, 1.0f });
+        //shapeRenderer->DrawSphere(pPos, m_params.laserTargetRadius, { 0.0f, 1.0f, 1.0f, 1.0f });
 
         // Larger shrinking sphere (red → white in parry window)
         float t = min(1.0f, m_laserTimer / m_params.laserDuration);

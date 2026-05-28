@@ -71,9 +71,23 @@ SceneGame::SceneGame()
 {
     float screenW{ Config::DEFAULT_SCREEN_W };
     float screenH{ Config::DEFAULT_SCREEN_H };
+
     if (auto window{ Framework::Instance()->GetMainWindow() }) {
-        screenW = static_cast<float>(window->GetWidth());
-        screenH = static_cast<float>(window->GetHeight());
+        SDL_Window* sdlWin = window->GetSDLWindow();
+
+        // Disable window borders and the ability to resize
+        SDL_SetWindowBordered(sdlWin, false);
+        SDL_SetWindowResizable(sdlWin, false);
+
+        // Grab monitor size and force the window to match it perfectly
+        int fullW = GetSystemMetrics(SM_CXSCREEN);
+        int fullH = GetSystemMetrics(SM_CYSCREEN);
+        SDL_SetWindowSize(sdlWin, fullW, fullH);
+        SDL_SetWindowPosition(sdlWin, 0, 0);
+
+        // Update local configuration variables
+        screenW = static_cast<float>(fullW);
+        screenH = static_cast<float>(fullH);
     }
 
     auto& camCtrl{ CameraController::Instance() };
@@ -111,7 +125,7 @@ SceneGame::SceneGame()
     sceneDesc.gravity = physx::PxVec3(0.0f, Config::GRAVITY, 0.0f);
 
     m_dispatcher.reset(physx::PxDefaultCpuDispatcherCreate(2));
-    sceneDesc.cpuDispatcher = m_dispatcher.get(); 
+    sceneDesc.cpuDispatcher = m_dispatcher.get();
     sceneDesc.filterShader = physx::PxDefaultSimulationFilterShader;
 
     m_scene.reset(m_physics->createScene(sceneDesc));
@@ -125,16 +139,16 @@ SceneGame::SceneGame()
 
     m_groundPlane.reset(physx::PxCreatePlane(*m_physics, physx::PxPlane(0, 1, 0, 0), *m_defaultMaterial));
     m_scene->addActor(*m_groundPlane);
-    
+
     m_player = std::make_unique<Player>();
 
     m_player->SetPosition(m_playerSpawnPos);
     m_player->InitPhysics(m_controllerManager.get(), m_defaultMaterial.get());
     m_stage->InitPhysics(m_physics.get(), m_scene.get(), m_defaultMaterial.get());
 
-    PlayerConfig gameConfig{};            
-    gameConfig.moveSpeed = 8.0f;         
-    gameConfig.dashSpeed = 28.0f;         
+    PlayerConfig gameConfig{};
+    gameConfig.moveSpeed = 8.0f;
+    gameConfig.dashSpeed = 28.0f;
 
     m_player->ApplyConfig(gameConfig);
     m_player->GetMovement()->SetRotationY(DirectX::XM_PI);
@@ -160,7 +174,7 @@ SceneGame::SceneGame()
                 StartBossCinematic();
             }
         }
-    });
+        });
 
     m_director = std::make_unique<CinematicDirector>();
 
@@ -180,7 +194,7 @@ SceneGame::SceneGame()
 SceneGame::~SceneGame()
 {
     AudioManager::Instance().StopMusic();
-    CameraController::Instance().ClearCamera();
+    //CameraController::Instance().ClearCamera();
 
     m_player.reset();
     m_stage.reset();
@@ -220,6 +234,27 @@ void SceneGame::Update(const float elapsedTime)
             m_uberParams.intensity = FX_BLACK_INTENSITY;
             m_fadeAlpha = 1.0f;
             m_isNaviDefeatReadyForNextScene = true;
+            m_player.reset();
+            m_navi.reset();
+            m_enemyManager.reset();
+            m_itemManager.reset();
+            m_stage.reset();
+            m_collisionManager.reset();
+
+            // Destroy PhysX core components in reverse order of creation
+            m_groundPlane.reset();
+            m_defaultMaterial.reset();
+            m_controllerManager.reset();
+            m_scene.reset();
+            m_dispatcher.reset();
+            m_physics.reset();
+            m_foundation.reset(); // <-- This frees PxFoundation for SceneBoss!
+
+            // Clear the camera so SceneBoss can claim it without it getting overridden
+            CameraController::Instance().ClearCamera();
+            Framework::Instance()->ChangeScene(std::make_unique<SceneBoss>());
+
+            return;
         }
     }
     else if (m_bootTimer > 0.0f)
@@ -231,8 +266,14 @@ void SceneGame::Update(const float elapsedTime)
 
         if (m_player)
         {
+            m_player->SetInputEnabled(false);
             CameraController::Instance().SetTarget(m_player->GetPosition());
-            CameraController::Instance().Update(0.0f); 
+            CameraController::Instance().Update(0.0f);
+        }
+
+        if (m_bootTimer <= 0.0f && m_player)
+        {
+            m_player->SetInputEnabled(true);
         }
     }
 
@@ -274,6 +315,8 @@ void SceneGame::Update(const float elapsedTime)
     {
         m_respawnTimer -= elapsedTime;
 
+        if (m_player) m_player->SetInputEnabled(false);
+
         // Quadratic Ease-Out for a smoother fade-in curve
         const float linearT{ std::clamp(m_respawnTimer / RESPAWN_FADE_DURATION, 0.0f, 1.0f) };
         const float t{ linearT * linearT };
@@ -281,6 +324,11 @@ void SceneGame::Update(const float elapsedTime)
         m_uberParams.smoothness = FX_BASE_SMOOTHNESS + (FX_BLACK_SMOOTHNESS - FX_BASE_SMOOTHNESS) * t;
         m_uberParams.intensity = FX_BASE_INTENSITY + (FX_BLACK_INTENSITY - FX_BASE_INTENSITY) * t;
         m_fadeAlpha = t;
+
+        if (m_respawnTimer <= 0.0f && m_player)
+        {
+            m_player->SetInputEnabled(true);
+        }
     }
     else
     {
@@ -292,7 +340,7 @@ void SceneGame::Update(const float elapsedTime)
         {
             AudioManager::Instance().PlayMusic("Data/Sound/BGM_Game.wav", 0.1f, true);
 
-            m_hasBGMStarted = true; 
+            m_hasBGMStarted = true;
         }
     }
 
@@ -348,7 +396,7 @@ void SceneGame::Update(const float elapsedTime)
             if (abs(dir.y) > 0.001f) {
                 float t = -origin.y / dir.y;
                 DirectX::XMFLOAT3 trueMouseWorldPos = { origin.x + dir.x * t, 0.0f, origin.z + dir.z * t };
-                m_player->RotateModelToPoint(trueMouseWorldPos); 
+                m_player->RotateModelToPoint(trueMouseWorldPos);
             }
         }
 
@@ -361,14 +409,14 @@ void SceneGame::Update(const float elapsedTime)
         if (m_player) {
             targetPos = m_player->GetPosition();
         }
-        bool canAttack{ true };
+        bool canAttack = (m_player && m_player->GetHP() > 0);
         m_enemyManager->Update(elapsedTime, activeCam, targetPos, canAttack);
     }
 
     if (m_itemManager) m_itemManager->Update(elapsedTime, activeCam);
     if (m_collisionManager) m_collisionManager->Update(elapsedTime);
 
-	// Furi style cinematic combat camera 
+    // Furi style cinematic combat camera 
     static float targetZoom{ 0.0f };
     static int   frameCounter{ 0 };
     static const Enemy* cachedClosestEnemy{ nullptr };
@@ -498,7 +546,7 @@ void SceneGame::Update(const float elapsedTime)
     else // NORMAL GAMEPLAY CAMERA
     {
         // 1. Target the Player securely
-        if (m_player && m_fadeAlpha < 0.99f)
+        if (m_player)
         {
             CameraController::Instance().SetTarget(m_player->GetPosition());
             m_director->Update(elapsedTime, m_player->GetMovement()->GetPosition());
@@ -710,10 +758,10 @@ void SceneGame::StartPoisonDialogue()
     if (m_dialogueBox)
     {
         std::vector<std::string> dialogPages = {
-            u8"あ……あ、ぁ…………",
-            u8"あつい……からだが……とける……",
-            u8"にげて……わたし、もう…………",
-            u8"あはッ……アはハハハハハハハッ！！！！"
+            u8"あ....あ、ぁ....",
+            u8"あつい....からだが...とける....",
+            u8"にげて...わたし、もう.....",
+            u8"あはッ......アはハハハハハハハッ！！！！"
         };
 
         m_hasTriggeredPoisonDialogue = true;
@@ -740,22 +788,25 @@ void SceneGame::ResetLevel()
         m_player->SetPosition(respawnPos);
         m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
         m_player->SetMaxHP(isBossStage ? 150 : 100);
-        m_player->SetInputEnabled(true);
+        m_player->SetInputEnabled(false);
         m_player->scale = { 1.0f, 1.0f, 1.0f };
         m_player->GetStateMachine()->ChangeState(m_player.get(), std::make_unique<PlayerIdle>());
         m_player->GetProjectiles().clear();
     }
 
     // 3. Reset Enemies & Items
-    if (m_enemyManager)
+    if (!isBossStage)
     {
-        m_enemyManager->GetEnemies().clear();
-        m_enemyManager->Initialize(Graphics::Instance().GetDevice());
-    }
-    if (m_itemManager)
-    {
-        m_itemManager->GetItems().clear();
-        m_itemManager->Initialize(Graphics::Instance().GetDevice());
+        if (m_enemyManager)
+        {
+            m_enemyManager->GetEnemies().clear();
+            m_enemyManager->Initialize(Graphics::Instance().GetDevice());
+        }
+        if (m_itemManager)
+        {
+            m_itemManager->GetItems().clear();
+            m_itemManager->Initialize(Graphics::Instance().GetDevice());
+        }
     }
 
     // 4. Reset Navi Ally
@@ -775,8 +826,12 @@ void SceneGame::ResetLevel()
     }
 
     // 5. Smart Camera Reset
+    CameraController::Instance().SetDynamicZoomOffset(0.0f);
     CameraController::Instance().SetTarget(respawnPos);
-    CameraController::Instance().Update(0.0f);
+    for (int i = 0; i < 60; ++i)
+    {
+        CameraController::Instance().Update(0.016f);
+    }
 }
 
 void SceneGame::Render(float elapsedTime, Camera* camera)
@@ -788,7 +843,7 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
     m_postProcess->SetEnabled(m_fxState.MasterEnabled);
 
     UberShader::UberData& activeData{ m_postProcess->GetData() };
-    activeData = this->m_uberParams; 
+    activeData = this->m_uberParams;
 
     activeData.psxEnabled = (m_fxState.MasterEnabled && m_fxState.EnablePSX);
 
@@ -836,7 +891,7 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
         if (m_stage) m_stage->RenderDebug(shapeRenderer, primRenderer);
         if (m_enemyManager) m_enemyManager->RenderDebug(shapeRenderer);
 
-		// Player hitbox (green), Enemy hitboxes (red)
+        // Player hitbox (green), Enemy hitboxes (red)
         //if (m_player)
         //{
         //    DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
@@ -858,7 +913,7 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
         //    }
         //}
 
-		// Navi hitboxes (blue)
+        // Navi hitboxes (blue)
         //if (m_navi) m_navi->RenderDebug(shapeRenderer);
 
         shapeRenderer->Render(dc, targetCam->GetView(), targetCam->GetProjection());
@@ -946,11 +1001,11 @@ void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
     }
     if (m_navi) {
         m_navi->Render(modelRenderer);
-        m_navi->RenderProjectiles(modelRenderer); 
+        m_navi->RenderProjectiles(modelRenderer);
     }
     if (m_enemyManager) m_enemyManager->Render(modelRenderer);
     if (m_itemManager) m_itemManager->Render(modelRenderer);
-    if (m_stage) 
+    if (m_stage)
     {
         m_stage->UpdateTransform();
         m_stage->Render(modelRenderer);
@@ -961,7 +1016,10 @@ void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
     EffectManager::Instance().Render(camera);
 }
 
-void SceneGame::DrawGUI() { GameBreakerGUI::Draw(this); }
+void SceneGame::DrawGUI()
+{
+    //GameBreakerGUI::Draw(this); 
+}
 
 void SceneGame::OnResize(int width, int height)
 {
@@ -985,7 +1043,7 @@ bool SceneGame::AreTrackingEnemiesDead() const
             return false;
         }
     }
-    return true; 
+    return true;
 }
 
 Enemy* SceneGame::GetFakeBoss() const
