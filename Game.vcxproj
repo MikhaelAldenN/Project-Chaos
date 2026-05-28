@@ -176,15 +176,15 @@
     <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackBouncing.h" />
     <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackBlasters.h" />
     <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackSpears.h" />
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\IBossAttackPattern.h" />
     <ClInclude Include="Source\Game\Entities\Boss\BossAIController.h" />
     <ClInclude Include="Source\Game\Entities\Boss\BossStates.h" />
+    <ClInclude Include="Source\Game\Entities\Boss\IBossState.h" />
     <ClInclude Include="Source\Game\Entities\Bullet.h" />
     <ClInclude Include="Source\Game\Entities\Character.h" />
     <ClInclude Include="Source\Game\Entities\CharacterMovement.h" />
     <ClInclude Include="Source\Game\Entities\Enemy.h" />
     <ClInclude Include="Source\Game\Entities\EnemyManager.h" />
-    <ClInclude Include="Source\Game\Entities\IBossAttackPattern.h" />
-    <ClInclude Include="Source\Game\Entities\IBossState.h" />
     <ClInclude Include="Source\Game\Entities\INaviPhase.h" />
     <ClInclude Include="Source\Game\Entities\Item.h" />
     <ClInclude Include="Source\Game\Entities\ItemManager.h" />
