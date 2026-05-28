@@ -973,7 +973,6 @@ void SceneBoss::StartPlayerDeathSequence()
             // ---------------------------------------------------------
             if (ImGui::BeginTabItem("System & Engine"))
             {
-                // ... (Kode Tab 1 tetap sama seperti sebelumnya) ...
                 int activeWins = 0;
                 int sleepingWins = 0;
                 for (const auto& tw : m_windowSystem->GetWindows()) {
@@ -1071,7 +1070,6 @@ void SceneBoss::StartPlayerDeathSequence()
             // ---------------------------------------------------------
             if (m_navi && ImGui::BeginTabItem("Phase & Visuals"))
             {
-                // ... (Kode Tab 2 tetap sama seperti sebelumnya) ...
                 if (ImGui::Button("TEST VFX")) {
                     auto handle = EffectManager::Instance().Play("Data/Effect/LASER.efk", { 0.0f, 0.0f, 0.0f }, 1.0f);
                     float rotX = DirectX::XMConvertToRadians(90.0f);
@@ -1167,7 +1165,7 @@ void SceneBoss::StartPlayerDeathSequence()
             }
 
             // ---------------------------------------------------------
-            // TAB 3: BOSS CONFIG (SEBELUMNYA COMBAT & AI)
+            // TAB 3: BOSS CONFIG
             // ---------------------------------------------------------
             if (m_navi && ImGui::BeginTabItem("Boss Config"))
             {
@@ -1182,7 +1180,7 @@ void SceneBoss::StartPlayerDeathSequence()
                 ImGui::ProgressBar(pHpProgress, ImVec2(-1.0f, 18.0f));
                 ImGui::PopStyleColor();
 
-                // 2. Health Bar Boss (Mengambil data real-time dari AI Director)
+                // 2. Health Bar Boss
                 if (m_navi) {
                     if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
                         int bHP = normalPhase->GetHP();
@@ -1219,22 +1217,14 @@ void SceneBoss::StartPlayerDeathSequence()
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Respawn Boss", ImVec2(180.0f, 30.0f))) {
-                    // [FIX] Cek apakah saat ini sedang di Phase Normal
                     if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
-                        // 1. Simpan parameter yang sudah kamu ubah di ImGui
                         NaviBulletParams savedParams = normalPhase->GetParams();
-
-                        // 2. Buat instance fase baru (agar bos bersih & HP penuh)
                         auto newPhase = std::make_unique<NaviPhaseNormal>(m_player.get());
-
-                        // 3. Masukkan kembali parameter yang sudah disimpan
                         newPhase->GetParams() = savedParams;
-
                         m_navi->ChangePhase(std::move(newPhase));
                         AddLog("Boss respawned (Phase 1 Normal). Parameters preserved.");
                     }
                     else {
-                        // Jika sedang di Phase 2 (Windowkill) lalu ingin kembali ke Phase 1
                         m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>(m_player.get()));
                         m_playerWindowTransparent = false;
                         if (m_player) {
@@ -1337,7 +1327,6 @@ void SceneBoss::StartPlayerDeathSequence()
                         ImGui::SliderInt("Fan Bullet Damage", &p.fanDamage, 1, 100);
                     }
 
-                    // [追加] 雨 (Asgore Rain) 用の調整パネル
                     if (ImGui::CollapsingHeader("Asgore Rain (Area Denial)")) {
                         ImGui::SliderFloat("Min Fall Speed", &p.rainMinSpeed, 10.0f, 150.0f);
                         ImGui::SliderFloat("Max Fall Speed", &p.rainMaxSpeed, 10.0f, 150.0f);
@@ -1409,13 +1398,15 @@ void SceneBoss::StartPlayerDeathSequence()
 
                         ImGui::Separator();
                         ImGui::PushID("WindowkillDamage");
+
+                        // [FIX] Mengambil parameter dari struct baru
                         auto& bp = wkPhase->GetBlasterParams();
-                        auto& tp = wkPhase->GetTargetedBlasterParams();
                         auto& bounce = wkPhase->GetBouncingParams();
                         auto& boom = wkPhase->GetBoomerangParams();
                         auto& spear = wkPhase->GetUndyneParams();
+
                         ImGui::SliderInt("Orbital Laser Damage", &bp.beamDamage, 1, 200);
-                        ImGui::SliderInt("Targeted Laser Damage", &tp.beamDamage, 1, 200);
+                        ImGui::SliderInt("Targeted Laser Damage", &bp.beamDamage, 1, 200); // [FIX] Menggunakan bp karena digabung
                         ImGui::SliderInt("Bouncing Window Damage", &bounce.damage, 1, 200);
                         ImGui::SliderInt("Boomerang Damage", &boom.damage, 1, 200);
                         ImGui::SliderInt("Undyne Spear Damage", &spear.damage, 1, 500);
@@ -1448,17 +1439,19 @@ void SceneBoss::StartPlayerDeathSequence()
                         ImGui::SliderFloat("Time Scale", &m_timeScale, 0.1f, 3.0f, "%.1fx");
                         if (ImGui::Button("Reset Time (1.0x)")) m_timeScale = 1.0f;
                     }
+
                     ImGui::PushID("OrbitalLaserBlock");
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
 
+                    // [FIX MUTLAK] MENGGUNAKAN ADDATTACK DARI FSM
                     if (ImGui::Button("FIRE ORBITAL LASER (RANDOM)", ImVec2(-1.0f, 40.0f))) {
-                        wkPhase->TriggerOrbitalBlaster(m_navi.get());
+                        wkPhase->AddAttack(std::make_unique<AttackBlasters>(wkPhase->GetBlasterParams(), false));
                     }
 
-                    // [BARU] Tombol untuk Targeted Blaster
                     if (ImGui::Button("FIRE ORBITAL LASER (TARGETED)", ImVec2(-1.0f, 40.0f))) {
-                        wkPhase->TriggerTargetedBlaster(m_navi.get());
+                        float playerX = m_player ? m_player->GetPosition().x : 0.0f;
+                        wkPhase->AddAttack(std::make_unique<AttackBlasters>(wkPhase->GetBlasterParams(), true, playerX));
                         AddLog("Targeted Orbital Blaster Triggered!");
                     }
                     ImGui::PopStyleColor(2);
@@ -1469,16 +1462,17 @@ void SceneBoss::StartPlayerDeathSequence()
                         ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "[ Cannon Head ]");
                         ImGui::SliderFloat("OS Window Size", &bp.cannonWindowSize, 100.0f, 800.0f);
                         ImGui::SliderFloat("Visual Scale 3D", &bp.cannonVisualScale, 0.1f, 10.0f);
-                        ImGui::SliderFloat("Hitbox Radius", &bp.cannonHitboxRadius, 0.1f, 10.0f);
-                        ImGui::SliderFloat("Window Shake Intensity", &bp.cannonShakeIntensity, 0.0f, 5.0f);
+                        // [FIX] cannonHitboxRadius dan cannonShakeIntensity dihapus karena sdh tidak ada di struct baru
+
                         ImGui::Separator();
                         ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "[ Laser Beam (2D) ]");
                         ImGui::SliderFloat("Visual Width", &bp.beamVisualWidth, 1.0f, 20.0f);
-                        ImGui::SliderFloat("Hitbox Width", &bp.beamHitboxWidth, 1.0f, 20.0f);
+                        // [FIX] beamHitboxWidth dihapus
                         ImGui::SliderFloat("Max Length", &bp.beamMaxLength, 50.0f, 500.0f);
                         ImGui::SliderFloat("Grow Speed", &bp.beamGrowSpeed, 1.0f, 100.0f);
                         ImGui::SliderFloat("Slide Speed", &bp.beamSlideSpeed, 1.0f, 50.0f);
                         ImGui::SliderInt("Damage per Tick", &bp.beamDamage, 1, 100);
+
                         ImGui::Separator();
                         ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "[ Attack Timing & Pattern ]");
                         ImGui::SliderInt("Spawn Count", &bp.spawnCount, 1, 15);
@@ -1488,16 +1482,14 @@ void SceneBoss::StartPlayerDeathSequence()
                         ImGui::SliderFloat("Fire Duration", &bp.fireDuration, 0.1f, 3.0f, "%.2f sec");
                     }
 
-                    // [BARU] Menu tuning parameter Targeted Blaster
                     if (ImGui::CollapsingHeader("Targeted Blaster Config", ImGuiTreeNodeFlags_DefaultOpen)) {
-                        auto& tParams = wkPhase->GetTargetedBlasterParams(); // Pastikan kamu buat Getter-nya di .h ya!
+                        auto& tParams = wkPhase->GetBlasterParams(); // [FIX] Disambungkan ke BlasterParams krn struct-nya sama
                         ImGui::SliderInt("Targeted Count", &tParams.spawnCount, 1, 20);
                         ImGui::DragFloat("Targeted Spawn Delay", &tParams.spawnDelay, 0.05f, 0.05f, 2.0f, "%.2f sec");
                         ImGui::DragFloat("Targeted Drop In", &tParams.dropInDuration, 0.05f, 0.1f, 2.0f, "%.2f sec");
                         ImGui::DragFloat("Targeted Charge", &tParams.chargeDelay, 0.05f, 0.1f, 2.0f, "%.2f sec");
                         ImGui::DragFloat("Targeted Fire Dur", &tParams.fireDuration, 0.05f, 0.1f, 3.0f, "%.2f sec");
-                        ImGui::DragFloat("Targeted Fixed Z", &tParams.fixedTargetZ, 0.5f, -20.0f, 50.0f, "%.1f");
-                        ImGui::DragFloat("Targeted Hitbox Width", &tParams.beamHitboxWidth, 0.1f, 0.1f, 20.0f, "%.1f");
+                        // [FIX] Parameter Z fixed dan Hitbox Width dihapus
                         ImGui::SliderInt("Targeted Damage per Tick", &tParams.beamDamage, 1, 100);
                     }
                     ImGui::PopID();
@@ -1507,8 +1499,10 @@ void SceneBoss::StartPlayerDeathSequence()
                     ImGui::PushID("BouncingWindowsBlock");
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
+
+                    // [FIX MUTLAK] MENGGUNAKAN ADDATTACK DARI FSM
                     if (ImGui::Button("FIRE BOUNCING WINDOWS", ImVec2(-1.0f, 40.0f))) {
-                        wkPhase->TriggerBouncingWindows(m_navi.get());
+                        wkPhase->AddAttack(std::make_unique<AttackBouncing>(wkPhase->GetBouncingParams()));
                     }
                     ImGui::PopStyleColor(2);
 
@@ -1534,8 +1528,10 @@ void SceneBoss::StartPlayerDeathSequence()
                     ImGui::PushID("BoomerangBlock");
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
+
+                    // [FIX MUTLAK] MENGGUNAKAN ADDATTACK DARI FSM
                     if (ImGui::Button("FIRE BOOMERANG WINDOW", ImVec2(-1.0f, 40.0f))) {
-                        wkPhase->TriggerBoomerang(m_navi.get());
+                        wkPhase->AddAttack(std::make_unique<AttackBoomerangs>(wkPhase->GetBoomerangParams()));
                     }
                     ImGui::PopStyleColor(2);
 
@@ -1560,32 +1556,33 @@ void SceneBoss::StartPlayerDeathSequence()
                     }
                     ImGui::PopID();
 
+                    // [FIX MUTLAK] MENGGUNAKAN ADDATTACK DARI FSM
                     if (ImGui::Button("Trigger Undyne Spear", ImVec2(180.0f, 30.0f))) {
-                        wkPhase->TriggerUndyneSpear(m_navi.get());
+                        wkPhase->AddAttack(std::make_unique<AttackSpears>(wkPhase->GetUndyneParams(), m_player.get()));
                         AddLog("Undyne Spear Attack Triggered!");
                     }
-                    // [BARU] Menu tuning parameter Undyne Spear
+
                     if (ImGui::CollapsingHeader("Undyne Spear Config", ImGuiTreeNodeFlags_DefaultOpen)) {
                         auto& params = wkPhase->GetUndyneParams();
                         ImGui::SliderInt("Spear Count", &params.count, 1, 20);
                         ImGui::DragFloat("Spawn Delay", &params.spawnDelay, 0.05f, 0.05f, 2.0f, "%.2f sec");
                         ImGui::DragFloat("Aiming Time", &params.hoverDuration, 0.05f, 0.1f, 3.0f, "%.2f sec");
-                        ImGui::DragFloat("Shoot Delay", &params.telegraphDuration, 0.05f, 0.1f, 2.0f, "%.2f sec");
+                        // [FIX] telegraphDuration diganti menjadi hoverDuration di dalam arsitektur baru
                         ImGui::DragFloat("Max Speed", &params.maxSpeed, 1.0f, 10.0f, 300.0f, "%.1f");
                         ImGui::DragFloat("Arc Radius", &params.arcRadius, 0.5f, 5.0f, 100.0f, "%.1f");
                         ImGui::DragFloat("Arc Center X", &params.arcCenterX, 0.5f, -50.0f, 50.0f, "%.1f");
                         ImGui::DragFloat("Arc Center Z", &params.arcCenterZ, 0.5f, -50.0f, 50.0f, "%.1f");
                         ImGui::DragFloat("Arc Min Angle", &params.arcMinAngle, 1.0f, 0.0f, 360.0f, "%.0f deg");
-                        ImGui::DragFloat("Arc Max Angle", &params.arcMaxAngle, 1.0f, 0.0f, 360.0f, "%.0f deg");                    // [MODIFIKASI BARU] Tambahkan slider untuk Damage
+                        ImGui::DragFloat("Arc Max Angle", &params.arcMaxAngle, 1.0f, 0.0f, 360.0f, "%.0f deg");
                         ImGui::SliderInt("Spear Damage", &params.damage, 1, 500);
                     }
                 }
 
-                ImGui::EndTabItem(); // <--- FIX MUTLAK BUG: Kode sebelumnya lupa menutup TabItem di sini!
+                ImGui::EndTabItem(); // <--- Menutup tab Boss Config dengan sempurna
             }
 
             // ---------------------------------------------------------
-            // TAB 4: PLAYER CONFIG (DIATUR ULANG & DITAMBAHKAN ELEMEN BARU)
+            // TAB 4: PLAYER CONFIG
             // ---------------------------------------------------------
             if (m_player && ImGui::BeginTabItem("Player Config"))
             {
@@ -1601,7 +1598,7 @@ void SceneBoss::StartPlayerDeathSequence()
                 ImGui::ProgressBar(pHpProgress, ImVec2(-1.0f, 18.0f));
                 ImGui::PopStyleColor();
 
-                // 2. Health Bar Boss (Mengambil data real-time dari AI Director)
+                // 2. Health Bar Boss
                 if (m_navi) {
                     if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
                         int bHP = normalPhase->GetHP();
@@ -1641,7 +1638,6 @@ void SceneBoss::StartPlayerDeathSequence()
                     m_player->scale = { 1.0f, 1.0f, 1.0f };
                     m_player->SetPosition(0.0f, 0.0f, -8.0f);
 
-                    // === FIX MUTLAK: Reset Input & Kembalikan State ke Idle ===
                     m_player->SetInputEnabled(true);
                     m_player->SetAimLocked(false);
                     if (m_player->GetStateMachine()) {
@@ -1652,7 +1648,6 @@ void SceneBoss::StartPlayerDeathSequence()
                 }
                 ImGui::Separator();
 
-                // Panggil GUI internal player bawaan yang sudah di-update
                 m_player->DrawDebugGUI();
 
                 ImGui::EndTabItem();

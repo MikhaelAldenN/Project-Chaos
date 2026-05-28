@@ -1072,177 +1072,42 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
 
 void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
 {
-    if (!m_naviBoss || !m_player || m_player->GetHP() <= 0) return;
+    if (!m_player || !m_naviBoss) return;
 
-    std::vector<Bullet*> activeBullets;
-    auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_naviBoss->GetCurrentPhase());
-    auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_naviBoss->GetCurrentPhase());
+    // Pastikan bos sedang di Phase Windowkill
+    auto windowkillPhase = dynamic_cast<NaviPhaseWindowkill*>(m_naviBoss->GetCurrentPhase());
+    if (!windowkillPhase) return;
 
-    if (normalPhase) {
-        for (auto& b : normalPhase->GetProjectiles()) activeBullets.push_back(b.get());
-    }
-    else if (wkPhase) {
-        activeBullets = wkPhase->GetProjectiles();
-    }
+    // 1. Dapatkan SEMUA peluru yang aktif (Bouncing, Boomerang, Spear) secara otomatis!
+    std::vector<Bullet*> activeBullets = windowkillPhase->GetProjectiles();
 
-    constexpr float PLAYER_HURTBOX_RADIUS = 0.3f;
-    //constexpr int BOSS_BULLET_DAMAGE = 10;
+    for (Bullet* bullet : activeBullets) {
+        if (!bullet || !bullet->IsActive()) continue;
 
-    // =========================================================
-    // [FIX MUTLAK 1] GUNAKAN 'activeBullets', BUKAN 'normalPhase'!
-    // =========================================================
-    if (!activeBullets.empty()) {
-        for (Bullet* bullet : activeBullets)
-        {
-            if (!bullet || !bullet->IsActive()) continue;
+        DirectX::XMFLOAT3 pPos = m_player->GetPosition();
+        DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
 
-            DirectX::XMFLOAT3 currentPos = bullet->GetMovement()->GetPosition();
-            DirectX::XMFLOAT3 vel = bullet->GetVelocity();
-            float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
+        float dx = pPos.x - bPos.x;
+        float dy = pPos.y - bPos.y;
+        float dz = pPos.z - bPos.z;
+        float distSq = (dx * dx) + (dy * dy) + (dz * dz);
 
-            // TIER 3: Peluru sukses dipantulkan ke bos
-            if (speedSq > 10000.0f) continue;
+        // Radius gabungan peluru dan player
+        float totalRadius = bullet->GetRadius() + m_player->GetRadius();
 
-            DirectX::XMFLOAT3 prevPos = {
-                currentPos.x - (vel.x * elapsedTime),
-                currentPos.y - (vel.y * elapsedTime),
-                currentPos.z - (vel.z * elapsedTime)
-            };
+        if (distSq <= (totalRadius * totalRadius)) {
+            // Player Kena Hit!
+            m_player->TakeDamage(bullet->GetDamage());
+            bullet->SetActive(false); // Matikan peluru
 
-            DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
-            float combinedRadius = PLAYER_HURTBOX_RADIUS + bullet->GetRadius();
-            float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, playerPos);
-
-            // TIER 2: BIJUUDAMA YANG SUKSES DI-PARRY
-            if (bullet->IsParryReturn())
-            {
-                if (distToPath <= combinedRadius)
-                {
-                    TimeManager::Instance().TriggerHitStop(0.15f, 0.0f);
-                    CameraController::Instance().AddTrauma(0.8f);
-
-                    // Pastikan shatter hanya dipanggil jika memang normalPhase ada
-                    if (normalPhase) {
-                        normalPhase->ShatterBijuudama(currentPos, m_naviBoss);
-                    }
-
-                    bullet->SetActive(false);
-                    AudioManager::Instance().PlaySFX("Data/Sound/SE_Parry.wav", 0.8f);
-
-                    // =========================================================
-                    // [BARU] MAIN KAN VFX PARRY DI POSISI PLAYER
-                    // =========================================================
-                    DirectX::XMFLOAT3 vfxPos = m_player->GetMovement()->GetPosition();
-
-                    // Opsional: Naikkan sedikit Y agar efek tidak tenggelam di lantai
-                    vfxPos.y += 0.5f;
-
-                    int parryVfxHandle = EffectManager::Instance().Play("Data/Effect/VFX_Player_Bijuudama_Parry.efk", vfxPos, 1.0f);
-
-                    // Rotasi 90 derajat agar efek menghadap sempurna ke kamera Top-Down
-                    if (parryVfxHandle != -1) {
-                        float rotX = DirectX::XMConvertToRadians(90.0f);
-                        EffectManager::Instance().SetRotation(parryVfxHandle, { rotX, 0.0f, 0.0f });
-                    }
-                }
-                continue;
-            }
-
-            // =========================================================
-            // TIER 1: Peluru Normal / Bijuudama GAGAL Parry
-            // =========================================================
-            if (distToPath <= combinedRadius)
-            {
-                if (!m_player->IsInvincible()) {
-                    m_player->TakeDamage(bullet->GetDamage());
-                    if (wkPhase) {
-                        m_player->TriggerInvincibility(0.2f);
-                    }
-
-                    // [FIX MUTLAK] HANYA hancurkan peluru jika ini dari Fase Normal!
-                    // Peluru Windowkill (wkPhase) akan dibiarkan hidup dan terus memantul!
-                    if (normalPhase) {
-                        bullet->SetActive(false);
-                    }
-
-                    if (m_player->GetHP() <= 0)
-                    {
-                        m_player->scale = { 0.0f, 0.0f, 0.0f };
-                        m_player->SetInputEnabled(false);
-                        m_player->GetMovement()->SetVelocity({ 0,0,0 });
-                        m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
-                    }
-                }
-            }
+            CameraController::Instance().AddTrauma(0.2f);
+            AudioManager::Instance().PlaySFX("Data/Sound/SE_Damage.wav", 0.3f);
         }
     }
 
-    // =========================================================
-    // [FIX MUTLAK 2] PASTIKAN 'normalPhase' VALID SEBELUM CEK HUJAN!
-    // =========================================================
-    if (normalPhase && normalPhase->GetRainState() == 2) {
-        DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
-        DirectX::XMFLOAT3 rCenter = normalPhase->GetRainCenter();
-
-        float halfW = normalPhase->GetActualRainWidth() * 0.5f;
-        float halfD = normalPhase->GetActualRainDepth() * 0.5f;
-
-        if (pPos.x > (rCenter.x - halfW) && pPos.x < (rCenter.x + halfW) &&
-            pPos.z >(rCenter.z - halfD) && pPos.z < (rCenter.z + halfD))
-        {
-            if (!m_player->IsInvincible()) {
-                m_player->TakeDamage(normalPhase->GetParams().rainDamage);
-
-                if (m_player->GetHP() <= 0) {
-                    m_player->scale = { 0.0f, 0.0f, 0.0f };
-                    m_player->SetInputEnabled(false);
-                    m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
-                }
-            }
-        }
-    }
-
-    // =========================================================
-        // [FIX MUTLAK] DETEKSI DAMAGE SEMUA LASER AKTIF
-        // =========================================================
-    if (wkPhase) {
-        const auto& blasters = wkPhase->GetBlasters(); // Ambil array blasters
-        const auto& p = wkPhase->GetBlasterParams();
-        const auto& targetedParams = wkPhase->GetTargetedBlasterParams();
-
-        for (auto& bPtr : blasters) {
-            auto& blaster = *bPtr;
-
-            if (blaster.active && blaster.state == 3) {
-                DirectX::XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
-
-                float beamHitboxWidth = blaster.isTargeted ? targetedParams.beamHitboxWidth : p.beamHitboxWidth;
-                int beamDamage = blaster.isTargeted ? targetedParams.beamDamage : p.beamDamage;
-
-                float halfWidth = beamHitboxWidth * 0.5f;
-                float currentLaserLength = blaster.beamCurrentLength;
-
-                float zStart = blaster.pos.z;
-                float zEnd = blaster.pos.z - currentLaserLength;
-
-                // Cek Hitbox Laser
-                if (pPos.x > (blaster.pos.x - halfWidth) && pPos.x < (blaster.pos.x + halfWidth) &&
-                    pPos.z < zStart && pPos.z > zEnd)
-                {
-                    if (!m_player->IsInvincible()) {
-                        m_player->TakeDamage(beamDamage);
-                        m_player->TriggerInvincibility(0.2f);
-
-                        if (m_player->GetHP() <= 0) {
-                            m_player->scale = { 0.0f, 0.0f, 0.0f };
-                            m_player->SetInputEnabled(false);
-                            m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // CATATAN: Untuk Laser Beam (Orbital Blasters), logika tabrakannya menggunakan AABB (Kotak).
+    // Sementara kita matikan dulu error-nya di sini. Nanti logika AABB ini akan kita 
+    // masukkan ke dalam class AttackBlasters.cpp secara mandiri agar lebih rapi.
 }
 
 void CollisionManager::CheckNaviBossProjectilesVsBoss(float elapsedTime)

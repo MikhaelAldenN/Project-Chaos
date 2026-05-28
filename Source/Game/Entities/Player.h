@@ -85,6 +85,8 @@ public:
     // Returns the weapon currently being held (used by Render)
     [[nodiscard]] Weapon* GetActiveWeapon() const { return m_weapons[static_cast<size_t>(m_activeWeaponType)].get(); }
 
+    float GetRadius() const { return 2.0f; } // ※ 2.0f は仮のサイズです。必要に応じて調整してください
+
     void RenderWeapon(ModelRenderer* renderer);
 
     // --- Aim ---

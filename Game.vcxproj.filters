@@ -318,6 +318,24 @@
     <ClCompile Include="Source\Engine\UI\HUDRenderer.cpp">
       <Filter>Source\Engine\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackBouncing.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseTwo</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackBlasters.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseTwo</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackBoomerangs.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseTwo</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackSpears.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseTwo</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\BossState.cpp">
+      <Filter>Source\Game\Entities\Boss</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\BossAIController.cpp">
+      <Filter>Source\Game\Entities\Boss</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -654,6 +672,30 @@
     <ClInclude Include="Source\Engine\UI\HUDRenderer.h">
       <Filter>Source\Engine\UI</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Game\Entities\IBossState.h">
+      <Filter>Source\Game\Entities\Boss</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackBouncing.h">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseTwo</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\IBossAttackPattern.h">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackBlasters.h">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseTwo</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackBoomerangs.h">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseTwo</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackSpears.h">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseTwo</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\BossStates.h">
+      <Filter>Source\Game\Entities\Boss</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\BossAIController.h">
+      <Filter>Source\Game\Entities\Boss</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Basic.hlsli">
@@ -741,6 +783,15 @@
     </Filter>
     <Filter Include="Source\Engine\Helpers">
       <UniqueIdentifier>{237542ae-86b6-4087-9fef-77b83e15a8bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Game\Entities\Boss">
+      <UniqueIdentifier>{22d2d85d-c52c-4919-8a03-5f3dd1d21bbd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Game\Entities\Boss\AttackPatterns">
+      <UniqueIdentifier>{428551a9-7847-4a26-b953-786f95b4683b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Game\Entities\Boss\AttackPatterns\PhaseTwo">
+      <UniqueIdentifier>{ea1e1ec4-c723-44c2-8b27-44cf3722e3e4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
