@@ -285,7 +285,7 @@
     <ClCompile Include="Source\Game\States\PlayerStates.cpp">
       <Filter>Source\Game\States</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\NaviPhaseWindowkill.cpp">
+    <ClCompile Include="Source\Game\Entities\Boss_Phase02.cpp">
       <Filter>Source\Game\Entities</Filter>
     </ClCompile>
     <ClCompile Include="Source\Engine\VFX\EffectManager.cpp">
@@ -309,7 +309,7 @@
     <ClCompile Include="Source\Game\Entities\NaviBoss.cpp">
       <Filter>Source\Game\Entities</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\NaviPhaseNormal.cpp">
+    <ClCompile Include="Source\Game\Entities\Boss_Phase01.cpp">
       <Filter>Source\Game\Entities</Filter>
     </ClCompile>
     <ClCompile Include="Source\Game\Entities\NaviPhaseTitle.cpp">
@@ -335,6 +335,21 @@
     </ClCompile>
     <ClCompile Include="Source\Game\Entities\Boss\BossAIController.cpp">
       <Filter>Source\Game\Entities\Boss</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Radial.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Fan.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Phalanx.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Rain.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Ultimate.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -629,7 +644,7 @@
     <ClInclude Include="Source\Game\Entities\INaviPhase.h">
       <Filter>Source\Game\Entities</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\NaviPhaseWindowkill.h">
+    <ClInclude Include="Source\Game\Entities\Boss_Phase02.h">
       <Filter>Source\Game\Entities</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Helpers\CapeSimulator.h" />
@@ -649,7 +664,7 @@
     <ClInclude Include="Source\Game\Entities\NaviBoss.h">
       <Filter>Source\Game\Entities</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\NaviPhaseNormal.h">
+    <ClInclude Include="Source\Game\Entities\Boss_Phase01.h">
       <Filter>Source\Game\Entities</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Helpers\CapeSimulator.h" />
@@ -695,6 +710,24 @@
     </ClInclude>
     <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\IBossAttackPattern.h">
       <Filter>Source\Game\Entities\Boss\AttackPatterns</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\IPooledAttackPattern.h">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Radial.h">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Fan.h">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Phalanx.h">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Rain.h">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Ultimate.h">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

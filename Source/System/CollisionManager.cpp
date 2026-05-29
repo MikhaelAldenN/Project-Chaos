@@ -1,10 +1,10 @@
 #include "CollisionManager.h"
 #include "NaviBoss.h"        
-#include "NaviPhaseNormal.h" 
+#include "Boss_Phase01.h" 
 #include "EffectManager.h"
 #include "TimeManager.h"
 #include <CameraController.h>
-#include "NaviPhaseWindowkill.h"
+#include "Boss_Phase02.h"
 #include "EffectManager.h"
 
 using namespace DirectX;
@@ -226,7 +226,7 @@ void CollisionManager::Update(float elapsedTime)
     // DETEKSI PELURU PLAYER VS WINDOW BOSS (AABB COLLISION)
     // =========================================================
     if (m_naviBoss && m_player) {
-        if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_naviBoss->GetCurrentPhase())) {
+        if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_naviBoss->GetCurrentPhase())) {
 
             if (!normalPhase->IsDead()) {
                 DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();
@@ -255,7 +255,7 @@ void CollisionManager::Update(float elapsedTime)
                 }
             }
         }
-        else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_naviBoss->GetCurrentPhase())) {
+        else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_naviBoss->GetCurrentPhase())) {
             if (!wkPhase->IsPlayerCaged() && !wkPhase->IsDead()) {
                 DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();
 
@@ -683,7 +683,7 @@ void CollisionManager::CheckPlayerProjectilesVsEnemies(const float elapsedTime)
         bool hitCage = false;
         if (m_naviBoss) {
             // Cek apakah sedang berada di fase Windowkill
-            if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_naviBoss->GetCurrentPhase())) {
+            if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_naviBoss->GetCurrentPhase())) {
                 if (wkPhase->IsPlayerCaged()) {
                     DirectX::XMFLOAT3 cPos = wkPhase->GetCagePos();
                     float halfSize = wkPhase->GetCageSize() * 0.5f;
@@ -1037,7 +1037,7 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
     // =========================================================
     if (m_naviBoss)
     {
-        auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_naviBoss->GetCurrentPhase());
+        auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_naviBoss->GetCurrentPhase());
         if (normalPhase)
         {
             for (auto& bullet : normalPhase->GetProjectiles())
@@ -1047,22 +1047,22 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
                 DirectX::XMFLOAT3 vel = bullet->GetVelocity();
                 float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
 
-                // [FIX MUTLAK] DI SINILAH TEMPAT YANG BENAR!
-                if (speedSq < 0.01f && normalPhase->IsLaserLocked())
-                {
-                    // Cek apakah pemain menekan Space di dalam Jendela Timing yang pas!
-                    float timeDiff = std::abs(normalPhase->GetLaserTimer() - normalPhase->GetParams().laserDuration);
-                    if (timeDiff <= normalPhase->GetParams().laserParryWindow)
-                    {
-                        bullet->SetParryReturn(true);
+                //// [FIX MUTLAK] DI SINILAH TEMPAT YANG BENAR!
+                //if (speedSq < 0.01f && normalPhase->IsLaserLocked())
+                //{
+                //    // Cek apakah pemain menekan Space di dalam Jendela Timing yang pas!
+                //    float timeDiff = std::abs(normalPhase->GetLaserTimer() - normalPhase->GetParams().laserDuration);
+                //    if (timeDiff <= normalPhase->GetParams().laserParryWindow)
+                //    {
+                //        bullet->SetParryReturn(true);
 
-                        if (outBullet) *outBullet = bullet.get();
-                        if (outNearestEnemy) *outNearestEnemy = nullptr;
+                //        if (outBullet) *outBullet = bullet.get();
+                //        if (outNearestEnemy) *outNearestEnemy = nullptr;
 
-                        normalPhase->CancelBijuudama(); // Hentikan charge
-                        return true;
-                    }
-                }
+                //        normalPhase->CancelBijuudama(); // Hentikan charge
+                //        return true;
+                //    }
+                //}
             }
         }
     }
@@ -1075,7 +1075,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
     if (!m_player || !m_naviBoss) return;
 
     // Pastikan bos sedang di Phase Windowkill
-    auto windowkillPhase = dynamic_cast<NaviPhaseWindowkill*>(m_naviBoss->GetCurrentPhase());
+    auto windowkillPhase = dynamic_cast<Boss_Phase02*>(m_naviBoss->GetCurrentPhase());
     if (!windowkillPhase) return;
 
     // 1. Dapatkan SEMUA peluru yang aktif (Bouncing, Boomerang, Spear) secara otomatis!
@@ -1113,7 +1113,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
 void CollisionManager::CheckNaviBossProjectilesVsBoss(float elapsedTime)
 {
     if (!m_naviBoss) return;
-    auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_naviBoss->GetCurrentPhase());
+    auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_naviBoss->GetCurrentPhase());
     if (!normalPhase) return;
 
     for (auto& bullet : normalPhase->GetProjectiles())

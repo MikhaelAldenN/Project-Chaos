@@ -15,13 +15,14 @@
 #include "Stage.h"
 #include "Boss.h"
 #include <random>
-#include "NaviPhaseWindowkill.h"
-#include "NaviPhaseNormal.h"
+#include "Boss_Phase02.h"
+#include "Boss_Phase01.h"
 #include "HUDRenderer.h"
 #include "TimeManager.h"
 #include "EffectManager.h"
 #include "WindowShatter.h"
 #include "NaviPhaseTitle.h"
+#include "Attack_Fan.h"
 using namespace DirectX;
 
 // =========================================================
@@ -110,7 +111,7 @@ SceneBoss::SceneBoss()
     m_navi->ChangePhase(std::make_unique<NaviPhaseTitle>(m_player.get()));
 
 #else
-    m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>(m_player.get()));
+    m_navi->ChangePhase(std::make_unique<Boss_Phase01>(m_player.get()));
 #endif
 
     if (m_collisionManager) {
@@ -229,7 +230,7 @@ void SceneBoss::InitializeSubWindows()
     // bos sedang berada di Fase Windowkill!
     // =========================================================
     bool isWindowkillPhase = false;
-    if (m_navi && dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+    if (m_navi && dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
         isWindowkillPhase = true;
     }
 
@@ -350,10 +351,10 @@ void SceneBoss::Update(float elapsedTime)
 
             if (m_navi)
             {
-                if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+                if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
                     normalPhase->SetAIEnabled(true);
                 }
-                else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+                else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
                     wkPhase->SetAIEnabled(true);
                 }
             }
@@ -376,7 +377,7 @@ void SceneBoss::Update(float elapsedTime)
     Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
 
     if (m_navi) {
-        auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase());
+        auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase());
 
         // Trigger the start of the death sequence
         if (wkPhase && wkPhase->IsDead() && !m_isNaviDefeated)
@@ -400,7 +401,7 @@ void SceneBoss::Update(float elapsedTime)
 
     // Windowkill Phase Logic (Check for Scene Change)
     if (m_navi) {
-        auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase());
+        auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase());
         Beyond::Window* mw = WindowManager::Instance().GetWindowByIndex(0);
 
         if (wkPhase) {
@@ -544,17 +545,17 @@ void SceneBoss::Update(float elapsedTime)
     // --- Entities & Collision Update ---
     if (m_navi) {
         // AI Director にプレイヤーのデータを渡す
-        if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+        if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
             normalPhase->SetAITarget(m_player.get());
         }
         // [追加] Windowkill フェーズにもプレイヤーデータを渡す！
-        else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+        else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
             wkPhase->SetAITarget(m_player.get());
         }
 
         m_navi->Update(scaledDt);
 
-        if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+        if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
             if (!m_isPendingSceneChange && wkPhase->IsReadyToChangeScene()) {
                 m_isPendingSceneChange = true;
                 //Framework::Instance()->ChangeScene(std::make_unique<SceneTitle>());
@@ -562,7 +563,7 @@ void SceneBoss::Update(float elapsedTime)
             }
         }
 
-        bool isWindowkillPhase = (dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()) != nullptr);
+        bool isWindowkillPhase = (dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase()) != nullptr);
 
         if (isWindowkillPhase && !m_playerWindowTransparent) {
             // Jika bos baru saja masuk Phase 2, nyalakan transparansi!
@@ -615,7 +616,7 @@ void SceneBoss::Update(float elapsedTime)
     //    bool shouldUncap = m_forceUncapOverride;
 
     //    // Cek darah boss jika berada di Fase Normal
-    //    if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
+    //    if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase()))
     //    {
     //        float bossHpPercent = (static_cast<float>(normalPhase->GetHP()) / 1500.0f) * 100.0f;
     //        if (bossHpPercent <= m_overdriveBossHpTriggerPercent)
@@ -704,7 +705,7 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
     // =========================================================
     // POST-PROCESS VIGNETTE (Only applied to Main Window)
     // =========================================================
-    auto* wkPhase = m_navi ? dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()) : nullptr;
+    auto* wkPhase = m_navi ? dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase()) : nullptr;
 
     // 2. Determine if Windowkill is active AND the boss is NOT dead
     bool isWindowkillAndAlive = (wkPhase != nullptr && !wkPhase->IsDead());
@@ -761,7 +762,7 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
 
         // 2. Gambar Hitbox Peluru Navi (Lingkaran Merah / Hijau)
         if (m_navi) {
-            if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+            if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
                 for (auto& bullet : normalPhase->GetProjectiles()) {
                     if (bullet->IsActive()) {
                         DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
@@ -772,7 +773,7 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
             // =========================================================
             // [FIX MUTLAK] LOGIKA WINDOWKILL DITEMPATKAN DI SINI!
             // =========================================================
-            else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+            else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
                 for (Bullet* bullet : wkPhase->GetProjectiles()) {
                     if (bullet && bullet->IsActive()) {
                         DirectX::XMFLOAT3 bPos = bullet->GetPosition();
@@ -800,12 +801,12 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
     //    int bossMaxHP = 0;
     //    if (m_navi)
     //    {
-    //        if (auto* np = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
+    //        if (auto* np = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase()))
     //        {
     //            bossHP = np->GetHP();
     //            bossMaxHP = np->GetMaxHP();
     //        }
-    //        else if (auto* wk = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()))
+    //        else if (auto* wk = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase()))
     //        {
     //            bossHP = wk->GetHP();
     //            bossMaxHP = wk->GetMaxHP();
@@ -885,10 +886,10 @@ void SceneBoss::StartPlayerDeathSequence()
 
     if (m_navi)
     {
-        if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+        if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
             normalPhase->SetAIEnabled(false);
         }
-        else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+        else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
             wkPhase->SetAIEnabled(false);
         }
     }
@@ -908,7 +909,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
     // --- 1. DETEKSI KAMERA SAYAP (CAMERA FILTERING) ---
     bool isWingCamera = false;
     if (m_navi) {
-        if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+        if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
             isWingCamera = (camera == wkPhase->GetFXCamera());
         }
     }
@@ -924,7 +925,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
         bool shouldRenderHere = m_playerWindowTransparent ? isWingCamera : !isWingCamera;
 
         // [FIX MUTLAK] PAKSA RENDER DI SEMUA KAMERA SAAT WINDOWKILL
-        if (m_navi && dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+        if (m_navi && dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
             shouldRenderHere = true;
         }
 
@@ -934,7 +935,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
             // [MODIFIKASI] Bypass pengecekan Sphere jika sedang dikurung!
             bool isInView = camera->CheckSphere(pPos.x, pPos.y, pPos.z, 1.5f);
 
-            auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase());
+            auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase());
             if (wkPhase && wkPhase->IsPlayerCaged()) {
                 isInView = true; // Selalu render player selama dia di dalam kandang!
             }
@@ -1023,7 +1024,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                 }
 
                 if (m_navi) {
-                    if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+                    if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
                         bool fxClickthrough = wkPhase->IsFXClickThrough();
                         if (ImGui::Checkbox("[ALL] Toggle Clickthrough", &fxClickthrough)) {
                             wkPhase->SetFXClickThrough(fxClickthrough);
@@ -1099,7 +1100,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                 if (changed) m_navi->SetCoreBreathParams(speed, intensity);
             }
 
-            if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
+            if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase()))
             {
                 ImGui::Separator();
                 ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "CURRENT PHASE: 1 (NORMAL MODE)");
@@ -1107,13 +1108,13 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
                 if (ImGui::Button("TRIGGER PHASE 2 (WINDOWKILL) !!!", ImVec2(-1.0f, 50.0f))) {
-                    m_navi->ChangePhase(std::make_unique<NaviPhaseWindowkill>(m_player.get()));
+                    m_navi->ChangePhase(std::make_unique<Boss_Phase02>(m_player.get()));
                     m_playerWindowTransparent = true;
                     AddLog("Transitioning to Windowkill Phase...");
                 }
                 ImGui::PopStyleColor(2);
             }
-            else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()))
+            else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase()))
             {
                 ImGui::Separator();
                 ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "CURRENT PHASE: 2 (WINDOWKILL)");
@@ -1196,7 +1197,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
 
                 // 2. Health Bar Boss
                 if (m_navi) {
-                    if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+                    if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
                         int bHP = normalPhase->GetHP();
                         int bMaxHP = normalPhase->GetMaxHP();
                         float bHpProgress = (bMaxHP > 0) ? (float)bHP / bMaxHP : 0.0f;
@@ -1206,7 +1207,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         ImGui::PopStyleColor();
                     }
                     else {
-                        if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+                        if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
                             int bHP = wkPhase->GetHP();
                             int bMaxHP = wkPhase->GetMaxHP();
                             float bHpProgress = (bMaxHP > 0) ? (float)bHP / bMaxHP : 0.0f;
@@ -1224,22 +1225,20 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
 
                 // --- TOMBOL HEAL & RESPAWN BOSS ---
                 if (ImGui::Button("Heal Boss to Full", ImVec2(180.0f, 30.0f))) {
-                    if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+                    if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
                         normalPhase->SetHP(normalPhase->GetMaxHP());
                         AddLog("Boss healed to full HP.");
                     }
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Respawn Boss", ImVec2(180.0f, 30.0f))) {
-                    if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
-                        NaviBulletParams savedParams = normalPhase->GetParams();
-                        auto newPhase = std::make_unique<NaviPhaseNormal>(m_player.get());
-                        newPhase->GetParams() = savedParams;
-                        m_navi->ChangePhase(std::move(newPhase));
-                        AddLog("Boss respawned (Phase 1 Normal). Parameters preserved.");
+                    if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
+                        // Hapus logika savedParams, cukup buat ulang Phase 1 yang bersih
+                        m_navi->ChangePhase(std::make_unique<Boss_Phase01>(m_player.get()));
+                        AddLog("Boss respawned (Phase 1 Normal).");
                     }
                     else {
-                        m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>(m_player.get()));
+                        m_navi->ChangePhase(std::make_unique<Boss_Phase01>(m_player.get()));
                         m_playerWindowTransparent = false;
                         if (m_player) {
                             m_player->RestoreShootDelay();
@@ -1249,138 +1248,127 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                 }
                 ImGui::Separator();
 
-            if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
-            {
-                auto& p = normalPhase->GetParams();
-                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "=== BATTLE STATUS ===");
-
-                bool aiActive = normalPhase->IsAIEnabled();
-                if (!aiActive) {
-                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.8f, 0.2f, 1.0f));
-                    if (ImGui::Button("START BOSS FIGHT (ENABLE AI)", ImVec2(-1.0f, 50.0f))) {
-                        normalPhase->SetAIEnabled(true);
-                        AudioManager::Instance().PlayMusic("Data/Sound/BGM_Boss_Phase_01.wav", 0.05f * p.bgmVolumeMultiplier, true);
-                    }
-                    ImGui::PopStyleColor(2);
-                }
-                else {
-                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
-                    if (ImGui::Button("STOP BOSS FIGHT (DISABLE AI)", ImVec2(-1.0f, 50.0f))) {
-                        normalPhase->SetAIEnabled(false);
-                    }
-                    ImGui::PopStyleColor(2);
-                }
-
-                // Health Bar Boss
-                if (normalPhase->GetHP() > 0) {
-                    float hpProgress = (float)normalPhase->GetHP() / normalPhase->GetMaxHP();
-                    ImGui::Text("Navi HP: %d / %d", normalPhase->GetHP(), normalPhase->GetMaxHP());
-                    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
-                    ImGui::ProgressBar(hpProgress, ImVec2(-1.0f, 20.0f));
-                    ImGui::PopStyleColor();
-                }
-                else {
-                    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "[ NAVI DEFEATED ]");
-                }
-
-                ImGui::Separator();
-
-                if (ImGui::CollapsingHeader("Manual Attack Triggers", ImGuiTreeNodeFlags_DefaultOpen))
+                if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase()))
                 {
-                    if (ImGui::Button("TRIPLE BURST", ImVec2(-1.0f, 35.0f))) normalPhase->TriggerTripleBurst();
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "=== BATTLE STATUS ===");
 
-                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
-                    if (ImGui::Button("TARGETED FAN BURST", ImVec2(-1.0f, 35.0f))) {
-                        if (m_player) normalPhase->TriggerFanAttack(m_navi.get(), m_player->GetPosition());
+                    bool aiActive = normalPhase->IsAIEnabled();
+                    if (!aiActive) {
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
+                        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.8f, 0.2f, 1.0f));
+                        if (ImGui::Button("START BOSS FIGHT (ENABLE AI)", ImVec2(-1.0f, 50.0f))) {
+                            normalPhase->SetAIEnabled(true);
+                            AudioManager::Instance().PlayMusic("Data/Sound/BGM_Boss_Phase_01.wav", 0.05f * normalPhase->GetUltimateParams().sfxVolume, true);
+                        }
+                        ImGui::PopStyleColor(2);
                     }
-                    ImGui::PopStyleColor();
-
-                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.8f, 1.0f));
-                    if (ImGui::Button("GLINTSTONE PHALANX", ImVec2(-1.0f, 35.0f))) {
-                        if (m_player) normalPhase->TriggerPhalanx(m_player.get());
+                    else {
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+                        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
+                        if (ImGui::Button("STOP BOSS FIGHT (DISABLE AI)", ImVec2(-1.0f, 50.0f))) {
+                            normalPhase->SetAIEnabled(false);
+                        }
+                        ImGui::PopStyleColor(2);
                     }
-                    ImGui::PopStyleColor();
 
-                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.6f, 1.0f));
-                    if (ImGui::Button("BIJUUDAMA (TIMING EVENT)", ImVec2(-1.0f, 35.0f))) {
-                        if (m_player) normalPhase->TriggerBijuudama(m_player.get());
+                    // Health Bar Boss
+                    if (normalPhase->GetHP() > 0) {
+                        float hpProgress = (float)normalPhase->GetHP() / normalPhase->GetMaxHP();
+                        ImGui::Text("Navi HP: %d / %d", normalPhase->GetHP(), normalPhase->GetMaxHP());
+                        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+                        ImGui::ProgressBar(hpProgress, ImVec2(-1.0f, 20.0f));
+                        ImGui::PopStyleColor();
                     }
-                    ImGui::PopStyleColor();
-
-                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.3f, 0.0f, 1.0f));
-                    if (ImGui::Button("RAIN (LEFT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRainAttack(true, false); ImGui::SameLine();
-                    if (ImGui::Button("RAIN (RIGHT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRainAttack(true, true); ImGui::SameLine();
-                    if (ImGui::Button("RAIN (TOP)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRainAttack(false, true); ImGui::SameLine();
-                    if (ImGui::Button("RAIN (BOT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRainAttack(false, false);
-                    ImGui::PopStyleColor();
-                }
-
-                if (ImGui::CollapsingHeader("Global Settings & Audio")) {
-                    ImGui::SliderFloat("SFX Volume Multiplier", &p.sfxVolumeMultiplier, 0.0f, 2.0f, "%.2fx");
-                    if (ImGui::SliderFloat("BGM Volume Multiplier", &p.bgmVolumeMultiplier, 0.0f, 2.0f, "%.2fx")) {
-                        AudioManager::Instance().SetMusicVolume(0.05f * p.bgmVolumeMultiplier);
+                    else {
+                        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "[ NAVI DEFEATED ]");
                     }
-                    ImGui::ColorEdit4("Base Bullet Color", (float*)&p.color);
-                }
 
-                if (ImGui::CollapsingHeader("Radial Burst (Triple)")) {
-                    ImGui::SliderFloat("Radial Bullet Speed", &p.radialSpeed, 1.0f, 100.0f);
-                    ImGui::SliderInt("Radial Burst Count", &p.count, 4, 128);
-                    ImGui::SliderFloat("Burst Delay", &p.burstDelay, 0.01f, 1.0f);
-                    ImGui::SliderInt("Radial Bullet Damage", &p.radialDamage, 1, 100);
-                }
+                    ImGui::Separator();
 
-                if (ImGui::CollapsingHeader("Targeted Fan Burst (Shotgun)")) {
-                    ImGui::SliderFloat("Fan Bullet Speed", &p.fanSpeed, 1.0f, 100.0f);
-                    ImGui::SliderInt("Fan Lines (Bullets/Wave)", &p.fanLines, 1, 10);
-                    ImGui::SliderInt("Fan Waves (Repeats)", &p.fanWaves, 1, 10);
-                    ImGui::SliderFloat("Wave Delay", &p.fanWaveDelay, 0.05f, 1.0f);
-                    ImGui::SliderFloat("Spread Angle", &p.fanSpreadAngle, 0.05f, 0.5f);
-                    ImGui::SliderInt("Fan Bullet Damage", &p.fanDamage, 1, 100);
-                }
+                    if (ImGui::CollapsingHeader("Manual Attack Triggers", ImGuiTreeNodeFlags_DefaultOpen))
+                    {
+                        if (ImGui::Button("TRIPLE BURST", ImVec2(-1.0f, 35.0f))) {
+                            normalPhase->AddPooledAttack(std::make_unique<Attack_Radial>(normalPhase->GetRadialParams()));
+                        }
+
+                        //ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
+                        //if (ImGui::Button("TARGETED FAN BURST", ImVec2(-1.0f, 35.0f))) {
+                        //    if (m_player) {
+                        //        // 1. Ambil posisi Player dan Boss
+                        //        DirectX::XMFLOAT3 pPos = m_player->GetPosition();
+                        //        DirectX::XMFLOAT3 bPos = m_navi->GetPosition();
+
+                        //        // 2. Hitung lockedBaseAngle sesuai rumus di Attack_Fan.h
+                        //        float lockedAngle = static_cast<float>(std::atan2(pPos.x - bPos.x, pPos.z - bPos.z));
+
+                        //        // 3. Masukkan lockedAngle ke dalam Attack_Fan
+                        //        normalPhase->AddPooledAttack(std::make_unique<Attack_Fan>(normalPhase->GetFanParams(), lockedAngle));
+                        //    }
+                        //}
+                        //ImGui::PopStyleColor();
+
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.8f, 1.0f));
+                        if (ImGui::Button("GLINTSTONE PHALANX", ImVec2(-1.0f, 35.0f))) {
+                            if (m_player) normalPhase->AddPooledAttack(std::make_unique<Attack_Phalanx>(normalPhase->GetPhalanxParams(), m_player.get()));
+                        }
+                        ImGui::PopStyleColor();
+
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.6f, 1.0f));
+                        if (ImGui::Button("BIJUUDAMA (ULTIMATE)", ImVec2(-1.0f, 35.0f))) {
+                            if (m_player) normalPhase->AddPooledAttack(std::make_unique<Attack_Ultimate>(normalPhase->GetUltimateParams(), m_player.get()));
+                        }
+                        ImGui::PopStyleColor();
+
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.3f, 0.0f, 1.0f));
+                        if (ImGui::Button("RAIN (LEFT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRain(RainMode::VerticalSweep, false); ImGui::SameLine();
+                        if (ImGui::Button("RAIN (RIGHT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRain(RainMode::VerticalSweep, true);
+                        ImGui::PopStyleColor();
+                    }
+
+                    if (ImGui::CollapsingHeader("Radial Burst (Triple)")) {
+                        auto& p = normalPhase->GetRadialParams();
+                        ImGui::ColorEdit4("Color", (float*)&p.color);
+                        ImGui::SliderFloat("Speed", &p.speed, 1.0f, 100.0f);
+                        ImGui::SliderInt("Count", &p.count, 4, 128);
+                        ImGui::SliderFloat("Delay", &p.burstDelay, 0.01f, 1.0f);
+                        ImGui::SliderInt("Damage", &p.damage, 1, 100);
+                    }
+
+                    //if (ImGui::CollapsingHeader("Targeted Fan Burst")) {
+                    //    auto& p = normalPhase->GetFanParams();
+                    //    // ImGui::ColorEdit4 dihapus karena color tidak ada di FanParams
+                    //    ImGui::SliderFloat("Speed", &p.speed, 1.0f, 100.0f);
+                    //    ImGui::SliderInt("Lines", &p.lines, 1, 10);
+                    //    ImGui::SliderInt("Waves", &p.waves, 1, 10);
+                    //    ImGui::SliderFloat("Spread", &p.spreadAngle, 0.05f, 0.5f);
+                    //    ImGui::SliderInt("Damage", &p.damage, 1, 100);
+                    //}
+
+                    if (ImGui::CollapsingHeader("Glintstone Phalanx")) {
+                        auto& p = normalPhase->GetPhalanxParams();
+                        // ImGui::ColorEdit4 dihapus karena color tidak ada di PhalanxParams
+                        ImGui::SliderInt("Count", &p.count, 3, 10);
+                        ImGui::SliderFloat("Flight Speed", &p.speed, 10.0f, 80.0f);
+                        ImGui::SliderInt("Damage", &p.damage, 1, 150);
+                    }
+
+                    if (ImGui::CollapsingHeader("Bijuudama (Ultimate)")) {
+                        auto& p = normalPhase->GetUltimateParams();
+                        ImGui::ColorEdit4("Color", (float*)&p.ballColor);
+                        ImGui::SliderFloat("Laser Duration", &p.laserDuration, 0.5f, 4.0f);
+                        ImGui::SliderFloat("Shoot Speed", &p.shootSpeed, 10.0f, 120.0f);
+                        // laserDamage dihapus karena tidak ada di UltimateParams (mungkin namanya 'damage' atau yang lain)
+                    }
 
                     if (ImGui::CollapsingHeader("Asgore Rain (Area Denial)")) {
-                        ImGui::SliderFloat("Min Fall Speed", &p.rainMinSpeed, 10.0f, 150.0f);
-                        ImGui::SliderFloat("Max Fall Speed", &p.rainMaxSpeed, 10.0f, 150.0f);
-                        ImGui::SliderFloat("Warning Duration", &p.rainWarningDuration, 0.5f, 5.0f);
-                        ImGui::SliderFloat("Active Duration", &p.rainActiveDuration, 0.5f, 10.0f);
-                        ImGui::SliderFloat("Rain Contact Damage", &p.rainDamage, 0.0f, 50.0f);
+                        auto& p = normalPhase->GetRainParams();
+                        ImGui::SliderFloat("Min Fall Speed", &p.minSpeed, 10.0f, 150.0f);
+                        ImGui::SliderFloat("Max Fall Speed", &p.maxSpeed, 10.0f, 150.0f);
+                        ImGui::SliderFloat("Active Duration", &p.activeDuration, 0.5f, 10.0f);
+                        ImGui::SliderFloat("Damage", &p.damage, 0.0f, 50.0f);
                     }
-
-                if (ImGui::CollapsingHeader("Glintstone Phalanx")) {
-                    ImGui::SliderInt("Blade Count", &p.phalanxCount, 3, 10);
-                    ImGui::SliderFloat("Spawn Smoothing", &p.phalanxSmoothSpeed, 1.0f, 20.0f);
-                    ImGui::SliderFloat("Charge Delay", &p.phalanxChargeDelay, 0.05f, 0.5f);
-                    ImGui::SliderFloat("Hold Duration", &p.phalanxHoldDuration, 0.0f, 3.0f);
-                    ImGui::SliderFloat("Fire Delay", &p.phalanxFireDelay, 0.05f, 0.5f);
-                    ImGui::SliderFloat("Flight Speed", &p.phalanxSpeed, 10.0f, 80.0f);
-                    ImGui::SliderFloat("Turn Tracking", &p.phalanxTurnSpeed, 0.1f, 10.0f);
-                    ImGui::SliderFloat("Hover Move Speed", &p.phalanxAttackMoveSpeed, 1.0f, 20.0f);
-                    ImGui::SliderFloat("Return Speed", &p.phalanxReturnMoveSpeed, 0.1f, 10.0f);
-                    ImGui::SliderInt("Blade Damage", &p.phalanxDamage, 1, 150);
                 }
-
-                if (ImGui::CollapsingHeader("Bijuudama & Rhythm Laser")) {
-                    ImGui::SliderFloat("Laser Duration", &p.laserDuration, 0.5f, 4.0f);
-                    ImGui::SliderFloat("Parry Window (+/- sec)", &p.laserParryWindow, 0.05f, 0.5f);
-                    ImGui::SliderFloat("Base Radius", &p.bijuudamaBaseHitbox, 0.1f, 2.0f);
-                    ImGui::SliderFloat("Max Grow Amount", &p.bijuudamaMaxHitboxGrow, 0.0f, 10.0f);
-                    ImGui::SliderFloat("Shoot Speed", &p.bijuudamaShootSpeed, 10.0f, 120.0f);
-                    ImGui::SliderFloat("Post-Fire Delay", &p.bijuudamaPostFireDelay, 0.0f, 3.0f);
-                    ImGui::SliderInt("Laser Ring Damage", &p.laserDamage, 1, 100);
-                }
-
-                if (ImGui::CollapsingHeader("Shatter / Parabola Dynamics")) {
-                    ImGui::SliderInt("Min Fragments", &p.shatterMinFragments, 1, 10);
-                    ImGui::SliderInt("Max Fragments", &p.shatterMaxFragments, 1, 20);
-                    ImGui::SliderFloat("Curve Width/Offset", &p.shatterCurveOffset, 5.0f, 30.0f);
-                    ImGui::SliderFloat("Min Travel Time", &p.shatterMinDuration, 0.1f, 3.0f);
-                    ImGui::SliderFloat("Max Travel Time", &p.shatterMaxDuration, 0.1f, 3.0f);
-                }
-            }
-            else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()))
+                else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase()))
             {
                 ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "--- PHASE 2: WINDOWKILL ATTACKS ---");
                 ImGui::Separator();
@@ -1614,7 +1602,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
 
                 // 2. Health Bar Boss
                 if (m_navi) {
-                    if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+                    if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
                         int bHP = normalPhase->GetHP();
                         int bMaxHP = normalPhase->GetMaxHP();
                         float bHpProgress = (bMaxHP > 0) ? (float)bHP / bMaxHP : 0.0f;
@@ -1624,7 +1612,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         ImGui::PopStyleColor();
                     }
                     else {
-                        if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
+                        if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
                             int bHP = wkPhase->GetHP();
                             int bMaxHP = wkPhase->GetMaxHP();
                             float bHpProgress = (bMaxHP > 0) ? (float)bHP / bMaxHP : 0.0f;
@@ -1726,12 +1714,12 @@ void SceneBoss::AddLog(const std::string& message)
         // Reset Boss 
         if (m_navi)
         {
-            if (auto* normalPhase = dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase()))
+            if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase()))
             {
                 normalPhase->SetHP(normalPhase->GetMaxHP());
                 m_playerWindowTransparent = false; // Normal mode = solid player
             }
-            else if (auto* wkPhase = dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()))
+            else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase()))
             {
                 wkPhase->SetHP(wkPhase->GetMaxHP());
                 m_playerWindowTransparent = true;  // Windowkill mode = transparent player
@@ -1825,7 +1813,7 @@ void SceneBoss::AddLog(const std::string& message)
     m_navi->Initialize(m_windowSystem.get());
 
     // Beri otak ke Navi agar masuk ke Mode Layar Penuh!
-    m_navi->ChangePhase(std::make_unique<NaviPhaseNormal>());
+    m_navi->ChangePhase(std::make_unique<Boss_Phase01>());
     // =========================================================
 
     m_player->SetMaxHP(100); // Reset darah player

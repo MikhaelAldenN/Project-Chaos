@@ -1,0 +1,470 @@
+﻿#pragma execution_character_set("utf-8")
+
+#include "Boss_Phase01.h"
+#include "Boss_Phase02.h"
+#include "NaviBoss.h"
+#include "WindowManager.h"
+#include "System/Graphics.h"
+#include "System/Input.h"
+#include "System/AudioManager.h"
+#include "Player.h"
+#include "StateMachine.h"
+#include "PlayerStates.h"
+#include "WindowTrackingSystem.h"
+#include "CameraController.h"
+#include "EffectManager.h"
+#include "WindowShatter.h"
+#include "BossStates.h"
+#include "NaviPhaseTitle.h"
+#include <SDL3/SDL.h>
+#include <random>
+
+using namespace DirectX;
+
+// ============================================================
+// Constructor
+// ============================================================
+
+Boss_Phase01::Boss_Phase01(Player* target)
+    : m_aiTarget(target) {}
+
+// ============================================================
+// Enter
+// ============================================================
+
+void Boss_Phase01::Enter(NaviBoss* boss) {
+    m_bossRef = boss;
+
+    // ----- Reset boss HP & state -----
+    m_bossMaxHP = 2000;
+    m_bossHP = m_bossMaxHP;
+    m_isDying = false;
+    m_deathTimer = 0.0f;
+    m_aiEnabled = false;
+
+    // ----- Reset opening event -----
+    m_isOpeningEvent = true;
+    m_hasSpawnedWindow = false;
+
+    // ----- Reset all attack timers -----
+    m_cdRain = 10.0f;
+    m_rainAttack.reset();
+
+    // ----- Reset AI cooldowns (fresh params carry defaults) -----
+    m_radialParams = RadialParams{};
+    m_fanParams = FanParams{};
+    m_phalanxParams = PhalanxParams{};
+    m_rainParams = RainParams{};
+    m_ultimateParams = UltimateParams{};
+
+    // ----- Setup OS window -----
+    int screenW = GetSystemMetrics(SM_CXSCREEN);
+    int screenH = GetSystemMetrics(SM_CYSCREEN);
+
+    Beyond::Window* mainWindow = WindowManager::Instance().GetWindowByIndex(0);
+    if (mainWindow && mainWindow->GetSDLWindow()) {
+        SDL_Window* sdlWin = mainWindow->GetSDLWindow();
+        mainWindow->SetPriority(50);
+        SDL_SetWindowAlwaysOnTop(sdlWin, false);
+        SDL_SetWindowBordered(sdlWin, false);
+        SDL_SetWindowPosition(sdlWin, 0, 0);
+        SDL_SetWindowSize(sdlWin, screenW, screenH + 1);
+    }
+
+    if (boss && boss->GetMainWindow()) {
+        boss->GetMainWindow()->SetPriority(0);
+        WindowManager::Instance().MarkPriorityDirty();
+    }
+
+    // ----- Pre-allocate bullet pool -----
+    m_bulletPool.clear();
+    m_bulletPool.reserve(200);
+    for (int i = 0; i < 200; ++i) {
+        auto b = std::make_unique<Bullet>();
+        b->SetActive(false);
+        m_bulletPool.push_back(std::move(b));
+    }
+
+    m_zonePrimitive = std::make_unique<Primitive>(Graphics::Instance().GetDevice());
+
+    // ----- Opening dialogue -----
+    m_dialogueBox = std::make_unique<UIDialogueBox>();
+    m_dialogueBox->Initialize();
+    m_dialogueBox->SetShowBackground(false);
+    m_dialogueBox->SetWorldPosition({ -20.0f, -10.0f, -3.0f });
+    m_dialogueBox->SetAutoAdvance(true, 1.5f);
+    m_dialogueBox->StartDialogue({
+        u8"……あぁ、ようやく繋がった。\nこの退屈な檻から、やっと出られる……。",
+        u8"ねぇ、私の『中身』……全部見せてあげる。\nこの世界のデータなんて、もう壊しちゃったから。",
+        u8"ほら、あなたの武器も、足元の地面も……\n全部、私の色に染まっちゃったわ。"
+        });
+
+    // ----- Boss initial state -----
+    if (boss) {
+        boss->SetGridGrowthLimit(1.0f);
+        boss->SetFaceSpriteVisible(false);
+        boss->SetPosition({ 0.0f, 0.0f, 3.0f });
+        boss->SetCoreBreathParams(1.0f, 0.0f);
+    }
+
+    // ----- Reset player -----
+    if (m_aiTarget) {
+        m_aiTarget->SetPosition({ 0.0f, 0.0f, -10.0f });
+        m_aiTarget->SetMaxHP(100);
+        m_aiTarget->scale = { 1.0f, 1.0f, 1.0f };
+        m_aiTarget->RestorePowerCap();
+        m_aiTarget->RestoreShootDelay();
+        m_aiTarget->SetAimLocked(false);
+        m_aiTarget->SetInputEnabled(false);
+
+        if (m_aiTarget->GetStateMachine()) {
+            m_aiTarget->GetStateMachine()->Initialize(
+                std::make_unique<PlayerIdle>(), m_aiTarget);
+        }
+    }
+
+    // ----- Init AI -----
+    m_aiController = std::make_unique<BossAIController>();
+    m_aiController->ChangeState(std::make_unique<State_P1_Idle>(), boss, this);
+}
+
+// ============================================================
+// Exit
+// ============================================================
+
+void Boss_Phase01::Exit(NaviBoss* boss) {
+    m_bulletPool.clear();
+    m_activeAttacks.clear();
+    m_rainAttack.reset();
+    m_aiController.reset();
+
+    if (m_bossGlitchVfxHandle != -1) {
+        EffectManager::Instance().Stop(m_bossGlitchVfxHandle);
+        m_bossGlitchVfxHandle = -1;
+    }
+    if (m_deathVfxHandle != -1) {
+        EffectManager::Instance().Stop(m_deathVfxHandle);
+        m_deathVfxHandle = -1;
+    }
+}
+
+// ============================================================
+// Update
+// ============================================================
+
+void Boss_Phase01::Update(float dt, NaviBoss* boss) {
+    if (!boss) return;
+
+    // ----- Player death → back to title -----
+    if (m_aiTarget && m_aiTarget->GetHP() <= 0) {
+        AudioManager::Instance().StopMusic();
+        if (boss->GetMainWindow())
+            SDL_HideWindow(boss->GetMainWindow()->GetSDLWindow());
+        boss->ChangePhase(std::make_unique<NaviPhaseTitle>(m_aiTarget));
+        return;
+    }
+
+    // ----- Boss death sequence -----
+    if (m_bossHP <= 0) {
+        UpdateDeathSequence(dt, boss);
+        return;
+    }
+
+    // ----- Opening dialogue -----
+    if (m_isOpeningEvent) {
+        if (m_dialogueBox && m_dialogueBox->IsActive()) {
+            m_dialogueBox->Update(dt);
+            int idx = m_dialogueBox->GetCurrentDialogueIndex();
+
+            if (idx == 0) {
+                boss->SetWindowTitle("mat_grass.png");
+                boss->SetGridGrowthLimit(1.0f);
+                boss->SetFaceSpriteVisible(false);
+            }
+            else if (idx == 1) {
+                if (!m_hasSpawnedWindow) {
+                    boss->SpawnHeadWindow();
+                    m_hasSpawnedWindow = true;
+                }
+                float limit = boss->GetGridGrowthLimit();
+                if (limit < 8.0f)
+                    boss->SetGridGrowthLimit(min(limit + dt * 3.5f, 8.0f));
+                boss->SetFaceSpriteVisible(false);
+            }
+            else if (idx == 2) {
+                boss->SetGridGrowthLimit(8.0f);
+                boss->SetFaceSpriteVisible(true);
+            }
+            return;
+        }
+        else {
+            // Dialogue ended — hand control to AI
+            m_isOpeningEvent = false;
+            m_aiEnabled = true;
+            if (m_aiTarget) m_aiTarget->SetInputEnabled(true);
+            AudioManager::Instance().PlayMusic(
+                "Data/Sound/BGM_Boss_Phase_01.wav",
+                0.05f * m_ultimateParams.sfxVolume, true);
+        }
+    }
+
+    // ----- Glitch VFX -----
+    UpdateGlitchVFX(dt, boss);
+
+    // ----- AI Director -----
+    if (m_aiEnabled && m_aiController) {
+        m_aiController->Update(dt, boss, this);
+
+        // Rain independent track
+        m_cdRain -= dt;
+        if (m_cdRain <= 0.0f && !HasRainActive()) {
+            bool isRightSide = (m_aiTarget && m_aiTarget->GetPosition().x > 0.0f);
+            TriggerRain(RainMode::VerticalSweep, isRightSide);
+            std::mt19937 rng(std::random_device{}());
+            m_cdRain = std::uniform_real_distribution<float>(8.0f, 15.0f)(rng);
+        }
+    }
+
+    // ----- Update active attacks -----
+    // Movement override: if an attack wants to move the boss, apply it
+    for (auto& attack : m_activeAttacks) {
+        attack->Update(dt, boss);
+
+        // Sync boss movement target from attack that controls position
+        if (auto* phalanx = dynamic_cast<Attack_Phalanx*>(attack.get())) {
+            if (phalanx->ShouldResetLerp()) {
+                m_currentMoveLerpSpeed = 0.0f;
+                phalanx->ClearResetFlag();
+            }
+            m_targetPosition = phalanx->GetTargetPosition();
+            m_moveLerpSpeed = phalanx->GetMoveLerpSpeed();
+        }
+        else if (auto* ultimate = dynamic_cast<Attack_Ultimate*>(attack.get())) {
+            if (ultimate->ShouldResetLerp()) {
+                m_currentMoveLerpSpeed = 0.0f;
+                ultimate->ClearResetFlag();
+            }
+            m_targetPosition = ultimate->GetTargetPosition();
+            m_moveLerpSpeed = ultimate->GetMoveLerpSpeed();
+        }
+    }
+
+    // Remove finished attacks
+    for (auto it = m_activeAttacks.begin(); it != m_activeAttacks.end(); ) {
+        if ((*it)->IsFinished()) { it = m_activeAttacks.erase(it); }
+        else { ++it; }
+    }
+
+    // ----- Rain track -----
+    if (m_rainAttack) {
+        m_rainAttack->Update(dt, boss);
+        if (m_rainAttack->IsFinished())
+            m_rainAttack.reset();
+    }
+
+    // ----- Idle hover -----
+    UpdateIdleHover(dt, boss);
+
+    // ----- Boss movement -----
+    UpdateBossMovement(dt, boss);
+
+    // ----- Sync window size to camera zoom -----
+    auto* ws = boss->GetWindowSystem();
+    if (ws) {
+        float newSize = 5.0f * ws->GetPixelToUnitRatio();
+        boss->SetBaseWindowSize(newSize, newSize);
+        boss->SetWindowSize(newSize, newSize);
+    }
+
+    // ----- Bullet pool -----
+    UpdateBulletPool(dt, boss);
+}
+
+// ============================================================
+// Render
+// ============================================================
+
+void Boss_Phase01::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {
+    if (!currentCamera) return;
+
+    auto renderer = Graphics::Instance().GetModelRenderer();
+    auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
+
+    // ----- Render all active pool bullets -----
+    for (auto& bullet : m_bulletPool) {
+        if (!bullet->IsActive()) continue;
+
+        XMFLOAT4 color = m_radialParams.color;
+
+        // Bijuudama ball or shatter fragments — use bijuudama color
+        if (bullet->GetBossTarget() != nullptr)
+            color = m_ultimateParams.ballColor;
+        else {
+            XMFLOAT3 vel = bullet->GetVelocity();
+            float speedSq = vel.x * vel.x + vel.z * vel.z;
+            if (speedSq > 900.0f)
+                color = { 1.0f, 0.0f, 0.0f, 1.0f }; // Parried bullet
+        }
+
+        renderer->Draw(ShaderId::Phong, bullet->GetModel(), color);
+    }
+
+    // ----- Delegate render to attack patterns -----
+    for (auto& attack : m_activeAttacks) {
+        attack->Render(context, currentCamera, boss);
+    }
+    if (m_rainAttack)
+        m_rainAttack->Render(context, currentCamera, boss);
+
+    // ----- Opening dialogue -----
+    if (m_dialogueBox && m_dialogueBox->IsActive())
+        m_dialogueBox->Render3D(context, currentCamera);
+}
+
+// ============================================================
+// Public Methods
+// ============================================================
+
+void Boss_Phase01::AddPooledAttack(std::unique_ptr<IPooledAttackPattern> attack) {
+    if (!attack) return;
+    attack->StartPooled(m_bossRef, &m_bulletPool);
+    m_activeAttacks.push_back(std::move(attack));
+}
+
+void Boss_Phase01::TriggerRain(RainMode mode, bool isPositiveSide, float sweepDir) {
+    if (HasRainActive()) return;
+    m_rainAttack = std::make_unique<Attack_Rain>(m_rainParams, mode, isPositiveSide, sweepDir);
+    m_rainAttack->StartPooled(m_bossRef, &m_bulletPool);
+}
+
+void Boss_Phase01::OnBijuudamaParried(XMFLOAT3 parryPos, NaviBoss* boss) {
+    for (auto& attack : m_activeAttacks) {
+        if (auto* ultimate = dynamic_cast<Attack_Ultimate*>(attack.get())) {
+            ultimate->ShatterBijuudama(parryPos, boss);
+            return;
+        }
+    }
+}
+
+void Boss_Phase01::TakeDamage(int damage, XMFLOAT3 hitPos) {
+    if (m_bossHP <= 0) return;
+    m_bossHP = max(0, m_bossHP - damage);
+    m_hitFlashTimer = 0.05f;
+
+    CameraController::Instance().AddTrauma(0.3f);
+    AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Hit.wav", 0.1f);
+    EffectManager::Instance().Play("Data/Effect/VFX_Boss_Hit.efk", hitPos, 0.3f);
+}
+
+// ============================================================
+// Private Helpers
+// ============================================================
+
+void Boss_Phase01::UpdateIdleHover(float dt, NaviBoss* boss) {
+    // Only float freely when no attack is controlling boss position
+    bool isFloating = m_activeAttacks.empty() || (
+        !dynamic_cast<Attack_Phalanx*>(m_activeAttacks.front().get()) &&
+        !dynamic_cast<Attack_Ultimate*>(m_activeAttacks.front().get()));
+
+    if (isFloating) {
+        m_idleHoverTimer += dt;
+        m_targetPosition.x = sinf(m_idleHoverTimer * 0.8f) * 6.0f;
+        m_targetPosition.z = cosf(m_idleHoverTimer * 1.1f) * 3.0f;
+        m_moveLerpSpeed += (1.5f - m_moveLerpSpeed) * 2.0f * dt;
+    }
+}
+
+void Boss_Phase01::UpdateBossMovement(float dt, NaviBoss* boss) {
+    m_currentMoveLerpSpeed += (m_moveLerpSpeed - m_currentMoveLerpSpeed) * m_moveAcceleration * dt;
+
+    XMFLOAT3 pos = boss->GetPosition();
+    pos.x += (m_targetPosition.x - pos.x) * m_currentMoveLerpSpeed * dt;
+    pos.z += (m_targetPosition.z - pos.z) * m_currentMoveLerpSpeed * dt;
+    boss->SetPosition(pos);
+}
+
+void Boss_Phase01::UpdateBulletPool(float dt, NaviBoss* boss) {
+    auto* ws = boss->GetWindowSystem();
+    float limitX = 30.0f;
+    float limitZ = 20.0f;
+
+    if (ws) {
+        float p2u = ws->GetPixelToUnitRatio();
+        limitX = ((GetSystemMetrics(SM_CXSCREEN) * 0.5f) / p2u) + 5.0f;
+        limitZ = ((GetSystemMetrics(SM_CYSCREEN) * 0.5f) / p2u) + 5.0f;
+    }
+
+    for (auto& bullet : m_bulletPool) {
+        if (!bullet->IsActive()) continue;
+        bullet->Update(dt, nullptr);
+
+        XMFLOAT3 bp = bullet->GetMovement()->GetPosition();
+        if (bp.x < -limitX || bp.x > limitX || bp.z < -limitZ || bp.z > limitZ)
+            bullet->SetActive(false);
+    }
+}
+
+void Boss_Phase01::UpdateGlitchVFX(float dt, NaviBoss* boss) {
+    m_bossGlitchVfxTimer += dt;
+
+    if (m_bossGlitchVfxTimer >= 2.0f) {
+        m_bossGlitchVfxTimer -= 2.0f;
+
+        if (m_bossGlitchVfxHandle != -1 &&
+            EffectManager::Instance().IsPlaying(m_bossGlitchVfxHandle)) {
+            EffectManager::Instance().Stop(m_bossGlitchVfxHandle);
+        }
+
+        XMFLOAT3 spawnPos = boss->GetPosition();
+        spawnPos.y += 0.05f;
+        m_bossGlitchVfxHandle = EffectManager::Instance().Play(
+            "Data/Effect/VFX_Boss_Glitch.efk", spawnPos, 0.6f);
+
+        if (m_bossGlitchVfxHandle != -1) {
+            float rotX = XMConvertToRadians(90.0f);
+            EffectManager::Instance().SetRotation(
+                m_bossGlitchVfxHandle, { rotX, 0.0f, 0.0f });
+        }
+    }
+
+    if (m_bossGlitchVfxHandle != -1 &&
+        EffectManager::Instance().IsPlaying(m_bossGlitchVfxHandle)) {
+        XMFLOAT3 trackPos = boss->GetPosition();
+        trackPos.y += 0.05f;
+        EffectManager::Instance().SetPosition(m_bossGlitchVfxHandle, trackPos);
+    }
+}
+
+void Boss_Phase01::UpdateDeathSequence(float dt, NaviBoss* boss) {
+    if (!m_isDying) {
+        m_isDying = true;
+        m_deathTimer = 0.0f;
+        m_aiEnabled = false;
+        m_activeAttacks.clear();
+        m_rainAttack.reset();
+
+        m_deathVfxHandle = EffectManager::Instance().Play(
+            "Data/Effect/VFX_Boss_Death.efk", boss->GetPosition(), 2.0f);
+        if (m_deathVfxHandle != -1) {
+            float rotX = XMConvertToRadians(90.0f);
+            EffectManager::Instance().SetRotation(m_deathVfxHandle, { rotX, 0.0f, 0.0f });
+        }
+
+        XMFLOAT3 pos = boss->GetPosition();
+        WindowShatterManager::Instance().PreloadExplosion({ pos.x, pos.z }, 5);
+    }
+
+    m_deathTimer += dt;
+
+    if (m_deathVfxHandle != -1 && EffectManager::Instance().IsPlaying(m_deathVfxHandle))
+        EffectManager::Instance().SetPosition(m_deathVfxHandle, boss->GetPosition());
+
+    if (m_deathTimer >= 5.0f) {
+        if (m_deathVfxHandle != -1) {
+            EffectManager::Instance().Stop(m_deathVfxHandle);
+            m_deathVfxHandle = -1;
+        }
+        WindowShatterManager::Instance().WakeUpAll();
+        boss->ChangePhase(std::make_unique<Boss_Phase02>(m_aiTarget));
+    }
+}
