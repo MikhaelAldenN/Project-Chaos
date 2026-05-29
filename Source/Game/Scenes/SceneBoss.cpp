@@ -220,12 +220,16 @@ void SceneBoss::InitializeSubWindows()
     // [FIX MUTLAK] Jangan pernah spawn window "player" jika 
     // bos sedang berada di Fase Windowkill!
     // =========================================================
-    bool isWindowkillPhase = false;
-    if (m_navi && dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase())) {
-        isWindowkillPhase = true;
+    bool shouldHidePlayerWindow = false;
+    if (m_navi) {
+        if (dynamic_cast<NaviPhaseWindowkill*>(m_navi->GetCurrentPhase()) ||
+            dynamic_cast<NaviPhaseNormal*>(m_navi->GetCurrentPhase())) {
+            shouldHidePlayerWindow = true;
+        }
     }
 
-    if (!isWindowkillPhase)
+    // Only spawn the player window if we are NOT in a restricted phase
+    if (!shouldHidePlayerWindow)
     {
         // --- Player-tracking window ---
         m_windowSystem->AddTrackedWindow(

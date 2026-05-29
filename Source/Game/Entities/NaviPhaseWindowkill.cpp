@@ -12,7 +12,6 @@
 #include <System/AudioManager.h>
 #include "EffectManager.h"
 #include "CameraController.h"
-#include "NaviPhaseTitle.h"
 
 using namespace DirectX;
 

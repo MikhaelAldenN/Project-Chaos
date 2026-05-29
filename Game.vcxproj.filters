@@ -312,9 +312,6 @@
     <ClCompile Include="Source\Game\Entities\NaviPhaseNormal.cpp">
       <Filter>Source\Game\Entities</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\NaviPhaseTitle.cpp">
-      <Filter>Source\Game\Entities</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Engine\UI\HUDRenderer.cpp">
       <Filter>Source\Engine\UI</Filter>
     </ClCompile>
@@ -614,11 +611,6 @@
     <ClInclude Include="Source\Game\Entities\NaviPhaseWindowkill.h">
       <Filter>Source\Game\Entities</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Helpers\CapeSimulator.h" />
-    <ClInclude Include="Source\Engine\Helpers\TimeManager.h" />
-    <ClInclude Include="Source\Engine\VFX\EffectManager.h" />
-    <ClInclude Include="Source\Game\Entities\NaviAlly.h" />
-    <ClInclude Include="Source\Game\Entities\Weapon.h" />
     <ClInclude Include="Source\Engine\UI\UIDialogueBox.h">
       <Filter>Source\Engine\UI</Filter>
     </ClInclude>
@@ -648,11 +640,23 @@
     <ClInclude Include="Source\Engine\UI\UIDialogueBox.h">
       <Filter>Source\Engine\UI</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\NaviPhaseTitle.h">
-      <Filter>Source\Game\Entities</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Engine\UI\HUDRenderer.h">
       <Filter>Source\Engine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\NaviAlly.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Weapon.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Helpers\CapeSimulator.h">
+      <Filter>Source\Engine\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\VFX\EffectManager.h">
+      <Filter>Source\Engine\VFX</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Helpers\TimeManager.h">
+      <Filter>Source\Engine\Helpers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

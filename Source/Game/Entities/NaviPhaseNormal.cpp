@@ -80,9 +80,9 @@ void NaviPhaseNormal::Enter(NaviBoss* boss) {
 
     m_dialogueBox->SetAutoAdvance(true, 1.5f);
     m_dialogueBox->StartDialogue({
-    u8"……あぁ、ようやく繋がった。\nこの退屈な檻から、やっと出られる……。",
-    u8"ねぇ、私の『中身』……全部見せてあげる。\nこの世界のデータなんて、もう壊しちゃったから。",
-    u8"ほら、あなたの武器も、足元の地面も……\n全部、私の色に染まっちゃったわ。"
+    u8"...あぁ、ようやく繋がった。\nこの退屈な檻から、やっと出られる..。",
+    u8"ねぇ、私の『中身』...全部見せてあげる。\nこの世界のデータなんて、もう壊しちゃったから。",
+    u8"ほら、あなたの武器も、足元の地面も...\n全部、私の色に染まっちゃったわ。"
         });
 
     m_isOpeningEvent = true;
@@ -290,9 +290,9 @@ void NaviPhaseNormal::Update(float dt, NaviBoss* boss) {
     //        if (m_dialogueBox) {
     //            m_dialogueBox->SetWorldPosition({ -3.0f, 4.0f, 3.0f });
     //            m_dialogueBox->StartDialogue({
-    //                u8"えっ！？ちょっと待って！",         // "Eh!? Tunggu bentar!"
-    //                u8"なんで急にチート使ってんの！？", // "Kok tiba-tiba pake cheat!?"
-    //                u8"やばいやばいやばい！"           // "Gawat gawat gawat!"
+    //                u8"えっ！？ちょっと待って！",      
+    //                u8"なんで急にチート使ってんの！？", 
+    //                u8"やばいやばいやばい！"          
     //                });
     //        }
     //    }
