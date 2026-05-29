@@ -11,13 +11,7 @@
 #include "UIDialogueBox.h"
 #include "HUDRenderer.h"
 #include "IBossAttackPattern.h"
-#include "BossAIController.h"
-
-// [FIX] 新しい攻撃パターンのヘッダーを読み込む（これによりParams構造体が使えるようになります）
-#include "AttackBouncing.h"
-#include "AttackBoomerangs.h"
-#include "AttackBlasters.h"
-#include "AttackSpears.h"
+#include "BossAI.h"
 
 class Sprite;
 class Player;
@@ -103,6 +97,8 @@ public:
     DirectX::XMFLOAT3 GetCagePos() const { return m_cagePos; }
     float GetCageSize() const { return m_cageSizeWorld; }
     void DamageCage(int dmg);
+
+    BossAI_Phase02* GetAI() const { return m_ai.get(); }
 
 private:
     void GenerateButterflyWings();
@@ -198,6 +194,7 @@ private:
     // ==========================================
     // MODULAR AI & ATTACK SYSTEM
     // ==========================================
-    std::unique_ptr<BossAIController> m_aiController;
     std::vector<std::unique_ptr<IBossAttackPattern>> m_activeAttacks;
+
+    std::unique_ptr<BossAI_Phase02> m_ai;
 };

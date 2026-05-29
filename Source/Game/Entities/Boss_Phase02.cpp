@@ -13,7 +13,6 @@
 #include "EffectManager.h"
 #include "CameraController.h"
 #include "NaviPhaseTitle.h"
-#include <BossStates.h>
 
 using namespace DirectX;
 
@@ -91,8 +90,7 @@ void Boss_Phase02::Enter(NaviBoss* boss) {
     // =========================================================
     // [BARU] INISIALISASI FSM (OTAK AI)
     // =========================================================
-    m_aiController = std::make_unique<BossAIController>();
-    m_aiController->ChangeState(std::make_unique<State_P2_Idle>(), boss, this);
+    m_ai = std::make_unique<BossAI_Phase02>(this, m_aiTarget);
 
     if (windowSystem->GetTrackedWindow("player")) {
         windowSystem->RemoveTrackedWindow("player");
@@ -207,7 +205,6 @@ void Boss_Phase02::Exit(NaviBoss* boss) {
         attack->Stop(boss);
     }
     m_activeAttacks.clear();
-    m_aiController.reset();
 
     // 3. BERSIH-BERSIH EFEK PARTIKEL (VFX) DEATH SCENE
     if (m_deathVfxHandle != -1) {
@@ -543,8 +540,9 @@ void Boss_Phase02::Update(float dt, NaviBoss* boss) {
     // =========================================================
     // [BARU] UPDATE AI DECISIONS (THE BRAIN)
     // =========================================================
-    if (m_aiEnabled && !m_isPlayerCaged && m_bossHP > 0 && m_aiController) {
-        m_aiController->Update(dt, boss, this);
+    if (m_ai) {
+        m_ai->SetEnabled(m_aiEnabled);
+        m_ai->Update(dt, boss);
     }
 
     // =========================================================

@@ -330,26 +330,23 @@
     <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackSpears.cpp">
       <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseTwo</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\Boss\BossState.cpp">
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackRadial.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackFan.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackPhalanx.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackRain.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackUltimate.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\BossAI.cpp">
       <Filter>Source\Game\Entities\Boss</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Game\Entities\Boss\BossAIController.cpp">
-      <Filter>Source\Game\Entities\Boss</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Radial.cpp">
-      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Fan.cpp">
-      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Phalanx.cpp">
-      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Rain.cpp">
-      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Ultimate.cpp">
-      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -699,35 +696,29 @@
     <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackSpears.h">
       <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseTwo</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss\BossStates.h">
-      <Filter>Source\Game\Entities\Boss</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss\BossAIController.h">
-      <Filter>Source\Game\Entities\Boss</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss\IBossState.h">
-      <Filter>Source\Game\Entities\Boss</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\IBossAttackPattern.h">
       <Filter>Source\Game\Entities\Boss\AttackPatterns</Filter>
     </ClInclude>
     <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\IPooledAttackPattern.h">
       <Filter>Source\Game\Entities\Boss\AttackPatterns</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Radial.h">
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackRadial.h">
       <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Fan.h">
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackFan.h">
       <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Phalanx.h">
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackPhalanx.h">
       <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Rain.h">
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackRain.h">
       <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\Attack_Ultimate.h">
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackUltimate.h">
       <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\BossAI.h">
+      <Filter>Source\Game\Entities\Boss</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -1,5 +1,5 @@
 ﻿#pragma execution_character_set("utf-8")
-#include "Attack_Ultimate.h"
+#include "AttackUltimate.h"
 #include "NaviBoss.h"
 #include "Player.h"
 #include "System/Graphics.h"
@@ -62,9 +62,10 @@ void Attack_Ultimate::Update(float dt, NaviBoss* boss) {
         if ((dx * dx + dz * dz) <= 1.0f) {
             m_state = State::Charging;
             m_chargeTimer = 0.0f;
+            if (m_ball) m_ball->SetActive(true); // [FIX] Pastikan bola menyala saat mulai charge!
         }
         else {
-            if (m_ball) m_ball->SetActive(false);
+            // [FIX] Jangan pernah menonaktifkan (SetActive(false)) bola di sini!
             return;
         }
     }
@@ -87,14 +88,14 @@ void Attack_Ultimate::Update(float dt, NaviBoss* boss) {
         m_chargeTimer += dt;
 
         // Position and grow ball while stationary
-        if (m_ball && m_ball->IsActive()) {
+        if (m_ball) { // [FIX] Syarat IsActive() DIHAPUS agar kode di bawahnya bisa berjalan!
+            if (!m_ball->IsActive()) m_ball->SetActive(true); // Nyalakan jika terlanjur mati
+
             XMFLOAT3 vel = m_ball->GetVelocity();
             if ((vel.x * vel.x + vel.z * vel.z) < 0.01f) {
                 XMFLOAT3 offsetPos = bPos;
                 offsetPos.z -= m_params.spawnOffsetZ;
                 m_ball->GetMovement()->SetPosition(offsetPos);
-
-                if (!m_ball->IsActive()) m_ball->SetActive(true);
 
                 float progress = min(1.0f, m_chargeTimer / m_params.laserDuration);
                 float currentHitbox = m_params.baseHitbox + (m_params.maxHitboxGrow * progress);
@@ -113,8 +114,6 @@ void Attack_Ultimate::Update(float dt, NaviBoss* boss) {
                 }
             }
         }
-
-        // Ring visual is drawn in Render()
 
         if (m_chargeTimer >= m_params.laserDuration) {
             LaunchBall(boss);

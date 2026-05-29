@@ -1,5 +1,5 @@
 #pragma execution_character_set("utf-8")
-#include "Attack_Fan.h"
+#include "AttackFan.h"
 #include "NaviBoss.h"
 #include "System/AudioManager.h"
 #include <DirectXMath.h>

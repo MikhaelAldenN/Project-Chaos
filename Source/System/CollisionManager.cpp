@@ -1033,36 +1033,33 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
     }
 
     // =========================================================
-    // 2. DETEKSI BIJUUDAMA NAVI BOSS
-    // =========================================================
+        // 2. DETEKSI BIJUUDAMA NAVI BOSS
+        // =========================================================
     if (m_naviBoss)
     {
         auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_naviBoss->GetCurrentPhase());
         if (normalPhase)
         {
-            for (auto& bullet : normalPhase->GetProjectiles())
+            // 1. Ambil serangan Bijuudama (Ultimate) yang sedang aktif
+            if (auto* ultAttack = normalPhase->GetActiveUltimate())
             {
-                if (!bullet->IsActive()) continue;
+                // 2. Cek apakah bola sedang di-charge dan berada di dalam waktu Parry
+                if (ultAttack->IsCharging() && ultAttack->IsInParryWindow())
+                {
+                    Bullet* ball = ultAttack->GetBall();
+                    if (ball && ball->IsActive())
+                    {
+                        ball->SetParryReturn(true);
 
-                DirectX::XMFLOAT3 vel = bullet->GetVelocity();
-                float speedSq = (vel.x * vel.x) + (vel.z * vel.z);
+                        if (outBullet) *outBullet = ball;
+                        if (outNearestEnemy) *outNearestEnemy = nullptr;
 
-                //// [FIX MUTLAK] DI SINILAH TEMPAT YANG BENAR!
-                //if (speedSq < 0.01f && normalPhase->IsLaserLocked())
-                //{
-                //    // Cek apakah pemain menekan Space di dalam Jendela Timing yang pas!
-                //    float timeDiff = std::abs(normalPhase->GetLaserTimer() - normalPhase->GetParams().laserDuration);
-                //    if (timeDiff <= normalPhase->GetParams().laserParryWindow)
-                //    {
-                //        bullet->SetParryReturn(true);
+                        // 3. Langsung picu efek pecah (Shatter) Bijuudama ke arah player
+                        normalPhase->OnBijuudamaParried(playerPos, m_naviBoss);
 
-                //        if (outBullet) *outBullet = bullet.get();
-                //        if (outNearestEnemy) *outNearestEnemy = nullptr;
-
-                //        normalPhase->CancelBijuudama(); // Hentikan charge
-                //        return true;
-                //    }
-                //}
+                        return true;
+                    }
+                }
             }
         }
     }
@@ -1072,28 +1069,30 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
 
 void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
 {
-    if (!m_player || !m_naviBoss) return;
+    if (!m_player || !m_naviBoss || m_player->GetHP() <= 0) return;
 
-    // Pastikan bos sedang di Phase Windowkill
-    auto windowkillPhase = dynamic_cast<Boss_Phase02*>(m_naviBoss->GetCurrentPhase());
-    if (!windowkillPhase) return;
+    // Radius standar hitbox player untuk peluru boss
+    float playerHitboxRadius = 0.3f;
 
-    // 1. Dapatkan SEMUA peluru yang aktif (Bouncing, Boomerang, Spear) secara otomatis!
-    std::vector<Bullet*> activeBullets = windowkillPhase->GetProjectiles();
+    // Fungsi helper (Lambda) untuk mengecek tabrakan 1 peluru vs Player
+    auto checkBulletHit = [&](Bullet* bullet) {
+        if (!bullet || !bullet->IsActive()) return;
 
-    for (Bullet* bullet : activeBullets) {
-        if (!bullet || !bullet->IsActive()) continue;
+        // [PENTING] Jika peluru ini adalah hasil PARRY (mengarah balik ke bos), jangan lukai player!
+        if (bullet->GetBossTarget() != nullptr) return;
 
         DirectX::XMFLOAT3 pPos = m_player->GetPosition();
         DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
 
+        // [FIX MUTLAK] Gunakan pengecekan 3D Penuh (X, Y, Z) 
+        // Wajib agar serangan "Rain" dan "Bijuudama" yang melayang tinggi tidak mengenai player di bawahnya!
         float dx = pPos.x - bPos.x;
         float dy = pPos.y - bPos.y;
         float dz = pPos.z - bPos.z;
         float distSq = (dx * dx) + (dy * dy) + (dz * dz);
 
         // Radius gabungan peluru dan player
-        float totalRadius = bullet->GetRadius() + m_player->GetRadius();
+        float totalRadius = bullet->GetRadius() + playerHitboxRadius;
 
         if (distSq <= (totalRadius * totalRadius)) {
             // Player Kena Hit!
@@ -1103,11 +1102,25 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
             CameraController::Instance().AddTrauma(0.2f);
             AudioManager::Instance().PlaySFX("Data/Sound/SE_Damage.wav", 0.3f);
         }
-    }
+        };
 
-    // CATATAN: Untuk Laser Beam (Orbital Blasters), logika tabrakannya menggunakan AABB (Kotak).
-    // Sementara kita matikan dulu error-nya di sini. Nanti logika AABB ini akan kita 
-    // masukkan ke dalam class AttackBlasters.cpp secara mandiri agar lebih rapi.
+    // =========================================================
+    // 1. CEK PELURU PHASE 01 (NORMAL)
+    // =========================================================
+    if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_naviBoss->GetCurrentPhase())) {
+        for (auto& bulletPtr : normalPhase->GetProjectiles()) {
+            checkBulletHit(bulletPtr.get());
+        }
+    }
+    // =========================================================
+    // 2. CEK PELURU PHASE 02 (WINDOWKILL)
+    // =========================================================
+    else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_naviBoss->GetCurrentPhase())) {
+        std::vector<Bullet*> activeBullets = wkPhase->GetProjectiles();
+        for (Bullet* bullet : activeBullets) {
+            checkBulletHit(bullet);
+        }
+    }
 }
 
 void CollisionManager::CheckNaviBossProjectilesVsBoss(float elapsedTime)

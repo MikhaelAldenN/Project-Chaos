@@ -22,7 +22,7 @@
 #include "EffectManager.h"
 #include "WindowShatter.h"
 #include "NaviPhaseTitle.h"
-#include "Attack_Fan.h"
+
 using namespace DirectX;
 
 // =========================================================
@@ -962,15 +962,13 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
 }
 
 
-
-
 // =========================================================
 // GUI
 // =========================================================
 
     void SceneBoss::DrawGUI()
     {
-        return; // Add this — skips all ImGui rendering for release
+/*        return;*/ // Add this — skips all ImGui rendering for release
 
         if (m_isPendingSceneChange) return;
         ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
@@ -1180,20 +1178,20 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
         }
 
             // ---------------------------------------------------------
-            // TAB 3: BOSS CONFIG
-            // ---------------------------------------------------------
+                        // TAB 3: BOSS CONFIG
+                        // ---------------------------------------------------------
             if (m_navi && ImGui::BeginTabItem("Boss Config"))
             {
                 ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "=== BOSS MASTER CONTROLS ===");
 
-            // 1. Health Bar Player
-            int pHP = m_player->GetHP();
-            float pHpProgress = pHP / 100.0f;
-            ImVec4 pBarColor = { (1.0f - pHpProgress), pHpProgress, 0.0f, 1.0f };
-            ImGui::Text("Player HP: %d / 100", pHP);
-            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, pBarColor);
-            ImGui::ProgressBar(pHpProgress, ImVec2(-1.0f, 18.0f));
-            ImGui::PopStyleColor();
+                // 1. Health Bar Player
+                int pHP = m_player->GetHP();
+                float pHpProgress = pHP / 100.0f;
+                ImVec4 pBarColor = { (1.0f - pHpProgress), pHpProgress, 0.0f, 1.0f };
+                ImGui::Text("Player HP: %d / 100", pHP);
+                ImGui::PushStyleColor(ImGuiCol_PlotHistogram, pBarColor);
+                ImGui::ProgressBar(pHpProgress, ImVec2(-1.0f, 18.0f));
+                ImGui::PopStyleColor();
 
                 // 2. Health Bar Boss
                 if (m_navi) {
@@ -1258,7 +1256,8 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.8f, 0.2f, 1.0f));
                         if (ImGui::Button("START BOSS FIGHT (ENABLE AI)", ImVec2(-1.0f, 50.0f))) {
                             normalPhase->SetAIEnabled(true);
-                            AudioManager::Instance().PlayMusic("Data/Sound/BGM_Boss_Phase_01.wav", 0.05f * normalPhase->GetUltimateParams().sfxVolume, true);
+                            // [FIX] Mengambil sfxVolume melalui GetAI()
+                            AudioManager::Instance().PlayMusic("Data/Sound/BGM_Boss_Phase_01.wav", 0.05f * normalPhase->GetAI()->GetUltimateParams().sfxVolume, true);
                         }
                         ImGui::PopStyleColor(2);
                     }
@@ -1288,34 +1287,37 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                     if (ImGui::CollapsingHeader("Manual Attack Triggers", ImGuiTreeNodeFlags_DefaultOpen))
                     {
                         if (ImGui::Button("TRIPLE BURST", ImVec2(-1.0f, 35.0f))) {
-                            normalPhase->AddPooledAttack(std::make_unique<Attack_Radial>(normalPhase->GetRadialParams()));
+                            // [FIX] GetAI()->GetRadialParams()
+                            normalPhase->AddPooledAttack(std::make_unique<Attack_Radial>(normalPhase->GetAI()->GetRadialParams()));
                         }
 
-                        //ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
-                        //if (ImGui::Button("TARGETED FAN BURST", ImVec2(-1.0f, 35.0f))) {
-                        //    if (m_player) {
-                        //        // 1. Ambil posisi Player dan Boss
-                        //        DirectX::XMFLOAT3 pPos = m_player->GetPosition();
-                        //        DirectX::XMFLOAT3 bPos = m_navi->GetPosition();
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
+                        if (ImGui::Button("TARGETED FAN BURST", ImVec2(-1.0f, 35.0f))) {
+                            if (m_player) {
+                                // 1. Ambil posisi Player dan Boss
+                                DirectX::XMFLOAT3 pPos = m_player->GetPosition();
+                                DirectX::XMFLOAT3 bPos = m_navi->GetPosition();
 
-                        //        // 2. Hitung lockedBaseAngle sesuai rumus di Attack_Fan.h
-                        //        float lockedAngle = static_cast<float>(std::atan2(pPos.x - bPos.x, pPos.z - bPos.z));
+                                // 2. Hitung lockedBaseAngle sesuai rumus di Attack_Fan.h
+                                float lockedAngle = static_cast<float>(std::atan2(pPos.x - bPos.x, pPos.z - bPos.z));
 
-                        //        // 3. Masukkan lockedAngle ke dalam Attack_Fan
-                        //        normalPhase->AddPooledAttack(std::make_unique<Attack_Fan>(normalPhase->GetFanParams(), lockedAngle));
-                        //    }
-                        //}
-                        //ImGui::PopStyleColor();
+                                // 3. Masukkan lockedAngle ke dalam Attack_Fan (Melalui GetAI)
+                                normalPhase->AddPooledAttack(std::make_unique<Attack_Fan>(normalPhase->GetAI()->GetFanParams(), lockedAngle));
+                            }
+                        }
+                        ImGui::PopStyleColor();
 
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.8f, 1.0f));
                         if (ImGui::Button("GLINTSTONE PHALANX", ImVec2(-1.0f, 35.0f))) {
-                            if (m_player) normalPhase->AddPooledAttack(std::make_unique<Attack_Phalanx>(normalPhase->GetPhalanxParams(), m_player.get()));
+                            // [FIX] GetAI()->GetPhalanxParams()
+                            if (m_player) normalPhase->AddPooledAttack(std::make_unique<Attack_Phalanx>(normalPhase->GetAI()->GetPhalanxParams(), m_player.get()));
                         }
                         ImGui::PopStyleColor();
 
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.6f, 1.0f));
                         if (ImGui::Button("BIJUUDAMA (ULTIMATE)", ImVec2(-1.0f, 35.0f))) {
-                            if (m_player) normalPhase->AddPooledAttack(std::make_unique<Attack_Ultimate>(normalPhase->GetUltimateParams(), m_player.get()));
+                            // [FIX] GetAI()->GetUltimateParams()
+                            if (m_player) normalPhase->AddPooledAttack(std::make_unique<Attack_Ultimate>(normalPhase->GetAI()->GetUltimateParams(), m_player.get()));
                         }
                         ImGui::PopStyleColor();
 
@@ -1326,7 +1328,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                     }
 
                     if (ImGui::CollapsingHeader("Radial Burst (Triple)")) {
-                        auto& p = normalPhase->GetRadialParams();
+                        auto& p = normalPhase->GetAI()->GetRadialParams();
                         ImGui::ColorEdit4("Color", (float*)&p.color);
                         ImGui::SliderFloat("Speed", &p.speed, 1.0f, 100.0f);
                         ImGui::SliderInt("Count", &p.count, 4, 128);
@@ -1334,34 +1336,31 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         ImGui::SliderInt("Damage", &p.damage, 1, 100);
                     }
 
-                    //if (ImGui::CollapsingHeader("Targeted Fan Burst")) {
-                    //    auto& p = normalPhase->GetFanParams();
-                    //    // ImGui::ColorEdit4 dihapus karena color tidak ada di FanParams
-                    //    ImGui::SliderFloat("Speed", &p.speed, 1.0f, 100.0f);
-                    //    ImGui::SliderInt("Lines", &p.lines, 1, 10);
-                    //    ImGui::SliderInt("Waves", &p.waves, 1, 10);
-                    //    ImGui::SliderFloat("Spread", &p.spreadAngle, 0.05f, 0.5f);
-                    //    ImGui::SliderInt("Damage", &p.damage, 1, 100);
-                    //}
+                    if (ImGui::CollapsingHeader("Targeted Fan Burst")) {
+                        auto& p = normalPhase->GetAI()->GetFanParams();
+                        ImGui::SliderFloat("Speed", &p.speed, 1.0f, 100.0f);
+                        ImGui::SliderInt("Lines", &p.lines, 1, 10);
+                        ImGui::SliderInt("Waves", &p.waves, 1, 10);
+                        ImGui::SliderFloat("Spread", &p.spreadAngle, 0.05f, 0.5f);
+                        ImGui::SliderInt("Damage", &p.damage, 1, 100);
+                    }
 
                     if (ImGui::CollapsingHeader("Glintstone Phalanx")) {
-                        auto& p = normalPhase->GetPhalanxParams();
-                        // ImGui::ColorEdit4 dihapus karena color tidak ada di PhalanxParams
+                        auto& p = normalPhase->GetAI()->GetPhalanxParams();
                         ImGui::SliderInt("Count", &p.count, 3, 10);
                         ImGui::SliderFloat("Flight Speed", &p.speed, 10.0f, 80.0f);
                         ImGui::SliderInt("Damage", &p.damage, 1, 150);
                     }
 
                     if (ImGui::CollapsingHeader("Bijuudama (Ultimate)")) {
-                        auto& p = normalPhase->GetUltimateParams();
+                        auto& p = normalPhase->GetAI()->GetUltimateParams();
                         ImGui::ColorEdit4("Color", (float*)&p.ballColor);
                         ImGui::SliderFloat("Laser Duration", &p.laserDuration, 0.5f, 4.0f);
                         ImGui::SliderFloat("Shoot Speed", &p.shootSpeed, 10.0f, 120.0f);
-                        // laserDamage dihapus karena tidak ada di UltimateParams (mungkin namanya 'damage' atau yang lain)
                     }
 
                     if (ImGui::CollapsingHeader("Asgore Rain (Area Denial)")) {
-                        auto& p = normalPhase->GetRainParams();
+                        auto& p = normalPhase->GetAI()->GetRainParams();
                         ImGui::SliderFloat("Min Fall Speed", &p.minSpeed, 10.0f, 150.0f);
                         ImGui::SliderFloat("Max Fall Speed", &p.maxSpeed, 10.0f, 150.0f);
                         ImGui::SliderFloat("Active Duration", &p.activeDuration, 0.5f, 10.0f);
@@ -1369,9 +1368,8 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                     }
                 }
                 else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase()))
-            {
-                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "--- PHASE 2: WINDOWKILL ATTACKS ---");
-                ImGui::Separator();
+                {
+                    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "--- PHASE 2: WINDOWKILL ATTACKS ---");                ImGui::Separator();
 
                 if (ImGui::CollapsingHeader("Windowkill AI & Damage", ImGuiTreeNodeFlags_DefaultOpen))
                 {
