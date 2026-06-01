@@ -285,9 +285,6 @@
     <ClCompile Include="Source\Engine\Graphics\FontTTF.cpp">
       <Filter>Source\Engine\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\NaviPhaseTitle.cpp">
-      <Filter>Source\Game\Entities</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Engine\UI\HUDRenderer.cpp">
       <Filter>Source\Engine\UI</Filter>
     </ClCompile>
@@ -632,9 +629,6 @@
     </ClInclude>
     <ClInclude Include="Source\Engine\UI\UIDialogueBox.h">
       <Filter>Source\Engine\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Game\Entities\NaviPhaseTitle.h">
-      <Filter>Source\Game\Entities</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\UI\HUDRenderer.h">
       <Filter>Source\Engine\UI</Filter>

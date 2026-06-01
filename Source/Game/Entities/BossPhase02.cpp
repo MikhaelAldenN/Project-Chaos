@@ -12,7 +12,6 @@
 #include <System/AudioManager.h>
 #include "EffectManager.h"
 #include "CameraController.h"
-#include "NaviPhaseTitle.h"
 
 using namespace DirectX;
 
@@ -308,9 +307,6 @@ void BossPhase02::Update(float dt, Boss* boss) {
         if (boss && boss->GetMainWindow()) {
             SDL_HideWindow(boss->GetMainWindow()->GetSDLWindow());
         }
-
-        // Transisi kembali ke Title Screen
-        boss->ChangePhase(std::make_unique<NaviPhaseTitle>(m_aiTarget));
 
         // Return segera agar logika boss/AI di bawahnya tidak dieksekusi
         return;

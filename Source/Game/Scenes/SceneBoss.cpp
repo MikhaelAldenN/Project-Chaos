@@ -20,8 +20,6 @@
 #include "TimeManager.h"
 #include "EffectManager.h"
 #include "WindowShatter.h"
-#include "NaviPhaseTitle.h"
-
 using namespace DirectX;
 
 // =========================================================
@@ -106,12 +104,8 @@ SceneBoss::SceneBoss()
     m_navi = std::make_unique<Boss>();
     m_navi->Initialize(m_windowSystem.get());
 
-#if 1
-    m_navi->ChangePhase(std::make_unique<NaviPhaseTitle>(m_player.get()));
-
-#else
     m_navi->ChangePhase(std::make_unique<BossPhase01>(m_player.get()));
-#endif
+
 
     if (m_collisionManager) {
         m_collisionManager->SetBoss(m_navi.get());

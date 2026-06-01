@@ -43,6 +43,7 @@ namespace Beyond
 
         void SetDraggable(bool enable) { m_isDraggable = enable; }
         bool IsDraggable()       const { return m_isDraggable; }
+        void SetAlwaysOnTop(bool isTop);
 
         void SetTitle(const char* title);
 

@@ -14,7 +14,6 @@
 #include "CameraController.h"
 #include "EffectManager.h"
 #include "WindowShatter.h"
-#include "NaviPhaseTitle.h"
 #include <SDL3/SDL.h>
 #include <random>
 
@@ -151,7 +150,6 @@ void BossPhase01::Update(float dt, Boss* boss) {
         AudioManager::Instance().StopMusic();
         if (boss->GetMainWindow())
             SDL_HideWindow(boss->GetMainWindow()->GetSDLWindow());
-        boss->ChangePhase(std::make_unique<NaviPhaseTitle>(m_aiTarget));
         return;
     }
 

@@ -190,7 +190,6 @@
     <ClInclude Include="Source\Game\Entities\NaviAlly.h" />
     <ClInclude Include="Source\Game\Entities\Boss.h" />
     <ClInclude Include="Source\Game\Entities\BossPhase01.h" />
-    <ClInclude Include="Source\Game\Entities\NaviPhaseTitle.h" />
     <ClInclude Include="Source\Game\Entities\BossPhase02.h" />
     <ClInclude Include="Source\Game\Entities\Player.h" />
     <ClInclude Include="Source\Game\Entities\PlayerConstants.h" />
@@ -294,7 +293,6 @@
     <ClCompile Include="Source\Game\Entities\NaviAlly.cpp" />
     <ClCompile Include="Source\Game\Entities\Boss.cpp" />
     <ClCompile Include="Source\Game\Entities\BossPhase01.cpp" />
-    <ClCompile Include="Source\Game\Entities\NaviPhaseTitle.cpp" />
     <ClCompile Include="Source\Game\Entities\BossPhase02.cpp" />
     <ClCompile Include="Source\Game\Entities\Player.cpp" />
     <ClCompile Include="Source\Game\Entities\Weapon.cpp" />

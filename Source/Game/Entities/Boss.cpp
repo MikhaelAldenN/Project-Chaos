@@ -21,7 +21,6 @@ Boss::~Boss() {
 // ============================================================
 // Lifecycle
 // ============================================================
-
 void Boss::Initialize(WindowTrackingSystem* windowSystem) {
     m_windowSystem = windowSystem;
     auto device = Graphics::Instance().GetDevice();
