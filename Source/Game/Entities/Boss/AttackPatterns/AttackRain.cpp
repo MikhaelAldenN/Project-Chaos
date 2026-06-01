@@ -94,75 +94,45 @@ void AttackRain::Update(float dt, NaviBoss* boss) {
     }
 
     // =========================================================
-    // [FIX 3] DETEKSI HITBOX (COLLISION) PROSEDURAL DI UPDATE
+    // DETEKSI HITBOX (COLLISION) AREA PERSEGI
     // =========================================================
     if ((m_state == 2 || m_state == 3) && m_target && m_target->GetHP() > 0) {
 
-        float actualW = GetActualWidth();
-        float actualD = GetActualDepth();
-        float halfW = actualW * 0.5f;
-        float halfD = actualD * 0.5f;
-
-        // Gunakan seed yang SAMA PERSIS dengan Render agar posisi peluru identik
-        std::mt19937 gen(1337);
-        std::uniform_real_distribution<float> distSpeed(m_params.minSpeed, m_params.maxSpeed);
-        std::uniform_real_distribution<float> distSpawn(0.0f, m_params.activeDuration);
-
-        float globalTime = (m_state == 2) ? m_timer : (m_params.activeDuration + m_timer);
-        int dropCount = (m_mode == RainMode::DualPillar) ? 800 : 400;
-
+        float halfW = GetActualWidth() * 0.5f;
+        float halfD = GetActualDepth() * 0.5f;
         DirectX::XMFLOAT3 pPos = m_target->GetPosition();
 
-        for (int i = 0; i < dropCount; ++i) {
-            float speed = distSpeed(gen);
-            float spawnTime = distSpawn(gen);
-            float localTime = globalTime - spawnTime;
+        // Radius hitbox player agar area tabrakan terasa lebih adil (fairness)
+        constexpr float PLAYER_RADIUS = 0.3f;
 
-            if (localTime < 0.0f) continue;
+        // Fungsi Helper (Lambda) untuk mendeteksi apakah Player berada di dalam Area (Sumbu X dan Z)
+        auto isInsideZone = [&](const DirectX::XMFLOAT3& zoneCenter) {
+            float minX = zoneCenter.x - halfW - PLAYER_RADIUS;
+            float maxX = zoneCenter.x + halfW + PLAYER_RADIUS;
+            float minZ = zoneCenter.z - halfD - PLAYER_RADIUS;
+            float maxZ = zoneCenter.z + halfD + PLAYER_RADIUS;
 
-            DirectX::XMFLOAT3 dropPos = {};
-            bool isActive = false;
+            return (pPos.x > minX && pPos.x < maxX &&
+                pPos.z > minZ && pPos.z < maxZ);
+            };
 
-            // Kalkulasi matematika murni (Sama persis dengan Render)
-            if (m_mode == RainMode::DualPillar) {
-                DirectX::XMFLOAT3 activeCenter = (i % 2 == 0) ? m_center : m_center2;
-                std::uniform_real_distribution<float> distX(activeCenter.x - halfW, activeCenter.x + halfW);
-                float rx = distX(gen);
-                float z = (activeCenter.z + halfD + 5.0f) - (localTime * speed);
-                if (z >= activeCenter.z - halfD) { dropPos = { rx, 1.0f, z }; isActive = true; }
-            }
-            else if (m_mode == RainMode::VerticalSweep) {
-                std::uniform_real_distribution<float> distX(m_center.x - halfW, m_center.x + halfW);
-                float rx = distX(gen);
-                float z = (m_center.z + halfD + 5.0f) - (localTime * speed);
-                if (z >= m_center.z - halfD) { dropPos = { rx, 1.0f, z }; isActive = true; }
-            }
-            else { // HorizontalSweep
-                std::uniform_real_distribution<float> distZ(m_center.z - halfD, m_center.z + halfD);
-                float rz = distZ(gen);
-                float startX = (m_sweepDir > 0) ? (m_center.x - halfW - 5.0f) : (m_center.x + halfW + 5.0f);
-                float endX = (m_sweepDir > 0) ? (m_center.x + halfW) : (m_center.x - halfW);
-                float x = startX + (localTime * speed * m_sweepDir);
-                if ((m_sweepDir > 0 && x <= endX) || (m_sweepDir < 0 && x >= endX)) {
-                    dropPos = { x, 1.0f, rz }; isActive = true;
-                }
-            }
+        bool isHit = false;
 
-            // Jika tetesan hujan ini valid dan ada di layar, cek jaraknya dengan Player
-            if (isActive) {
-                float dx = pPos.x - dropPos.x;
-                float dy = pPos.y - dropPos.y;
-                float dz = pPos.z - dropPos.z;
+        // Evaluasi posisi player berdasarkan mode hujan saat ini
+        if (m_mode == RainMode::DualPillar) {
+            isHit = isInsideZone(m_center) || isInsideZone(m_center2);
+        }
+        else {
+            // Untuk VerticalSweep dan HorizontalSweep, zonanya terpusat di 1 titik
+            isHit = isInsideZone(m_center);
+        }
 
-                // Jarak kuadrat 0.49f = Radius Player(0.3) + Hujan(0.4) = 0.7f * 0.7f
-                if ((dx * dx + dy * dy + dz * dz) <= 0.49f) {
-                    m_target->TakeDamage((int)m_params.damage);
-                    CameraController::Instance().AddTrauma(0.15f); // Micro-shake
+        // Eksekusi damage dan efek kamera jika player berada di dalam area aktif
+        if (isHit) {
+            m_target->TakeDamage((int)m_params.damage);
+            CameraController::Instance().AddTrauma(0.15f); // Micro-shake
 
-                    // [PENTING] Break loop agar player tidak terkena ratusan damage dalam 1 frame
-                    break;
-                }
-            }
+            //NOTE: Might want to add invincible timer
         }
     }
 }
