@@ -198,9 +198,6 @@
     <ClCompile Include="Source\Engine\UI\UIPanel.cpp">
       <Filter>Source\Engine\UI</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\Boss.cpp">
-      <Filter>Source\Game\Entities</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Game\Entities\Bullet.cpp">
       <Filter>Source\Game\Entities</Filter>
     </ClCompile>
@@ -285,9 +282,6 @@
     <ClCompile Include="Source\Game\States\PlayerStates.cpp">
       <Filter>Source\Game\States</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\Boss_Phase02.cpp">
-      <Filter>Source\Game\Entities</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Engine\VFX\EffectManager.cpp">
       <Filter>Source\Engine\VFX</Filter>
     </ClCompile>
@@ -305,12 +299,6 @@
     </ClCompile>
     <ClCompile Include="Source\Engine\Graphics\FontTTF.cpp">
       <Filter>Source\Engine\Graphics</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Game\Entities\NaviBoss.cpp">
-      <Filter>Source\Game\Entities</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Game\Entities\Boss_Phase01.cpp">
-      <Filter>Source\Game\Entities</Filter>
     </ClCompile>
     <ClCompile Include="Source\Game\Entities\NaviPhaseTitle.cpp">
       <Filter>Source\Game\Entities</Filter>
@@ -346,6 +334,18 @@
       <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
     </ClCompile>
     <ClCompile Include="Source\Game\Entities\Boss\BossAI.cpp">
+      <Filter>Source\Game\Entities\Boss</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss_Phase01.cpp">
+      <Filter>Source\Game\Entities\Boss\Phases</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss_Phase02.cpp">
+      <Filter>Source\Game\Entities\Boss\Phases</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss.cpp">
+      <Filter>Source\Game\Entities</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Game\Entities\NaviBoss.cpp">
       <Filter>Source\Game\Entities\Boss</Filter>
     </ClCompile>
   </ItemGroup>
@@ -533,9 +533,6 @@
     <ClInclude Include="Source\Engine\UI\UILabel.h">
       <Filter>Source\Engine\UI</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss.h">
-      <Filter>Source\Game\Entities</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Game\Entities\Bullet.h">
       <Filter>Source\Game\Entities</Filter>
     </ClInclude>
@@ -641,9 +638,6 @@
     <ClInclude Include="Source\Game\Entities\INaviPhase.h">
       <Filter>Source\Game\Entities</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss_Phase02.h">
-      <Filter>Source\Game\Entities</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Engine\Helpers\CapeSimulator.h" />
     <ClInclude Include="Source\Engine\Helpers\TimeManager.h" />
     <ClInclude Include="Source\Engine\VFX\EffectManager.h" />
@@ -657,12 +651,6 @@
     </ClInclude>
     <ClInclude Include="Source\Engine\Graphics\stb_truetype.h">
       <Filter>Source\Engine\Graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Game\Entities\NaviBoss.h">
-      <Filter>Source\Game\Entities</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss_Phase01.h">
-      <Filter>Source\Game\Entities</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Helpers\CapeSimulator.h" />
     <ClInclude Include="Source\Engine\Helpers\TimeManager.h" />
@@ -718,6 +706,18 @@
       <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
     </ClInclude>
     <ClInclude Include="Source\Game\Entities\Boss\BossAI.h">
+      <Filter>Source\Game\Entities\Boss</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss_Phase01.h">
+      <Filter>Source\Game\Entities\Boss\Phases</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss_Phase02.h">
+      <Filter>Source\Game\Entities\Boss\Phases</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss.h">
+      <Filter>Source\Game\Entities</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\NaviBoss.h">
       <Filter>Source\Game\Entities\Boss</Filter>
     </ClInclude>
   </ItemGroup>
@@ -819,6 +819,9 @@
     </Filter>
     <Filter Include="Source\Game\Entities\Boss\AttackPatterns\PhaseOne">
       <UniqueIdentifier>{6df6d28f-0b13-4162-b2e2-e8f272a2fd26}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Game\Entities\Boss\Phases">
+      <UniqueIdentifier>{8b3db33b-7d37-4885-b836-a31cffc5e5ef}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

@@ -30,7 +30,7 @@ public:
     void AddPooledAttack(std::unique_ptr<IPooledAttackPattern> attack);
     bool HasActiveAttacks() const override { return !m_activeAttacks.empty(); }
 
-    void TriggerRain(RainMode mode, bool isPositiveSide, float sweepDir = 1.0f);
+    void TriggerRain(RainMode mode, bool isPositiveSide, float sweepDir = 1.0f, float customDuration = -1.0f);
     bool HasRainActive() const { return m_rainAttack != nullptr && !m_rainAttack->IsFinished(); }
 
     void OnBijuudamaParried(DirectX::XMFLOAT3 parryPos, NaviBoss* boss);

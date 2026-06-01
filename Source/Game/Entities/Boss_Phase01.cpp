@@ -160,7 +160,7 @@ void Boss_Phase01::Update(float dt, NaviBoss* boss) {
         return;
     }
 
-
+#if !DEBUG_SKIP_INTRO
     if (m_isOpeningEvent) {
         if (m_dialogueBox && m_dialogueBox->IsActive()) {
             m_dialogueBox->Update(dt);
@@ -198,7 +198,7 @@ void Boss_Phase01::Update(float dt, NaviBoss* boss) {
                 0.05f * sfxVol, true);
         }
     }
-
+#endif
 
     UpdateGlitchVFX(dt, boss);
 
@@ -288,15 +288,40 @@ void Boss_Phase01::Render(ID3D11DeviceContext* context, Camera* currentCamera, N
 
 void Boss_Phase01::AddPooledAttack(std::unique_ptr<IPooledAttackPattern> attack) {
     if (!attack) return;
+
+    // 1. EKSEKUSI ATTACK TERLEBIH DAHULU
+    // Ini memastikan fungsi StartPooled terpanggil dan posisi bos sudah diacak/ditentukan
     attack->StartPooled(m_bossRef, &m_bulletPool);
+
+    // 2. BACA DATA DAN PICU KOREOGRAFI HUJAN
+    if (auto* phalanx = dynamic_cast<AttackPhalanx*>(attack.get())) {
+
+        // Sekarang nilai ini akan terbaca dengan benar (-15.0f atau 15.0f)
+        float bossDestX = phalanx->GetTargetPosition().x;
+
+        float sweepDir = (bossDestX < 0.0f) ? 1.0f : -1.0f;
+        bool randomSide = (rand() % 2 == 0);
+
+        TriggerRain(RainMode::HorizontalSweep, randomSide, sweepDir, 3.5f);
+    }
+    else if (dynamic_cast<AttackUltimate*>(attack.get())) {
+        TriggerRain(RainMode::DualPillar, true, 1.0f, 4.0f);
+    }
+
+    // 3. MASUKKAN KE DAFTAR ATTACK AKTIF
     m_activeAttacks.push_back(std::move(attack));
 }
 
-void Boss_Phase01::TriggerRain(RainMode mode, bool isPositiveSide, float sweepDir) {
+void Boss_Phase01::TriggerRain(RainMode mode, bool isPositiveSide, float sweepDir, float customDuration) {
     if (HasRainActive() || !m_ai) return;
 
-    // [FIX] Tambahkan 'm_aiTarget' di argumen terakhir
-    m_rainAttack = std::make_unique<AttackRain>(m_ai->GetRainParams(), mode, isPositiveSide, sweepDir, m_aiTarget);
+    RainParams params = m_ai->GetRainParams();
+
+    if (customDuration > 0.0f) {
+        params.activeDuration = customDuration;
+    }
+
+    m_rainAttack = std::make_unique<AttackRain>(params, mode, isPositiveSide, sweepDir, m_aiTarget);
     m_rainAttack->StartPooled(m_bossRef, &m_bulletPool);
 }
 

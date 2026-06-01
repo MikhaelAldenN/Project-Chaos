@@ -86,7 +86,7 @@ void AttackRain::Update(float dt, NaviBoss* boss) {
     else if (m_state == 3) { // Dissipating
         m_sfxTimer = 0.0f;
         // Hold long enough for the render loop to finish the last visible drops
-        if (m_timer >= 4.0f) {
+        if (m_timer >= 1.0f) {
             m_state = 0;
             ClearVFX();
             return; // PENTING: Keluar agar tidak lanjut cek collision di bawah
@@ -280,7 +280,7 @@ float AttackRain::GetActualWidth() const {
 }
 
 float AttackRain::GetActualDepth() const {
-    if (m_mode == RainMode::VerticalSweep) return 45.0f;
+    if (m_mode == RainMode::VerticalSweep || m_mode == RainMode::DualPillar) return 45.0f;
     return 15.0f;
 }
 
