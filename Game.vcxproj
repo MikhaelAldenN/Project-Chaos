@@ -171,7 +171,6 @@
     <ClInclude Include="Source\Engine\Windowing\WindowShatter.h" />
     <ClInclude Include="Source\Engine\Windowing\WindowSwarmRenderer.h" />
     <ClInclude Include="Source\Engine\Windowing\WindowTrackingSystem.h" />
-    <ClInclude Include="Source\Game\Entities\Boss.h" />
     <ClInclude Include="Source\Game\Entities\Boss\BossAI.h" />
     <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackBoomerangs.h" />
     <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackBouncing.h" />
@@ -208,7 +207,6 @@
     <ClInclude Include="Source\Game\Scenes\Stage.h" />
     <ClInclude Include="Source\Game\States\PlayerState.h" />
     <ClInclude Include="Source\Game\States\PlayerStates.h" />
-    <ClInclude Include="Source\Game\States\StateBoss.h" />
     <ClInclude Include="Source\Game\States\StateMachine.h" />
     <ClInclude Include="Source\System\AudioManager.h" />
     <ClInclude Include="Source\System\Collision.h" />
@@ -284,7 +282,6 @@
     <ClCompile Include="Source\Engine\Windowing\WindowShatter.cpp" />
     <ClCompile Include="Source\Engine\Windowing\WindowSwarmRenderer.cpp" />
     <ClCompile Include="Source\Engine\Windowing\WindowTrackingSystem.cpp" />
-    <ClCompile Include="Source\Game\Entities\Boss.cpp" />
     <ClCompile Include="Source\Game\Entities\Boss\BossAI.cpp" />
     <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackBoomerangs.cpp" />
     <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackBouncing.cpp" />
@@ -315,7 +312,6 @@
     <ClCompile Include="Source\Game\Scenes\SceneTitle.cpp" />
     <ClCompile Include="Source\Game\Scenes\Stage.cpp" />
     <ClCompile Include="Source\Game\States\PlayerStates.cpp" />
-    <ClCompile Include="Source\Game\States\StateBoss.cpp" />
     <ClCompile Include="Source\System\AudioManager.cpp" />
     <ClCompile Include="Source\System\BasicShader.cpp" />
     <ClCompile Include="Source\System\Collision.cpp" />

@@ -185,16 +185,6 @@ void CollisionManager::Initialize(Player* p, Stage* s, EnemyManager* em, ItemMan
     m_stage = s;
     m_enemyManager = em;
     m_itemManager = im;
-    m_boss = nullptr;
-}
-
-void CollisionManager::Initialize(Player* p, Stage* s, EnemyManager* em, ItemManager* im, Boss* boss)
-{
-    m_player = p;
-    m_stage = s;
-    m_enemyManager = em;
-    m_itemManager = im;
-    m_boss = boss;
 }
 
 // =========================================================
@@ -211,7 +201,6 @@ void CollisionManager::Update(float elapsedTime)
     CheckPlayerVsCheckpointLines();
     CheckPlayerVsTriggerLines();
     CheckPlayerVsVoidLines();
-    CheckBossFilesVsPlayer();
 
     if (m_itemManager)
     {
@@ -895,36 +884,6 @@ void CollisionManager::CheckNaviAllyProjectilesVsPlayer(float elapsedTime)
                     m_onPlayerDeathCallback();
                 }
             }
-        }
-    }
-}
-
-void CollisionManager::CheckBossFilesVsPlayer()
-{
-    if (!m_boss || !m_player) return;
-
-    auto& files = m_boss->GetProjectiles();
-
-    XMFLOAT3 pPos = m_player->GetMovement()->GetPosition();
-    float pRadius = 0.5f;
-    float fileRadius = 0.6f;
-
-    for (auto& file : files)
-    {
-        if (!file.active) continue;
-
-        float dx = pPos.x - file.position.x;
-        float dz = pPos.z - file.position.z;
-        float distSq = dx * dx + dz * dz;
-
-        float combinedRadius = pRadius + fileRadius;
-
-        if (distSq < (combinedRadius * combinedRadius))
-        {
-            file.active = false;
-            if (m_onPlayerHitCallback) m_onPlayerHitCallback();
-            m_player->SetInputEnabled(false);
-            m_player->GetMovement()->SetPosition({ 0, -1000, 0 });
         }
     }
 }

@@ -35,7 +35,6 @@ class CollisionManager;
 class EnemyManager;
 class ItemManager;
 class Stage;
-class Boss;
 
 class SceneBoss : public Scene
 {
@@ -96,7 +95,6 @@ private:
     std::unique_ptr<EnemyManager>         m_enemyManager;
     std::unique_ptr<ItemManager>          m_itemManager;
     std::unique_ptr<Stage>                m_stage;
-    std::unique_ptr<Boss>                 m_boss;
     std::unique_ptr<CollisionManager>     m_collisionManager;
     std::unique_ptr<NaviBoss>             m_navi;
 

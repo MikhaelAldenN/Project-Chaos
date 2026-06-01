@@ -13,7 +13,6 @@
 #include "EnemyManager.h"
 #include "ItemManager.h"
 #include "Stage.h"
-#include "Boss.h"
 #include <random>
 #include "BossPhase02.h"
 #include "BossPhase01.h"
@@ -99,7 +98,7 @@ SceneBoss::SceneBoss()
     m_collisionManager = std::make_unique<CollisionManager>();
 
     // Gunakan Overload 2 yang ada Boss-nya
-    m_collisionManager->Initialize(m_player.get(), m_stage.get(), m_enemyManager.get(), m_itemManager.get(), m_boss.get());
+    m_collisionManager->Initialize(m_player.get(), m_stage.get(), m_enemyManager.get(), m_itemManager.get());
 
     // PENTING: Beri tahu Player siapa wasit (CollisionManager) di scene ini!
     m_player->SetCollisionManager(m_collisionManager.get());
@@ -183,7 +182,6 @@ void SceneBoss::Shutdown()
     // EXPLICIT ENTITY DESTRUCTION ORDER
     m_navi.reset();
     m_player.reset();
-    m_boss.reset();
     m_enemyManager.reset();
     m_itemManager.reset();
     m_collisionManager.reset();
@@ -1752,7 +1750,6 @@ void SceneBoss::AddLog(const std::string& message)
     m_enemyManager.reset();
     m_itemManager.reset();
     m_stage.reset();
-    m_boss.reset();
     WindowShatterManager::Instance().Clear();
     m_player->RestoreShootDelay();
 
@@ -1801,7 +1798,7 @@ void SceneBoss::AddLog(const std::string& message)
     m_stage = std::make_unique<Stage>(device);
 
     m_collisionManager = std::make_unique<CollisionManager>();
-    m_collisionManager->Initialize(m_player.get(), m_stage.get(), m_enemyManager.get(), m_itemManager.get(), m_boss.get());
+    m_collisionManager->Initialize(m_player.get(), m_stage.get(), m_enemyManager.get(), m_itemManager.get());
     m_player->SetCollisionManager(m_collisionManager.get());
 
     // =========================================================

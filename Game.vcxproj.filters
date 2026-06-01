@@ -222,9 +222,6 @@
     <ClCompile Include="Source\Game\Entities\Player.cpp">
       <Filter>Source\Game\Entities</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\States\StateBoss.cpp">
-      <Filter>Source\Game\States</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Game\Scenes\SceneBoss.cpp">
       <Filter>Source\Game\Scenes</Filter>
     </ClCompile>
@@ -341,9 +338,6 @@
     </ClCompile>
     <ClCompile Include="Source\Game\Entities\BossPhase02.cpp">
       <Filter>Source\Game\Entities\Boss\Phases</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Game\Entities\Boss.cpp">
-      <Filter>Source\Game\Entities</Filter>
     </ClCompile>
     <ClCompile Include="Source\Game\Entities\NaviBoss.cpp">
       <Filter>Source\Game\Entities\Boss</Filter>
@@ -563,9 +557,6 @@
     <ClInclude Include="Source\Game\States\PlayerStates.h">
       <Filter>Source\Game\States</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\States\StateBoss.h">
-      <Filter>Source\Game\States</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Game\States\StateMachine.h">
       <Filter>Source\Game\States</Filter>
     </ClInclude>
@@ -713,9 +704,6 @@
     </ClInclude>
     <ClInclude Include="Source\Game\Entities\BossPhase02.h">
       <Filter>Source\Game\Entities\Boss\Phases</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss.h">
-      <Filter>Source\Game\Entities</Filter>
     </ClInclude>
     <ClInclude Include="Source\Game\Entities\NaviBoss.h">
       <Filter>Source\Game\Entities\Boss</Filter>

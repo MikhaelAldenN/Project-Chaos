@@ -15,11 +15,9 @@
 #include "ItemManager.h"
 #include "StateMachine.h"
 #include "PlayerStates.h"
-#include "Boss.h"
 #include "NaviAlly.h"
 
 class ItemManager;
-class Boss;
 class NaviAlly;
 class NaviBoss;
 
@@ -47,9 +45,6 @@ public:
     // OVERLOAD 1: Untuk SceneGameBreaker (Tidak butuh Boss)
     void Initialize(Player* p, Stage* s, EnemyManager* em, ItemManager* im);
 
-    // OVERLOAD 2: Untuk SceneGameBeyond (Butuh Boss)
-    void Initialize(Player* p, Stage* s, EnemyManager* em, ItemManager* im, Boss* boss);
-
     void Update(float elapsedTime);
     void SetOnCheckpointReachCallback(std::function<void(DirectX::XMFLOAT3)> callback) { m_onCheckpointReachCallback = callback; }
     void SetOnLevelCompleteCallback(std::function<void()> callback) { m_onLevelCompleteCallback = callback; }
@@ -74,7 +69,6 @@ private:
     void CheckPlayerVsVoidLines();
     bool CheckSphereCollision(const DirectX::XMFLOAT3& posA, const DirectX::XMFLOAT3& posB, float threshold);
     void CheckEnemyProjectilesFull(float elapsedTime);
-    void CheckBossFilesVsPlayer();
     void CheckNaviProjectilesVsEnemies(float elapsedTime);
     void CheckNaviAllyProjectilesVsPlayer(float elapsedTime);
     void CheckNaviBossProjectilesVsPlayer(float elapsedTime);
@@ -82,7 +76,6 @@ private:
 
     Player* m_player = nullptr;
     Stage* m_stage = nullptr;
-    Boss* m_boss = nullptr;
 
     EnemyManager* m_enemyManager = nullptr;
     ItemManager* m_itemManager = nullptr;
