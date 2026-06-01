@@ -26,10 +26,10 @@ struct WingNode {
     bool isClosing = false;
 };
 
-class Boss_Phase02 : public INaviPhase {
+class BossPhase02 : public INaviPhase {
 public:
-    Boss_Phase02(Player* player = nullptr);
-    ~Boss_Phase02() override = default;
+    BossPhase02(Player* player = nullptr);
+    ~BossPhase02() override = default;
 
     void Enter(NaviBoss* boss) override;
     void Update(float dt, NaviBoss* boss) override;

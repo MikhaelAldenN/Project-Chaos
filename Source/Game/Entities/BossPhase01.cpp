@@ -1,7 +1,7 @@
 ﻿#pragma execution_character_set("utf-8")
 
-#include "Boss_Phase01.h"
-#include "Boss_Phase02.h"
+#include "BossPhase01.h"
+#include "BossPhase02.h"
 #include "NaviBoss.h"
 #include "WindowManager.h"
 #include "System/Graphics.h"
@@ -20,10 +20,10 @@
 
 using namespace DirectX;
 
-Boss_Phase01::Boss_Phase01(Player* target)
+BossPhase01::BossPhase01(Player* target)
     : m_aiTarget(target) {}
 
-void Boss_Phase01::Enter(NaviBoss* boss) {
+void BossPhase01::Enter(NaviBoss* boss) {
     m_bossRef = boss;
 
     // ----- Reset boss HP & state -----
@@ -129,7 +129,7 @@ void Boss_Phase01::Enter(NaviBoss* boss) {
 #endif
 }
 
-void Boss_Phase01::Exit(NaviBoss* boss) {
+void BossPhase01::Exit(NaviBoss* boss) {
     m_bulletPool.clear();
     m_activeAttacks.clear();
     m_rainAttack.reset();
@@ -144,7 +144,7 @@ void Boss_Phase01::Exit(NaviBoss* boss) {
     }
 }
 
-void Boss_Phase01::Update(float dt, NaviBoss* boss) {
+void BossPhase01::Update(float dt, NaviBoss* boss) {
     if (!boss) return;
 
     if (m_aiTarget && m_aiTarget->GetHP() <= 0) {
@@ -253,7 +253,7 @@ void Boss_Phase01::Update(float dt, NaviBoss* boss) {
     UpdateBulletPool(dt, boss);
 }
 
-void Boss_Phase01::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {
+void BossPhase01::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {
     if (!currentCamera) return;
 
     auto renderer = Graphics::Instance().GetModelRenderer();
@@ -286,19 +286,14 @@ void Boss_Phase01::Render(ID3D11DeviceContext* context, Camera* currentCamera, N
         m_dialogueBox->Render3D(context, currentCamera);
 }
 
-void Boss_Phase01::AddPooledAttack(std::unique_ptr<IPooledAttackPattern> attack) {
+void BossPhase01::AddPooledAttack(std::unique_ptr<IPooledAttackPattern> attack) {
     if (!attack) return;
 
-    // 1. EKSEKUSI ATTACK TERLEBIH DAHULU
-    // Ini memastikan fungsi StartPooled terpanggil dan posisi bos sudah diacak/ditentukan
     attack->StartPooled(m_bossRef, &m_bulletPool);
 
-    // 2. BACA DATA DAN PICU KOREOGRAFI HUJAN
     if (auto* phalanx = dynamic_cast<AttackPhalanx*>(attack.get())) {
 
-        // Sekarang nilai ini akan terbaca dengan benar (-15.0f atau 15.0f)
         float bossDestX = phalanx->GetTargetPosition().x;
-
         float sweepDir = (bossDestX < 0.0f) ? 1.0f : -1.0f;
         bool randomSide = (rand() % 2 == 0);
 
@@ -308,11 +303,10 @@ void Boss_Phase01::AddPooledAttack(std::unique_ptr<IPooledAttackPattern> attack)
         TriggerRain(RainMode::DualPillar, true, 1.0f, 4.0f);
     }
 
-    // 3. MASUKKAN KE DAFTAR ATTACK AKTIF
     m_activeAttacks.push_back(std::move(attack));
 }
 
-void Boss_Phase01::TriggerRain(RainMode mode, bool isPositiveSide, float sweepDir, float customDuration) {
+void BossPhase01::TriggerRain(RainMode mode, bool isPositiveSide, float sweepDir, float customDuration) {
     if (HasRainActive() || !m_ai) return;
 
     RainParams params = m_ai->GetRainParams();
@@ -325,7 +319,7 @@ void Boss_Phase01::TriggerRain(RainMode mode, bool isPositiveSide, float sweepDi
     m_rainAttack->StartPooled(m_bossRef, &m_bulletPool);
 }
 
-void Boss_Phase01::OnBijuudamaParried(XMFLOAT3 parryPos, NaviBoss* boss) {
+void BossPhase01::OnBijuudamaParried(XMFLOAT3 parryPos, NaviBoss* boss) {
     for (auto& attack : m_activeAttacks) {
         if (auto* ultimate = dynamic_cast<AttackUltimate*>(attack.get())) {
             ultimate->ShatterBijuudama(parryPos, boss);
@@ -334,7 +328,7 @@ void Boss_Phase01::OnBijuudamaParried(XMFLOAT3 parryPos, NaviBoss* boss) {
     }
 }
 
-void Boss_Phase01::TakeDamage(int damage, XMFLOAT3 hitPos) {
+void BossPhase01::TakeDamage(int damage, XMFLOAT3 hitPos) {
     if (m_bossHP <= 0) return;
     m_bossHP = max(0, m_bossHP - damage);
     m_hitFlashTimer = 0.05f;
@@ -344,7 +338,7 @@ void Boss_Phase01::TakeDamage(int damage, XMFLOAT3 hitPos) {
     EffectManager::Instance().Play("Data/Effect/VFX_Boss_Hit.efk", hitPos, 0.3f);
 }
 
-void Boss_Phase01::UpdateIdleHover(float dt, NaviBoss* boss) {
+void BossPhase01::UpdateIdleHover(float dt, NaviBoss* boss) {
     bool isFloating = m_activeAttacks.empty() || (
         !dynamic_cast<AttackPhalanx*>(m_activeAttacks.front().get()) &&
         !dynamic_cast<AttackUltimate*>(m_activeAttacks.front().get()));
@@ -357,7 +351,7 @@ void Boss_Phase01::UpdateIdleHover(float dt, NaviBoss* boss) {
     }
 }
 
-void Boss_Phase01::UpdateBossMovement(float dt, NaviBoss* boss) {
+void BossPhase01::UpdateBossMovement(float dt, NaviBoss* boss) {
     m_currentMoveLerpSpeed += (m_moveLerpSpeed - m_currentMoveLerpSpeed) * m_moveAcceleration * dt;
 
     XMFLOAT3 pos = boss->GetPosition();
@@ -366,7 +360,7 @@ void Boss_Phase01::UpdateBossMovement(float dt, NaviBoss* boss) {
     boss->SetPosition(pos);
 }
 
-void Boss_Phase01::UpdateBulletPool(float dt, NaviBoss* boss) {
+void BossPhase01::UpdateBulletPool(float dt, NaviBoss* boss) {
     auto* ws = boss->GetWindowSystem();
     float limitX = 30.0f;
     float limitZ = 20.0f;
@@ -387,7 +381,7 @@ void Boss_Phase01::UpdateBulletPool(float dt, NaviBoss* boss) {
     }
 }
 
-void Boss_Phase01::UpdateGlitchVFX(float dt, NaviBoss* boss) {
+void BossPhase01::UpdateGlitchVFX(float dt, NaviBoss* boss) {
     m_bossGlitchVfxTimer += dt;
 
     if (m_bossGlitchVfxTimer >= 2.0f) {
@@ -418,7 +412,7 @@ void Boss_Phase01::UpdateGlitchVFX(float dt, NaviBoss* boss) {
     }
 }
 
-void Boss_Phase01::UpdateDeathSequence(float dt, NaviBoss* boss) {
+void BossPhase01::UpdateDeathSequence(float dt, NaviBoss* boss) {
     if (!m_isDying) {
         m_isDying = true;
         m_deathTimer = 0.0f;
@@ -448,6 +442,6 @@ void Boss_Phase01::UpdateDeathSequence(float dt, NaviBoss* boss) {
             m_deathVfxHandle = -1;
         }
         WindowShatterManager::Instance().WakeUpAll();
-        boss->ChangePhase(std::make_unique<Boss_Phase02>(m_aiTarget));
+        boss->ChangePhase(std::make_unique<BossPhase02>(m_aiTarget));
     }
 }

@@ -336,10 +336,10 @@
     <ClCompile Include="Source\Game\Entities\Boss\BossAI.cpp">
       <Filter>Source\Game\Entities\Boss</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\Boss_Phase01.cpp">
+    <ClCompile Include="Source\Game\Entities\BossPhase01.cpp">
       <Filter>Source\Game\Entities\Boss\Phases</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\Boss_Phase02.cpp">
+    <ClCompile Include="Source\Game\Entities\BossPhase02.cpp">
       <Filter>Source\Game\Entities\Boss\Phases</Filter>
     </ClCompile>
     <ClCompile Include="Source\Game\Entities\Boss.cpp">
@@ -708,10 +708,10 @@
     <ClInclude Include="Source\Game\Entities\Boss\BossAI.h">
       <Filter>Source\Game\Entities\Boss</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss_Phase01.h">
+    <ClInclude Include="Source\Game\Entities\BossPhase01.h">
       <Filter>Source\Game\Entities\Boss\Phases</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss_Phase02.h">
+    <ClInclude Include="Source\Game\Entities\BossPhase02.h">
       <Filter>Source\Game\Entities\Boss\Phases</Filter>
     </ClInclude>
     <ClInclude Include="Source\Game\Entities\Boss.h">

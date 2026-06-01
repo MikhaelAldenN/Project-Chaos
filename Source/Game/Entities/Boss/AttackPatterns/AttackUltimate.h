@@ -69,7 +69,7 @@ public:
     // Called externally (e.g. collision system) when the ball is parried
     void ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* boss);
 
-    // Phase movement target — read by Boss_Phase01 to update boss position
+    // Phase movement target — read by BossPhase01 to update boss position
     bool              IsMovingBoss()     const { return m_state != State::Done && m_state != State::Recovering; }
     DirectX::XMFLOAT3 GetTargetPosition()const { return m_targetPosition; }
     float             GetMoveLerpSpeed() const { return m_moveLerpSpeed; }

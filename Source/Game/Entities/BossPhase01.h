@@ -15,10 +15,10 @@ class Player;
 
 #define DEBUG_SKIP_INTRO 1
 
-class Boss_Phase01 : public INaviPhase {
+class BossPhase01 : public INaviPhase {
 public:
-    explicit Boss_Phase01(Player* target = nullptr);
-    ~Boss_Phase01() override = default;
+    explicit BossPhase01(Player* target = nullptr);
+    ~BossPhase01() override = default;
 
     // ----- INaviPhase Interface -----
     void Enter(NaviBoss* boss) override;

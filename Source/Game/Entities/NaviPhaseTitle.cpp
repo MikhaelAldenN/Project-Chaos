@@ -2,7 +2,7 @@
 
 #include "NaviPhaseTitle.h"
 #include "NaviBoss.h"
-#include "Boss_Phase01.h"
+#include "BossPhase01.h"
 #include "System/Graphics.h"
 #include "System/Sprite.h"
 #include "WindowManager.h"
@@ -99,7 +99,7 @@ void NaviPhaseTitle::Update(float dt, NaviBoss* boss)
                 m_player->SetInputEnabled(true);
             }
 
-            boss->ChangePhase(std::make_unique<Boss_Phase01>(m_player));
+            boss->ChangePhase(std::make_unique<BossPhase01>(m_player));
         }
     }
 }

@@ -1,10 +1,10 @@
 #include "CollisionManager.h"
 #include "NaviBoss.h"        
-#include "Boss_Phase01.h" 
+#include "BossPhase01.h" 
 #include "EffectManager.h"
 #include "TimeManager.h"
 #include <CameraController.h>
-#include "Boss_Phase02.h"
+#include "BossPhase02.h"
 #include "EffectManager.h"
 
 using namespace DirectX;
@@ -226,7 +226,7 @@ void CollisionManager::Update(float elapsedTime)
     // DETEKSI PELURU PLAYER VS WINDOW BOSS (AABB COLLISION)
     // =========================================================
     if (m_naviBoss && m_player) {
-        if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_naviBoss->GetCurrentPhase())) {
+        if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_naviBoss->GetCurrentPhase())) {
 
             if (!normalPhase->IsDead()) {
                 DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();
@@ -255,7 +255,7 @@ void CollisionManager::Update(float elapsedTime)
                 }
             }
         }
-        else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_naviBoss->GetCurrentPhase())) {
+        else if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_naviBoss->GetCurrentPhase())) {
             if (!wkPhase->IsPlayerCaged() && !wkPhase->IsDead()) {
                 DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();
 
@@ -683,7 +683,7 @@ void CollisionManager::CheckPlayerProjectilesVsEnemies(const float elapsedTime)
         bool hitCage = false;
         if (m_naviBoss) {
             // Cek apakah sedang berada di fase Windowkill
-            if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_naviBoss->GetCurrentPhase())) {
+            if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_naviBoss->GetCurrentPhase())) {
                 if (wkPhase->IsPlayerCaged()) {
                     DirectX::XMFLOAT3 cPos = wkPhase->GetCagePos();
                     float halfSize = wkPhase->GetCageSize() * 0.5f;
@@ -1037,7 +1037,7 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
         // =========================================================
     if (m_naviBoss)
     {
-        auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_naviBoss->GetCurrentPhase());
+        auto* normalPhase = dynamic_cast<BossPhase01*>(m_naviBoss->GetCurrentPhase());
         if (normalPhase)
         {
             // 1. Ambil serangan Bijuudama (Ultimate) yang sedang aktif
@@ -1107,7 +1107,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
     // =========================================================
     // 1. CEK PELURU PHASE 01 (NORMAL)
     // =========================================================
-    if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_naviBoss->GetCurrentPhase())) {
+    if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_naviBoss->GetCurrentPhase())) {
         for (auto& bulletPtr : normalPhase->GetProjectiles()) {
             checkBulletHit(bulletPtr.get());
         }
@@ -1115,7 +1115,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
     // =========================================================
     // 2. CEK PELURU PHASE 02 (WINDOWKILL)
     // =========================================================
-    else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_naviBoss->GetCurrentPhase())) {
+    else if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_naviBoss->GetCurrentPhase())) {
         std::vector<Bullet*> activeBullets = wkPhase->GetProjectiles();
         for (Bullet* bullet : activeBullets) {
             checkBulletHit(bullet);
@@ -1126,7 +1126,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
 void CollisionManager::CheckNaviBossProjectilesVsBoss(float elapsedTime)
 {
     if (!m_naviBoss) return;
-    auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_naviBoss->GetCurrentPhase());
+    auto* normalPhase = dynamic_cast<BossPhase01*>(m_naviBoss->GetCurrentPhase());
     if (!normalPhase) return;
 
     for (auto& bullet : normalPhase->GetProjectiles())

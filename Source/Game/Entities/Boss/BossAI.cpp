@@ -1,6 +1,6 @@
 #include "BossAI.h"
-#include "Boss_Phase01.h"
-#include "Boss_Phase02.h"
+#include "BossPhase01.h"
+#include "BossPhase02.h"
 #include "Player.h"
 #include "NaviBoss.h"
 #include <cmath>
@@ -8,7 +8,7 @@
 // ========================================================
 // IMPLEMENTASI AI PHASE 01
 // ========================================================
-BossAI_Phase01::BossAI_Phase01(Boss_Phase01* phase, Player* target)
+BossAI_Phase01::BossAI_Phase01(BossPhase01* phase, Player* target)
     : m_phase(phase), m_target(target) {}
 
 void BossAI_Phase01::Update(float dt, NaviBoss* boss) {
@@ -60,7 +60,7 @@ void BossAI_Phase01::Update(float dt, NaviBoss* boss) {
 // ========================================================
 // IMPLEMENTASI AI PHASE 02
 // ========================================================
-BossAI_Phase02::BossAI_Phase02(Boss_Phase02* phase, Player* target)
+BossAI_Phase02::BossAI_Phase02(BossPhase02* phase, Player* target)
     : m_phase(phase), m_target(target) {}
 
 void BossAI_Phase02::Update(float dt, NaviBoss* boss) {

@@ -1,4 +1,4 @@
-﻿#include "Boss_Phase02.h"
+﻿#include "BossPhase02.h"
 #include "NaviBoss.h"
 #include "WindowTrackingSystem.h"
 #include "System/Graphics.h"
@@ -16,13 +16,13 @@
 
 using namespace DirectX;
 
-Boss_Phase02::Boss_Phase02(Player* player) {
+BossPhase02::BossPhase02(Player* player) {
     m_aiTarget = player;
 }
 // =========================================================
 // [MAGIC] MEMORY MANAGEMENT & SPAWNING
 // =========================================================
-void Boss_Phase02::Enter(NaviBoss* boss) {
+void BossPhase02::Enter(NaviBoss* boss) {
     if (!boss || !boss->GetWindowSystem()) return;
 
     EffectManager::Instance().StopAll();
@@ -37,7 +37,6 @@ void Boss_Phase02::Enter(NaviBoss* boss) {
 
     auto device = Graphics::Instance().GetDevice();
     auto windowSystem = boss->GetWindowSystem();
-
 
     m_screenW = (float)GetSystemMetrics(SM_CXSCREEN);
     m_screenH = (float)GetSystemMetrics(SM_CYSCREEN);
@@ -190,7 +189,7 @@ void Boss_Phase02::Enter(NaviBoss* boss) {
     m_overdriveDialogueTriggered = false;
 }
 
-void Boss_Phase02::Exit(NaviBoss* boss) {
+void BossPhase02::Exit(NaviBoss* boss) {
     m_deathCleanupDone = false;
 
     // 1. BERSIH-BERSIH WINDOW UTAMA PHASE (Cage, FX, Dialog)
@@ -238,7 +237,7 @@ void Boss_Phase02::Exit(NaviBoss* boss) {
 // =========================================================
 // WING LOGIC (Copas utuh dari versi sebelumnya)
 // =========================================================
-void Boss_Phase02::ReplayAnimation() {
+void BossPhase02::ReplayAnimation() {
     m_wingState = WingState::Expanding;
     m_wingStateTimer = 0.0f;
     m_wingFlickerTimer = 0.0f;
@@ -246,7 +245,7 @@ void Boss_Phase02::ReplayAnimation() {
     GenerateButterflyWings();
 }
 
-void Boss_Phase02::GenerateButterflyWings() {
+void BossPhase02::GenerateButterflyWings() {
     m_leftWingData.clear();
     m_rightWingData.clear();
     std::mt19937 gen(m_wingSeed);
@@ -291,14 +290,14 @@ void Boss_Phase02::GenerateButterflyWings() {
     }
 }
 
-void Boss_Phase02::AddAttack(std::unique_ptr<IBossAttackPattern> attack) {
+void BossPhase02::AddAttack(std::unique_ptr<IBossAttackPattern> attack) {
     if (attack) {
         attack->Start(m_bossRef);
         m_activeAttacks.push_back(std::move(attack));
     }
 }
 
-void Boss_Phase02::Update(float dt, NaviBoss* boss) {
+void BossPhase02::Update(float dt, NaviBoss* boss) {
     m_glitchTimer += dt;
     
     if (m_aiTarget && m_aiTarget->GetHP() <= 0) {
@@ -561,7 +560,7 @@ void Boss_Phase02::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void Boss_Phase02::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {
+void BossPhase02::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {
     if (!currentCamera || !m_wingSprite || !boss) return;
 
     bool isFXCam = (currentCamera == m_fxCamera.get());
@@ -662,7 +661,7 @@ void Boss_Phase02::Render(ID3D11DeviceContext* context, Camera* currentCamera, N
 }
 
 
-void Boss_Phase02::DamageCage(int dmg) {
+void BossPhase02::DamageCage(int dmg) {
     if (!m_isPlayerCaged) return;
 
     bool isFirstHit = !m_cageFirstHitTriggered;
@@ -719,12 +718,12 @@ void Boss_Phase02::DamageCage(int dmg) {
     }
 }
 
-void Boss_Phase02::TriggerCageFirstHitDialogue(NaviBoss* boss)
+void BossPhase02::TriggerCageFirstHitDialogue(NaviBoss* boss)
 {
     // Dialog tidak dibutuhkan — fungsi dikosongkan dengan sengaja.
 }
 
-void Boss_Phase02::TakeDamage(int damage, DirectX::XMFLOAT3 hitPos) {
+void BossPhase02::TakeDamage(int damage, DirectX::XMFLOAT3 hitPos) {
     if (m_bossHP <= 0) return;
 
     m_bossHP = max(0, m_bossHP - damage);
@@ -735,7 +734,7 @@ void Boss_Phase02::TakeDamage(int damage, DirectX::XMFLOAT3 hitPos) {
     EffectManager::Instance().Play("Data/Effect/VFX_Boss_Hit.efk", hitPos, 0.3f);
 }
 
-std::vector<Bullet*> Boss_Phase02::GetProjectiles() {
+std::vector<Bullet*> BossPhase02::GetProjectiles() {
     std::vector<Bullet*> allBullets;
 
     // 実行中のすべてのアタックパターンから、アクティブな弾を動的に集める

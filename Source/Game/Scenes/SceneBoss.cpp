@@ -15,8 +15,8 @@
 #include "Stage.h"
 #include "Boss.h"
 #include <random>
-#include "Boss_Phase02.h"
-#include "Boss_Phase01.h"
+#include "BossPhase02.h"
+#include "BossPhase01.h"
 #include "HUDRenderer.h"
 #include "TimeManager.h"
 #include "EffectManager.h"
@@ -111,7 +111,7 @@ SceneBoss::SceneBoss()
     m_navi->ChangePhase(std::make_unique<NaviPhaseTitle>(m_player.get()));
 
 #else
-    m_navi->ChangePhase(std::make_unique<Boss_Phase01>(m_player.get()));
+    m_navi->ChangePhase(std::make_unique<BossPhase01>(m_player.get()));
 #endif
 
     if (m_collisionManager) {
@@ -230,7 +230,7 @@ void SceneBoss::InitializeSubWindows()
     // bos sedang berada di Fase Windowkill!
     // =========================================================
     bool isWindowkillPhase = false;
-    if (m_navi && dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
+    if (m_navi && dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase())) {
         isWindowkillPhase = true;
     }
 
@@ -351,10 +351,10 @@ void SceneBoss::Update(float elapsedTime)
 
             if (m_navi)
             {
-                if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
+                if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase())) {
                     normalPhase->SetAIEnabled(true);
                 }
-                else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
+                else if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase())) {
                     wkPhase->SetAIEnabled(true);
                 }
             }
@@ -377,7 +377,7 @@ void SceneBoss::Update(float elapsedTime)
     Camera* activeCam = CameraController::Instance().GetActiveCamera().get();
 
     if (m_navi) {
-        auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase());
+        auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase());
 
         // Trigger the start of the death sequence
         if (wkPhase && wkPhase->IsDead() && !m_isNaviDefeated)
@@ -401,7 +401,7 @@ void SceneBoss::Update(float elapsedTime)
 
     // Windowkill Phase Logic (Check for Scene Change)
     if (m_navi) {
-        auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase());
+        auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase());
         Beyond::Window* mw = WindowManager::Instance().GetWindowByIndex(0);
 
         if (wkPhase) {
@@ -545,17 +545,17 @@ void SceneBoss::Update(float elapsedTime)
     // --- Entities & Collision Update ---
     if (m_navi) {
         // AI Director にプレイヤーのデータを渡す
-        if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
+        if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase())) {
             normalPhase->SetAITarget(m_player.get());
         }
         // [追加] Windowkill フェーズにもプレイヤーデータを渡す！
-        else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
+        else if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase())) {
             wkPhase->SetAITarget(m_player.get());
         }
 
         m_navi->Update(scaledDt);
 
-        if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
+        if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase())) {
             if (!m_isPendingSceneChange && wkPhase->IsReadyToChangeScene()) {
                 m_isPendingSceneChange = true;
                 //Framework::Instance()->ChangeScene(std::make_unique<SceneTitle>());
@@ -563,7 +563,7 @@ void SceneBoss::Update(float elapsedTime)
             }
         }
 
-        bool isWindowkillPhase = (dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase()) != nullptr);
+        bool isWindowkillPhase = (dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase()) != nullptr);
 
         if (isWindowkillPhase && !m_playerWindowTransparent) {
             // Jika bos baru saja masuk Phase 2, nyalakan transparansi!
@@ -616,7 +616,7 @@ void SceneBoss::Update(float elapsedTime)
     //    bool shouldUncap = m_forceUncapOverride;
 
     //    // Cek darah boss jika berada di Fase Normal
-    //    if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase()))
+    //    if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase()))
     //    {
     //        float bossHpPercent = (static_cast<float>(normalPhase->GetHP()) / 1500.0f) * 100.0f;
     //        if (bossHpPercent <= m_overdriveBossHpTriggerPercent)
@@ -705,7 +705,7 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
     // =========================================================
     // POST-PROCESS VIGNETTE (Only applied to Main Window)
     // =========================================================
-    auto* wkPhase = m_navi ? dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase()) : nullptr;
+    auto* wkPhase = m_navi ? dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase()) : nullptr;
 
     // 2. Determine if Windowkill is active AND the boss is NOT dead
     bool isWindowkillAndAlive = (wkPhase != nullptr && !wkPhase->IsDead());
@@ -762,7 +762,7 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
 
         // 2. Gambar Hitbox Peluru Navi (Lingkaran Merah / Hijau)
         if (m_navi) {
-            if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
+            if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase())) {
                 for (auto& bullet : normalPhase->GetProjectiles()) {
                     if (bullet->IsActive()) {
                         DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
@@ -773,7 +773,7 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
             // =========================================================
             // [FIX MUTLAK] LOGIKA WINDOWKILL DITEMPATKAN DI SINI!
             // =========================================================
-            else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
+            else if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase())) {
                 for (Bullet* bullet : wkPhase->GetProjectiles()) {
                     if (bullet && bullet->IsActive()) {
                         DirectX::XMFLOAT3 bPos = bullet->GetPosition();
@@ -801,12 +801,12 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
     //    int bossMaxHP = 0;
     //    if (m_navi)
     //    {
-    //        if (auto* np = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase()))
+    //        if (auto* np = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase()))
     //        {
     //            bossHP = np->GetHP();
     //            bossMaxHP = np->GetMaxHP();
     //        }
-    //        else if (auto* wk = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase()))
+    //        else if (auto* wk = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase()))
     //        {
     //            bossHP = wk->GetHP();
     //            bossMaxHP = wk->GetMaxHP();
@@ -886,10 +886,10 @@ void SceneBoss::StartPlayerDeathSequence()
 
     if (m_navi)
     {
-        if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
+        if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase())) {
             normalPhase->SetAIEnabled(false);
         }
-        else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
+        else if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase())) {
             wkPhase->SetAIEnabled(false);
         }
     }
@@ -909,7 +909,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
     // --- 1. DETEKSI KAMERA SAYAP (CAMERA FILTERING) ---
     bool isWingCamera = false;
     if (m_navi) {
-        if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
+        if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase())) {
             isWingCamera = (camera == wkPhase->GetFXCamera());
         }
     }
@@ -925,7 +925,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
         bool shouldRenderHere = m_playerWindowTransparent ? isWingCamera : !isWingCamera;
 
         // [FIX MUTLAK] PAKSA RENDER DI SEMUA KAMERA SAAT WINDOWKILL
-        if (m_navi && dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
+        if (m_navi && dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase())) {
             shouldRenderHere = true;
         }
 
@@ -935,7 +935,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
             // [MODIFIKASI] Bypass pengecekan Sphere jika sedang dikurung!
             bool isInView = camera->CheckSphere(pPos.x, pPos.y, pPos.z, 1.5f);
 
-            auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase());
+            auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase());
             if (wkPhase && wkPhase->IsPlayerCaged()) {
                 isInView = true; // Selalu render player selama dia di dalam kandang!
             }
@@ -1022,7 +1022,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                 }
 
                 if (m_navi) {
-                    if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
+                    if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase())) {
                         bool fxClickthrough = wkPhase->IsFXClickThrough();
                         if (ImGui::Checkbox("[ALL] Toggle Clickthrough", &fxClickthrough)) {
                             wkPhase->SetFXClickThrough(fxClickthrough);
@@ -1098,7 +1098,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                 if (changed) m_navi->SetCoreBreathParams(speed, intensity);
             }
 
-            if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase()))
+            if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase()))
             {
                 ImGui::Separator();
                 ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "CURRENT PHASE: 1 (NORMAL MODE)");
@@ -1106,13 +1106,13 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
                 if (ImGui::Button("TRIGGER PHASE 2 (WINDOWKILL) !!!", ImVec2(-1.0f, 50.0f))) {
-                    m_navi->ChangePhase(std::make_unique<Boss_Phase02>(m_player.get()));
+                    m_navi->ChangePhase(std::make_unique<BossPhase02>(m_player.get()));
                     m_playerWindowTransparent = true;
                     AddLog("Transitioning to Windowkill Phase...");
                 }
                 ImGui::PopStyleColor(2);
             }
-            else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase()))
+            else if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase()))
             {
                 ImGui::Separator();
                 ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "CURRENT PHASE: 2 (WINDOWKILL)");
@@ -1195,7 +1195,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
 
                 // 2. Health Bar Boss
                 if (m_navi) {
-                    if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
+                    if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase())) {
                         int bHP = normalPhase->GetHP();
                         int bMaxHP = normalPhase->GetMaxHP();
                         float bHpProgress = (bMaxHP > 0) ? (float)bHP / bMaxHP : 0.0f;
@@ -1205,7 +1205,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         ImGui::PopStyleColor();
                     }
                     else {
-                        if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
+                        if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase())) {
                             int bHP = wkPhase->GetHP();
                             int bMaxHP = wkPhase->GetMaxHP();
                             float bHpProgress = (bMaxHP > 0) ? (float)bHP / bMaxHP : 0.0f;
@@ -1223,20 +1223,20 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
 
                 // --- TOMBOL HEAL & RESPAWN BOSS ---
                 if (ImGui::Button("Heal Boss to Full", ImVec2(180.0f, 30.0f))) {
-                    if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
+                    if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase())) {
                         normalPhase->SetHP(normalPhase->GetMaxHP());
                         AddLog("Boss healed to full HP.");
                     }
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Respawn Boss", ImVec2(180.0f, 30.0f))) {
-                    if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
+                    if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase())) {
                         // Hapus logika savedParams, cukup buat ulang Phase 1 yang bersih
-                        m_navi->ChangePhase(std::make_unique<Boss_Phase01>(m_player.get()));
+                        m_navi->ChangePhase(std::make_unique<BossPhase01>(m_player.get()));
                         AddLog("Boss respawned (Phase 1 Normal).");
                     }
                     else {
-                        m_navi->ChangePhase(std::make_unique<Boss_Phase01>(m_player.get()));
+                        m_navi->ChangePhase(std::make_unique<BossPhase01>(m_player.get()));
                         m_playerWindowTransparent = false;
                         if (m_player) {
                             m_player->RestoreShootDelay();
@@ -1246,7 +1246,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                 }
                 ImGui::Separator();
 
-                if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase()))
+                if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase()))
                 {
                     ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "=== BATTLE STATUS ===");
 
@@ -1367,7 +1367,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         ImGui::SliderFloat("Damage", &p.damage, 0.0f, 50.0f);
                     }
                 }
-                else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase()))
+                else if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase()))
                 {
                     ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "--- PHASE 2: WINDOWKILL ATTACKS ---");                ImGui::Separator();
 
@@ -1600,7 +1600,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
 
                 // 2. Health Bar Boss
                 if (m_navi) {
-                    if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase())) {
+                    if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase())) {
                         int bHP = normalPhase->GetHP();
                         int bMaxHP = normalPhase->GetMaxHP();
                         float bHpProgress = (bMaxHP > 0) ? (float)bHP / bMaxHP : 0.0f;
@@ -1610,7 +1610,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         ImGui::PopStyleColor();
                     }
                     else {
-                        if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase())) {
+                        if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase())) {
                             int bHP = wkPhase->GetHP();
                             int bMaxHP = wkPhase->GetMaxHP();
                             float bHpProgress = (bMaxHP > 0) ? (float)bHP / bMaxHP : 0.0f;
@@ -1712,12 +1712,12 @@ void SceneBoss::AddLog(const std::string& message)
         // Reset Boss 
         if (m_navi)
         {
-            if (auto* normalPhase = dynamic_cast<Boss_Phase01*>(m_navi->GetCurrentPhase()))
+            if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase()))
             {
                 normalPhase->SetHP(normalPhase->GetMaxHP());
                 m_playerWindowTransparent = false; // Normal mode = solid player
             }
-            else if (auto* wkPhase = dynamic_cast<Boss_Phase02*>(m_navi->GetCurrentPhase()))
+            else if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase()))
             {
                 wkPhase->SetHP(wkPhase->GetMaxHP());
                 m_playerWindowTransparent = true;  // Windowkill mode = transparent player
@@ -1811,7 +1811,7 @@ void SceneBoss::AddLog(const std::string& message)
     m_navi->Initialize(m_windowSystem.get());
 
     // Beri otak ke Navi agar masuk ke Mode Layar Penuh!
-    m_navi->ChangePhase(std::make_unique<Boss_Phase01>());
+    m_navi->ChangePhase(std::make_unique<BossPhase01>());
     // =========================================================
 
     m_player->SetMaxHP(100); // Reset darah player

@@ -16,8 +16,8 @@
 #include "AttackBlasters.h"
 #include "AttackSpears.h"
 
-class Boss_Phase01;
-class Boss_Phase02;
+class BossPhase01;
+class BossPhase02;
 class NaviBoss;
 class Player;
 
@@ -26,7 +26,7 @@ class Player;
 // ========================================================
 class BossAI_Phase01 {
 public:
-    BossAI_Phase01(Boss_Phase01* phase, Player* target);
+    BossAI_Phase01(BossPhase01* phase, Player* target);
     void Update(float dt, NaviBoss* boss);
 
     void SetEnabled(bool enabled) { m_enabled = enabled; }
@@ -41,7 +41,7 @@ public:
     UltimateParams& GetUltimateParams() { return m_ultimateParams; }
 
 private:
-    Boss_Phase01* m_phase = nullptr;
+    BossPhase01* m_phase = nullptr;
     Player* m_target = nullptr;
     bool          m_enabled = false;
 
@@ -62,7 +62,7 @@ private:
 // ========================================================
 class BossAI_Phase02 {
 public:
-    BossAI_Phase02(Boss_Phase02* phase, Player* target);
+    BossAI_Phase02(BossPhase02* phase, Player* target);
     void Update(float dt, NaviBoss* boss);
 
     void SetEnabled(bool enabled) { m_enabled = enabled; }
@@ -76,7 +76,7 @@ public:
     UndyneSpearParams& GetUndyneParams() { return m_undyneParams; }
 
 private:
-    Boss_Phase02* m_phase = nullptr;
+    BossPhase02* m_phase = nullptr;
     Player* m_target = nullptr;
     bool          m_enabled = false;
 
