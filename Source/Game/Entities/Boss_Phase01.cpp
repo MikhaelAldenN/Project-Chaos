@@ -107,6 +107,26 @@ void Boss_Phase01::Enter(NaviBoss* boss) {
 
     // ----- Init AI -----
     m_ai = std::make_unique<BossAI_Phase01>(this, m_aiTarget);
+
+#if DEBUG_SKIP_INTRO
+    m_isOpeningEvent = false;
+    m_hasSpawnedWindow = true;
+
+    if (boss) {
+        boss->SetWindowTitle("mat_grass.png");
+        boss->SpawnHeadWindow();
+        boss->SetGridGrowthLimit(8.0f);
+        boss->SetFaceSpriteVisible(true);
+    }
+
+    // Aktifkan AI
+    m_aiEnabled = false;
+
+    // Buka kunci kontrol Player
+    if (m_aiTarget) {
+        m_aiTarget->SetInputEnabled(true);
+    }
+#endif
 }
 
 void Boss_Phase01::Exit(NaviBoss* boss) {
@@ -139,6 +159,7 @@ void Boss_Phase01::Update(float dt, NaviBoss* boss) {
         UpdateDeathSequence(dt, boss);
         return;
     }
+
 
     if (m_isOpeningEvent) {
         if (m_dialogueBox && m_dialogueBox->IsActive()) {
@@ -177,6 +198,7 @@ void Boss_Phase01::Update(float dt, NaviBoss* boss) {
                 0.05f * sfxVol, true);
         }
     }
+
 
     UpdateGlitchVFX(dt, boss);
 

@@ -13,6 +13,8 @@
 
 class Player;
 
+#define DEBUG_SKIP_INTRO 1
+
 class Boss_Phase01 : public INaviPhase {
 public:
     explicit Boss_Phase01(Player* target = nullptr);
