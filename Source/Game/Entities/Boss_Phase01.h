@@ -47,9 +47,9 @@ public:
     Player* GetAITarget()     const { return m_aiTarget; }
 
     // ----- Accessors -----
-    Attack_Ultimate* GetActiveUltimate() const {
+    AttackUltimate* GetActiveUltimate() const {
         for (auto& attack : m_activeAttacks) {
-            if (auto* ult = dynamic_cast<Attack_Ultimate*>(attack.get())) {
+            if (auto* ult = dynamic_cast<AttackUltimate*>(attack.get())) {
                 return ult;
             }
         }
@@ -75,7 +75,7 @@ private:
 
     // ---- Active attacks ----
     std::vector<std::unique_ptr<IPooledAttackPattern>> m_activeAttacks;
-    std::unique_ptr<Attack_Rain> m_rainAttack;
+    std::unique_ptr<AttackRain> m_rainAttack;
 
     // ---- AI Director ----
     std::unique_ptr<BossAI_Phase01> m_ai;

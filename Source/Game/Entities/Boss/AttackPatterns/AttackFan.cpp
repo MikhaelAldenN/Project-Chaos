@@ -7,10 +7,10 @@
 
 using namespace DirectX;
 
-Attack_Fan::Attack_Fan(const FanParams& params, float lockedBaseAngle)
+AttackFan::AttackFan(const FanParams& params, float lockedBaseAngle)
     : m_params(params), m_lockedBaseAngle(lockedBaseAngle) {}
 
-void Attack_Fan::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
+void AttackFan::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
     m_pool = pool;
     m_boss = boss;
     m_active = true;
@@ -20,7 +20,7 @@ void Attack_Fan::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>
     m_waveTimer = m_params.waveDelay;
 }
 
-void Attack_Fan::Update(float dt, NaviBoss* boss) {
+void AttackFan::Update(float dt, NaviBoss* boss) {
     if (!m_active || !m_pool) return;
 
     m_waveTimer += dt;
@@ -34,15 +34,15 @@ void Attack_Fan::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void Attack_Fan::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
+void AttackFan::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
     // Bullets are rendered by the phase's central render loop
 }
 
-void Attack_Fan::Stop(NaviBoss* boss) {
+void AttackFan::Stop(NaviBoss* boss) {
     m_active = false;
 }
 
-bool Attack_Fan::IsFinished() const {
+bool AttackFan::IsFinished() const {
     return !m_active;
 }
 
@@ -50,7 +50,7 @@ bool Attack_Fan::IsFinished() const {
 // Internal
 // ============================================================
 
-void Attack_Fan::FireWave(NaviBoss* boss) {
+void AttackFan::FireWave(NaviBoss* boss) {
     if (!m_pool || !boss) return;
 
     int   fired = 0;

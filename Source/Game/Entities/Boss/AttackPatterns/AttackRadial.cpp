@@ -6,10 +6,10 @@
 
 using namespace DirectX;
 
-Attack_Radial::Attack_Radial(const RadialParams& params)
+AttackRadial::AttackRadial(const RadialParams& params)
     : m_params(params) {}
 
-void Attack_Radial::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
+void AttackRadial::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
     m_pool = pool;
     m_boss = boss;
     m_active = true;
@@ -21,7 +21,7 @@ void Attack_Radial::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bull
     m_burstsFired++;
 }
 
-void Attack_Radial::Update(float dt, NaviBoss* boss) {
+void AttackRadial::Update(float dt, NaviBoss* boss) {
     if (!m_active || !m_pool) return;
 
     if (m_burstsFired >= m_params.burstCount) {
@@ -42,15 +42,15 @@ void Attack_Radial::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void Attack_Radial::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
+void AttackRadial::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
     // Bullets are rendered by the phase's central render loop
 }
 
-void Attack_Radial::Stop(NaviBoss* boss) {
+void AttackRadial::Stop(NaviBoss* boss) {
     m_active = false;
 }
 
-bool Attack_Radial::IsFinished() const {
+bool AttackRadial::IsFinished() const {
     return !m_active;
 }
 
@@ -58,7 +58,7 @@ bool Attack_Radial::IsFinished() const {
 // Internal
 // ============================================================
 
-void Attack_Radial::FireBurst(NaviBoss* boss, float angleOffset) {
+void AttackRadial::FireBurst(NaviBoss* boss, float angleOffset) {
     if (!m_pool || !boss) return;
 
     int   fired = 0;

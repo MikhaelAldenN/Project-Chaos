@@ -12,10 +12,10 @@
 
 using namespace DirectX;
 
-Attack_Ultimate::Attack_Ultimate(const UltimateParams& params, Player* target)
+AttackUltimate::AttackUltimate(const UltimateParams& params, Player* target)
     : m_params(params), m_target(target) {}
 
-void Attack_Ultimate::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
+void AttackUltimate::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
     m_pool = pool;
     m_state = State::Moving;
     m_chargeTimer = 0.0f;
@@ -50,7 +50,7 @@ void Attack_Ultimate::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bu
     }
 }
 
-void Attack_Ultimate::Update(float dt, NaviBoss* boss) {
+void AttackUltimate::Update(float dt, NaviBoss* boss) {
     if (m_state == State::Done || !m_pool || !boss) return;
 
     XMFLOAT3 bPos = boss->GetPosition();
@@ -132,7 +132,7 @@ void Attack_Ultimate::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void Attack_Ultimate::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
+void AttackUltimate::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
     if (m_state != State::Charging || !m_target) return;
 
     auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
@@ -150,7 +150,7 @@ void Attack_Ultimate::Render(ID3D11DeviceContext* context, Camera* camera, NaviB
     shapeRenderer->DrawSphere(pPos, ringRadius, ringColor);
 }
 
-void Attack_Ultimate::Stop(NaviBoss* boss) {
+void AttackUltimate::Stop(NaviBoss* boss) {
     CancelCharge();
     if (m_ball && m_ball->IsActive()) {
         m_ball->SetActive(false);
@@ -159,11 +159,11 @@ void Attack_Ultimate::Stop(NaviBoss* boss) {
     m_state = State::Done;
 }
 
-bool Attack_Ultimate::IsFinished() const {
+bool AttackUltimate::IsFinished() const {
     return m_state == State::Done;
 }
 
-bool Attack_Ultimate::IsInParryWindow() const {
+bool AttackUltimate::IsInParryWindow() const {
     return fabsf(m_chargeTimer - m_params.laserDuration) <= m_params.parryWindow;
 }
 
@@ -171,8 +171,16 @@ bool Attack_Ultimate::IsInParryWindow() const {
 // ShatterBijuudama — Called externally on parry
 // ============================================================
 
-void Attack_Ultimate::ShatterBijuudama(XMFLOAT3 parryPos, NaviBoss* boss) {
+void AttackUltimate::ShatterBijuudama(XMFLOAT3 parryPos, NaviBoss* boss) {
     if (!m_pool || !boss) return;
+
+    if (m_ball) {
+        m_ball->SetActive(false);
+        m_ball = nullptr; 
+    }
+
+    CameraController::Instance().AddTrauma(0.8f);
+    AudioManager::Instance().PlaySFX("Data/Sound/SE_Player_Parry_Boss.wav", 0.6f);
 
     std::mt19937 gen(std::random_device{}());
     std::uniform_int_distribution<>   distCount(m_params.shatterMinFragments, m_params.shatterMaxFragments);
@@ -223,7 +231,7 @@ void Attack_Ultimate::ShatterBijuudama(XMFLOAT3 parryPos, NaviBoss* boss) {
 // Internal
 // ============================================================
 
-void Attack_Ultimate::LaunchBall(NaviBoss* boss) {
+void AttackUltimate::LaunchBall(NaviBoss* boss) {
     CancelCharge();
 
     m_state = State::Recovering;
@@ -251,7 +259,7 @@ void Attack_Ultimate::LaunchBall(NaviBoss* boss) {
     m_ball = nullptr;
 }
 
-void Attack_Ultimate::CancelCharge() {
+void AttackUltimate::CancelCharge() {
     if (m_chargeEffectHandle != -1) {
         EffectManager::Instance().Stop(m_chargeEffectHandle);
         m_chargeEffectHandle = -1;

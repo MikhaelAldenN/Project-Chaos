@@ -189,7 +189,7 @@ void Boss_Phase01::Update(float dt, NaviBoss* boss) {
     for (auto& attack : m_activeAttacks) {
         attack->Update(dt, boss);
 
-        if (auto* phalanx = dynamic_cast<Attack_Phalanx*>(attack.get())) {
+        if (auto* phalanx = dynamic_cast<AttackPhalanx*>(attack.get())) {
             if (phalanx->ShouldResetLerp()) {
                 m_currentMoveLerpSpeed = 0.0f;
                 phalanx->ClearResetFlag();
@@ -197,7 +197,7 @@ void Boss_Phase01::Update(float dt, NaviBoss* boss) {
             m_targetPosition = phalanx->GetTargetPosition();
             m_moveLerpSpeed = phalanx->GetMoveLerpSpeed();
         }
-        else if (auto* ultimate = dynamic_cast<Attack_Ultimate*>(attack.get())) {
+        else if (auto* ultimate = dynamic_cast<AttackUltimate*>(attack.get())) {
             if (ultimate->ShouldResetLerp()) {
                 m_currentMoveLerpSpeed = 0.0f;
                 ultimate->ClearResetFlag();
@@ -272,13 +272,15 @@ void Boss_Phase01::AddPooledAttack(std::unique_ptr<IPooledAttackPattern> attack)
 
 void Boss_Phase01::TriggerRain(RainMode mode, bool isPositiveSide, float sweepDir) {
     if (HasRainActive() || !m_ai) return;
-    m_rainAttack = std::make_unique<Attack_Rain>(m_ai->GetRainParams(), mode, isPositiveSide, sweepDir);
+
+    // [FIX] Tambahkan 'm_aiTarget' di argumen terakhir
+    m_rainAttack = std::make_unique<AttackRain>(m_ai->GetRainParams(), mode, isPositiveSide, sweepDir, m_aiTarget);
     m_rainAttack->StartPooled(m_bossRef, &m_bulletPool);
 }
 
 void Boss_Phase01::OnBijuudamaParried(XMFLOAT3 parryPos, NaviBoss* boss) {
     for (auto& attack : m_activeAttacks) {
-        if (auto* ultimate = dynamic_cast<Attack_Ultimate*>(attack.get())) {
+        if (auto* ultimate = dynamic_cast<AttackUltimate*>(attack.get())) {
             ultimate->ShatterBijuudama(parryPos, boss);
             return;
         }
@@ -297,8 +299,8 @@ void Boss_Phase01::TakeDamage(int damage, XMFLOAT3 hitPos) {
 
 void Boss_Phase01::UpdateIdleHover(float dt, NaviBoss* boss) {
     bool isFloating = m_activeAttacks.empty() || (
-        !dynamic_cast<Attack_Phalanx*>(m_activeAttacks.front().get()) &&
-        !dynamic_cast<Attack_Ultimate*>(m_activeAttacks.front().get()));
+        !dynamic_cast<AttackPhalanx*>(m_activeAttacks.front().get()) &&
+        !dynamic_cast<AttackUltimate*>(m_activeAttacks.front().get()));
 
     if (isFloating) {
         m_idleHoverTimer += dt;

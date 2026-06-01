@@ -1288,7 +1288,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                     {
                         if (ImGui::Button("TRIPLE BURST", ImVec2(-1.0f, 35.0f))) {
                             // [FIX] GetAI()->GetRadialParams()
-                            normalPhase->AddPooledAttack(std::make_unique<Attack_Radial>(normalPhase->GetAI()->GetRadialParams()));
+                            normalPhase->AddPooledAttack(std::make_unique<AttackRadial>(normalPhase->GetAI()->GetRadialParams()));
                         }
 
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
@@ -1298,11 +1298,11 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                                 DirectX::XMFLOAT3 pPos = m_player->GetPosition();
                                 DirectX::XMFLOAT3 bPos = m_navi->GetPosition();
 
-                                // 2. Hitung lockedBaseAngle sesuai rumus di Attack_Fan.h
+                                // 2. Hitung lockedBaseAngle sesuai rumus di AttackFan.h
                                 float lockedAngle = static_cast<float>(std::atan2(pPos.x - bPos.x, pPos.z - bPos.z));
 
-                                // 3. Masukkan lockedAngle ke dalam Attack_Fan (Melalui GetAI)
-                                normalPhase->AddPooledAttack(std::make_unique<Attack_Fan>(normalPhase->GetAI()->GetFanParams(), lockedAngle));
+                                // 3. Masukkan lockedAngle ke dalam AttackFan (Melalui GetAI)
+                                normalPhase->AddPooledAttack(std::make_unique<AttackFan>(normalPhase->GetAI()->GetFanParams(), lockedAngle));
                             }
                         }
                         ImGui::PopStyleColor();
@@ -1310,14 +1310,14 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.8f, 1.0f));
                         if (ImGui::Button("GLINTSTONE PHALANX", ImVec2(-1.0f, 35.0f))) {
                             // [FIX] GetAI()->GetPhalanxParams()
-                            if (m_player) normalPhase->AddPooledAttack(std::make_unique<Attack_Phalanx>(normalPhase->GetAI()->GetPhalanxParams(), m_player.get()));
+                            if (m_player) normalPhase->AddPooledAttack(std::make_unique<AttackPhalanx>(normalPhase->GetAI()->GetPhalanxParams(), m_player.get()));
                         }
                         ImGui::PopStyleColor();
 
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.6f, 1.0f));
                         if (ImGui::Button("BIJUUDAMA (ULTIMATE)", ImVec2(-1.0f, 35.0f))) {
                             // [FIX] GetAI()->GetUltimateParams()
-                            if (m_player) normalPhase->AddPooledAttack(std::make_unique<Attack_Ultimate>(normalPhase->GetAI()->GetUltimateParams(), m_player.get()));
+                            if (m_player) normalPhase->AddPooledAttack(std::make_unique<AttackUltimate>(normalPhase->GetAI()->GetUltimateParams(), m_player.get()));
                         }
                         ImGui::PopStyleColor();
 

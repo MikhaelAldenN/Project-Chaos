@@ -3,7 +3,7 @@
 #include <DirectXMath.h>
 
 // ============================================================
-// Attack_Ultimate - Phase 1 boss ultimate attack (Bijuudama).
+// AttackUltimate - Phase 1 boss ultimate attack (Bijuudama).
 //
 // Boss slides to the top of the arena and charges a massive
 // energy ball while a shrinking ring telegraphs the timing.
@@ -53,10 +53,10 @@ struct UltimateParams {
 
 class Player;
 
-class Attack_Ultimate : public IPooledAttackPattern {
+class AttackUltimate : public IPooledAttackPattern {
 public:
-    Attack_Ultimate(const UltimateParams& params, Player* target);
-    ~Attack_Ultimate() override = default;
+    AttackUltimate(const UltimateParams& params, Player* target);
+    ~AttackUltimate() override = default;
 
     void StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) override;
     void Update(float dt, NaviBoss* boss) override;

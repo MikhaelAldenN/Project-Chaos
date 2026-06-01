@@ -3,7 +3,7 @@
 #include <DirectXMath.h>
 
 // ============================================================
-// Attack_Radial - Phase 1 attack pattern.
+// AttackRadial - Phase 1 attack pattern.
 //
 // Fires three interlocked radial bursts in quick succession.
 // Each burst fires N bullets in a full circle. Odd-numbered
@@ -20,10 +20,10 @@ struct RadialParams {
     DirectX::XMFLOAT4 color = { 1.0f, 0.2f, 0.2f, 1.0f };
 };
 
-class Attack_Radial : public IPooledAttackPattern {
+class AttackRadial : public IPooledAttackPattern {
 public:
-    explicit Attack_Radial(const RadialParams& params);
-    ~Attack_Radial() override = default;
+    explicit AttackRadial(const RadialParams& params);
+    ~AttackRadial() override = default;
 
     void StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) override;
     void Update(float dt, NaviBoss* boss) override;

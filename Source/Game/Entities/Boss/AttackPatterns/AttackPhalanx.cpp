@@ -11,10 +11,10 @@
 
 using namespace DirectX;
 
-Attack_Phalanx::Attack_Phalanx(const PhalanxParams& params, Player* target)
+AttackPhalanx::AttackPhalanx(const PhalanxParams& params, Player* target)
     : m_params(params), m_target(target) {}
 
-void Attack_Phalanx::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
+void AttackPhalanx::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
     m_pool = pool;
     m_boss = boss;
     m_state = 1;
@@ -32,7 +32,7 @@ void Attack_Phalanx::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bul
     m_resetLerpFlag = true;
 }
 
-void Attack_Phalanx::Update(float dt, NaviBoss* boss) {
+void AttackPhalanx::Update(float dt, NaviBoss* boss) {
     if (m_state == 0 || !m_pool || !boss) return;
 
     m_timer += dt;
@@ -176,11 +176,11 @@ void Attack_Phalanx::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void Attack_Phalanx::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
+void AttackPhalanx::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
     // Bullets are rendered by the phase's central render loop
 }
 
-void Attack_Phalanx::Stop(NaviBoss* boss) {
+void AttackPhalanx::Stop(NaviBoss* boss) {
     // Deactivate any bullets still orbiting (not yet fired)
     for (Bullet* b : m_bullets) {
         if (b && b->IsActive()) b->SetActive(false);
@@ -189,6 +189,6 @@ void Attack_Phalanx::Stop(NaviBoss* boss) {
     m_state = 0;
 }
 
-bool Attack_Phalanx::IsFinished() const {
+bool AttackPhalanx::IsFinished() const {
     return m_state == 0;
 }

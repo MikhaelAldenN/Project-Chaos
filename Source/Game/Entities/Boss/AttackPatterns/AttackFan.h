@@ -3,7 +3,7 @@
 #include <DirectXMath.h>
 
 // ============================================================
-// Attack_Fan - Phase 1 attack pattern.
+// AttackFan - Phase 1 attack pattern.
 //
 // Fires multiple waves of a spread shot (shotgun) aimed at
 // the player's position at the moment of trigger. The aim
@@ -21,11 +21,11 @@ struct FanParams {
     float sfxVolume = 1.0f;
 };
 
-class Attack_Fan : public IPooledAttackPattern {
+class AttackFan : public IPooledAttackPattern {
 public:
     // lockedBaseAngle: atan2(playerX - bossX, playerZ - bossZ) at trigger time
-    Attack_Fan(const FanParams& params, float lockedBaseAngle);
-    ~Attack_Fan() override = default;
+    AttackFan(const FanParams& params, float lockedBaseAngle);
+    ~AttackFan() override = default;
 
     void StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) override;
     void Update(float dt, NaviBoss* boss) override;

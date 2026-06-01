@@ -4,7 +4,7 @@
 #include <random>
 
 // ============================================================
-// Attack_Phalanx - Phase 1 attack pattern.
+// AttackPhalanx - Phase 1 attack pattern.
 //
 // Boss slides to one side of the arena, summons N orbiting
 // homing bullets in a spread fan facing the player, holds
@@ -36,10 +36,10 @@ struct PhalanxParams {
 
 class Player;
 
-class Attack_Phalanx : public IPooledAttackPattern {
+class AttackPhalanx : public IPooledAttackPattern {
 public:
-    Attack_Phalanx(const PhalanxParams& params, Player* target);
-    ~Attack_Phalanx() override = default;
+    AttackPhalanx(const PhalanxParams& params, Player* target);
+    ~AttackPhalanx() override = default;
 
     void StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) override;
     void Update(float dt, NaviBoss* boss) override;

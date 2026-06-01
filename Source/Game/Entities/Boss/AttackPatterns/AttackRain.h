@@ -5,7 +5,7 @@
 #include <vector>
 
 // ============================================================
-// Attack_Rain - Phase 1 attack pattern.
+// AttackRain - Phase 1 attack pattern.
 //
 // Area-denial attack. Marks a zone with a blinking warning,
 // then bombards it with falling/sweeping bullets.
@@ -35,12 +35,12 @@ enum class RainMode {
     DualPillar        // Two synchronized vertical pillar zones
 };
 
-class Attack_Rain : public IPooledAttackPattern {
+class AttackRain : public IPooledAttackPattern {
 public:
     // sweepDir: +1 = right/down, -1 = left/up (only relevant for HorizontalSweep)
     // isPositiveSide: which side of arena to place zone (for Horizontal/Vertical)
-    Attack_Rain(const RainParams& params, RainMode mode, bool isPositiveSide, float sweepDir = 1.0f);
-    ~Attack_Rain() override = default;
+    AttackRain(const RainParams& params, RainMode mode, bool isPositiveSide, float sweepDir, Player* target);
+    ~AttackRain() override = default;
 
     void StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) override;
     void Update(float dt, NaviBoss* boss) override;
@@ -64,6 +64,8 @@ private:
     RainMode                              m_mode;
     bool                                  m_isPositiveSide;
     float                                 m_sweepDir;
+
+    Player* m_target = nullptr;
 
     std::vector<std::unique_ptr<Bullet>>* m_pool = nullptr;
 

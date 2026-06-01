@@ -10,19 +10,17 @@
 #include <cmath>
 #include <windows.h>
 #include "WindowTrackingSystem.h"
+#include "Player.h"
 
 using namespace DirectX;
 
-Attack_Rain::Attack_Rain(const RainParams& params, RainMode mode, bool isPositiveSide, float sweepDir)
-    : m_params(params)
-    , m_mode(mode)
-    , m_isPositiveSide(isPositiveSide)
-    , m_sweepDir(sweepDir)
+AttackRain::AttackRain(const RainParams& params, RainMode mode, bool isPositiveSide, float sweepDir, Player* target)
+    : m_params(params), m_mode(mode), m_isPositiveSide(isPositiveSide), m_sweepDir(sweepDir), m_target(target)
 {
     m_vfxHandles.assign(800, -1);
 }
 
-void Attack_Rain::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
+void AttackRain::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
     m_pool = pool;
     m_state = 1;
     m_timer = 0.0f;
@@ -45,7 +43,7 @@ void Attack_Rain::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet
     }
 }
 
-void Attack_Rain::Update(float dt, NaviBoss* boss) {
+void AttackRain::Update(float dt, NaviBoss* boss) {
     if (m_state == 0) return;
 
     m_timer += dt;
@@ -60,12 +58,14 @@ void Attack_Rain::Update(float dt, NaviBoss* boss) {
             m_timer = 0.0f;
             CameraController::Instance().AddTrauma(0.5f);
             AudioManager::Instance().PlaySFX("Data/Sound/SE_Boss_Rain_01.wav", 0.07f * m_params.sfxVolume);
-            m_sfxTimer = SFX_LOOP; // Force immediate second trigger on next frame
+            // Anggap SFX_LOOP bernilai sesuai define kamu
+            m_sfxTimer = 999.0f;
         }
     }
     else if (m_state == 2) { // Active
         m_sfxTimer += dt;
-        if (m_sfxTimer >= SFX_LOOP) {
+        // Gunakan angka spesifik jika SFX_LOOP tidak terbaca, misal 0.5f
+        if (m_sfxTimer >= 0.5f) {
             std::string rainSounds[] = {
                 "Data/Sound/SE_Boss_Rain_01.wav",
                 "Data/Sound/SE_Boss_Rain_02.wav",
@@ -89,11 +89,85 @@ void Attack_Rain::Update(float dt, NaviBoss* boss) {
         if (m_timer >= 4.0f) {
             m_state = 0;
             ClearVFX();
+            return; // PENTING: Keluar agar tidak lanjut cek collision di bawah
+        }
+    }
+
+    // =========================================================
+    // [FIX 3] DETEKSI HITBOX (COLLISION) PROSEDURAL DI UPDATE
+    // =========================================================
+    if ((m_state == 2 || m_state == 3) && m_target && m_target->GetHP() > 0) {
+
+        float actualW = GetActualWidth();
+        float actualD = GetActualDepth();
+        float halfW = actualW * 0.5f;
+        float halfD = actualD * 0.5f;
+
+        // Gunakan seed yang SAMA PERSIS dengan Render agar posisi peluru identik
+        std::mt19937 gen(1337);
+        std::uniform_real_distribution<float> distSpeed(m_params.minSpeed, m_params.maxSpeed);
+        std::uniform_real_distribution<float> distSpawn(0.0f, m_params.activeDuration);
+
+        float globalTime = (m_state == 2) ? m_timer : (m_params.activeDuration + m_timer);
+        int dropCount = (m_mode == RainMode::DualPillar) ? 800 : 400;
+
+        DirectX::XMFLOAT3 pPos = m_target->GetPosition();
+
+        for (int i = 0; i < dropCount; ++i) {
+            float speed = distSpeed(gen);
+            float spawnTime = distSpawn(gen);
+            float localTime = globalTime - spawnTime;
+
+            if (localTime < 0.0f) continue;
+
+            DirectX::XMFLOAT3 dropPos = {};
+            bool isActive = false;
+
+            // Kalkulasi matematika murni (Sama persis dengan Render)
+            if (m_mode == RainMode::DualPillar) {
+                DirectX::XMFLOAT3 activeCenter = (i % 2 == 0) ? m_center : m_center2;
+                std::uniform_real_distribution<float> distX(activeCenter.x - halfW, activeCenter.x + halfW);
+                float rx = distX(gen);
+                float z = (activeCenter.z + halfD + 5.0f) - (localTime * speed);
+                if (z >= activeCenter.z - halfD) { dropPos = { rx, 1.0f, z }; isActive = true; }
+            }
+            else if (m_mode == RainMode::VerticalSweep) {
+                std::uniform_real_distribution<float> distX(m_center.x - halfW, m_center.x + halfW);
+                float rx = distX(gen);
+                float z = (m_center.z + halfD + 5.0f) - (localTime * speed);
+                if (z >= m_center.z - halfD) { dropPos = { rx, 1.0f, z }; isActive = true; }
+            }
+            else { // HorizontalSweep
+                std::uniform_real_distribution<float> distZ(m_center.z - halfD, m_center.z + halfD);
+                float rz = distZ(gen);
+                float startX = (m_sweepDir > 0) ? (m_center.x - halfW - 5.0f) : (m_center.x + halfW + 5.0f);
+                float endX = (m_sweepDir > 0) ? (m_center.x + halfW) : (m_center.x - halfW);
+                float x = startX + (localTime * speed * m_sweepDir);
+                if ((m_sweepDir > 0 && x <= endX) || (m_sweepDir < 0 && x >= endX)) {
+                    dropPos = { x, 1.0f, rz }; isActive = true;
+                }
+            }
+
+            // Jika tetesan hujan ini valid dan ada di layar, cek jaraknya dengan Player
+            if (isActive) {
+                float dx = pPos.x - dropPos.x;
+                float dy = pPos.y - dropPos.y;
+                float dz = pPos.z - dropPos.z;
+
+                // Jarak kuadrat 0.49f = Radius Player(0.3) + Hujan(0.4) = 0.7f * 0.7f
+                if ((dx * dx + dy * dy + dz * dz) <= 0.49f) {
+                    m_target->TakeDamage((int)m_params.damage);
+                    CameraController::Instance().AddTrauma(0.15f); // Micro-shake
+
+                    // [PENTING] Break loop agar player tidak terkena ratusan damage dalam 1 frame
+                    break;
+                }
+            }
         }
     }
 }
 
-void Attack_Rain::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
+void AttackRain::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
     if (m_state == 0 || !boss || !boss->GetWindowSystem()) return;
 
     auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
@@ -220,27 +294,27 @@ void Attack_Rain::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss*
     }
 }
 
-void Attack_Rain::Stop(NaviBoss* boss) {
+void AttackRain::Stop(NaviBoss* boss) {
     ClearVFX();
     m_state = 0;
 }
 
-bool Attack_Rain::IsFinished() const {
+bool AttackRain::IsFinished() const {
     return m_state == 0;
 }
 
-float Attack_Rain::GetActualWidth() const {
+float AttackRain::GetActualWidth() const {
     if (m_mode == RainMode::DualPillar)    return 18.0f;
     if (m_mode == RainMode::VerticalSweep) return 25.0f;
     return 80.0f;
 }
 
-float Attack_Rain::GetActualDepth() const {
+float AttackRain::GetActualDepth() const {
     if (m_mode == RainMode::VerticalSweep) return 45.0f;
     return 15.0f;
 }
 
-void Attack_Rain::ClearVFX() {
+void AttackRain::ClearVFX() {
     for (int& h : m_vfxHandles) {
         if (h != -1) { EffectManager::Instance().Stop(h); h = -1; }
     }

@@ -25,7 +25,7 @@ void BossAI_Phase01::Update(float dt, NaviBoss* boss) {
         // Eksekusi serangan berdasarkan indeks urutan
         switch (m_sequenceIndex) {
         case 0:
-            m_phase->AddPooledAttack(std::make_unique<Attack_Radial>(m_radialParams));
+            m_phase->AddPooledAttack(std::make_unique<AttackRadial>(m_radialParams));
             m_cooldownTimer = 1.5f; // Jeda setelah serangan ini selesai
             break;
         case 1:
@@ -33,7 +33,7 @@ void BossAI_Phase01::Update(float dt, NaviBoss* boss) {
             DirectX::XMFLOAT3 pPos = m_target->GetPosition();
             DirectX::XMFLOAT3 bPos = boss->GetPosition();
             float lockedAngle = std::atan2f(pPos.x - bPos.x, pPos.z - bPos.z);
-            m_phase->AddPooledAttack(std::make_unique<Attack_Fan>(m_fanParams, lockedAngle));
+            m_phase->AddPooledAttack(std::make_unique<AttackFan>(m_fanParams, lockedAngle));
             m_cooldownTimer = 1.5f;
             break;
         }
@@ -42,11 +42,11 @@ void BossAI_Phase01::Update(float dt, NaviBoss* boss) {
             m_cooldownTimer = 1.0f;
             break;
         case 3:
-            m_phase->AddPooledAttack(std::make_unique<Attack_Phalanx>(m_phalanxParams, m_target));
+            m_phase->AddPooledAttack(std::make_unique<AttackPhalanx>(m_phalanxParams, m_target));
             m_cooldownTimer = 2.0f;
             break;
         case 4:
-            m_phase->AddPooledAttack(std::make_unique<Attack_Ultimate>(m_ultimateParams, m_target));
+            m_phase->AddPooledAttack(std::make_unique<AttackUltimate>(m_ultimateParams, m_target));
             m_cooldownTimer = 3.0f;
             break;
         }
