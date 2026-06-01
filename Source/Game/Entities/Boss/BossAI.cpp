@@ -2,7 +2,7 @@
 #include "BossPhase01.h"
 #include "BossPhase02.h"
 #include "Player.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include <cmath>
 
 // ========================================================
@@ -11,7 +11,7 @@
 BossAI_Phase01::BossAI_Phase01(BossPhase01* phase, Player* target)
     : m_phase(phase), m_target(target) {}
 
-void BossAI_Phase01::Update(float dt, NaviBoss* boss) {
+void BossAI_Phase01::Update(float dt, Boss* boss) {
     if (!m_enabled || !m_target || !m_phase) return;
 
     // Tunggu sampai bos selesai mengeksekusi serangan saat ini
@@ -63,7 +63,7 @@ void BossAI_Phase01::Update(float dt, NaviBoss* boss) {
 BossAI_Phase02::BossAI_Phase02(BossPhase02* phase, Player* target)
     : m_phase(phase), m_target(target) {}
 
-void BossAI_Phase02::Update(float dt, NaviBoss* boss) {
+void BossAI_Phase02::Update(float dt, Boss* boss) {
     // Jangan serang player jika masih terjebak di kandang
     if (!m_enabled || !m_target || !m_phase || m_phase->IsPlayerCaged()) return;
 

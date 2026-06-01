@@ -1,5 +1,5 @@
 ﻿#include "BossPhase02.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include "WindowTrackingSystem.h"
 #include "System/Graphics.h"
 #include "System/Sprite.h"
@@ -22,7 +22,7 @@ BossPhase02::BossPhase02(Player* player) {
 // =========================================================
 // [MAGIC] MEMORY MANAGEMENT & SPAWNING
 // =========================================================
-void BossPhase02::Enter(NaviBoss* boss) {
+void BossPhase02::Enter(Boss* boss) {
     if (!boss || !boss->GetWindowSystem()) return;
 
     EffectManager::Instance().StopAll();
@@ -189,7 +189,7 @@ void BossPhase02::Enter(NaviBoss* boss) {
     m_overdriveDialogueTriggered = false;
 }
 
-void BossPhase02::Exit(NaviBoss* boss) {
+void BossPhase02::Exit(Boss* boss) {
     m_deathCleanupDone = false;
 
     // 1. BERSIH-BERSIH WINDOW UTAMA PHASE (Cage, FX, Dialog)
@@ -297,7 +297,7 @@ void BossPhase02::AddAttack(std::unique_ptr<IBossAttackPattern> attack) {
     }
 }
 
-void BossPhase02::Update(float dt, NaviBoss* boss) {
+void BossPhase02::Update(float dt, Boss* boss) {
     m_glitchTimer += dt;
     
     if (m_aiTarget && m_aiTarget->GetHP() <= 0) {
@@ -560,7 +560,7 @@ void BossPhase02::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void BossPhase02::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {
+void BossPhase02::Render(ID3D11DeviceContext* context, Camera* currentCamera, Boss* boss) {
     if (!currentCamera || !m_wingSprite || !boss) return;
 
     bool isFXCam = (currentCamera == m_fxCamera.get());
@@ -718,7 +718,7 @@ void BossPhase02::DamageCage(int dmg) {
     }
 }
 
-void BossPhase02::TriggerCageFirstHitDialogue(NaviBoss* boss)
+void BossPhase02::TriggerCageFirstHitDialogue(Boss* boss)
 {
     // Dialog tidak dibutuhkan — fungsi dikosongkan dengan sengaja.
 }

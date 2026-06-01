@@ -103,7 +103,7 @@ SceneBoss::SceneBoss()
     // PENTING: Beri tahu Player siapa wasit (CollisionManager) di scene ini!
     m_player->SetCollisionManager(m_collisionManager.get());
 
-    m_navi = std::make_unique<NaviBoss>();
+    m_navi = std::make_unique<Boss>();
     m_navi->Initialize(m_windowSystem.get());
 
 #if 1
@@ -114,7 +114,7 @@ SceneBoss::SceneBoss()
 #endif
 
     if (m_collisionManager) {
-        m_collisionManager->SetNaviBoss(m_navi.get());
+        m_collisionManager->SetBoss(m_navi.get());
         m_playerWindowTransparent = false;
     }
 
@@ -1804,7 +1804,7 @@ void SceneBoss::AddLog(const std::string& message)
     // =========================================================
     // [FIX] INISIALISASI NAVI BOSS & SET FASE AWAL!
     // =========================================================
-    m_navi = std::make_unique<NaviBoss>();
+    m_navi = std::make_unique<Boss>();
     m_navi->Initialize(m_windowSystem.get());
 
     // Beri otak ke Navi agar masuk ke Mode Layar Penuh!
@@ -1814,7 +1814,7 @@ void SceneBoss::AddLog(const std::string& message)
     m_player->SetMaxHP(100); // Reset darah player
     m_player->scale = { 1.0f, 1.0f, 1.0f }; // Kembalikan badan player jika tadi mati
 
-    if (m_collisionManager) m_collisionManager->SetNaviBoss(m_navi.get());
+    if (m_collisionManager) m_collisionManager->SetBoss(m_navi.get());
 
     // 5. Finalize
     m_timeScale = 1.0f;

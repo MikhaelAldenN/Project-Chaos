@@ -3,7 +3,6 @@
 #include "CameraController.h"
 #include "CinematicDirector.h" 
 #include "Framework.h"
-#include "GUISceneGameBreaker.h" 
 #include "PostProcessManager.h"
 #include "Primitive.h"
 #include "ResourceManager.h"

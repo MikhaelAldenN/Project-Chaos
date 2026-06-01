@@ -1,6 +1,6 @@
 #pragma execution_character_set("utf-8")
 #include "AttackRain.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include "System/Graphics.h"
 #include "System/AudioManager.h"
 #include "CameraController.h"
@@ -20,7 +20,7 @@ AttackRain::AttackRain(const RainParams& params, RainMode mode, bool isPositiveS
     m_vfxHandles.assign(800, -1);
 }
 
-void AttackRain::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
+void AttackRain::StartPooled(Boss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
     m_pool = pool;
     m_state = 1;
     m_timer = 0.0f;
@@ -43,7 +43,7 @@ void AttackRain::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>
     }
 }
 
-void AttackRain::Update(float dt, NaviBoss* boss) {
+void AttackRain::Update(float dt, Boss* boss) {
     if (m_state == 0) return;
 
     m_timer += dt;
@@ -137,7 +137,7 @@ void AttackRain::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void AttackRain::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
+void AttackRain::Render(ID3D11DeviceContext* context, Camera* camera, Boss* boss) {
     if (m_state == 0 || !boss || !boss->GetWindowSystem()) return;
 
     auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
@@ -264,7 +264,7 @@ void AttackRain::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* 
     }
 }
 
-void AttackRain::Stop(NaviBoss* boss) {
+void AttackRain::Stop(Boss* boss) {
     ClearVFX();
     m_state = 0;
 }

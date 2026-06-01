@@ -26,10 +26,10 @@ public:
     AttackSpears(const UndyneSpearParams& params, Player* target);
     ~AttackSpears() override = default;
 
-    void Start(NaviBoss* boss) override;
-    void Update(float dt, NaviBoss* boss) override;
-    void Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) override;
-    void Stop(NaviBoss* boss) override;
+    void Start(Boss* boss) override;
+    void Update(float dt, Boss* boss) override;
+    void Render(ID3D11DeviceContext* context, Camera* camera, Boss* boss) override;
+    void Stop(Boss* boss) override;
 
     bool IsFinished() const override;
     std::vector<Bullet*> GetActiveProjectiles() const override;

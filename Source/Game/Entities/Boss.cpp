@@ -1,4 +1,4 @@
-﻿#include "NaviBoss.h"
+﻿#include "Boss.h"
 #include "WindowTrackingSystem.h"
 #include "System/Graphics.h"
 #include "System/Sprite.h"
@@ -11,9 +11,9 @@ using namespace DirectX;
 // Constructor / Destructor
 // ============================================================
 
-NaviBoss::NaviBoss() {}
+Boss::Boss() {}
 
-NaviBoss::~NaviBoss() {
+Boss::~Boss() {
     if (m_currentPhase)
         m_currentPhase->Exit(this);
 }
@@ -22,7 +22,7 @@ NaviBoss::~NaviBoss() {
 // Lifecycle
 // ============================================================
 
-void NaviBoss::Initialize(WindowTrackingSystem* windowSystem) {
+void Boss::Initialize(WindowTrackingSystem* windowSystem) {
     m_windowSystem = windowSystem;
     auto device = Graphics::Instance().GetDevice();
 
@@ -44,7 +44,7 @@ void NaviBoss::Initialize(WindowTrackingSystem* windowSystem) {
     };
 }
 
-void NaviBoss::SpawnHeadWindow() {
+void Boss::SpawnHeadWindow() {
     if (!m_windowSystem) return;
 
     // Register the boss head as a tracked window
@@ -91,7 +91,7 @@ void NaviBoss::SpawnHeadWindow() {
 // Phase Management
 // ============================================================
 
-void NaviBoss::ChangePhase(std::unique_ptr<INaviPhase> newPhase) {
+void Boss::ChangePhase(std::unique_ptr<INaviPhase> newPhase) {
     if (m_currentPhase)
         m_currentPhase->Exit(this);
 
@@ -105,7 +105,7 @@ void NaviBoss::ChangePhase(std::unique_ptr<INaviPhase> newPhase) {
 // Update
 // ============================================================
 
-void NaviBoss::Update(float dt) {
+void Boss::Update(float dt) {
     m_glitchTimer += dt;
 
     if (m_windowSystem)
@@ -126,7 +126,7 @@ void NaviBoss::Update(float dt) {
 // Render
 // ============================================================
 
-void NaviBoss::Render(ID3D11DeviceContext* context, Camera* currentCamera) {
+void Boss::Render(ID3D11DeviceContext* context, Camera* currentCamera) {
     if (!currentCamera) return;
 
     // Only render face content when using the boss's own camera
@@ -155,7 +155,7 @@ void NaviBoss::Render(ID3D11DeviceContext* context, Camera* currentCamera) {
 // Window Title
 // ============================================================
 
-void NaviBoss::SetWindowTitle(const std::string& newTitle) {
+void Boss::SetWindowTitle(const std::string& newTitle) {
     m_currentTitle = newTitle;
     if (m_hHeadWindow)
         SetWindowTextA(m_hHeadWindow, m_currentTitle.c_str());
@@ -165,7 +165,7 @@ void NaviBoss::SetWindowTitle(const std::string& newTitle) {
 // Face Grid Setup
 // ============================================================
 
-void NaviBoss::InitializeFaceGrid(ID3D11Device* device) {
+void Boss::InitializeFaceGrid(ID3D11Device* device) {
     m_faceTextures.clear();
 
     // Load all Sprite_Boss_XX.png source textures
@@ -180,13 +180,13 @@ void NaviBoss::InitializeFaceGrid(ID3D11Device* device) {
     SetGridResolution(m_faceParams.gridResolution);
 }
 
-void NaviBoss::SetGridResolution(int res) {
+void Boss::SetGridResolution(int res) {
     m_faceParams.gridResolution = res;
     m_faceGrid.assign(res, std::vector<FaceTile>(res));
     RandomizeFaceGrid();
 }
 
-void NaviBoss::RandomizeFaceGrid() {
+void Boss::RandomizeFaceGrid() {
     if (m_faceTextures.empty()) return;
 
     int res = m_faceParams.gridResolution;
@@ -207,7 +207,7 @@ void NaviBoss::RandomizeFaceGrid() {
 // Face Grid Update (Glitch Logic)
 // ============================================================
 
-void NaviBoss::UpdateFaceGlitch(float dt) {
+void Boss::UpdateFaceGlitch(float dt) {
     m_breathTimer += dt;
     if (m_faceTextures.empty() || !m_faceParams.enableGlitch) return;
 
@@ -267,7 +267,7 @@ void NaviBoss::UpdateFaceGlitch(float dt) {
 // Face Grid Render (Batched by texture to minimize draw calls)
 // ============================================================
 
-void NaviBoss::RenderFaceGrid(ID3D11DeviceContext* context, Camera* currentCamera) {
+void Boss::RenderFaceGrid(ID3D11DeviceContext* context, Camera* currentCamera) {
     if (!currentCamera || m_faceTextures.empty()) return;
 
     int res = m_faceParams.gridResolution;

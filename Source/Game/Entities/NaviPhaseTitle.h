@@ -9,7 +9,7 @@ class Player;
 // NaviPhaseTitle
 //   - Renders "Data/Sprite/SystemChaos.png" full-screen.
 //   - Pressing Enter transitions to NaviPhaseNormal.
-//   - This is the FIRST phase registered on NaviBoss.
+//   - This is the FIRST phase registered on Boss.
 // ============================================================
 class NaviPhaseTitle : public INaviPhase
 {
@@ -18,10 +18,10 @@ public:
     ~NaviPhaseTitle() override = default;
 
     // INaviPhase interface
-    void Enter(NaviBoss* boss)                                                     override;
-    void Update(float dt, NaviBoss* boss)                                           override;
-    void Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) override;
-    void Exit(NaviBoss* boss)                                                     override;
+    void Enter(Boss* boss)                                                     override;
+    void Update(float dt, Boss* boss)                                           override;
+    void Render(ID3D11DeviceContext* context, Camera* currentCamera, Boss* boss) override;
+    void Exit(Boss* boss)                                                     override;
 
 private:
     Player* m_player = nullptr;

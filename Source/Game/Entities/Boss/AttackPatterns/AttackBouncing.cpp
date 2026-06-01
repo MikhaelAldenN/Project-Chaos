@@ -1,5 +1,5 @@
 #include "AttackBouncing.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include "WindowTrackingSystem.h"
 #include "System/AudioManager.h"
 #include "CameraController.h"
@@ -10,7 +10,7 @@ using namespace DirectX;
 AttackBouncing::AttackBouncing(const BouncingBulletParams& params)
     : m_params(params) {}
 
-void AttackBouncing::Start(NaviBoss* boss) {
+void AttackBouncing::Start(Boss* boss) {
     m_isSpawning = true;
     m_spawnedCount = 0;
     m_spawnTimer = m_params.spawnDelay; // Force immediate first spawn
@@ -23,7 +23,7 @@ void AttackBouncing::Start(NaviBoss* boss) {
     }
 }
 
-void AttackBouncing::Update(float dt, NaviBoss* boss) {
+void AttackBouncing::Update(float dt, Boss* boss) {
     if (!boss || !boss->GetWindowSystem()) return;
 
     // 1. Handle Spawning Sequence
@@ -133,7 +133,7 @@ void AttackBouncing::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void AttackBouncing::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
+void AttackBouncing::Render(ID3D11DeviceContext* context, Camera* camera, Boss* boss) {
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
     for (auto& bwb : m_bullets) {
         if (bwb.bullet && bwb.bullet->IsActive()) {
@@ -142,7 +142,7 @@ void AttackBouncing::Render(ID3D11DeviceContext* context, Camera* camera, NaviBo
     }
 }
 
-void AttackBouncing::Stop(NaviBoss* boss) {
+void AttackBouncing::Stop(Boss* boss) {
     if (boss && boss->GetWindowSystem()) {
         for (auto& bwb : m_bullets) {
             boss->GetWindowSystem()->RemoveTrackedWindow(bwb.windowName);

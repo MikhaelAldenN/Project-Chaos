@@ -146,10 +146,6 @@
     <ClInclude Include="Source\Engine\Helpers\PerformanceLogger.h" />
     <ClInclude Include="Source\Engine\Helpers\PhysXutils.h" />
     <ClInclude Include="Source\Engine\Helpers\TimeManager.h" />
-    <ClInclude Include="Source\Engine\Legacy\BossTerminal.h" />
-    <ClInclude Include="Source\Engine\Legacy\GUISceneGameBreaker.h" />
-    <ClInclude Include="Source\Engine\Legacy\TerminalMonitor1.h" />
-    <ClInclude Include="Source\Engine\Legacy\TextDatabase.h" />
     <ClInclude Include="Source\Engine\UI\ButtonManager.h" />
     <ClInclude Include="Source\Engine\UI\CursorBlock.h" />
     <ClInclude Include="Source\Engine\UI\HUDRenderer.h" />
@@ -192,7 +188,7 @@
     <ClInclude Include="Source\Game\Entities\Item.h" />
     <ClInclude Include="Source\Game\Entities\ItemManager.h" />
     <ClInclude Include="Source\Game\Entities\NaviAlly.h" />
-    <ClInclude Include="Source\Game\Entities\NaviBoss.h" />
+    <ClInclude Include="Source\Game\Entities\Boss.h" />
     <ClInclude Include="Source\Game\Entities\BossPhase01.h" />
     <ClInclude Include="Source\Game\Entities\NaviPhaseTitle.h" />
     <ClInclude Include="Source\Game\Entities\BossPhase02.h" />
@@ -261,10 +257,6 @@
     <ClCompile Include="Source\Engine\Helpers\CapeSimulator.cpp" />
     <ClCompile Include="Source\Engine\Helpers\InputHelper.cpp" />
     <ClCompile Include="Source\Engine\Helpers\PerformanceLogger.cpp" />
-    <ClCompile Include="Source\Engine\Legacy\BossTerminal.cpp" />
-    <ClCompile Include="Source\Engine\Legacy\GUISceneGameBreaker.cpp" />
-    <ClCompile Include="Source\Engine\Legacy\TerminalMonitor1.cpp" />
-    <ClCompile Include="Source\Engine\Legacy\TextDatabase.cpp" />
     <ClCompile Include="Source\Engine\UI\CursorBlock.cpp" />
     <ClCompile Include="Source\Engine\UI\HUDRenderer.cpp" />
     <ClCompile Include="Source\Engine\UI\TUIBuilder.cpp" />
@@ -300,7 +292,7 @@
     <ClCompile Include="Source\Game\Entities\Item.cpp" />
     <ClCompile Include="Source\Game\Entities\ItemManager.cpp" />
     <ClCompile Include="Source\Game\Entities\NaviAlly.cpp" />
-    <ClCompile Include="Source\Game\Entities\NaviBoss.cpp" />
+    <ClCompile Include="Source\Game\Entities\Boss.cpp" />
     <ClCompile Include="Source\Game\Entities\BossPhase01.cpp" />
     <ClCompile Include="Source\Game\Entities\NaviPhaseTitle.cpp" />
     <ClCompile Include="Source\Game\Entities\BossPhase02.cpp" />

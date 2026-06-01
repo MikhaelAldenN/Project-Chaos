@@ -35,13 +35,13 @@ struct FaceParams {
 };
 
 // ============================================================
-// NaviBoss - Top-level boss entity. Delegates gameplay logic
+// Boss - Top-level boss entity. Delegates gameplay logic
 //            to INaviPhase implementations (State Machine).
 // ============================================================
-class NaviBoss {
+class Boss {
 public:
-    NaviBoss();
-    ~NaviBoss();
+    Boss();
+    ~Boss();
 
     // ----- Lifecycle -----
     void Initialize(WindowTrackingSystem* windowSystem);

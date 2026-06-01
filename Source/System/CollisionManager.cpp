@@ -1,5 +1,5 @@
 #include "CollisionManager.h"
-#include "NaviBoss.h"        
+#include "Boss.h"        
 #include "BossPhase01.h" 
 #include "EffectManager.h"
 #include "TimeManager.h"
@@ -208,17 +208,17 @@ void CollisionManager::Update(float elapsedTime)
     }
     
     CheckNaviProjectilesVsEnemies(elapsedTime);
-    CheckNaviBossProjectilesVsPlayer(elapsedTime);
-    CheckNaviBossProjectilesVsBoss(elapsedTime);
+    CheckBossProjectilesVsPlayer(elapsedTime);
+    CheckBossProjectilesVsBoss(elapsedTime);
 
     // =========================================================
     // DETEKSI PELURU PLAYER VS WINDOW BOSS (AABB COLLISION)
     // =========================================================
-    if (m_naviBoss && m_player) {
-        if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_naviBoss->GetCurrentPhase())) {
+    if (m_Boss && m_player) {
+        if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_Boss->GetCurrentPhase())) {
 
             if (!normalPhase->IsDead()) {
-                DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();
+                DirectX::XMFLOAT3 bossPos = m_Boss->GetPosition();
 
                 // Ukuran Window di 3D World adalah 5.0f (Radius/Setengahnya adalah 2.5f)
                 float halfW = 2.5f;
@@ -244,9 +244,9 @@ void CollisionManager::Update(float elapsedTime)
                 }
             }
         }
-        else if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_naviBoss->GetCurrentPhase())) {
+        else if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_Boss->GetCurrentPhase())) {
             if (!wkPhase->IsPlayerCaged() && !wkPhase->IsDead()) {
-                DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();
+                DirectX::XMFLOAT3 bossPos = m_Boss->GetPosition();
 
                 float halfW = 2.5f;
                 float halfD = 2.5f;
@@ -670,9 +670,9 @@ void CollisionManager::CheckPlayerProjectilesVsEnemies(const float elapsedTime)
         // [BARU] DETEKSI TABRAKAN PELURU VS KANDANG (CAGE)
         // =========================================================
         bool hitCage = false;
-        if (m_naviBoss) {
+        if (m_Boss) {
             // Cek apakah sedang berada di fase Windowkill
-            if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_naviBoss->GetCurrentPhase())) {
+            if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_Boss->GetCurrentPhase())) {
                 if (wkPhase->IsPlayerCaged()) {
                     DirectX::XMFLOAT3 cPos = wkPhase->GetCagePos();
                     float halfSize = wkPhase->GetCageSize() * 0.5f;
@@ -994,9 +994,9 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
     // =========================================================
         // 2. DETEKSI BIJUUDAMA NAVI BOSS
         // =========================================================
-    if (m_naviBoss)
+    if (m_Boss)
     {
-        auto* normalPhase = dynamic_cast<BossPhase01*>(m_naviBoss->GetCurrentPhase());
+        auto* normalPhase = dynamic_cast<BossPhase01*>(m_Boss->GetCurrentPhase());
         if (normalPhase)
         {
             // 1. Ambil serangan Bijuudama (Ultimate) yang sedang aktif
@@ -1014,7 +1014,7 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
                         if (outNearestEnemy) *outNearestEnemy = nullptr;
 
                         // 3. Langsung picu efek pecah (Shatter) Bijuudama ke arah player
-                        normalPhase->OnBijuudamaParried(playerPos, m_naviBoss);
+                        normalPhase->OnBijuudamaParried(playerPos, m_Boss);
 
                         return true;
                     }
@@ -1026,9 +1026,9 @@ bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float t
     return false;
 }
 
-void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
+void CollisionManager::CheckBossProjectilesVsPlayer(float elapsedTime)
 {
-    if (!m_player || !m_naviBoss || m_player->GetHP() <= 0) return;
+    if (!m_player || !m_Boss || m_player->GetHP() <= 0) return;
 
     // Radius standar hitbox player untuk peluru boss
     float playerHitboxRadius = 0.3f;
@@ -1066,7 +1066,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
     // =========================================================
     // 1. CEK PELURU PHASE 01 (NORMAL)
     // =========================================================
-    if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_naviBoss->GetCurrentPhase())) {
+    if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_Boss->GetCurrentPhase())) {
         for (auto& bulletPtr : normalPhase->GetProjectiles()) {
             checkBulletHit(bulletPtr.get());
         }
@@ -1074,7 +1074,7 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
     // =========================================================
     // 2. CEK PELURU PHASE 02 (WINDOWKILL)
     // =========================================================
-    else if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_naviBoss->GetCurrentPhase())) {
+    else if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_Boss->GetCurrentPhase())) {
         std::vector<Bullet*> activeBullets = wkPhase->GetProjectiles();
         for (Bullet* bullet : activeBullets) {
             checkBulletHit(bullet);
@@ -1082,21 +1082,21 @@ void CollisionManager::CheckNaviBossProjectilesVsPlayer(float elapsedTime)
     }
 }
 
-void CollisionManager::CheckNaviBossProjectilesVsBoss(float elapsedTime)
+void CollisionManager::CheckBossProjectilesVsBoss(float elapsedTime)
 {
-    if (!m_naviBoss) return;
-    auto* normalPhase = dynamic_cast<BossPhase01*>(m_naviBoss->GetCurrentPhase());
+    if (!m_Boss) return;
+    auto* normalPhase = dynamic_cast<BossPhase01*>(m_Boss->GetCurrentPhase());
     if (!normalPhase) return;
 
     for (auto& bullet : normalPhase->GetProjectiles())
     {
         if (!bullet->IsActive()) continue;
 
-        // Bandingkan BossTarget dengan m_naviBoss
-        if (bullet->GetBossTarget() == m_naviBoss)
+        // Bandingkan BossTarget dengan m_Boss
+        if (bullet->GetBossTarget() == m_Boss)
         {
             DirectX::XMFLOAT3 bPos = bullet->GetMovement()->GetPosition();
-            DirectX::XMFLOAT3 bossPos = m_naviBoss->GetPosition();
+            DirectX::XMFLOAT3 bossPos = m_Boss->GetPosition();
 
             // =========================================================
             // [FIX 1] DETEKSI 3D PENUH

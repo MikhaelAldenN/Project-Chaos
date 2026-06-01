@@ -10,7 +10,7 @@
 #include "System/CollisionManager.h"
 #include "Enemy.h"
 #include "Bullet.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include "System/AudioManager.h"
 
 #include "EffectManager.h"
@@ -109,7 +109,7 @@ void PlayerIdle::Update(Player* player, float dt)
                     speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
                     if (speed < 10.0f) speed = 30.0f;
                 }
-                else if (colMgr->GetNaviBoss()) {
+                else if (colMgr->GetBoss()) {
                     // Jika Bijuudama (Milik Bos)
                     parryBullet->SetHomingTarget(nullptr);
                     tPos = pPos; // Tembak ke arah player untuk memicu Shatter!
@@ -256,7 +256,7 @@ void PlayerMoving::Update(Player* player, float dt)
                         speed = XMVectorGetX(XMVector3Length(XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
                         if (speed < 10.0f) speed = 30.0f;
                     }
-                    else if (colMgr->GetNaviBoss()) {
+                    else if (colMgr->GetBoss()) {
                         parryBullet->SetHomingTarget(nullptr);
                         tPos = pPos;
                         speed = 80.0f;

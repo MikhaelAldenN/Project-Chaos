@@ -1,6 +1,6 @@
 #pragma execution_character_set("utf-8")
 #include "AttackPhalanx.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include "System/AudioManager.h"
 #include "System/Graphics.h"
 #include "EffectManager.h"
@@ -14,7 +14,7 @@ using namespace DirectX;
 AttackPhalanx::AttackPhalanx(const PhalanxParams& params, Player* target)
     : m_params(params), m_target(target) {}
 
-void AttackPhalanx::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
+void AttackPhalanx::StartPooled(Boss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
     m_pool = pool;
     m_boss = boss;
     m_state = 1;
@@ -32,7 +32,7 @@ void AttackPhalanx::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bull
     m_resetLerpFlag = true;
 }
 
-void AttackPhalanx::Update(float dt, NaviBoss* boss) {
+void AttackPhalanx::Update(float dt, Boss* boss) {
     if (m_state == 0 || !m_pool || !boss) return;
 
     m_timer += dt;
@@ -176,11 +176,11 @@ void AttackPhalanx::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void AttackPhalanx::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
+void AttackPhalanx::Render(ID3D11DeviceContext* context, Camera* camera, Boss* boss) {
     // Bullets are rendered by the phase's central render loop
 }
 
-void AttackPhalanx::Stop(NaviBoss* boss) {
+void AttackPhalanx::Stop(Boss* boss) {
     // Deactivate any bullets still orbiting (not yet fired)
     for (Bullet* b : m_bullets) {
         if (b && b->IsActive()) b->SetActive(false);

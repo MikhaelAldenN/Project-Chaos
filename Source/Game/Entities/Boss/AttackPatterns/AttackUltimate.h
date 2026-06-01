@@ -58,16 +58,16 @@ public:
     AttackUltimate(const UltimateParams& params, Player* target);
     ~AttackUltimate() override = default;
 
-    void StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) override;
-    void Update(float dt, NaviBoss* boss) override;
-    void Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) override;
-    void Stop(NaviBoss* boss) override;
+    void StartPooled(Boss* boss, std::vector<std::unique_ptr<Bullet>>* pool) override;
+    void Update(float dt, Boss* boss) override;
+    void Render(ID3D11DeviceContext* context, Camera* camera, Boss* boss) override;
+    void Stop(Boss* boss) override;
 
     bool IsFinished() const override;
     std::vector<Bullet*> GetActiveProjectiles() const override { return {}; }
 
     // Called externally (e.g. collision system) when the ball is parried
-    void ShatterBijuudama(DirectX::XMFLOAT3 parryPos, NaviBoss* boss);
+    void ShatterBijuudama(DirectX::XMFLOAT3 parryPos, Boss* boss);
 
     // Phase movement target — read by BossPhase01 to update boss position
     bool              IsMovingBoss()     const { return m_state != State::Done && m_state != State::Recovering; }
@@ -82,7 +82,7 @@ public:
     Bullet* GetBall()        const { return m_ball; }
 
 private:
-    void LaunchBall(NaviBoss* boss);
+    void LaunchBall(Boss* boss);
     void CancelCharge();
 
     enum class State { Moving, Charging, Fired, Recovering, Done };

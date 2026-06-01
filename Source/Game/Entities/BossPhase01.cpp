@@ -2,7 +2,7 @@
 
 #include "BossPhase01.h"
 #include "BossPhase02.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include "WindowManager.h"
 #include "System/Graphics.h"
 #include "System/Input.h"
@@ -23,7 +23,7 @@ using namespace DirectX;
 BossPhase01::BossPhase01(Player* target)
     : m_aiTarget(target) {}
 
-void BossPhase01::Enter(NaviBoss* boss) {
+void BossPhase01::Enter(Boss* boss) {
     m_bossRef = boss;
 
     // ----- Reset boss HP & state -----
@@ -129,7 +129,7 @@ void BossPhase01::Enter(NaviBoss* boss) {
 #endif
 }
 
-void BossPhase01::Exit(NaviBoss* boss) {
+void BossPhase01::Exit(Boss* boss) {
     m_bulletPool.clear();
     m_activeAttacks.clear();
     m_rainAttack.reset();
@@ -144,7 +144,7 @@ void BossPhase01::Exit(NaviBoss* boss) {
     }
 }
 
-void BossPhase01::Update(float dt, NaviBoss* boss) {
+void BossPhase01::Update(float dt, Boss* boss) {
     if (!boss) return;
 
     if (m_aiTarget && m_aiTarget->GetHP() <= 0) {
@@ -253,7 +253,7 @@ void BossPhase01::Update(float dt, NaviBoss* boss) {
     UpdateBulletPool(dt, boss);
 }
 
-void BossPhase01::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) {
+void BossPhase01::Render(ID3D11DeviceContext* context, Camera* currentCamera, Boss* boss) {
     if (!currentCamera) return;
 
     auto renderer = Graphics::Instance().GetModelRenderer();
@@ -319,7 +319,7 @@ void BossPhase01::TriggerRain(RainMode mode, bool isPositiveSide, float sweepDir
     m_rainAttack->StartPooled(m_bossRef, &m_bulletPool);
 }
 
-void BossPhase01::OnBijuudamaParried(XMFLOAT3 parryPos, NaviBoss* boss) {
+void BossPhase01::OnBijuudamaParried(XMFLOAT3 parryPos, Boss* boss) {
     for (auto& attack : m_activeAttacks) {
         if (auto* ultimate = dynamic_cast<AttackUltimate*>(attack.get())) {
             ultimate->ShatterBijuudama(parryPos, boss);
@@ -338,7 +338,7 @@ void BossPhase01::TakeDamage(int damage, XMFLOAT3 hitPos) {
     EffectManager::Instance().Play("Data/Effect/VFX_Boss_Hit.efk", hitPos, 0.3f);
 }
 
-void BossPhase01::UpdateIdleHover(float dt, NaviBoss* boss) {
+void BossPhase01::UpdateIdleHover(float dt, Boss* boss) {
     bool isFloating = m_activeAttacks.empty() || (
         !dynamic_cast<AttackPhalanx*>(m_activeAttacks.front().get()) &&
         !dynamic_cast<AttackUltimate*>(m_activeAttacks.front().get()));
@@ -351,7 +351,7 @@ void BossPhase01::UpdateIdleHover(float dt, NaviBoss* boss) {
     }
 }
 
-void BossPhase01::UpdateBossMovement(float dt, NaviBoss* boss) {
+void BossPhase01::UpdateBossMovement(float dt, Boss* boss) {
     m_currentMoveLerpSpeed += (m_moveLerpSpeed - m_currentMoveLerpSpeed) * m_moveAcceleration * dt;
 
     XMFLOAT3 pos = boss->GetPosition();
@@ -360,7 +360,7 @@ void BossPhase01::UpdateBossMovement(float dt, NaviBoss* boss) {
     boss->SetPosition(pos);
 }
 
-void BossPhase01::UpdateBulletPool(float dt, NaviBoss* boss) {
+void BossPhase01::UpdateBulletPool(float dt, Boss* boss) {
     auto* ws = boss->GetWindowSystem();
     float limitX = 30.0f;
     float limitZ = 20.0f;
@@ -381,7 +381,7 @@ void BossPhase01::UpdateBulletPool(float dt, NaviBoss* boss) {
     }
 }
 
-void BossPhase01::UpdateGlitchVFX(float dt, NaviBoss* boss) {
+void BossPhase01::UpdateGlitchVFX(float dt, Boss* boss) {
     m_bossGlitchVfxTimer += dt;
 
     if (m_bossGlitchVfxTimer >= 2.0f) {
@@ -412,7 +412,7 @@ void BossPhase01::UpdateGlitchVFX(float dt, NaviBoss* boss) {
     }
 }
 
-void BossPhase01::UpdateDeathSequence(float dt, NaviBoss* boss) {
+void BossPhase01::UpdateDeathSequence(float dt, Boss* boss) {
     if (!m_isDying) {
         m_isDying = true;
         m_deathTimer = 0.0f;

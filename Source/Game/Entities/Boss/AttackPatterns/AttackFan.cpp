@@ -1,6 +1,6 @@
 #pragma execution_character_set("utf-8")
 #include "AttackFan.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include "System/AudioManager.h"
 #include <DirectXMath.h>
 #include <cmath>
@@ -10,7 +10,7 @@ using namespace DirectX;
 AttackFan::AttackFan(const FanParams& params, float lockedBaseAngle)
     : m_params(params), m_lockedBaseAngle(lockedBaseAngle) {}
 
-void AttackFan::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
+void AttackFan::StartPooled(Boss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
     m_pool = pool;
     m_boss = boss;
     m_active = true;
@@ -20,7 +20,7 @@ void AttackFan::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>
     m_waveTimer = m_params.waveDelay;
 }
 
-void AttackFan::Update(float dt, NaviBoss* boss) {
+void AttackFan::Update(float dt, Boss* boss) {
     if (!m_active || !m_pool) return;
 
     m_waveTimer += dt;
@@ -34,11 +34,11 @@ void AttackFan::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void AttackFan::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
+void AttackFan::Render(ID3D11DeviceContext* context, Camera* camera, Boss* boss) {
     // Bullets are rendered by the phase's central render loop
 }
 
-void AttackFan::Stop(NaviBoss* boss) {
+void AttackFan::Stop(Boss* boss) {
     m_active = false;
 }
 
@@ -50,7 +50,7 @@ bool AttackFan::IsFinished() const {
 // Internal
 // ============================================================
 
-void AttackFan::FireWave(NaviBoss* boss) {
+void AttackFan::FireWave(Boss* boss) {
     if (!m_pool || !boss) return;
 
     int   fired = 0;

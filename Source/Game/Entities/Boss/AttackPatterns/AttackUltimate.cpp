@@ -1,6 +1,6 @@
 ﻿#pragma execution_character_set("utf-8")
 #include "AttackUltimate.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include "Player.h"
 #include "System/Graphics.h"
 #include "System/AudioManager.h"
@@ -15,7 +15,7 @@ using namespace DirectX;
 AttackUltimate::AttackUltimate(const UltimateParams& params, Player* target)
     : m_params(params), m_target(target) {}
 
-void AttackUltimate::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
+void AttackUltimate::StartPooled(Boss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
     m_pool = pool;
     m_state = State::Moving;
     m_chargeTimer = 0.0f;
@@ -50,7 +50,7 @@ void AttackUltimate::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bul
     }
 }
 
-void AttackUltimate::Update(float dt, NaviBoss* boss) {
+void AttackUltimate::Update(float dt, Boss* boss) {
     if (m_state == State::Done || !m_pool || !boss) return;
 
     XMFLOAT3 bPos = boss->GetPosition();
@@ -132,7 +132,7 @@ void AttackUltimate::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void AttackUltimate::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
+void AttackUltimate::Render(ID3D11DeviceContext* context, Camera* camera, Boss* boss) {
     if (m_state != State::Charging || !m_target) return;
 
     auto shapeRenderer = Graphics::Instance().GetShapeRenderer();
@@ -150,7 +150,7 @@ void AttackUltimate::Render(ID3D11DeviceContext* context, Camera* camera, NaviBo
     shapeRenderer->DrawSphere(pPos, ringRadius, ringColor);
 }
 
-void AttackUltimate::Stop(NaviBoss* boss) {
+void AttackUltimate::Stop(Boss* boss) {
     CancelCharge();
     if (m_ball && m_ball->IsActive()) {
         m_ball->SetActive(false);
@@ -171,7 +171,7 @@ bool AttackUltimate::IsInParryWindow() const {
 // ShatterBijuudama — Called externally on parry
 // ============================================================
 
-void AttackUltimate::ShatterBijuudama(XMFLOAT3 parryPos, NaviBoss* boss) {
+void AttackUltimate::ShatterBijuudama(XMFLOAT3 parryPos, Boss* boss) {
     if (!m_pool || !boss) return;
 
     if (m_ball) {
@@ -231,7 +231,7 @@ void AttackUltimate::ShatterBijuudama(XMFLOAT3 parryPos, NaviBoss* boss) {
 // Internal
 // ============================================================
 
-void AttackUltimate::LaunchBall(NaviBoss* boss) {
+void AttackUltimate::LaunchBall(Boss* boss) {
     CancelCharge();
 
     m_state = State::Recovering;

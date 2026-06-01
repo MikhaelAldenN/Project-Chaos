@@ -78,7 +78,7 @@ void Bullet::Update(float elapsedTime, Camera* camera)
             eVel = m_homingTarget->GetMovement()->GetVelocity();
         }
         else {
-            // Untuk NaviBoss, kita anggap kecepatannya 0 atau statis saat ini
+            // Untuk Boss, kita anggap kecepatannya 0 atau statis saat ini
             eVel = { 0, 0, 0 };
         }
 

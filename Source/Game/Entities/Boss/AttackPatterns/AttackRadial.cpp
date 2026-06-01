@@ -1,6 +1,6 @@
 #pragma execution_character_set("utf-8")
 #include "AttackRadial.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include "System/AudioManager.h"
 #include <DirectXMath.h>
 
@@ -9,7 +9,7 @@ using namespace DirectX;
 AttackRadial::AttackRadial(const RadialParams& params)
     : m_params(params) {}
 
-void AttackRadial::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
+void AttackRadial::StartPooled(Boss* boss, std::vector<std::unique_ptr<Bullet>>* pool) {
     m_pool = pool;
     m_boss = boss;
     m_active = true;
@@ -21,7 +21,7 @@ void AttackRadial::StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bulle
     m_burstsFired++;
 }
 
-void AttackRadial::Update(float dt, NaviBoss* boss) {
+void AttackRadial::Update(float dt, Boss* boss) {
     if (!m_active || !m_pool) return;
 
     if (m_burstsFired >= m_params.burstCount) {
@@ -42,11 +42,11 @@ void AttackRadial::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void AttackRadial::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
+void AttackRadial::Render(ID3D11DeviceContext* context, Camera* camera, Boss* boss) {
     // Bullets are rendered by the phase's central render loop
 }
 
-void AttackRadial::Stop(NaviBoss* boss) {
+void AttackRadial::Stop(Boss* boss) {
     m_active = false;
 }
 
@@ -58,7 +58,7 @@ bool AttackRadial::IsFinished() const {
 // Internal
 // ============================================================
 
-void AttackRadial::FireBurst(NaviBoss* boss, float angleOffset) {
+void AttackRadial::FireBurst(Boss* boss, float angleOffset) {
     if (!m_pool || !boss) return;
 
     int   fired = 0;

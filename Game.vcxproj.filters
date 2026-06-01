@@ -249,18 +249,6 @@
     <ClCompile Include="Source\Engine\UI\CursorBlock.cpp">
       <Filter>Source\Engine\UI</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Legacy\BossTerminal.cpp">
-      <Filter>Source\Engine\Legacy</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Engine\Legacy\GUISceneGameBreaker.cpp">
-      <Filter>Source\Engine\Legacy</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Engine\Legacy\TerminalMonitor1.cpp">
-      <Filter>Source\Engine\Legacy</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Engine\Legacy\TextDatabase.cpp">
-      <Filter>Source\Engine\Legacy</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Engine\Windowing\BeyondWindow.cpp">
       <Filter>Source\Engine\Windowing</Filter>
     </ClCompile>
@@ -339,7 +327,7 @@
     <ClCompile Include="Source\Game\Entities\BossPhase02.cpp">
       <Filter>Source\Game\Entities\Boss\Phases</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\NaviBoss.cpp">
+    <ClCompile Include="Source\Game\Entities\Boss.cpp">
       <Filter>Source\Game\Entities\Boss</Filter>
     </ClCompile>
   </ItemGroup>
@@ -590,18 +578,6 @@
     <ClInclude Include="Source\Engine\UI\CursorBlock.h">
       <Filter>Source\Engine\UI</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Legacy\BossTerminal.h">
-      <Filter>Source\Engine\Legacy</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Engine\Legacy\GUISceneGameBreaker.h">
-      <Filter>Source\Engine\Legacy</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Engine\Legacy\TerminalMonitor1.h">
-      <Filter>Source\Engine\Legacy</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Engine\Legacy\TextDatabase.h">
-      <Filter>Source\Engine\Legacy</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Engine\Windowing\BeyondWindow.h">
       <Filter>Source\Engine\Windowing</Filter>
     </ClInclude>
@@ -705,7 +681,7 @@
     <ClInclude Include="Source\Game\Entities\BossPhase02.h">
       <Filter>Source\Game\Entities\Boss\Phases</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\NaviBoss.h">
+    <ClInclude Include="Source\Game\Entities\Boss.h">
       <Filter>Source\Game\Entities\Boss</Filter>
     </ClInclude>
   </ItemGroup>
@@ -786,9 +762,6 @@
     </Filter>
     <Filter Include="Source\Engine\VFX">
       <UniqueIdentifier>{d635e537-d2b2-4346-be02-ce124be0ed2c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Engine\Legacy">
-      <UniqueIdentifier>{70925a7c-d738-4f9d-94d3-89ca8bdc709e}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Engine\Common">
       <UniqueIdentifier>{7e02c20d-2013-43d5-a05b-a00113f62a39}</UniqueIdentifier>

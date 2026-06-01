@@ -24,7 +24,7 @@
 #include "UberShader.h"
 #include "BeyondWindow.h"
 #include "PhysXUtils.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include "HUDRenderer.h"
 
 // =========================================================
@@ -96,7 +96,7 @@ private:
     std::unique_ptr<ItemManager>          m_itemManager;
     std::unique_ptr<Stage>                m_stage;
     std::unique_ptr<CollisionManager>     m_collisionManager;
-    std::unique_ptr<NaviBoss>             m_navi;
+    std::unique_ptr<Boss>             m_navi;
 
     // =========================================================
     // HUD

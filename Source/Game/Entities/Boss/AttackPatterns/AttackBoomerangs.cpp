@@ -1,5 +1,5 @@
 #include "AttackBoomerangs.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include "WindowTrackingSystem.h"
 #include "CameraController.h"
 #include <SDL3/SDL.h>
@@ -9,13 +9,13 @@ using namespace DirectX;
 AttackBoomerangs::AttackBoomerangs(const BoomerangParams& params)
     : m_params(params) {}
 
-void AttackBoomerangs::Start(NaviBoss* boss) {
+void AttackBoomerangs::Start(Boss* boss) {
     m_isSpawning = true;
     m_spawnedCount = 0;
     m_spawnTimer = m_params.spawnDelay;
 }
 
-void AttackBoomerangs::Update(float dt, NaviBoss* boss) {
+void AttackBoomerangs::Update(float dt, Boss* boss) {
     if (!boss || !boss->GetWindowSystem()) return;
 
     float p2u = boss->GetWindowSystem()->GetPixelToUnitRatio();
@@ -99,7 +99,7 @@ void AttackBoomerangs::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void AttackBoomerangs::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
+void AttackBoomerangs::Render(ID3D11DeviceContext* context, Camera* camera, Boss* boss) {
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
     for (auto& bw : m_bullets) {
         if (bw.bullet && bw.bullet->IsActive()) {
@@ -108,7 +108,7 @@ void AttackBoomerangs::Render(ID3D11DeviceContext* context, Camera* camera, Navi
     }
 }
 
-void AttackBoomerangs::Stop(NaviBoss* boss) {
+void AttackBoomerangs::Stop(Boss* boss) {
     if (boss && boss->GetWindowSystem()) {
         for (auto& bw : m_bullets) {
             boss->GetWindowSystem()->RemoveTrackedWindow(bw.windowName);

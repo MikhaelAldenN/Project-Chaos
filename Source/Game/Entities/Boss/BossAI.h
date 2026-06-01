@@ -18,7 +18,7 @@
 
 class BossPhase01;
 class BossPhase02;
-class NaviBoss;
+class Boss;
 class Player;
 
 // ========================================================
@@ -27,7 +27,7 @@ class Player;
 class BossAI_Phase01 {
 public:
     BossAI_Phase01(BossPhase01* phase, Player* target);
-    void Update(float dt, NaviBoss* boss);
+    void Update(float dt, Boss* boss);
 
     void SetEnabled(bool enabled) { m_enabled = enabled; }
     bool IsEnabled() const { return m_enabled; }
@@ -63,7 +63,7 @@ private:
 class BossAI_Phase02 {
 public:
     BossAI_Phase02(BossPhase02* phase, Player* target);
-    void Update(float dt, NaviBoss* boss);
+    void Update(float dt, Boss* boss);
 
     void SetEnabled(bool enabled) { m_enabled = enabled; }
     bool IsEnabled() const { return m_enabled; }

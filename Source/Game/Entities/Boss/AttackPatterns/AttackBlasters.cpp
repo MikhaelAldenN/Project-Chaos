@@ -1,5 +1,5 @@
 #include "AttackBlasters.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include "WindowTrackingSystem.h"
 #include "System/Graphics.h"
 #include "System/AudioManager.h"
@@ -12,7 +12,7 @@ using namespace DirectX;
 AttackBlasters::AttackBlasters(const BlasterParams& params, bool isTargeted, float targetX)
     : m_params(params), m_isTargeted(isTargeted), m_targetX(targetX) {}
 
-void AttackBlasters::Start(NaviBoss* boss) {
+void AttackBlasters::Start(Boss* boss) {
     auto device = Graphics::Instance().GetDevice();
     m_solidRenderer = std::make_unique<Primitive>(device);
     m_placeholderModel = std::make_shared<Model>(device, "Data/Model/Character/PLACEHOLDER_mdl_Ball.glb");
@@ -22,7 +22,7 @@ void AttackBlasters::Start(NaviBoss* boss) {
     m_spawnTimer = m_params.spawnDelay;
 }
 
-void AttackBlasters::Update(float dt, NaviBoss* boss) {
+void AttackBlasters::Update(float dt, Boss* boss) {
     if (!boss || !boss->GetWindowSystem()) return;
 
     // 1. Spawning Sequence
@@ -138,7 +138,7 @@ void AttackBlasters::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void AttackBlasters::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
+void AttackBlasters::Render(ID3D11DeviceContext* context, Camera* camera, Boss* boss) {
     if (!m_placeholderModel || !m_solidRenderer) return;
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
     float p2u = boss->GetWindowSystem()->GetPixelToUnitRatio();
@@ -191,7 +191,7 @@ void AttackBlasters::Render(ID3D11DeviceContext* context, Camera* camera, NaviBo
     }
 }
 
-void AttackBlasters::Stop(NaviBoss* boss) {
+void AttackBlasters::Stop(Boss* boss) {
     for (auto& b : m_blasters) {
         EffectManager::Instance().Stop(b->chargeEffectHandle);
         EffectManager::Instance().Stop(b->fireEffectHandle);

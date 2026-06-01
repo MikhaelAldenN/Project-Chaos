@@ -4,7 +4,7 @@
 #include <memory>
 #include "Primitive.h"
 
-class NaviBoss;
+class Boss;
 class INaviPhase;
 
 // ============================================================

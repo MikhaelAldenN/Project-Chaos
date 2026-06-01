@@ -20,9 +20,9 @@ public:
 
     // Called instead of Start(boss) when a shared pool is available.
     // Implementations should store the pointer and use it in Update().
-    virtual void StartPooled(NaviBoss* boss, std::vector<std::unique_ptr<Bullet>>* pool) = 0;
+    virtual void StartPooled(Boss* boss, std::vector<std::unique_ptr<Bullet>>* pool) = 0;
 
     // Base Start() should not be used directly for pooled patterns.
     // Provided as a no-op fallback to satisfy IBossAttackPattern.
-    void Start(NaviBoss* boss) override {}
+    void Start(Boss* boss) override {}
 };

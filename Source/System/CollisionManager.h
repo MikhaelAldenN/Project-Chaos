@@ -19,7 +19,7 @@
 
 class ItemManager;
 class NaviAlly;
-class NaviBoss;
+class Boss;
 
 // Axis-Aligned Bounding Box for rapid broad-phase rejection
 struct AABB
@@ -56,8 +56,8 @@ public:
     bool GetParryableProjectile(const DirectX::XMFLOAT3& playerPos, float threshold, class Bullet** outBullet, Enemy** outNearestEnemy);
     void SetNavi(NaviAlly* navi) { m_navi = navi; }
     NaviAlly* GetNavi() const { return m_navi; }
-    void SetNaviBoss(NaviBoss* naviBoss) { m_naviBoss = naviBoss; }
-    NaviBoss* GetNaviBoss() const { return m_naviBoss; }
+    void SetBoss(Boss* Boss) { m_Boss = Boss; }
+    Boss* GetBoss() const { return m_Boss; }
 
 private:
     void CheckPlayerVsCheckpointLines();
@@ -71,8 +71,8 @@ private:
     void CheckEnemyProjectilesFull(float elapsedTime);
     void CheckNaviProjectilesVsEnemies(float elapsedTime);
     void CheckNaviAllyProjectilesVsPlayer(float elapsedTime);
-    void CheckNaviBossProjectilesVsPlayer(float elapsedTime);
-    void CheckNaviBossProjectilesVsBoss(float elapsedTime); // Fungsi pantulan
+    void CheckBossProjectilesVsPlayer(float elapsedTime);
+    void CheckBossProjectilesVsBoss(float elapsedTime); // Fungsi pantulan
 
     Player* m_player = nullptr;
     Stage* m_stage = nullptr;
@@ -80,7 +80,7 @@ private:
     EnemyManager* m_enemyManager = nullptr;
     ItemManager* m_itemManager = nullptr;
     NaviAlly* m_navi = nullptr;
-    NaviBoss* m_naviBoss = nullptr;
+    Boss* m_Boss = nullptr;
 
     std::function<void(DirectX::XMFLOAT3)> m_onCheckpointReachCallback;
     std::function<void(int)> m_onEnableLineReachCallback = nullptr;

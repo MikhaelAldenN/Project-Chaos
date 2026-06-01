@@ -6,9 +6,9 @@
 #include "System/Graphics.h"
 #include "System/Model.h"
 #include "Character.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 
-class NaviBoss;
+class Boss;
 
 class Bullet : public Character
 {
@@ -39,11 +39,11 @@ public:
     void AttachVFX(const char* path, float scale);
     void StopVFX();
 
-    void SetBossTarget(NaviBoss* target) {
+    void SetBossTarget(Boss* target) {
         m_bossTarget = target;
         m_homingTarget = nullptr; // Reset target biasa jika ada
     }
-    NaviBoss* GetBossTarget() const { return m_bossTarget; }
+    Boss* GetBossTarget() const { return m_bossTarget; }
 
     // [BARU] Fungsi setup untuk Kurva Parabola
     void SetParabolic(bool val) { m_isParabolic = val; }
@@ -65,7 +65,7 @@ public:
     float GetLifeTime() const { return m_lifeTime; }
 
 private:
-    NaviBoss* m_bossTarget = nullptr;
+    Boss* m_bossTarget = nullptr;
 
     bool m_isParabolic = false;
     DirectX::XMFLOAT3 m_parabolaStart = { 0,0,0 };

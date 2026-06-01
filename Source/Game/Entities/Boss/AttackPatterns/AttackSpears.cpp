@@ -1,5 +1,5 @@
 #include "AttackSpears.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include "WindowTrackingSystem.h"
 #include "WindowManager.h"
 #include "Player.h"
@@ -11,7 +11,7 @@ using namespace DirectX;
 AttackSpears::AttackSpears(const UndyneSpearParams& params, Player* target)
     : m_params(params), m_playerTarget(target) {}
 
-void AttackSpears::Start(NaviBoss* boss) {
+void AttackSpears::Start(Boss* boss) {
     m_isSpawning = true;
     m_spawnedCount = 0;
     m_spawnTimer = 0.0f;
@@ -25,7 +25,7 @@ void AttackSpears::Start(NaviBoss* boss) {
     std::shuffle(m_spawnIndices.begin(), m_spawnIndices.end(), gen);
 }
 
-void AttackSpears::Update(float dt, NaviBoss* boss) {
+void AttackSpears::Update(float dt, Boss* boss) {
     if (!boss || !boss->GetWindowSystem()) return;
 
     // 1. Spawning Rainbow Arc
@@ -117,7 +117,7 @@ void AttackSpears::Update(float dt, NaviBoss* boss) {
     }
 }
 
-void AttackSpears::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss* boss) {
+void AttackSpears::Render(ID3D11DeviceContext* context, Camera* camera, Boss* boss) {
     auto modelRenderer = Graphics::Instance().GetModelRenderer();
     for (auto& spear : m_spears) {
         if (!spear.isPreparedForDestroy && spear.bullet && spear.bullet->IsActive()) {
@@ -126,7 +126,7 @@ void AttackSpears::Render(ID3D11DeviceContext* context, Camera* camera, NaviBoss
     }
 }
 
-void AttackSpears::Stop(NaviBoss* boss) {
+void AttackSpears::Stop(Boss* boss) {
     if (boss && boss->GetWindowSystem()) {
         for (auto& spear : m_spears) {
             if (!spear.isPreparedForDestroy) {

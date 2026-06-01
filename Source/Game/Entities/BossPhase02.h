@@ -31,10 +31,10 @@ public:
     BossPhase02(Player* player = nullptr);
     ~BossPhase02() override = default;
 
-    void Enter(NaviBoss* boss) override;
-    void Update(float dt, NaviBoss* boss) override;
-    void Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) override;
-    void Exit(NaviBoss* boss) override;
+    void Enter(Boss* boss) override;
+    void Update(float dt, Boss* boss) override;
+    void Render(ID3D11DeviceContext* context, Camera* currentCamera, Boss* boss) override;
+    void Exit(Boss* boss) override;
 
     void ReplayAnimation();
 
@@ -102,7 +102,7 @@ public:
 
 private:
     void GenerateButterflyWings();
-    void TriggerCageFirstHitDialogue(NaviBoss* boss);
+    void TriggerCageFirstHitDialogue(Boss* boss);
 
 private:
     Beyond::Window* m_fxWindow = nullptr;
@@ -152,7 +152,7 @@ private:
     int   m_bossHP = 10000;
     float m_hitFlashTimer = 0.0f;
 
-    NaviBoss* m_bossRef = nullptr;
+    Boss* m_bossRef = nullptr;
     bool m_isPlayerCaged = false;
     int m_cageMaxHP = 1000;
     int m_cageHP = 1000;

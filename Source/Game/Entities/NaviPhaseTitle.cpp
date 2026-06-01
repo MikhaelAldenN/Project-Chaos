@@ -1,7 +1,7 @@
 #pragma execution_character_set("utf-8")
 
 #include "NaviPhaseTitle.h"
-#include "NaviBoss.h"
+#include "Boss.h"
 #include "BossPhase01.h"
 #include "System/Graphics.h"
 #include "System/Sprite.h"
@@ -21,7 +21,7 @@ NaviPhaseTitle::NaviPhaseTitle(Player* player)
 // ============================================================
 // Enter  - Called once when this phase becomes active.
 // ============================================================
-void NaviPhaseTitle::Enter(NaviBoss* boss)
+void NaviPhaseTitle::Enter(Boss* boss)
 {
     // Build the title sprite from disk.
     auto device = Graphics::Instance().GetDevice();
@@ -64,7 +64,7 @@ void NaviPhaseTitle::Enter(NaviBoss* boss)
 // ============================================================
 // Exit  - Clean up before switching to the next phase.
 // ============================================================
-void NaviPhaseTitle::Exit(NaviBoss* boss)
+void NaviPhaseTitle::Exit(Boss* boss)
 {
     m_titleSprite.reset();
 }
@@ -72,7 +72,7 @@ void NaviPhaseTitle::Exit(NaviBoss* boss)
 // ============================================================
 // Update
 // ============================================================
-void NaviPhaseTitle::Update(float dt, NaviBoss* boss)
+void NaviPhaseTitle::Update(float dt, Boss* boss)
 {
     if (!boss) return;
 
@@ -107,7 +107,7 @@ void NaviPhaseTitle::Update(float dt, NaviBoss* boss)
 // ============================================================
 // Render
 // ============================================================
-void NaviPhaseTitle::Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss)
+void NaviPhaseTitle::Render(ID3D11DeviceContext* context, Camera* currentCamera, Boss* boss)
 {
     if (!m_titleSprite || !context) return;
 

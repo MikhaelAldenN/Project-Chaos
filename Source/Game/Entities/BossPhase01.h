@@ -21,10 +21,10 @@ public:
     ~BossPhase01() override = default;
 
     // ----- INaviPhase Interface -----
-    void Enter(NaviBoss* boss) override;
-    void Update(float dt, NaviBoss* boss) override;
-    void Render(ID3D11DeviceContext* context, Camera* currentCamera, NaviBoss* boss) override;
-    void Exit(NaviBoss* boss) override;
+    void Enter(Boss* boss) override;
+    void Update(float dt, Boss* boss) override;
+    void Render(ID3D11DeviceContext* context, Camera* currentCamera, Boss* boss) override;
+    void Exit(Boss* boss) override;
 
     // ----- Attack Management -----
     void AddPooledAttack(std::unique_ptr<IPooledAttackPattern> attack);
@@ -33,7 +33,7 @@ public:
     void TriggerRain(RainMode mode, bool isPositiveSide, float sweepDir = 1.0f, float customDuration = -1.0f);
     bool HasRainActive() const { return m_rainAttack != nullptr && !m_rainAttack->IsFinished(); }
 
-    void OnBijuudamaParried(DirectX::XMFLOAT3 parryPos, NaviBoss* boss);
+    void OnBijuudamaParried(DirectX::XMFLOAT3 parryPos, Boss* boss);
 
     // ----- Boss HP -----
     void TakeDamage(int damage, DirectX::XMFLOAT3 hitPos);
@@ -63,14 +63,14 @@ public:
     std::vector<std::unique_ptr<Bullet>>& GetProjectiles() { return m_bulletPool; }
 
 private:
-    void UpdateBossMovement(float dt, NaviBoss* boss);
-    void UpdateIdleHover(float dt, NaviBoss* boss);
-    void UpdateBulletPool(float dt, NaviBoss* boss);
-    void UpdateGlitchVFX(float dt, NaviBoss* boss);
-    void UpdateDeathSequence(float dt, NaviBoss* boss);
+    void UpdateBossMovement(float dt, Boss* boss);
+    void UpdateIdleHover(float dt, Boss* boss);
+    void UpdateBulletPool(float dt, Boss* boss);
+    void UpdateGlitchVFX(float dt, Boss* boss);
+    void UpdateDeathSequence(float dt, Boss* boss);
 
 private:
-    NaviBoss* m_bossRef = nullptr;
+    Boss* m_bossRef = nullptr;
 
     // ---- Bullet pool ----
     std::vector<std::unique_ptr<Bullet>> m_bulletPool;
