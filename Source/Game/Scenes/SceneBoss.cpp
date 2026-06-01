@@ -165,6 +165,7 @@ void SceneBoss::Shutdown()
     if (mainWindow && mainWindow->GetSDLWindow()) {
         SDL_SetWindowAlwaysOnTop(mainWindow->GetSDLWindow(), false);
         mainWindow->SetPriority(50);
+        SDL_RaiseWindow(mainWindow->GetSDLWindow());
         WindowManager::Instance().MarkPriorityDirty();
     }
     WindowManager::Instance().SetTopmost(false);
@@ -268,6 +269,11 @@ void SceneBoss::InitializeSubWindows()
 
         if (!m_windowSystem->GetTrackedWindow("main_window"))
             m_windowSystem->RegisterWindow(mainWindow, WindowRole::MAIN_VIEWPORT, m_mainCamera);
+    }
+
+    TrackedWindow* mainTracked = m_windowSystem->GetTrackedWindow("main_window");
+    if (mainTracked && mainTracked->window && mainTracked->window->GetSDLWindow()) {
+        SDL_RaiseWindow(mainTracked->window->GetSDLWindow());
     }
 
     WindowManager::Instance().EnforceWindowPriorities();

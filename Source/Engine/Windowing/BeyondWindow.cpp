@@ -531,4 +531,11 @@ namespace Beyond
         context->Unmap(m_hitTestStaging.Get(), 0);
         return alpha;
     }
+
+    void Window::SetAlwaysOnTop(bool isTop)
+    {
+        if (m_sdlWindow) {
+            SDL_SetWindowAlwaysOnTop(m_sdlWindow, isTop);
+        }
+    }
 }

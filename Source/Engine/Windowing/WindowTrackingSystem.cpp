@@ -74,6 +74,7 @@ bool WindowTrackingSystem::AddTrackedWindow(
                 SDL_SetWindowSize(sdlWin, config.width, config.height);
                 tw->window->SetBackgroundAlpha(config.isTransparent ? 0.0f : 1.0f);
                 tw->window->SetPriority(config.priority);
+                tw->window->SetAlwaysOnTop(config.isAlwaysOnTop);
 
                 if (config.fpsLimit > 0.0f) tw->window->SetTargetFPS(config.fpsLimit);
                 if (config.name == "player") tw->window->SetDraggable(false);
@@ -118,7 +119,8 @@ bool WindowTrackingSystem::AddTrackedWindow(
     if (!window) return false;
 
     window->SetPriority(config.priority);
-    
+    window->SetAlwaysOnTop(config.isAlwaysOnTop);
+
     WindowManager::Instance().MarkPriorityDirty();
 
     if (config.fpsLimit > 0.0f)

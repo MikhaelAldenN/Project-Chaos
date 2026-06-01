@@ -42,6 +42,8 @@ struct TrackedWindowConfig
     float fpsLimit = 0.0f;
     bool isTransparent = false;
 
+    bool isAlwaysOnTop = false; // <--- TAMBAHKAN INI (Default: false)
+
     WindowRole role = WindowRole::TRACKED_ENTITY;
 };
 

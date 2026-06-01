@@ -49,6 +49,9 @@ void Boss::SpawnHeadWindow() {
     // Register the boss head as a tracked window
     TrackedWindowConfig headCfg = { "navi_head", m_currentTitle, (int)m_windowSize.x, (int)m_windowSize.y, 2 };
     headCfg.role = WindowRole::TRACKED_ENTITY;
+    
+    headCfg.isAlwaysOnTop = true;
+    
     m_windowSystem->AddTrackedWindow(
         headCfg,
         [this]() { return m_position; },
