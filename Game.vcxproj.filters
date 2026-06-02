@@ -318,13 +318,13 @@
     <ClCompile Include="Source\Game\Entities\Boss\BossAI.cpp">
       <Filter>Source\Game\Entities\Boss</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\BossPhase01.cpp">
+    <ClCompile Include="Source\Game\Entities\Boss\Phases\BossPhase01.cpp">
       <Filter>Source\Game\Entities\Boss\Phases</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\BossPhase02.cpp">
+    <ClCompile Include="Source\Game\Entities\Boss\Phases\BossPhase02.cpp">
       <Filter>Source\Game\Entities\Boss\Phases</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Game\Entities\Boss.cpp">
+    <ClCompile Include="Source\Game\Entities\Boss\Boss.cpp">
       <Filter>Source\Game\Entities\Boss</Filter>
     </ClCompile>
   </ItemGroup>
@@ -599,9 +599,6 @@
     <ClInclude Include="Source\Engine\Helpers\PhysXutils.h">
       <Filter>Source\Engine\Helpers</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\INaviPhase.h">
-      <Filter>Source\Game\Entities</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Engine\Helpers\CapeSimulator.h" />
     <ClInclude Include="Source\Engine\Helpers\TimeManager.h" />
     <ClInclude Include="Source\Engine\VFX\EffectManager.h" />
@@ -669,13 +666,16 @@
     <ClInclude Include="Source\Game\Entities\Boss\BossAI.h">
       <Filter>Source\Game\Entities\Boss</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\BossPhase01.h">
+    <ClInclude Include="Source\Game\Entities\Boss\Phases\BossPhase01.h">
       <Filter>Source\Game\Entities\Boss\Phases</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\BossPhase02.h">
+    <ClInclude Include="Source\Game\Entities\Boss\Phases\BossPhase02.h">
       <Filter>Source\Game\Entities\Boss\Phases</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Game\Entities\Boss.h">
+    <ClInclude Include="Source\Game\Entities\Boss\Phases\INaviPhase.h">
+      <Filter>Source\Game\Entities\Boss\Phases</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\Boss.h">
       <Filter>Source\Game\Entities\Boss</Filter>
     </ClInclude>
   </ItemGroup>
