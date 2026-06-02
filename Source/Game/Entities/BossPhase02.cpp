@@ -36,6 +36,7 @@ void BossPhase02::Enter(Boss* boss) {
 
     auto device = Graphics::Instance().GetDevice();
     auto windowSystem = boss->GetWindowSystem();
+    m_pixelToUnit = windowSystem->GetPixelToUnitRatio();
 
     m_screenW = (float)GetSystemMetrics(SM_CXSCREEN);
     m_screenH = (float)GetSystemMetrics(SM_CYSCREEN);
@@ -240,7 +241,7 @@ void BossPhase02::ReplayAnimation() {
     m_wingState = WingState::Expanding;
     m_wingStateTimer = 0.0f;
     m_wingFlickerTimer = 0.0f;
-    if (m_fxWindow) m_fxWindow->SetFPSLimit(0.0f);
+    if (m_fxWindow) m_fxWindow->SetTargetFPS(0.0f);
     GenerateButterflyWings();
 }
 
@@ -466,7 +467,7 @@ void BossPhase02::Update(float dt, Boss* boss) {
         m_wingStateTimer += dt;
         if (m_wingStateTimer >= WING_EXPAND_DURATION) {
             m_wingState = WingState::Idle;
-            if (m_fxWindow) m_fxWindow->SetFPSLimit(0.0f);
+            if (m_fxWindow) m_fxWindow->SetTargetFPS(0.0f);
         }
     }
     else {

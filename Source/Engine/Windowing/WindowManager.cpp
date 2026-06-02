@@ -5,12 +5,11 @@
 #include "System/Graphics.h"
 #include "SceneBoss.h"
 #include <mutex>
-#include <Framework.h>
+#include "Framework.h"
+#include <SDL3/SDL.h> // Wajib untuk SDL_RaiseWindow
 
 void WindowManager::Update(float dt)
 {
-    // [OPTIMISASI 1] Hanya update Z-Order jika ditandai 'dirty'
-    // Jangan panggil SetWindowPos setiap frame! OS akan ngelag.
     if (m_dirtyPriority)
     {
         EnforceWindowPriorities();
@@ -20,7 +19,7 @@ void WindowManager::Update(float dt)
 
 void WindowManager::EnforceWindowPriorities()
 {
-    // 1. Filter valid game windows
+    // 1. Kumpulkan semua window yang valid
     std::vector<Beyond::Window*> sortedWindows;
     sortedWindows.reserve(windows.size());
 
@@ -32,104 +31,64 @@ void WindowManager::EnforceWindowPriorities()
         }
     }
 
-    // 2. Sort by priority (Ascending)
+    // 2. Urutkan berdasarkan prioritas (Ascending / Terendah dulu)
     std::sort(sortedWindows.begin(), sortedWindows.end(),
         [](Beyond::Window* a, Beyond::Window* b) {
             return a->GetPriority() < b->GetPriority();
         });
 
     // =========================================================
-    // [FIX MUTLAK] PISAHKAN KASTA TOPMOST DAN NORMAL
+    // [PENGGANTI WIN32] Gunakan SDL3 untuk mengatur Z-Order
+    // Kita menaikkan (Raise) window dari prioritas terendah ke tertinggi
+    // sehingga yang tertinggi akan menumpuk di paling depan.
     // =========================================================
-    HWND hTopmost = HWND_TOPMOST;
-    HWND hNormal = HWND_NOTOPMOST;
-
-    UINT uFlags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOREDRAW;
-
     for (Beyond::Window* win : sortedWindows)
     {
-        // Jika Checkbox ImGui "All Topmost" nyala, ATAU priority <= 0 (Khusus Bos)
-        if (m_topmostEnabled || win->GetPriority() <= 0)
+        if (win->GetSDLWindow())
         {
-            SetWindowPos(win->GetNativeHandle(), hTopmost, 0, 0, 0, 0, uFlags);
-            hTopmost = win->GetNativeHandle(); // Chain di lapisan elit Topmost
+            SDL_RaiseWindow(win->GetSDLWindow());
         }
-        else
-        {
-            SetWindowPos(win->GetNativeHandle(), hNormal, 0, 0, 0, 0, uFlags);
-            hNormal = win->GetNativeHandle(); // Chain di lapisan Normal
-        }
-    }
-
-    if (debugWindow && debugWindow->IsVisible())
-    {
-        SetWindowPos(debugWindow->GetNativeHandle(), HWND_TOPMOST, 0, 0, 0, 0, uFlags);
     }
 }
 
 void WindowManager::RenderAll(float dt, Scene* scene)
 {
-    if (!scene) return;
-
-    // ── Frame Latency Wait ────────────────────────────────────────────────────
-    // Panggil SEKALI di sini, sebelum loop render dimulai.
-    // JANGAN panggil dari dalam BeginRender per-window:
-    // kalau ada N window → stall N × timeout = FPS anjlok parah.
-    // Cukup tunggu main window saja (swap chain dengan vsync),
-    // window lain mengikuti ritme yang sama.
-    for (auto& win : windows)
-    {
-        if (win->IsVisible())
-        {
-            win->WaitFrameLatency();
-            break; // Tunggu 1 window saja — biasanya main window (index 0)
-        }
-    }
-
-    // DrawGUI HANYA SEKALI  sudah benar, tapi OnResize jangan dipanggil tiap window!
-    scene->DrawGUI();
-
     bool vsyncApplied = false;
-    auto context = Graphics::Instance().GetDeviceContext();
-    auto mainWindow = Framework::Instance()->GetMainWindow();
 
     for (auto& win : windows)
     {
-        if (!win->IsVisible()) continue;
-        if (win.get() != mainWindow && !win->ShouldRender(dt)) continue;
+        if (!win->GetSDLWindow()) continue;
 
-        // HAPUS: scene->OnResize(win->GetWidth(), win->GetHeight());
-        // Ganti dengan: hanya panggil jika ukuran window berubah dari frame sebelumnya
-        // Simpan ukuran terakhir di Beyond::Window itu sendiri (lihat Fix 3)
-        int w = win->GetWidth(), h = win->GetHeight();
-        if (w != win->m_lastRenderedW || h != win->m_lastRenderedH)
+        // Ambil Alpha dan mulai render
+        float bgAlpha = win->GetBackgroundAlpha();
+        win->BeginRender(0.0f, 0.0f, 0.0f, bgAlpha);
+
+        // Jika ini Main Window (Index 0)
+        if (win.get() == windows.front().get())
         {
-            scene->OnResize(w, h);
-            win->m_lastRenderedW = w;
-            win->m_lastRenderedH = h;
+            if (scene) scene->Render(dt, win->GetCamera());
+            ImGuiRenderer::Render(Graphics::Instance().GetDeviceContext());
+        }
+        // Jika ini Sub Window (Windowkill, dsb)
+        else
+        {
+            if (scene) scene->Render(dt, win->GetCamera());
         }
 
-        float clearAlpha = win->IsTransparent() ? win->GetBackgroundAlpha() : 1.0f;
-        if (win->IsTransparent())
-            win->BeginRender(0.0f, 0.0f, 0.0f, clearAlpha);
-        else
-            win->BeginRender(0.02f, 0.04f, 0.15f, clearAlpha);
+        // Pengaturan V-Sync (Biarkan window pertama atau transparan yang mengatur pacing)
+        int syncInterval = (win->IsTransparent() || vsyncApplied) ? 0 : 1;
+        if (!vsyncApplied && syncInterval == 1) vsyncApplied = true;
 
-        scene->Render(dt, win->GetCamera());
-
-        if (win.get() == mainWindow) ImGuiRenderer::Render(context);
-
-        int syncInterval = (!vsyncApplied) ? 1 : 0;
-        if (!vsyncApplied) vsyncApplied = true;
         win->EndRender(syncInterval);
     }
 }
 
-void WindowManager::HandleResize(HWND hWnd, int width, int height)
+// Perhatikan parameternya sekarang menggunakan SDL_Window*
+void WindowManager::HandleResize(SDL_Window* sdlWindow, int width, int height)
 {
     for (auto& win : windows)
     {
-        if (win->GetNativeHandle() == hWnd)
+        if (win->GetSDLWindow() == sdlWindow)
         {
             win->Resize(width, height);
             return;
@@ -141,14 +100,12 @@ Beyond::Window* WindowManager::CreateGameWindow(const char* title, int width, in
 {
     auto newWindow = std::make_unique<Beyond::Window>();
 
-    // Lempar parameternya ke Initialize
     if (!newWindow->Initialize(title, width, height, isTransparent))
     {
         return nullptr;
     }
 
     newWindow->SetTickCallback([]() {
-        // Gunakan angka statis 0.016f (1/60 detik) BUKAN variabel elapsedTime
         Framework::Instance()->Update(0.016f);
         Framework::Instance()->Render(0.016f);
         });
@@ -156,7 +113,6 @@ Beyond::Window* WindowManager::CreateGameWindow(const char* title, int width, in
     Beyond::Window* ptr = newWindow.get();
     windows.push_back(std::move(newWindow));
 
-    // Trigger agar urutan window diperbarui
     MarkPriorityDirty();
 
     return ptr;
@@ -166,16 +122,15 @@ void WindowManager::DestroyWindow(Beyond::Window* targetWindow)
 {
     windows.erase(
         std::remove_if(windows.begin(), windows.end(),
-            [targetWindow](const std::unique_ptr<Beyond::Window>& p) {
-                return p.get() == targetWindow;
+            [targetWindow](const std::unique_ptr<Beyond::Window>& w) {
+                return w.get() == targetWindow;
             }),
-        windows.end());
-
-    // Trigger re-sort
-    MarkPriorityDirty();
+        windows.end()
+    );
 }
 
 void WindowManager::ClearAll()
 {
+    // Menghapus semua window dari memori dan memanggil destructor-nya
     windows.clear();
 }

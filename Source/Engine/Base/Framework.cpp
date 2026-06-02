@@ -1,5 +1,24 @@
 ﻿#include "Framework.h"
 
+// ========================================================
+// Jembatan Win32 ke ImGui
+// ========================================================
+static WNDPROC s_OriginalWndProc = nullptr;
+
+LRESULT CALLBACK ImGuiHookWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    // 1. Berikan event klik/keyboard ke ImGui terlebih dahulu
+    if (ImGuiRenderer::HandleMessage(hWnd, msg, wParam, lParam)) {
+        return true;
+    }
+
+    // 2. Teruskan sisa pesannya ke sistem SDL3
+    if (s_OriginalWndProc) {
+        return CallWindowProc(s_OriginalWndProc, hWnd, msg, wParam, lParam);
+    }
+    return DefWindowProc(hWnd, msg, wParam, lParam);
+}
+// ========================================================
 
 Framework* Framework::pInstance = nullptr;
 
@@ -13,8 +32,9 @@ Framework::Framework()
     // Buat Main Window (Fullscreen Borderless)
     auto mainWin = WindowManager::Instance().CreateGameWindow("Main Window (close here)", 1600, 900);
     mainWin->SetPriority(0);
+    mainWin->SetDraggable(false);
 
-    mainWin->SetVisible(true);
+    SDL_ShowWindow(mainWin->GetSDLWindow());
     // Tambahkan flag Resizable agar bisa di-drag ujungnya
     SDL_SetWindowResizable(mainWin->GetSDLWindow(), true);
     SDL_SetWindowBordered(mainWin->GetSDLWindow(), true);
@@ -23,13 +43,15 @@ Framework::Framework()
 
     // Posisikan di tengah saat awal
 
+    HWND hwnd = (HWND)SDL_GetPointerProperty(
+        SDL_GetWindowProperties(mainWin->GetSDLWindow()),
+        SDL_PROP_WINDOW_WIN32_HWND_POINTER,
+        NULL
+    );
 
-    Input::Instance().Initialize(mainWin->GetNativeHandle());
-
-    // ------------------------------------------------------------
-    // [UBAH] INIT IMGUI MENGGUNAKAN MAIN WINDOW!
-    // ------------------------------------------------------------
-    ImGuiRenderer::Initialize(mainWin->GetNativeHandle(), Graphics::Instance().GetDevice(), Graphics::Instance().GetDeviceContext());
+    Input::Instance().Initialize(hwnd);
+    ImGuiRenderer::Initialize(hwnd, Graphics::Instance().GetDevice(), Graphics::Instance().GetDeviceContext());
+    s_OriginalWndProc = (WNDPROC)SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)ImGuiHookWndProc);
 
     // Load Resources
     ResourceManager::Instance().LoadFont("VGA_FONT", "Data/Font/IBM_VGA_32px_0.png", "Data/Font/IBM_VGA_32px.fnt");
@@ -148,7 +170,19 @@ void Framework::Quit()
 LRESULT CALLBACK Framework::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     Beyond::Window* mainWin = GetMainWindow();
-    if (mainWin && hWnd == mainWin->GetNativeHandle())
+    HWND mainHwnd = NULL;
+
+    // Ekstrak HWND dari main window yang menggunakan SDL3
+    if (mainWin && mainWin->GetSDLWindow()) {
+        mainHwnd = (HWND)SDL_GetPointerProperty(
+            SDL_GetWindowProperties(mainWin->GetSDLWindow()),
+            SDL_PROP_WINDOW_WIN32_HWND_POINTER,
+            NULL
+        );
+    }
+
+    // Bandingkan hWnd dengan mainHwnd hasil ekstrak
+    if (mainWin && hWnd == mainHwnd)
     {
         if (ImGuiRenderer::HandleMessage(hWnd, msg, wParam, lParam)) return true;
     }

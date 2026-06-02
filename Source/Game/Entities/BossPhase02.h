@@ -62,8 +62,8 @@ public:
     float GetPixelToUnit() const { return m_pixelToUnit; }
     float GetWingGlobalScale() const { return m_wingGlobalScale; }
 
-    void SetFXClickThrough(bool enable) { if (m_fxWindow) m_fxWindow->SetClickThrough(enable); }
-    bool IsFXClickThrough() const { return m_fxWindow ? m_fxWindow->IsClickThrough() : true; }
+    void SetClickThrough(bool clickThrough) { m_isClickThrough = clickThrough; }
+    bool IsClickThrough() const { return m_isClickThrough; }
     Camera* GetFXCamera() const { return m_fxCamera.get(); }
 
     std::vector<Bullet*> GetProjectiles();
@@ -114,6 +114,8 @@ private:
 
     float m_screenW = 1920.0f;
     float m_screenH = 1080.0f;
+
+    bool m_isClickThrough = false;
 
     enum class WingState { Expanding, Idle };
     WingState m_wingState = WingState::Expanding;

@@ -131,7 +131,7 @@ void WindowShatter::TransitionToNativeWindow()
         }
 
         m_window->SetPriority(-1);
-        SetWindowPos(m_window->GetNativeHandle(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        m_window->SetAlwaysOnTop(true);
 
         // Border Aktif
         SDL_SetWindowBordered(m_window->GetSDLWindow(), true);

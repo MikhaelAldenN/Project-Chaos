@@ -608,6 +608,8 @@ void SceneBoss::Update(float elapsedTime)
     PerformanceLogger::Instance().EndFrameCheck(0.0f, activeWins);
 #endif
 
+    DrawGUI();
+
     // --- LOGIKA OTOMATISASI OVERDRIVE PLAYER ---
     //if (m_player && m_navi)
     //{
@@ -969,7 +971,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
 /*        return;*/ // Add this — skips all ImGui rendering for release
 
         if (m_isPendingSceneChange) return;
-        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
         ImGui::SetNextWindowSize(m_debugPanelSize, ImGuiCond_FirstUseEver);
 
     ImGui::Begin("WINDOWKILL MASTER CONTROL", nullptr,
@@ -1021,9 +1023,9 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
 
                 if (m_navi) {
                     if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase())) {
-                        bool fxClickthrough = wkPhase->IsFXClickThrough();
+                        bool fxClickthrough = wkPhase->IsClickThrough();
                         if (ImGui::Checkbox("[ALL] Toggle Clickthrough", &fxClickthrough)) {
-                            wkPhase->SetFXClickThrough(fxClickthrough);
+                            wkPhase->SetClickThrough(fxClickthrough);
                             AddLog(fxClickthrough ? "FX Window: Click-through Enabled" : "FX Window: Click-through Disabled");
                         }
                     }

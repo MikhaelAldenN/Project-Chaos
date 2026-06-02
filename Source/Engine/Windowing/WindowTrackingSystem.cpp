@@ -3,6 +3,7 @@
 #include <cmath>
 #include "PerformanceLogger.h"
 #include <CameraController.h>
+#include <SDL3/SDL.h>
 
 using namespace DirectX;
 
@@ -120,7 +121,7 @@ bool WindowTrackingSystem::AddTrackedWindow(
 
     window->SetPriority(config.priority);
     window->SetAlwaysOnTop(config.isAlwaysOnTop);
-
+    SDL_ShowWindow(window->GetSDLWindow());
     WindowManager::Instance().MarkPriorityDirty();
 
     if (config.fpsLimit > 0.0f)

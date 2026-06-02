@@ -105,6 +105,15 @@ int main(int argc, char* argv[])
                         if (framework) framework->OnSubWindowClosed(event.window.windowID);
                     }
                 }
+
+                if (event.type == SDL_EVENT_WINDOW_RESIZED || event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+                {
+                    SDL_Window* resizedWin = SDL_GetWindowFromID(event.window.windowID);
+                    if (resizedWin) {
+                        WindowManager::Instance().HandleResize(resizedWin, event.window.data1, event.window.data2);
+                    }
+                }
+
             }
 
             Uint64 currentTime = SDL_GetPerformanceCounter();

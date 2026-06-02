@@ -22,7 +22,7 @@ public:
     // --- CORE FUNCTIONS ---
     void Update(float dt);
     void RenderAll(float dt, Scene* scene);
-    void HandleResize(HWND hWnd, int width, int height);
+    void HandleResize(SDL_Window* sdlWindow, int width, int height);
     void ClearAll();
 
     // --- USER FUNCTIONS ---
