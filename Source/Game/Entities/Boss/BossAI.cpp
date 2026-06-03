@@ -22,38 +22,85 @@ void BossAI_Phase01::Update(float dt, Boss* boss) {
     m_cooldownTimer -= dt;
 
     if (m_cooldownTimer <= 0.0f) {
-        // Eksekusi serangan berdasarkan indeks urutan
-        switch (m_sequenceIndex) {
-        case 0:
-            m_phase->AddPooledAttack(std::make_unique<AttackRadial>(m_radialParams));
-            m_cooldownTimer = 1.5f; // Jeda setelah serangan ini selesai
-            break;
-        case 1:
-        {
-            DirectX::XMFLOAT3 pPos = m_target->GetPosition();
-            DirectX::XMFLOAT3 bPos = boss->GetPosition();
-            float lockedAngle = std::atan2f(pPos.x - bPos.x, pPos.z - bPos.z);
-            m_phase->AddPooledAttack(std::make_unique<AttackFan>(m_fanParams, lockedAngle));
-            m_cooldownTimer = 1.5f;
-            break;
-        }
-        case 2:
-            m_phase->TriggerRain(RainMode::VerticalSweep, m_target->GetPosition().x > 0);
-            m_cooldownTimer = 1.0f;
-            break;
-        case 3:
-            m_phase->AddPooledAttack(std::make_unique<AttackPhalanx>(m_phalanxParams, m_target));
-            m_cooldownTimer = 2.0f;
-            break;
-        case 4:
-            m_phase->AddPooledAttack(std::make_unique<AttackUltimate>(m_ultimateParams, m_target));
-            m_cooldownTimer = 3.0f;
-            break;
-        }
+        // 1. Cek rasio HP Boss
+        float hpPercent = static_cast<float>(m_phase->GetHP()) / static_cast<float>(m_phase->GetMaxHP());
+        bool isEnraged = (hpPercent <= 0.5f);
 
-        // Lanjut ke serangan berikutnya, kalau mentok kembali ke 0 (Loop)
-        m_sequenceIndex++;
-        if (m_sequenceIndex > 4) m_sequenceIndex = 0;
+        if (!isEnraged) {
+            // ========================================================
+            // TACTICIAN MODE (HP > 50%)
+            // Hanya Radial, Fan, dan Phalanx. Cooldown normal.
+            // ========================================================
+
+            // Guard: Jika sebelumnya indeks melebihi batas fase ini, kembalikan ke 0
+            if (m_sequenceIndex > 2) m_sequenceIndex = 0;
+
+            switch (m_sequenceIndex) {
+            case 0:
+                m_phase->AddPooledAttack(std::make_unique<AttackRadial>(m_radialParams));
+                m_cooldownTimer = 1.5f;
+                break;
+            case 1:
+            {
+                DirectX::XMFLOAT3 pPos = m_target->GetPosition();
+                DirectX::XMFLOAT3 bPos = boss->GetPosition();
+                float lockedAngle = std::atan2f(pPos.x - bPos.x, pPos.z - bPos.z);
+                m_phase->AddPooledAttack(std::make_unique<AttackFan>(m_fanParams, lockedAngle));
+                m_cooldownTimer = 1.5f;
+                break;
+            }
+            case 2:
+                m_phase->AddPooledAttack(std::make_unique<AttackPhalanx>(m_phalanxParams, m_target));
+                m_cooldownTimer = 2.0f;
+                break;
+            }
+
+            // Loop indeks urutan (0 -> 1 -> 2 -> 0)
+            m_sequenceIndex++;
+            if (m_sequenceIndex > 2) m_sequenceIndex = 0;
+        }
+        else {
+            // ========================================================
+            // CHAOS MODE (HP <= 50%)
+            // Buka semua serangan (termasuk Rain & Ultimate). Cooldown agresif!
+            // ========================================================
+
+            if (m_sequenceIndex > 4) m_sequenceIndex = 0;
+
+            switch (m_sequenceIndex) {
+            case 0:
+                m_phase->AddPooledAttack(std::make_unique<AttackRadial>(m_radialParams));
+                m_cooldownTimer = 0.8f; // Jauh lebih cepat dari 1.5f
+                break;
+            case 1:
+            {
+                DirectX::XMFLOAT3 pPos = m_target->GetPosition();
+                DirectX::XMFLOAT3 bPos = boss->GetPosition();
+                float lockedAngle = std::atan2f(pPos.x - bPos.x, pPos.z - bPos.z);
+                m_phase->AddPooledAttack(std::make_unique<AttackFan>(m_fanParams, lockedAngle));
+                m_cooldownTimer = 0.8f;
+                break;
+            }
+            case 2:
+                // Rain digunakan untuk memojokkan pemain
+                m_phase->TriggerRain(RainMode::VerticalSweep, m_target->GetPosition().x > 0);
+                m_cooldownTimer = 0.5f; // Rain tidak mengunci pergerakan bos, langsung lanjut
+                break;
+            case 3:
+                m_phase->AddPooledAttack(std::make_unique<AttackPhalanx>(m_phalanxParams, m_target));
+                m_cooldownTimer = 1.0f;
+                break;
+            case 4:
+                // Serangan penutup rotasi: Ultimate Laser
+                m_phase->AddPooledAttack(std::make_unique<AttackUltimate>(m_ultimateParams, m_target));
+                m_cooldownTimer = 2.0f; // Beri waktu lebih untuk charge Bijuudama
+                break;
+            }
+
+            // Loop indeks urutan (0 -> 1 -> 2 -> 3 -> 4 -> 0)
+            m_sequenceIndex++;
+            if (m_sequenceIndex > 4) m_sequenceIndex = 0;
+        }
     }
 }
 
