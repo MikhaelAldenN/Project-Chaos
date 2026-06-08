@@ -15,6 +15,7 @@ void AttackRadial::StartPooled(Boss* boss, std::vector<std::unique_ptr<Bullet>>*
     m_active = true;
     m_burstsFired = 0;
     m_burstTimer = 0.0f;
+    m_lifeTimer = 0.0f;
 
     // Fire first burst immediately on start
     FireBurst(boss, 0.0f);
@@ -24,11 +25,28 @@ void AttackRadial::StartPooled(Boss* boss, std::vector<std::unique_ptr<Bullet>>*
 void AttackRadial::Update(float dt, Boss* boss) {
     if (!m_active || !m_pool) return;
 
-    if (m_burstsFired >= m_params.burstCount) {
-        m_active = false;
-        return;
+    // ========================================================
+    // LOGIKA PENGHENTIAN SERANGAN (DURATION vs BURST COUNT)
+    // ========================================================
+    if (m_params.activeDuration > 0.0f) {
+        // Mode Stream: Berhenti jika waktu durasi sudah habis
+        m_lifeTimer += dt;
+        if (m_lifeTimer >= m_params.activeDuration) {
+            m_active = false;
+            return;
+        }
+    }
+    else {
+        // Mode Normal: Berhenti jika jumlah tembakan sudah mencapai batas
+        if (m_burstsFired >= m_params.burstCount) {
+            m_active = false;
+            return;
+        }
     }
 
+    // ========================================================
+    // LOGIKA PENEMBAKAN
+    // ========================================================
     m_burstTimer += dt;
     if (m_burstTimer >= m_params.burstDelay) {
         m_burstTimer -= m_params.burstDelay;

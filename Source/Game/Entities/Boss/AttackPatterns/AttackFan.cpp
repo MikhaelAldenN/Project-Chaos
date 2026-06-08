@@ -54,7 +54,8 @@ void AttackFan::FireWave(Boss* boss) {
     if (!m_pool || !boss) return;
 
     int   fired = 0;
-    float startAngle = m_lockedBaseAngle - ((m_params.lines - 1) * m_params.spreadAngle * 0.5f);
+    // --- UBAH m_params.lines JADI m_params.rows ---
+    float startAngle = m_lockedBaseAngle - ((m_params.rows - 1) * m_params.spreadAngle * 0.5f);
 
     for (auto& bullet : *m_pool) {
         if (!bullet->IsActive()) {
@@ -70,7 +71,8 @@ void AttackFan::FireWave(Boss* boss) {
             float angle = startAngle + (fired * m_params.spreadAngle);
             bullet->Fire(boss->GetPosition(), { sinf(angle), 0.0f, cosf(angle) }, m_params.speed);
 
-            if (++fired >= m_params.lines) break;
+            // --- UBAH m_params.lines JADI m_params.rows ---
+            if (++fired >= m_params.rows) break;
         }
     }
 

@@ -12,7 +12,7 @@
 // ============================================================
 
 struct FanParams {
-    int   lines = 5;
+    int   rows = 5;
     int   waves = 4;
     float waveDelay = 0.133f;  // Seconds between each wave
     float spreadAngle = 0.130f;  // Radians between adjacent lines
@@ -26,6 +26,9 @@ public:
     // lockedBaseAngle: atan2(playerX - bossX, playerZ - bossZ) at trigger time
     AttackFan(const FanParams& params, float lockedBaseAngle);
     ~AttackFan() override = default;
+
+    // --- TAMBAHKAN FUNGSI INI UNTUK COMBO AI ---
+    void SetParams(const FanParams& newParams) { m_params = newParams; }
 
     void StartPooled(Boss* boss, std::vector<std::unique_ptr<Bullet>>* pool) override;
     void Update(float dt, Boss* boss) override;

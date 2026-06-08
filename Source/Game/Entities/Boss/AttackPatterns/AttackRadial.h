@@ -13,17 +13,21 @@
 struct RadialParams {
     int   count = 55;
     float speed = 22.14f;
-    float burstDelay = 0.156f;  // Seconds between each of the 3 bursts
-    int   burstCount = 3;       // Total bursts per trigger
+    float burstDelay = 0.156f;  // Seconds between each of the bursts
+    int   burstCount = 3;       // Total bursts per trigger (Dipakai jika activeDuration == 0)
     int   damage = 1;
     float sfxVolume = 1.0f;
     DirectX::XMFLOAT4 color = { 1.0f, 0.2f, 0.2f, 1.0f };
+    float activeDuration = 0.0f; // Jika > 0, akan menyembur terus selama X detik
 };
 
 class AttackRadial : public IPooledAttackPattern {
 public:
     explicit AttackRadial(const RadialParams& params);
     ~AttackRadial() override = default;
+
+    // --- TAMBAHKAN FUNGSI INI UNTUK COMBO AI ---
+    void SetParams(const RadialParams& newParams) { m_params = newParams; }
 
     void StartPooled(Boss* boss, std::vector<std::unique_ptr<Bullet>>* pool) override;
     void Update(float dt, Boss* boss) override;
@@ -43,4 +47,5 @@ private:
     bool  m_active = false;
     int   m_burstsFired = 0;
     float m_burstTimer = 0.0f;
+    float m_lifeTimer = 0.0f;
 };

@@ -1333,13 +1333,14 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         ImGui::SliderFloat("Speed", &p.speed, 1.0f, 100.0f);
                         ImGui::SliderInt("Count", &p.count, 4, 128);
                         ImGui::SliderFloat("Delay", &p.burstDelay, 0.01f, 1.0f);
+                        ImGui::SliderInt("Burst Count", &p.burstCount, 1, 20);
                         ImGui::SliderInt("Damage", &p.damage, 1, 100);
                     }
 
                     if (ImGui::CollapsingHeader("Targeted Fan Burst")) {
                         auto& p = normalPhase->GetAI()->GetFanParams();
                         ImGui::SliderFloat("Speed", &p.speed, 1.0f, 100.0f);
-                        ImGui::SliderInt("Lines", &p.lines, 1, 10);
+                        ImGui::SliderInt("Lines", &p.rows, 1, 10);
                         ImGui::SliderInt("Waves", &p.waves, 1, 10);
                         ImGui::SliderFloat("Spread", &p.spreadAngle, 0.05f, 0.5f);
                         ImGui::SliderInt("Damage", &p.damage, 1, 100);

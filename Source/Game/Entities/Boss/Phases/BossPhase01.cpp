@@ -59,8 +59,8 @@ void BossPhase01::Enter(Boss* boss) {
 
     // ----- Pre-allocate bullet pool -----
     m_bulletPool.clear();
-    m_bulletPool.reserve(200);
-    for (int i = 0; i < 200; ++i) {
+    m_bulletPool.reserve(500);
+    for (int i = 0; i < 500; ++i) {
         auto b = std::make_unique<Bullet>();
         b->SetActive(false);
         m_bulletPool.push_back(std::move(b));
