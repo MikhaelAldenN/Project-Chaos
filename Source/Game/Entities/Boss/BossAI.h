@@ -26,6 +26,17 @@ class Player;
 // ========================================================
 class BossAI_Phase01 {
 public:
+
+    enum class AttackSequence {
+        Radial,
+        Fan,
+        Phalanx,
+        RadialStream,
+        FanTripple,
+        Rain,
+        Ultimate
+    };
+
     BossAI_Phase01(BossPhase01* phase, Player* target);
     void Update(float dt, Boss* boss);
 
@@ -53,8 +64,8 @@ private:
     UltimateParams m_ultimateParams;
 
     // Sistem Antrean (Sequence)
-    int   m_sequenceIndex = 0;
-    float m_cooldownTimer = 2.0f; // Jeda awal saat masuk fase
+    AttackSequence m_currentAttack = AttackSequence::Radial;
+    float m_cooldownTimer = 2.0f;
 };
 
 // ========================================================
@@ -62,6 +73,14 @@ private:
 // ========================================================
 class BossAI_Phase02 {
 public:
+
+    enum class AttackSequence {
+        Bouncing,
+        Boomerang,
+        Blaster,
+        Spear
+    };
+
     BossAI_Phase02(BossPhase02* phase, Player* target);
     void Update(float dt, Boss* boss);
 
@@ -87,6 +106,6 @@ private:
     UndyneSpearParams    m_undyneParams;
 
     // Sistem Antrean (Sequence)
-    int   m_sequenceIndex = 0;
+    AttackSequence m_currentAttack = AttackSequence::Bouncing;
     float m_cooldownTimer = 3.0f; // Jeda awal saat masuk fase
 };

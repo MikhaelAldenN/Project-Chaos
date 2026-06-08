@@ -26,80 +26,86 @@ void BossAI_Phase01::Update(float dt, Boss* boss) {
         float hpPercent = static_cast<float>(m_phase->GetHP()) / static_cast<float>(m_phase->GetMaxHP());
         bool isEnraged = (hpPercent <= 0.5f);
 
-        if (!isEnraged) {
+        // Kunci Pengaman Transisi: 
+        // Jika HP turun di bawah 50%, paksa lompat keluar dari rotasi santai (Radial/Fan/Phalanx)
+        if (isEnraged && (m_currentAttack == AttackSequence::Radial ||
+            m_currentAttack == AttackSequence::Fan ||
+            m_currentAttack == AttackSequence::Phalanx))
+        {
+            m_currentAttack = AttackSequence::RadialStream;
+        }
+
+        // Kalkulasi posisi pemain untuk serangan yang butuh aim
+        DirectX::XMFLOAT3 pPos = m_target->GetPosition();
+        DirectX::XMFLOAT3 bPos = boss->GetPosition();
+        float lockedAngle = std::atan2f(pPos.x - bPos.x, pPos.z - bPos.z);
+
+        // Eksekusi serangan berdasarkan Enum
+        switch (m_currentAttack) {
+
             // ========================================================
             // TACTICIAN MODE (HP > 50%)
-            // Hanya Radial, Fan, dan Phalanx. Cooldown normal.
             // ========================================================
+        case AttackSequence::Radial:
+            m_phase->AddPooledAttack(std::make_unique<AttackRadial>(m_radialParams));
+            m_cooldownTimer = 1.5f;
+            m_currentAttack = AttackSequence::Fan; // Antrean berikutnya
+            break;
 
-            // Guard: Jika sebelumnya indeks melebihi batas fase ini, kembalikan ke 0
-            if (m_sequenceIndex > 2) m_sequenceIndex = 0;
+        case AttackSequence::Fan:
+            m_phase->AddPooledAttack(std::make_unique<AttackFan>(m_fanParams, lockedAngle));
+            m_cooldownTimer = 1.5f;
+            m_currentAttack = AttackSequence::Phalanx;
+            break;
 
-            switch (m_sequenceIndex) {
-            case 0:
-                m_phase->AddPooledAttack(std::make_unique<AttackRadial>(m_radialParams));
-                m_cooldownTimer = 1.5f;
-                break;
-            case 1:
-            {
-                DirectX::XMFLOAT3 pPos = m_target->GetPosition();
-                DirectX::XMFLOAT3 bPos = boss->GetPosition();
-                float lockedAngle = std::atan2f(pPos.x - bPos.x, pPos.z - bPos.z);
-                m_phase->AddPooledAttack(std::make_unique<AttackFan>(m_fanParams, lockedAngle));
-                m_cooldownTimer = 1.5f;
-                break;
-            }
-            case 2:
-                m_phase->AddPooledAttack(std::make_unique<AttackPhalanx>(m_phalanxParams, m_target));
-                m_cooldownTimer = 2.0f;
-                break;
-            }
+        case AttackSequence::Phalanx:
+            m_phase->AddPooledAttack(std::make_unique<AttackPhalanx>(m_phalanxParams, m_target));
+            m_cooldownTimer = 2.0f;
+            m_currentAttack = AttackSequence::Radial; // Loop normal kembali ke awal
+            break;
 
-            // Loop indeks urutan (0 -> 1 -> 2 -> 0)
-            m_sequenceIndex++;
-            if (m_sequenceIndex > 2) m_sequenceIndex = 0;
-        }
-        else {
+
             // ========================================================
             // CHAOS MODE (HP <= 50%)
-            // Buka semua serangan (termasuk Rain & Ultimate). Cooldown agresif!
             // ========================================================
+        case AttackSequence::RadialStream:
+        {
+            // COMBO: Stream Air Mancur 3 Detik
+            RadialParams streamParams = m_radialParams;
+            streamParams.activeDuration = 3.0f;
+            streamParams.burstDelay = 0.2f;
 
-            if (m_sequenceIndex > 4) m_sequenceIndex = 0;
+            m_phase->AddPooledAttack(std::make_unique<AttackRadial>(streamParams));
+            m_cooldownTimer = 3.5f; // Jeda sebanding dengan durasi stream
+            m_currentAttack = AttackSequence::FanTripple;
+            break;
+        }
 
-            switch (m_sequenceIndex) {
-            case 0:
-                m_phase->AddPooledAttack(std::make_unique<AttackRadial>(m_radialParams));
-                m_cooldownTimer = 0.8f; // Jauh lebih cepat dari 1.5f
-                break;
-            case 1:
-            {
-                DirectX::XMFLOAT3 pPos = m_target->GetPosition();
-                DirectX::XMFLOAT3 bPos = boss->GetPosition();
-                float lockedAngle = std::atan2f(pPos.x - bPos.x, pPos.z - bPos.z);
-                m_phase->AddPooledAttack(std::make_unique<AttackFan>(m_fanParams, lockedAngle));
-                m_cooldownTimer = 0.8f;
-                break;
-            }
-            case 2:
-                // Rain digunakan untuk memojokkan pemain
-                m_phase->TriggerRain(RainMode::VerticalSweep, m_target->GetPosition().x > 0);
-                m_cooldownTimer = 0.5f; // Rain tidak mengunci pergerakan bos, langsung lanjut
-                break;
-            case 3:
-                m_phase->AddPooledAttack(std::make_unique<AttackPhalanx>(m_phalanxParams, m_target));
-                m_cooldownTimer = 1.0f;
-                break;
-            case 4:
-                // Serangan penutup rotasi: Ultimate Laser
-                m_phase->AddPooledAttack(std::make_unique<AttackUltimate>(m_ultimateParams, m_target));
-                m_cooldownTimer = 2.0f; // Beri waktu lebih untuk charge Bijuudama
-                break;
-            }
+        case AttackSequence::FanTripple:
+        {
+            // COMBO: Tembak Kipas 3 Gelombang Beruntun
+            FanParams burstParams = m_fanParams;
+            burstParams.waves = 3;
+            burstParams.waveDelay = 0.12f;
 
-            // Loop indeks urutan (0 -> 1 -> 2 -> 3 -> 4 -> 0)
-            m_sequenceIndex++;
-            if (m_sequenceIndex > 4) m_sequenceIndex = 0;
+            m_phase->AddPooledAttack(std::make_unique<AttackFan>(burstParams, lockedAngle));
+            m_cooldownTimer = 1.0f; // Jeda sangat agresif
+            m_currentAttack = AttackSequence::Rain;
+            break;
+        }
+
+        case AttackSequence::Rain:
+            // Area denial
+            m_phase->TriggerRain(RainMode::VerticalSweep, m_target->GetPosition().x > 0);
+            m_cooldownTimer = 0.5f; // Rain tidak mengunci pergerakan bos, langsung eksekusi Ultimate
+            m_currentAttack = AttackSequence::Ultimate;
+            break;
+
+        case AttackSequence::Ultimate:
+            m_phase->AddPooledAttack(std::make_unique<AttackUltimate>(m_ultimateParams, m_target));
+            m_cooldownTimer = 2.5f;
+            m_currentAttack = AttackSequence::RadialStream; // Loop chaos kembali ke awal
+            break;
         }
     }
 }
@@ -121,28 +127,31 @@ void BossAI_Phase02::Update(float dt, Boss* boss) {
 
     if (m_cooldownTimer <= 0.0f) {
         // Eksekusi serangan Windowkill
-        switch (m_sequenceIndex) {
-        case 0:
+        switch (m_currentAttack) {
+        case AttackSequence::Bouncing:
             m_phase->AddAttack(std::make_unique<AttackBouncing>(m_bouncingParams));
             m_cooldownTimer = 2.0f;
+            m_currentAttack = AttackSequence::Boomerang; // Antrean berikutnya
             break;
-        case 1:
+
+        case AttackSequence::Boomerang:
             m_phase->AddAttack(std::make_unique<AttackBoomerangs>(m_boomerangParams));
             m_cooldownTimer = 2.0f;
+            m_currentAttack = AttackSequence::Blaster;
             break;
-        case 2:
+
+        case AttackSequence::Blaster:
             // Menembak Laser Orbital ke arah Player
             m_phase->AddAttack(std::make_unique<AttackBlasters>(m_blasterParams, true, m_target->GetPosition().x));
             m_cooldownTimer = 2.0f;
+            m_currentAttack = AttackSequence::Spear;
             break;
-        case 3:
+
+        case AttackSequence::Spear:
             m_phase->AddAttack(std::make_unique<AttackSpears>(m_undyneParams, m_target));
             m_cooldownTimer = 2.5f;
+            m_currentAttack = AttackSequence::Bouncing; // Loop kembali ke awal
             break;
         }
-
-        // Loop
-        m_sequenceIndex++;
-        if (m_sequenceIndex > 3) m_sequenceIndex = 0;
     }
 }
