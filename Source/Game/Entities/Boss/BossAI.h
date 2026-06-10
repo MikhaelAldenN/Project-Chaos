@@ -29,10 +29,10 @@ public:
 
     enum class AttackSequence {
         Radial,
+        RadialContinuos,
         Fan,
+		FanContinuos,
         Phalanx,
-        RadialStream,
-        FanTripple,
         Rain,
         Ultimate
     };
@@ -50,6 +50,9 @@ public:
     PhalanxParams& GetPhalanxParams() { return m_phalanxParams; }
     RainParams& GetRainParams() { return m_rainParams; }
     UltimateParams& GetUltimateParams() { return m_ultimateParams; }
+
+    RadialParams GetRadialContinuos() const;
+    FanParams    GetFanTripleContinuos() const;
 
 private:
     BossPhase01* m_phase = nullptr;

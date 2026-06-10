@@ -19,12 +19,15 @@ struct FanParams {
     float speed = 35.617f;
     int   damage = 2;
     float sfxVolume = 1.0f;
+
+    int triggerCount = 1;
+    float triggerDelay = 1.0f;
 };
 
 class AttackFan : public IPooledAttackPattern {
 public:
     // lockedBaseAngle: atan2(playerX - bossX, playerZ - bossZ) at trigger time
-    AttackFan(const FanParams& params, float lockedBaseAngle);
+    AttackFan(const FanParams& params, float lockedBaseAngle, Player* target = nullptr);
     ~AttackFan() override = default;
 
     // --- TAMBAHKAN FUNGSI INI UNTUK COMBO AI ---
@@ -45,8 +48,13 @@ private:
     float                                 m_lockedBaseAngle = 0.0f;
     std::vector<std::unique_ptr<Bullet>>* m_pool = nullptr;
     Boss* m_boss = nullptr;
+    Player* m_target = nullptr;
 
     bool  m_active = false;
     int   m_wavesFired = 0;
     float m_waveTimer = 0.0f;
+
+	int m_currentTrigger = 0;
+    float m_triggerTimer = 0.0f;
+    bool m_isTriggerWaiting = false;
 };

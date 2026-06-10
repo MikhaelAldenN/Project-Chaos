@@ -32,7 +32,7 @@ void BossAI_Phase01::Update(float dt, Boss* boss) {
             m_currentAttack == AttackSequence::Fan ||
             m_currentAttack == AttackSequence::Phalanx))
         {
-            m_currentAttack = AttackSequence::RadialStream;
+            m_currentAttack = AttackSequence::RadialContinuos;
         }
 
         // Kalkulasi posisi pemain untuk serangan yang butuh aim
@@ -68,28 +68,29 @@ void BossAI_Phase01::Update(float dt, Boss* boss) {
             // ========================================================
             // CHAOS MODE (HP <= 50%)
             // ========================================================
-        case AttackSequence::RadialStream:
+        case AttackSequence::RadialContinuos:
         {
             // COMBO: Stream Air Mancur 3 Detik
             RadialParams streamParams = m_radialParams;
             streamParams.activeDuration = 3.0f;
-            streamParams.burstDelay = 0.2f;
+            streamParams.burstDelay = 0.3f;
 
             m_phase->AddPooledAttack(std::make_unique<AttackRadial>(streamParams));
             m_cooldownTimer = 3.5f; // Jeda sebanding dengan durasi stream
-            m_currentAttack = AttackSequence::FanTripple;
+            m_currentAttack = AttackSequence::FanContinuos;
             break;
         }
 
-        case AttackSequence::FanTripple:
+        case AttackSequence::FanContinuos:
         {
-            // COMBO: Tembak Kipas 3 Gelombang Beruntun
             FanParams burstParams = m_fanParams;
-            burstParams.waves = 3;
+            burstParams.triggerCount = 3;
+            burstParams.waves = 4;
             burstParams.waveDelay = 0.12f;
 
-            m_phase->AddPooledAttack(std::make_unique<AttackFan>(burstParams, lockedAngle));
-            m_cooldownTimer = 1.0f; // Jeda sangat agresif
+            m_phase->AddPooledAttack(std::make_unique<AttackFan>(burstParams, lockedAngle, m_target));
+
+            m_cooldownTimer = 1.0f;
             m_currentAttack = AttackSequence::Rain;
             break;
         }
@@ -104,7 +105,7 @@ void BossAI_Phase01::Update(float dt, Boss* boss) {
         case AttackSequence::Ultimate:
             m_phase->AddPooledAttack(std::make_unique<AttackUltimate>(m_ultimateParams, m_target));
             m_cooldownTimer = 2.5f;
-            m_currentAttack = AttackSequence::RadialStream; // Loop chaos kembali ke awal
+            m_currentAttack = AttackSequence::RadialContinuos; // Loop chaos kembali ke awal
             break;
         }
     }
@@ -131,7 +132,7 @@ void BossAI_Phase02::Update(float dt, Boss* boss) {
         case AttackSequence::Bouncing:
             m_phase->AddAttack(std::make_unique<AttackBouncing>(m_bouncingParams));
             m_cooldownTimer = 2.0f;
-            m_currentAttack = AttackSequence::Boomerang; // Antrean berikutnya
+            m_currentAttack = AttackSequence::Boomerang;
             break;
 
         case AttackSequence::Boomerang:
@@ -150,7 +151,7 @@ void BossAI_Phase02::Update(float dt, Boss* boss) {
         case AttackSequence::Spear:
             m_phase->AddAttack(std::make_unique<AttackSpears>(m_undyneParams, m_target));
             m_cooldownTimer = 2.5f;
-            m_currentAttack = AttackSequence::Bouncing; // Loop kembali ke awal
+            m_currentAttack = AttackSequence::Bouncing;
             break;
         }
     }
