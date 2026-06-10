@@ -327,6 +327,9 @@
     <ClCompile Include="Source\Game\Entities\Boss\Boss.cpp">
       <Filter>Source\Game\Entities\Boss</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackParamManager.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -678,6 +681,9 @@
     <ClInclude Include="Source\Game\Entities\Boss\Boss.h">
       <Filter>Source\Game\Entities\Boss</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackParamManager.h">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\Basic.hlsli">
@@ -703,6 +709,9 @@
     </None>
     <None Include="Shader\Sprite.hlsli">
       <Filter>Shader</Filter>
+    </None>
+    <None Include="AttackParams.json">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

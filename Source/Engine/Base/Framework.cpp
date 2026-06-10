@@ -29,6 +29,8 @@ Framework::Framework()
 
     if (!AudioManager::Instance().Initialize()) {  }
 
+    AttackParamManager::Instance().Load("AttackParams.json");
+
     // Buat Main Window (Fullscreen Borderless)
     auto mainWin = WindowManager::Instance().CreateGameWindow("Main Window (close here)", 1600, 900);
     mainWin->SetPriority(0);

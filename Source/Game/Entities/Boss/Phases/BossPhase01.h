@@ -7,7 +7,7 @@
 
 // AI
 #include "BossAI.h"
-
+#include "AttackParamManager.h"
 #include <vector>
 #include <memory>
 

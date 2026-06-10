@@ -20,6 +20,7 @@
 #include "TimeManager.h"
 #include "EffectManager.h"
 #include "WindowShatter.h"
+#include "AttackParamManager.h"
 using namespace DirectX;
 
 // =========================================================
@@ -1257,7 +1258,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         if (ImGui::Button("START BOSS FIGHT (ENABLE AI)", ImVec2(-1.0f, 50.0f))) {
                             normalPhase->SetAIEnabled(true);
                             // [FIX] Mengambil sfxVolume melalui GetAI()
-                            AudioManager::Instance().PlayMusic("Data/Sound/BGM_Boss_Phase_01.wav", 0.05f * normalPhase->GetAI()->GetUltimateParams().sfxVolume, true);
+                            AudioManager::Instance().PlayMusic("Data/Sound/BGM_Boss_Phase_01.wav", 0.05f * AttackParamManager::Instance().GetUltimateParams().sfxVolume, true);
                         }
                         ImGui::PopStyleColor(2);
                     }
@@ -1286,38 +1287,53 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
 
                     if (ImGui::CollapsingHeader("Manual Attack Triggers", ImGuiTreeNodeFlags_DefaultOpen))
                     {
-                        if (ImGui::Button("TRIPLE BURST", ImVec2(-1.0f, 35.0f))) {
-                            // [FIX] GetAI()->GetRadialParams()
-                            normalPhase->AddPooledAttack(std::make_unique<AttackRadial>(normalPhase->GetAI()->GetRadialParams()));
+                        if (ImGui::Button("RADIAL BURST", ImVec2(-1.0f, 35.0f))) {
+                            normalPhase->AddPooledAttack(std::make_unique<AttackRadial>(AttackParamManager::Instance().GetRadialNormalParams()));
                         }
+
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.4f, 0.0f, 1.0f));
+                        if (ImGui::Button("RADIAL STREAM (CONTINUOUS)", ImVec2(-1.0f, 35.0f))) {
+                            normalPhase->AddPooledAttack(std::make_unique<AttackRadial>(AttackParamManager::Instance().GetRadialContinuousParams()));
+                        }
+                        ImGui::PopStyleColor();
 
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
                         if (ImGui::Button("TARGETED FAN BURST", ImVec2(-1.0f, 35.0f))) {
                             if (m_player) {
-                                // 1. Ambil posisi Player dan Boss
                                 DirectX::XMFLOAT3 pPos = m_player->GetPosition();
                                 DirectX::XMFLOAT3 bPos = m_navi->GetPosition();
-
-                                // 2. Hitung lockedBaseAngle sesuai rumus di AttackFan.h
                                 float lockedAngle = static_cast<float>(std::atan2(pPos.x - bPos.x, pPos.z - bPos.z));
 
-                                // 3. Masukkan lockedAngle ke dalam AttackFan (Melalui GetAI)
-                                normalPhase->AddPooledAttack(std::make_unique<AttackFan>(normalPhase->GetAI()->GetFanParams(), lockedAngle));
+                                normalPhase->AddPooledAttack(std::make_unique<AttackFan>(AttackParamManager::Instance().GetFanNormalParams(), lockedAngle));
+                            }
+                        }
+                        ImGui::PopStyleColor();
+
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.4f, 1.0f));
+                        if (ImGui::Button("FAN TRIPLE (TRACKING)", ImVec2(-1.0f, 35.0f))) {
+                            if (m_player) {
+                                DirectX::XMFLOAT3 pPos = m_player->GetPosition();
+                                DirectX::XMFLOAT3 bPos = m_navi->GetPosition();
+                                float lockedAngle = static_cast<float>(std::atan2(pPos.x - bPos.x, pPos.z - bPos.z));
+
+                                normalPhase->AddPooledAttack(std::make_unique<AttackFan>(
+                                    AttackParamManager::Instance().GetFanContinuousParams(),
+                                    lockedAngle,
+                                    m_player.get()
+                                ));
                             }
                         }
                         ImGui::PopStyleColor();
 
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.8f, 1.0f));
                         if (ImGui::Button("GLINTSTONE PHALANX", ImVec2(-1.0f, 35.0f))) {
-                            // [FIX] GetAI()->GetPhalanxParams()
-                            if (m_player) normalPhase->AddPooledAttack(std::make_unique<AttackPhalanx>(normalPhase->GetAI()->GetPhalanxParams(), m_player.get()));
+                            if (m_player) normalPhase->AddPooledAttack(std::make_unique<AttackPhalanx>(AttackParamManager::Instance().GetPhalanxParams(), m_player.get()));
                         }
                         ImGui::PopStyleColor();
 
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.6f, 1.0f));
                         if (ImGui::Button("BIJUUDAMA (ULTIMATE)", ImVec2(-1.0f, 35.0f))) {
-                            // [FIX] GetAI()->GetUltimateParams()
-                            if (m_player) normalPhase->AddPooledAttack(std::make_unique<AttackUltimate>(normalPhase->GetAI()->GetUltimateParams(), m_player.get()));
+                            if (m_player) normalPhase->AddPooledAttack(std::make_unique<AttackUltimate>(AttackParamManager::Instance().GetUltimateParams(), m_player.get()));
                         }
                         ImGui::PopStyleColor();
 
@@ -1328,7 +1344,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                     }
 
                     if (ImGui::CollapsingHeader("Radial Burst (Triple)")) {
-                        auto& p = normalPhase->GetAI()->GetRadialParams();
+                        auto& p = AttackParamManager::Instance().GetRadialNormalParams();
                         ImGui::ColorEdit4("Color", (float*)&p.color);
                         ImGui::SliderFloat("Speed", &p.speed, 1.0f, 100.0f);
                         ImGui::SliderInt("Count", &p.count, 4, 128);
@@ -1338,7 +1354,7 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                     }
 
                     if (ImGui::CollapsingHeader("Targeted Fan Burst")) {
-                        auto& p = normalPhase->GetAI()->GetFanParams();
+                        auto& p = AttackParamManager::Instance().GetFanNormalParams();
                         ImGui::SliderFloat("Speed", &p.speed, 1.0f, 100.0f);
                         ImGui::SliderInt("Lines", &p.rows, 1, 10);
                         ImGui::SliderInt("Waves", &p.waves, 1, 10);
@@ -1347,27 +1363,28 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                     }
 
                     if (ImGui::CollapsingHeader("Glintstone Phalanx")) {
-                        auto& p = normalPhase->GetAI()->GetPhalanxParams();
+                        auto& p = AttackParamManager::Instance().GetPhalanxParams();
                         ImGui::SliderInt("Count", &p.count, 3, 10);
                         ImGui::SliderFloat("Flight Speed", &p.speed, 10.0f, 80.0f);
                         ImGui::SliderInt("Damage", &p.damage, 1, 150);
                     }
 
                     if (ImGui::CollapsingHeader("Bijuudama (Ultimate)")) {
-                        auto& p = normalPhase->GetAI()->GetUltimateParams();
+                        auto& p = AttackParamManager::Instance().GetUltimateParams();
                         ImGui::ColorEdit4("Color", (float*)&p.ballColor);
                         ImGui::SliderFloat("Laser Duration", &p.laserDuration, 0.5f, 4.0f);
                         ImGui::SliderFloat("Shoot Speed", &p.shootSpeed, 10.0f, 120.0f);
                     }
 
                     if (ImGui::CollapsingHeader("Asgore Rain (Area Denial)")) {
-                        auto& p = normalPhase->GetAI()->GetRainParams();
+                        auto& p = AttackParamManager::Instance().GetRainParams();
                         ImGui::SliderFloat("Min Fall Speed", &p.minSpeed, 10.0f, 150.0f);
                         ImGui::SliderFloat("Max Fall Speed", &p.maxSpeed, 10.0f, 150.0f);
                         ImGui::SliderFloat("Active Duration", &p.activeDuration, 0.5f, 10.0f);
                         ImGui::SliderFloat("Damage", &p.damage, 0.0f, 50.0f);
                     }
                 }
+
                 else if (auto* wkPhase = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase()))
                 {
                     ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "--- PHASE 2: WINDOWKILL ATTACKS ---");                ImGui::Separator();

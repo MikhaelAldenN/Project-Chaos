@@ -1,0 +1,75 @@
+{
+  "Phase01": {
+    "RadialNormal": {
+      "count": 55,
+      "speed": 22.14,
+      "burstDelay": 0.156,
+      "burstCount": 3,
+      "damage": 1,
+      "sfxVolume": 1.0,
+      "color": [ 1.0, 0.2, 0.2, 1.0 ],
+      "activeDuration": 0.0,
+      "triggerCount": 1,
+      "triggerDelay": 1.0
+    },
+    "RadialContinuous": {
+      "count": 55,
+      "speed": 22.14,
+      "burstDelay": 0.3,
+      "burstCount": 3,
+      "damage": 1,
+      "sfxVolume": 1.0,
+      "color": [ 1.0, 0.5, 0.0, 1.0 ],
+      "activeDuration": 3.0,
+      "triggerCount": 1,
+      "triggerDelay": 1.0
+    },
+    "FanNormal": {
+      "rows": 5,
+      "waves": 4,
+      "waveDelay": 0.133,
+      "spreadAngle": 0.13,
+      "speed": 35.617,
+      "damage": 2,
+      "sfxVolume": 1.0,
+      "triggerCount": 1,
+      "triggerDelay": 1.0
+    },
+    "FanContinuous": {
+      "rows": 5,
+      "waves": 4,
+      "waveDelay": 0.12,
+      "spreadAngle": 0.13,
+      "speed": 35.617,
+      "damage": 2,
+      "sfxVolume": 1.0,
+      "triggerCount": 3,
+      "triggerDelay": 1.0
+    },
+    "Phalanx": {
+      "count": 8,
+      "chargeDelay": 0.2,
+      "holdDuration": 2.5,
+      "fireDelay": 0.05,
+      "speed": 70.0,
+      "hoverRadius": 4.0,
+      "turnSpeed": 3.0,
+      "smoothSpeed": 12.0,
+      "postFireDelay": 1.0,
+      "attackMoveSpeed": 3.0,
+      "returnMoveSpeed": 2.0,
+      "damage": 3,
+      "sfxVolume": 1.0
+    },
+    "Rain": {
+      "minSpeed": 50.0,
+      "maxSpeed": 90.0,
+      "warningDuration": 1.2,
+      "activeDuration": 2.0,
+      "width": 25.0,
+      "depth": 40.0,
+      "damage": 1.0,
+      "sfxVolume": 1.0
+    }
+  }
+}

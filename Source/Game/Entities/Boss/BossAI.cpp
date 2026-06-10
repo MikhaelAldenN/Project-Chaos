@@ -3,6 +3,7 @@
 #include "BossPhase02.h"
 #include "Player.h"
 #include "Boss.h"
+#include "AttackParamManager.h" // <--- JANGAN LUPA INCLUDE INI
 #include <cmath>
 
 // ========================================================
@@ -40,26 +41,26 @@ void BossAI_Phase01::Update(float dt, Boss* boss) {
         DirectX::XMFLOAT3 bPos = boss->GetPosition();
         float lockedAngle = std::atan2f(pPos.x - bPos.x, pPos.z - bPos.z);
 
-        // Eksekusi serangan berdasarkan Enum
+        // Eksekusi serangan berdasarkan Enum (MENGGUNAKAN PARAM MANAGER)
         switch (m_currentAttack) {
 
             // ========================================================
             // TACTICIAN MODE (HP > 50%)
             // ========================================================
         case AttackSequence::Radial:
-            m_phase->AddPooledAttack(std::make_unique<AttackRadial>(m_radialParams));
+            m_phase->AddPooledAttack(std::make_unique<AttackRadial>(AttackParamManager::Instance().GetRadialNormalParams()));
             m_cooldownTimer = 1.5f;
             m_currentAttack = AttackSequence::Fan; // Antrean berikutnya
             break;
 
         case AttackSequence::Fan:
-            m_phase->AddPooledAttack(std::make_unique<AttackFan>(m_fanParams, lockedAngle));
+            m_phase->AddPooledAttack(std::make_unique<AttackFan>(AttackParamManager::Instance().GetFanNormalParams(), lockedAngle));
             m_cooldownTimer = 1.5f;
             m_currentAttack = AttackSequence::Phalanx;
             break;
 
         case AttackSequence::Phalanx:
-            m_phase->AddPooledAttack(std::make_unique<AttackPhalanx>(m_phalanxParams, m_target));
+            m_phase->AddPooledAttack(std::make_unique<AttackPhalanx>(AttackParamManager::Instance().GetPhalanxParams(), m_target));
             m_cooldownTimer = 2.0f;
             m_currentAttack = AttackSequence::Radial; // Loop normal kembali ke awal
             break;
@@ -69,31 +70,18 @@ void BossAI_Phase01::Update(float dt, Boss* boss) {
             // CHAOS MODE (HP <= 50%)
             // ========================================================
         case AttackSequence::RadialContinuos:
-        {
-            // COMBO: Stream Air Mancur 3 Detik
-            RadialParams streamParams = m_radialParams;
-            streamParams.activeDuration = 3.0f;
-            streamParams.burstDelay = 0.3f;
-
-            m_phase->AddPooledAttack(std::make_unique<AttackRadial>(streamParams));
+            // Tidak perlu meracik parameter di sini lagi, langsung tarik varian Continuous dari JSON
+            m_phase->AddPooledAttack(std::make_unique<AttackRadial>(AttackParamManager::Instance().GetRadialContinuousParams()));
             m_cooldownTimer = 3.5f; // Jeda sebanding dengan durasi stream
             m_currentAttack = AttackSequence::FanContinuos;
             break;
-        }
 
         case AttackSequence::FanContinuos:
-        {
-            FanParams burstParams = m_fanParams;
-            burstParams.triggerCount = 3;
-            burstParams.waves = 4;
-            burstParams.waveDelay = 0.12f;
-
-            m_phase->AddPooledAttack(std::make_unique<AttackFan>(burstParams, lockedAngle, m_target));
-
+            // Tarik varian Continuous dari JSON dan masukkan m_target untuk tracking
+            m_phase->AddPooledAttack(std::make_unique<AttackFan>(AttackParamManager::Instance().GetFanContinuousParams(), lockedAngle, m_target));
             m_cooldownTimer = 1.0f;
             m_currentAttack = AttackSequence::Rain;
             break;
-        }
 
         case AttackSequence::Rain:
             // Area denial
@@ -103,7 +91,7 @@ void BossAI_Phase01::Update(float dt, Boss* boss) {
             break;
 
         case AttackSequence::Ultimate:
-            m_phase->AddPooledAttack(std::make_unique<AttackUltimate>(m_ultimateParams, m_target));
+            m_phase->AddPooledAttack(std::make_unique<AttackUltimate>(AttackParamManager::Instance().GetUltimateParams(), m_target));
             m_cooldownTimer = 2.5f;
             m_currentAttack = AttackSequence::RadialContinuos; // Loop chaos kembali ke awal
             break;
@@ -127,29 +115,29 @@ void BossAI_Phase02::Update(float dt, Boss* boss) {
     m_cooldownTimer -= dt;
 
     if (m_cooldownTimer <= 0.0f) {
-        // Eksekusi serangan Windowkill
+        // Eksekusi serangan Windowkill (MENGGUNAKAN PARAM MANAGER)
         switch (m_currentAttack) {
         case AttackSequence::Bouncing:
-            m_phase->AddAttack(std::make_unique<AttackBouncing>(m_bouncingParams));
+            m_phase->AddAttack(std::make_unique<AttackBouncing>(AttackParamManager::Instance().GetBouncingParams()));
             m_cooldownTimer = 2.0f;
             m_currentAttack = AttackSequence::Boomerang;
             break;
 
         case AttackSequence::Boomerang:
-            m_phase->AddAttack(std::make_unique<AttackBoomerangs>(m_boomerangParams));
+            m_phase->AddAttack(std::make_unique<AttackBoomerangs>(AttackParamManager::Instance().GetBoomerangParams()));
             m_cooldownTimer = 2.0f;
             m_currentAttack = AttackSequence::Blaster;
             break;
 
         case AttackSequence::Blaster:
             // Menembak Laser Orbital ke arah Player
-            m_phase->AddAttack(std::make_unique<AttackBlasters>(m_blasterParams, true, m_target->GetPosition().x));
+            m_phase->AddAttack(std::make_unique<AttackBlasters>(AttackParamManager::Instance().GetBlasterParams(), true, m_target->GetPosition().x));
             m_cooldownTimer = 2.0f;
             m_currentAttack = AttackSequence::Spear;
             break;
 
         case AttackSequence::Spear:
-            m_phase->AddAttack(std::make_unique<AttackSpears>(m_undyneParams, m_target));
+            m_phase->AddAttack(std::make_unique<AttackSpears>(AttackParamManager::Instance().GetUndyneParams(), m_target));
             m_cooldownTimer = 2.5f;
             m_currentAttack = AttackSequence::Bouncing;
             break;

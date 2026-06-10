@@ -31,7 +31,7 @@ public:
         Radial,
         RadialContinuos,
         Fan,
-		FanContinuos,
+        FanContinuos,
         Phalanx,
         Rain,
         Ultimate
@@ -44,27 +44,12 @@ public:
     bool IsEnabled() const { return m_enabled; }
     void SetTarget(Player* target) { m_target = target; }
 
-    // Akses Parameter untuk ImGui
-    RadialParams& GetRadialParams() { return m_radialParams; }
-    FanParams& GetFanParams() { return m_fanParams; }
-    PhalanxParams& GetPhalanxParams() { return m_phalanxParams; }
-    RainParams& GetRainParams() { return m_rainParams; }
-    UltimateParams& GetUltimateParams() { return m_ultimateParams; }
-
-    RadialParams GetRadialContinuos() const;
-    FanParams    GetFanTripleContinuos() const;
+    // CATATAN: Semua fungsi Get...Params() DIHAPUS karena sudah pindah ke ParamManager
 
 private:
     BossPhase01* m_phase = nullptr;
     Player* m_target = nullptr;
     bool          m_enabled = false;
-
-    // Parameter
-    RadialParams   m_radialParams;
-    FanParams      m_fanParams;
-    PhalanxParams  m_phalanxParams;
-    RainParams     m_rainParams;
-    UltimateParams m_ultimateParams;
 
     // Sistem Antrean (Sequence)
     AttackSequence m_currentAttack = AttackSequence::Radial;
@@ -91,22 +76,12 @@ public:
     bool IsEnabled() const { return m_enabled; }
     void SetTarget(Player* target) { m_target = target; }
 
-    // Akses Parameter untuk ImGui
-    BouncingBulletParams& GetBouncingParams() { return m_bouncingParams; }
-    BoomerangParams& GetBoomerangParams() { return m_boomerangParams; }
-    BlasterParams& GetBlasterParams() { return m_blasterParams; }
-    UndyneSpearParams& GetUndyneParams() { return m_undyneParams; }
+    // CATATAN: Semua fungsi Get...Params() DIHAPUS karena sudah pindah ke ParamManager
 
 private:
     BossPhase02* m_phase = nullptr;
     Player* m_target = nullptr;
     bool          m_enabled = false;
-
-    // Parameter
-    BouncingBulletParams m_bouncingParams;
-    BoomerangParams      m_boomerangParams;
-    BlasterParams        m_blasterParams;
-    UndyneSpearParams    m_undyneParams;
 
     // Sistem Antrean (Sequence)
     AttackSequence m_currentAttack = AttackSequence::Bouncing;

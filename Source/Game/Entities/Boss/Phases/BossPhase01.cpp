@@ -190,7 +190,7 @@ void BossPhase01::Update(float dt, Boss* boss) {
             m_aiEnabled = true;
             if (m_aiTarget) m_aiTarget->SetInputEnabled(true);
 
-            float sfxVol = m_ai ? m_ai->GetUltimateParams().sfxVolume : 1.0f;
+            float sfxVol = ParamManager::Instance().GetUltimateParams().sfxVolume;
             AudioManager::Instance().PlayMusic(
                 "Data/Sound/BGM_Boss_Phase_01.wav",
                 0.05f * sfxVol, true);
@@ -260,10 +260,10 @@ void BossPhase01::Render(ID3D11DeviceContext* context, Camera* currentCamera, Bo
     for (auto& bullet : m_bulletPool) {
         if (!bullet->IsActive()) continue;
 
-        XMFLOAT4 color = m_ai ? m_ai->GetRadialParams().color : XMFLOAT4(1, 0, 0, 1);
+        XMFLOAT4 color = AttackParamManager::Instance().GetRadialNormalParams().color;
 
         if (bullet->GetBossTarget() != nullptr)
-            color = m_ai ? m_ai->GetUltimateParams().ballColor : XMFLOAT4(1, 0, 0, 1);
+            color = AttackParamManager::Instance().GetUltimateParams().ballColor;
         else {
             XMFLOAT3 vel = bullet->GetVelocity();
             float speedSq = vel.x * vel.x + vel.z * vel.z;
@@ -307,7 +307,7 @@ void BossPhase01::AddPooledAttack(std::unique_ptr<IPooledAttackPattern> attack) 
 void BossPhase01::TriggerRain(RainMode mode, bool isPositiveSide, float sweepDir, float customDuration) {
     if (HasRainActive() || !m_ai) return;
 
-    RainParams params = m_ai->GetRainParams();
+    RainParams params = AttackParamManager::Instance().GetRainParams();
 
     if (customDuration > 0.0f) {
         params.activeDuration = customDuration;
