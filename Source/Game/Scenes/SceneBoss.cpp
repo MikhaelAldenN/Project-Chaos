@@ -474,26 +474,39 @@ void SceneBoss::Update(float elapsedTime)
     // --- Player update ---
     if (m_player)
     {
-        const XMFLOAT3 mouseWorldPos = Beyond::InputHelper::GetMouseWorldPos(m_mainCamera->GetPosition());
-        m_player->RotateModelToPoint(mouseWorldPos);
+        const DirectX::XMFLOAT3 floorPos = Beyond::InputHelper::GetMouseWorldPos(m_mainCamera->GetPosition());
+        const DirectX::XMFLOAT3 camPos = m_mainCamera->GetPosition();
+
+        // Reconstruct the 3D ray going from the camera down to that floor point
+        DirectX::XMFLOAT3 rayDir = {
+            floorPos.x - camPos.x,
+            floorPos.y - camPos.y,
+            floorPos.z - camPos.z
+        };
+
+        // Find where that ray intersects the gun's exact height instead of the floor
+        float gunHeight = m_player->GetPosition().y + PlayerConst::BulletSpawnY;
+
+        if (std::abs(rayDir.y) > 0.001f)
+        {
+            // Calculate the distance along the ray to the chest-height plane
+            float t = (gunHeight - camPos.y) / rayDir.y;
+
+            DirectX::XMFLOAT3 trueMouseWorldPos = {
+                camPos.x + rayDir.x * t,
+                gunHeight,
+                camPos.z + rayDir.z * t
+            };
+
+            m_player->RotateModelToPoint(trueMouseWorldPos);
+        }
+        else
+        {
+            // Safety fallback
+            m_player->RotateModelToPoint(floorPos);
+        }
+
         m_player->Update(scaledDt, activeCam);
-
-        // =========================================================
-        // [CRITICAL FIX] DYNAMIC SCREEN CLAMPING
-        // Kita kunci player agar SELALU ada di dalam layar yang sedang ter-zoom
-        // =========================================================
-        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-
-        // Gunakan dynamicPixelRatio agar batas layar bergeser sesuai Zoom!
-        float limitX = ((screenWidth / 2.0f) / dynamicPixelRatio) - 0.5f; // Margin 0.5 agar tidak nempel bgt
-        float limitZ = ((screenHeight / 2.0f) / dynamicPixelRatio) - 0.5f;
-
-        XMFLOAT3 pos = m_player->GetPosition();
-        pos.x = std::clamp(pos.x, -limitX, limitX);
-        pos.z = std::clamp(pos.z, -limitZ, limitZ);
-        pos.y = max(pos.y, 0.0f);
-        m_player->SetPosition(pos);
     }
 
     // --- Squash & Stretch ---

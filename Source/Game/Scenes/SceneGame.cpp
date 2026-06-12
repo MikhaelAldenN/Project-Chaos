@@ -393,8 +393,15 @@ void SceneGame::Update(const float elapsedTime)
             DirectX::XMStoreFloat3(&dir, rayDir);
 
             if (abs(dir.y) > 0.001f) {
-                float t = -origin.y / dir.y;
-                DirectX::XMFLOAT3 trueMouseWorldPos = { origin.x + dir.x * t, 0.0f, origin.z + dir.z * t };
+                float gunHeight = m_player->GetPosition().y + PlayerConst::BulletSpawnY;
+                float t = (gunHeight - origin.y) / dir.y;
+
+                DirectX::XMFLOAT3 trueMouseWorldPos = {
+                    origin.x + dir.x * t,
+                    gunHeight,
+                    origin.z + dir.z * t
+                };
+
                 m_player->RotateModelToPoint(trueMouseWorldPos);
             }
         }
