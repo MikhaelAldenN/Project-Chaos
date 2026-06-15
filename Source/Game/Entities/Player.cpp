@@ -673,7 +673,6 @@ void Player::FireProjectile()
     }
 
     float dx = m_aimTarget.x - myPos.x;
-    float dy = aimPos.y - (myPos.y + PlayerConst::BulletSpawnY);
     float dz = m_aimTarget.z - myPos.z;
     float angleToMouse = atan2f(dx, dz);
     DirectX::XMFLOAT3 fwd = { sinf(angleToMouse), 0.0f, cosf(angleToMouse) };
