@@ -28,8 +28,8 @@ public:
     bool Load(const std::string& filepath);
 
     // ========================================================
-        // GETTER: PHASE 01
-        // ========================================================
+    // GETTER: PHASE 01
+    // ========================================================
     RadialParams& GetRadialNormalParams() { return m_radialNormal; }
     RadialParams& GetRadialContinuousParams() { return m_radialContinuous; }
     FanParams& GetFanNormalParams() { return m_fanNormal; }

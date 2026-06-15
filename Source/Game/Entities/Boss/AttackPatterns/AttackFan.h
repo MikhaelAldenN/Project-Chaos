@@ -13,7 +13,7 @@
 
 struct FanParams {
     int   rows = 5;
-    int   waves = 4;
+    int   waves = 5;
     float waveDelay = 0.133f;  // Seconds between each wave
     float spreadAngle = 0.130f;  // Radians between adjacent lines
     float speed = 35.617f;

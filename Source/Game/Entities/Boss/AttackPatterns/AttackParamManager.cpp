@@ -11,7 +11,7 @@ bool AttackParamManager::Load(const std::string& filepath) {
 
     json j;
     try {
-        file >> j;
+        j = json::parse(file, nullptr, true, true);
     }
     catch (json::parse_error& e) {
         std::cerr << "[AttackParamManager] JSON Parse Error: " << e.what() << "\n";
