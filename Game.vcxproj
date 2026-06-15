@@ -168,6 +168,7 @@
     <ClInclude Include="Source\Engine\Windowing\WindowSwarmRenderer.h" />
     <ClInclude Include="Source\Engine\Windowing\WindowTrackingSystem.h" />
     <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackParamManager.h" />
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackWave.h" />
     <ClInclude Include="Source\Game\Entities\Boss\Boss.h" />
     <ClInclude Include="Source\Game\Entities\Boss\BossAI.h" />
     <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackBoomerangs.h" />
@@ -275,6 +276,7 @@
     <ClCompile Include="Source\Engine\Windowing\WindowSwarmRenderer.cpp" />
     <ClCompile Include="Source\Engine\Windowing\WindowTrackingSystem.cpp" />
     <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackParamManager.cpp" />
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackWave.cpp" />
     <ClCompile Include="Source\Game\Entities\Boss\Boss.cpp" />
     <ClCompile Include="Source\Game\Entities\Boss\BossAI.cpp" />
     <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackBoomerangs.cpp" />

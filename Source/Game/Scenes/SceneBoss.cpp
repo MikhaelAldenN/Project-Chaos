@@ -1338,6 +1338,12 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         }
                         ImGui::PopStyleColor();
 
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.7f, 1.0f));
+                        if (ImGui::Button("GRID WAVE ATTACK", ImVec2(-1.0f, 35.0f))) {
+                            normalPhase->AddPooledAttack(std::make_unique<AttackWave>(AttackParamManager::Instance().GetWaveParams()));
+                        }
+                        ImGui::PopStyleColor();
+
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.8f, 1.0f));
                         if (ImGui::Button("GLINTSTONE PHALANX", ImVec2(-1.0f, 35.0f))) {
                             if (m_player) normalPhase->AddPooledAttack(std::make_unique<AttackPhalanx>(AttackParamManager::Instance().GetPhalanxParams(), m_player.get()));
@@ -1380,6 +1386,15 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         ImGui::SliderInt("Count", &p.count, 3, 10);
                         ImGui::SliderFloat("Flight Speed", &p.speed, 10.0f, 80.0f);
                         ImGui::SliderInt("Damage", &p.damage, 1, 150);
+                    }
+
+                    if (ImGui::CollapsingHeader("Grid Wave Attack Config")) {
+                        auto& p = AttackParamManager::Instance().GetWaveParams();
+                        ImGui::SliderInt("Total Waves", &p.waves, 1, 20);
+                        ImGui::SliderFloat("Wave Delay", &p.waveDelay, 0.1f, 3.0f);
+                        ImGui::SliderFloat("Bullet Speed", &p.speed, 5.0f, 60.0f);
+                        ImGui::SliderFloat("Track Spacing", &p.trackSpacing, 1.0f, 10.0f);
+                        ImGui::SliderFloat("Start Z (Bottom)", &p.startZ, -30.0f, 0.0f);
                     }
 
                     if (ImGui::CollapsingHeader("Bijuudama (Ultimate)")) {

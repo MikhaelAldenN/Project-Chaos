@@ -52,7 +52,7 @@ private:
     bool          m_enabled = false;
 
     // Sistem Antrean (Sequence)
-    AttackSequence m_currentAttack = AttackSequence::Radial;
+    AttackSequence m_currentAttack = AttackSequence::Phalanx;
     float m_cooldownTimer = 2.0f;
 };
 

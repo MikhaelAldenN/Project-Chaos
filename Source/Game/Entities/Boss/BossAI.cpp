@@ -46,48 +46,53 @@ void BossAI_Phase01::Update(float dt, Boss* boss) {
 
             // ========================================================
             // TACTICIAN MODE (HP > 50%)
+            // RUTE BARU: Phalanx -> Rain -> Radial -> Fan
             // ========================================================
+        case AttackSequence::Phalanx:
+            m_phase->AddPooledAttack(std::make_unique<AttackPhalanx>(AttackParamManager::Instance().GetPhalanxParams(), m_target));
+            m_cooldownTimer = 2.0f;
+            m_currentAttack = AttackSequence::Rain; // 1. Lanjut ke Rain
+            break;
+
         case AttackSequence::Radial:
             m_phase->AddPooledAttack(std::make_unique<AttackRadial>(AttackParamManager::Instance().GetRadialNormalParams()));
             m_cooldownTimer = 1.5f;
-            m_currentAttack = AttackSequence::Fan; // Antrean berikutnya
+            m_currentAttack = AttackSequence::Fan; // 3. Lanjut ke Fan
             break;
 
         case AttackSequence::Fan:
             m_phase->AddPooledAttack(std::make_unique<AttackFan>(AttackParamManager::Instance().GetFanNormalParams(), lockedAngle));
             m_cooldownTimer = 1.5f;
-            m_currentAttack = AttackSequence::Phalanx;
+            m_currentAttack = AttackSequence::Phalanx; // 4. Loop kembali ke Phalanx
             break;
 
-        case AttackSequence::Phalanx:
-            m_phase->AddPooledAttack(std::make_unique<AttackPhalanx>(AttackParamManager::Instance().GetPhalanxParams(), m_target));
-            m_cooldownTimer = 2.0f;
-            m_currentAttack = AttackSequence::Radial; // Loop normal kembali ke awal
+            // ========================================================
+            // SHARED & CHAOS MODE (HP <= 50%)
+            // ========================================================
+        case AttackSequence::Rain:
+            // Area denial (Sekarang dipakai di Normal dan Chaos)
+            m_phase->TriggerRain(RainMode::VerticalSweep, m_target->GetPosition().x > 0);
+            m_cooldownTimer = 0.5f;
+
+            // 2. CEK CABANG: Tentukan serangan berikutnya berdasarkan HP!
+            if (isEnraged) {
+                m_currentAttack = AttackSequence::Ultimate; // Rute Chaos
+            }
+            else {
+                m_currentAttack = AttackSequence::Radial;   // Rute Normal
+            }
             break;
 
-
-            // ========================================================
-            // CHAOS MODE (HP <= 50%)
-            // ========================================================
         case AttackSequence::RadialContinuos:
-            // Tidak perlu meracik parameter di sini lagi, langsung tarik varian Continuous dari JSON
             m_phase->AddPooledAttack(std::make_unique<AttackRadial>(AttackParamManager::Instance().GetRadialContinuousParams()));
-            m_cooldownTimer = 3.5f; // Jeda sebanding dengan durasi stream
+            m_cooldownTimer = 3.5f;
             m_currentAttack = AttackSequence::FanContinuos;
             break;
 
         case AttackSequence::FanContinuos:
-            // Tarik varian Continuous dari JSON dan masukkan m_target untuk tracking
             m_phase->AddPooledAttack(std::make_unique<AttackFan>(AttackParamManager::Instance().GetFanContinuousParams(), lockedAngle, m_target));
             m_cooldownTimer = 1.0f;
             m_currentAttack = AttackSequence::Rain;
-            break;
-
-        case AttackSequence::Rain:
-            // Area denial
-            m_phase->TriggerRain(RainMode::VerticalSweep, m_target->GetPosition().x > 0);
-            m_cooldownTimer = 0.5f; // Rain tidak mengunci pergerakan bos, langsung eksekusi Ultimate
-            m_currentAttack = AttackSequence::Ultimate;
             break;
 
         case AttackSequence::Ultimate:

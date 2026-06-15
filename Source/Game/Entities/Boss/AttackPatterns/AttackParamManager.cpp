@@ -28,6 +28,7 @@ bool AttackParamManager::Load(const std::string& filepath) {
         if (p1.contains("Phalanx"))          ParsePhalanxParams(p1["Phalanx"], m_phalanx);
         if (p1.contains("Rain"))             ParseRainParams(p1["Rain"], m_rain);
         if (p1.contains("Ultimate"))         ParseUltimateParams(p1["Ultimate"], m_ultimate);
+        if (p1.contains("Wave"))             ParseWaveParams(p1["Wave"], m_wave);
     }
 
     // --- PARSE PHASE 02 ---
@@ -105,6 +106,19 @@ void AttackParamManager::ParseUltimateParams(const json& j, UltimateParams& out)
     if (j.contains("ballColor") && j["ballColor"].is_array() && j["ballColor"].size() == 4) {
         out.ballColor = { j["ballColor"][0], j["ballColor"][1], j["ballColor"][2], j["ballColor"][3] };
     }
+}
+
+void AttackParamManager::ParseWaveParams(const json& j, WaveParams& out) {
+    if (j.contains("trackCount")) out.trackCount = j["trackCount"];
+    if (j.contains("bulletsPerWave")) out.bulletsPerWave = j["bulletsPerWave"];
+    if (j.contains("waves")) out.waves = j["waves"];
+    if (j.contains("waveDelay")) out.waveDelay = j["waveDelay"];
+    if (j.contains("speed")) out.speed = j["speed"];
+    if (j.contains("trackSpacing")) out.trackSpacing = j["trackSpacing"];
+    if (j.contains("startZ")) out.startZ = j["startZ"];
+    if (j.contains("spawnX")) out.spawnX = j["spawnX"];
+    if (j.contains("damage")) out.damage = j["damage"];
+    if (j.contains("sfxVolume")) out.sfxVolume = j["sfxVolume"];
 }
 
 // ========================================================

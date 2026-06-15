@@ -8,6 +8,7 @@
 #include "AttackPhalanx.h"
 #include "AttackRain.h"
 #include "AttackUltimate.h"
+#include "AttackWave.h"
 
 // --- Phase 2 Attacks ---
 #include "AttackBouncing.h"
@@ -37,6 +38,7 @@ public:
     PhalanxParams& GetPhalanxParams() { return m_phalanx; }
     RainParams& GetRainParams() { return m_rain; }
     UltimateParams& GetUltimateParams() { return m_ultimate; }
+	WaveParams& GetWaveParams() { return m_wave; }
 
     // ========================================================
     // GETTER: PHASE 02 (WINDOWKILL)
@@ -55,6 +57,7 @@ private:
     void ParsePhalanxParams(const json& j, PhalanxParams& outParams);
     void ParseRainParams(const json& j, RainParams& outParams);
     void ParseUltimateParams(const json& j, UltimateParams& outParams);
+	void ParseWaveParams(const json& j, WaveParams& outParams);
 
     void ParseBouncingParams(const json& j, BouncingBulletParams& outParams);
     void ParseBoomerangParams(const json& j, BoomerangParams& outParams);
@@ -69,6 +72,7 @@ private:
     PhalanxParams  m_phalanx;
     RainParams     m_rain;
     UltimateParams m_ultimate;
+	WaveParams	   m_wave;
 
     // Data Storage (Phase 02)
     BouncingBulletParams m_bouncing;
