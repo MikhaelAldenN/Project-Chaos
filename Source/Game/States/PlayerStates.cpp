@@ -18,7 +18,7 @@
 namespace {
     // [[nodiscard]] forces the caller to check if a state transition actually happened.
     // Passed by raw pointer because the state machine doesn't own the player.
-    [[nodiscard]] bool TryExecuteCombatAction(Player* player)
+    [[nodiscard]] bool TryExecuteCombatAction(Player* player, bool allowShoot = true)
     {
         // 1. Anticipate Nullptr Bug: Always validate pointers before dereferencing.
         if (!player || !player->IsInputEnabled()) return false;
@@ -28,9 +28,7 @@ namespace {
         // Using GetKeyboard() to check a mouse click is semantically dangerous.
         auto& input{ Input::Instance().GetKeyboard() };
 
-        const bool isShootInput{ player->IsPowerUncapped() ?
-            input.IsPress(VK_LBUTTON) :
-            input.IsTriggered(VK_LBUTTON) };
+        const bool isShootInput{ input.IsPress(VK_LBUTTON) };
 
         if (!isShootInput) return false;
 
@@ -127,7 +125,7 @@ namespace {
         }
 
         // --- Default: Shoot ---
-        if (!player->GetAnimator()->IsUpperPlaying())
+        if (allowShoot && !player->GetAnimator()->IsUpperPlaying())
         {
             player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerShoot>());
             player->FireProjectile();
@@ -359,39 +357,84 @@ void PlayerParry::Exit(Player* player)
 
 void PlayerShoot::Enter(Player* player)
 {
+    // The first shot is fired in TryExecuteCombatAction just before entering,
+    // so here we only need to set up the SFX and timers.
+    PerformShootInternal(player);
+}
 
-    std::string dashSounds[] = {
+void PlayerShoot::Update(Player* player, float dt)
+{
+    // 1. Bug Anticipation: Dash Lockout Prevention
+    // State machines trap inputs. We must allow them to dodge out of continuous fire!
+    if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && (player->canDash || player->IsPowerUncapped()))
+    {
+        player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerDash>());
+        return;
+    }
+
+    timer -= dt;
+
+    if (timer <= 0.0f)
+    {
+        auto& input{ Input::Instance().GetKeyboard() };
+
+        // 2. Bug Anticipation: Zero-Cost Optimization (Heap Thrashing fix)
+        if (input.IsPress(VK_LBUTTON))
+        {
+            // 3. Bug Anticipation: Melee Proximity Override
+            // Check if an enemy walked into Slash/Parry range while we were shooting.
+            // Passing 'false' ensures we don't accidentally re-allocate the PlayerShoot state!
+            if (TryExecuteCombatAction(player, false)) return;
+
+            // 4. Bug Anticipation: "Stiff Legs" Sync
+            // Sync the lower-body animation since we bypassed the Idle/Moving states.
+            if (player->IsMoving()) {
+                player->GetAnimator()->SetPlaybackSpeed(player->IsBackpedaling() ? -1.0f : 1.0f);
+                if (!player->GetAnimator()->IsPlaying("RunPistol")) {
+                    player->GetAnimator()->Play("RunPistol", true, PlayerConst::AnimBlendDefault);
+                }
+            }
+            else {
+                player->GetAnimator()->SetPlaybackSpeed(1.0f);
+                if (!player->GetAnimator()->IsPlaying("Idle")) {
+                    player->GetAnimator()->Play("Idle", true, PlayerConst::AnimBlendDefault);
+                }
+            }
+
+            // Fire and loop internally
+            player->FireProjectile();
+            PerformShootInternal(player);
+        }
+        else
+        {
+            // Player finally released the button; exit cleanly.
+            if (player->IsMoving())
+                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerMoving>());
+            else
+                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerIdle>());
+        }
+    }
+}
+
+void PlayerShoot::PerformShootInternal(Player* player)
+{
+    // Brace initialization for zero-overhead arrays
+    // (Note: I also fixed the duplicate "02.wav" bug from your original code!)
+    const std::string shootSounds[]{
         "Data/Sound/SE_Player_Shoot_01.wav",
         "Data/Sound/SE_Player_Shoot_02.wav",
-        "Data/Sound/SE_Player_Shoot_02.wav"
+        "Data/Sound/SE_Player_Shoot_03.wav"
     };
 
-    // 2. Pilih index secara acak (0, 1, atau 2)
-    int randomIndex = rand() % 3;
+    const int randomIndex{ rand() % 3 };
+    AudioManager::Instance().PlaySFX(shootSounds[randomIndex], 0.1f);
 
-    // 3. Mainkan suaranya lewat AudioManager
-    // Kita gunakan volume 0.5f agar tidak terlalu memekakkan telinga
-    AudioManager::Instance().PlaySFX(dashSounds[randomIndex], 0.1f);
-
-    float currentDelay = player->GetShootDelay();
+    float currentDelay{ player->GetShootDelay() };
     if (currentDelay > 0.0f && player->IsPowerUncapped()) {
         currentDelay = 0.05f;
     }
 
     timer = currentDelay;
-}
-
-void PlayerShoot::Update(Player* player, float dt)
-{
-    timer -= dt;
-
-    if (timer <= 0.0f)
-    {
-        if (player->IsMoving())
-            player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerMoving>());
-        else
-            player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerIdle>());
-    }
 }
 
 void PlayerShoot::Exit(Player* player)

@@ -65,7 +65,9 @@ public:
     void Update(Player* player, float dt) override;
     void Exit(Player* player) override;
 private:
-    float timer = PlayerConst::ShootDuration;
+    void PerformShootInternal(Player* player);
+
+    float timer{ 0.0f };
 };
 
 // TODO: implement damage and death behaviour
