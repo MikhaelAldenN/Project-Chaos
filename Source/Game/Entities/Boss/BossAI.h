@@ -9,6 +9,9 @@
 #include "AttackPhalanx.h"
 #include "AttackRain.h"
 #include "AttackUltimate.h"
+#include "AttackWave.h"
+#include "AttackMeteor.h"
+#include "AttackDirect.h"
 
 // --- Phase 2 Attacks ---
 #include "AttackBouncing.h"
@@ -27,6 +30,7 @@ class Player;
 class BossAI_Phase01 {
 public:
 
+    // [TAMBAHAN] Masukkan Wave, Meteor, dan Direct ke dalam Enum
     enum class AttackSequence {
         Radial,
         RadialContinuos,
@@ -34,7 +38,10 @@ public:
         FanContinuos,
         Phalanx,
         Rain,
-        Ultimate
+        Ultimate,
+        Wave,
+        Meteor,
+        Direct
     };
 
     BossAI_Phase01(BossPhase01* phase, Player* target);
@@ -44,15 +51,23 @@ public:
     bool IsEnabled() const { return m_enabled; }
     void SetTarget(Player* target) { m_target = target; }
 
-    // CATATAN: Semua fungsi Get...Params() DIHAPUS karena sudah pindah ke ParamManager
-
 private:
+    // [BARU] Fungsi pintar pengatur giliran selang-seling
+    AttackSequence GetNextTacticianAttack();
+
     BossPhase01* m_phase = nullptr;
     Player* m_target = nullptr;
     bool          m_enabled = false;
 
-    // Sistem Antrean (Sequence)
-    AttackSequence m_currentAttack = AttackSequence::Phalanx;
+    // ========================================================
+    // [BARU] Tracker untuk Tactician Mode (HP > 50%)
+    // ========================================================
+    int  m_mainAttackIndex = 0;     // 0: Phalanx, 1: Rain, 2: Wave, 3: Meteor
+    int  m_fillerAttackIndex = 1;   // Mulai dari 1 karena 0 (Direct) dipakai pertama kali
+    bool m_isNextMainAttack = true; // Karena Direct adalah filler, selanjutnya pasti Main Attack
+
+    // Sistem Antrean (Sequence) - [DIUBAH] Start dengan Direct!
+    AttackSequence m_currentAttack = AttackSequence::Direct;
     float m_cooldownTimer = 2.0f;
 };
 
