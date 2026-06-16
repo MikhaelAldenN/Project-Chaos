@@ -65,7 +65,7 @@ public:
     void Update(Player* player, float dt) override;
     void Exit(Player* player) override;
 private:
-    void PerformShootInternal(Player* player);
+    void PerformShootInternal(Player* player, bool isHeld = false);
 
     float timer{ 0.0f };
 };

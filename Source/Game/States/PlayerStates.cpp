@@ -357,15 +357,14 @@ void PlayerParry::Exit(Player* player)
 
 void PlayerShoot::Enter(Player* player)
 {
-    // The first shot is fired in TryExecuteCombatAction just before entering,
-    // so here we only need to set up the SFX and timers.
-    PerformShootInternal(player);
+    // The first shot was already fired by TryExecuteCombatAction before entering.
+    // We pass 'false' because this is the initial trigger, not a held loop.
+    PerformShootInternal(player, false);
 }
 
 void PlayerShoot::Update(Player* player, float dt)
 {
-    // 1. Bug Anticipation: Dash Lockout Prevention
-    // State machines trap inputs. We must allow them to dodge out of continuous fire!
+    // 1. Dash Lockout Prevention
     if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && (player->canDash || player->IsPowerUncapped()))
     {
         player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerDash>());
@@ -378,16 +377,12 @@ void PlayerShoot::Update(Player* player, float dt)
     {
         auto& input{ Input::Instance().GetKeyboard() };
 
-        // 2. Bug Anticipation: Zero-Cost Optimization (Heap Thrashing fix)
         if (input.IsPress(VK_LBUTTON))
         {
-            // 3. Bug Anticipation: Melee Proximity Override
-            // Check if an enemy walked into Slash/Parry range while we were shooting.
-            // Passing 'false' ensures we don't accidentally re-allocate the PlayerShoot state!
+            // 2. Melee Proximity Override
             if (TryExecuteCombatAction(player, false)) return;
 
-            // 4. Bug Anticipation: "Stiff Legs" Sync
-            // Sync the lower-body animation since we bypassed the Idle/Moving states.
+            // 3. Lower-Body Animation Sync
             if (player->IsMoving()) {
                 player->GetAnimator()->SetPlaybackSpeed(player->IsBackpedaling() ? -1.0f : 1.0f);
                 if (!player->GetAnimator()->IsPlaying("RunPistol")) {
@@ -401,13 +396,14 @@ void PlayerShoot::Update(Player* player, float dt)
                 }
             }
 
-            // Fire and loop internally
+            // 4. Fire and loop internally
             player->FireProjectile();
-            PerformShootInternal(player);
+
+            // [MODIFIED] We are now looping, so we flag isHeld as true
+            PerformShootInternal(player, true);
         }
         else
         {
-            // Player finally released the button; exit cleanly.
             if (player->IsMoving())
                 player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerMoving>());
             else
@@ -416,10 +412,9 @@ void PlayerShoot::Update(Player* player, float dt)
     }
 }
 
-void PlayerShoot::PerformShootInternal(Player* player)
+void PlayerShoot::PerformShootInternal(Player* player, bool isHeld)
 {
-    // Brace initialization for zero-overhead arrays
-    // (Note: I also fixed the duplicate "02.wav" bug from your original code!)
+    // Zero-overhead array initialization
     const std::string shootSounds[]{
         "Data/Sound/SE_Player_Shoot_01.wav",
         "Data/Sound/SE_Player_Shoot_02.wav",
@@ -430,8 +425,20 @@ void PlayerShoot::PerformShootInternal(Player* player)
     AudioManager::Instance().PlaySFX(shootSounds[randomIndex], 0.1f);
 
     float currentDelay{ player->GetShootDelay() };
-    if (currentDelay > 0.0f && player->IsPowerUncapped()) {
+
+    // --- FIRE RATE LOGIC TREE ---
+    if (player->IsPowerUncapped())
+    {
+        // Absolute Priority: Overdrive bypasses all penalties
         currentDelay = 0.05f;
+    }
+    else if (isHeld)
+    {
+        // Compile-time constant for the penalty multiplier.
+        // A value of 1.5f means firing is 50% slower when holding the button.
+        // Adjust this variable to tune the game feel.
+        constexpr float HOLD_PENALTY_MULTIPLIER{ 2.5f };
+        currentDelay *= HOLD_PENALTY_MULTIPLIER;
     }
 
     timer = currentDelay;
