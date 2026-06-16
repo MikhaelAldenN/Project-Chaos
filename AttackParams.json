@@ -92,6 +92,21 @@
       "spawnX": 24.0,
       "damage": 2,
       "sfxVolume": 1.0
+    },
+
+    "Meteor": {
+      "count": 5,
+      "spawnDelay": 0.4,
+      "speed": 20.0,
+      "radius": 0.8,
+      "visualScale": 5.0,
+      "spawnX": 24.0,
+      "spawnZ": 15.0,
+      "spreadOffset": 4.0,
+      "dirX": -1.0,
+      "dirZ": -1.0,
+      "damage": 3,
+      "sfxVolume": 1.0
     }
   }
 }

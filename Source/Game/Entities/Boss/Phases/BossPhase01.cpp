@@ -365,8 +365,8 @@ void BossPhase01::UpdateBulletPool(float dt, Boss* boss) {
 
     if (ws) {
         float p2u = ws->GetPixelToUnitRatio();
-        limitX = ((GetSystemMetrics(SM_CXSCREEN) * 0.5f) / p2u) + 5.0f;
-        limitZ = ((GetSystemMetrics(SM_CYSCREEN) * 0.5f) / p2u) + 5.0f;
+        limitX = ((GetSystemMetrics(SM_CXSCREEN) * 0.5f) / p2u) + 30.0f;
+        limitZ = ((GetSystemMetrics(SM_CYSCREEN) * 0.5f) / p2u) + 30.0f;
     }
 
     for (auto& bullet : m_bulletPool) {

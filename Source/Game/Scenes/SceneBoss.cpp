@@ -1356,6 +1356,12 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         }
                         ImGui::PopStyleColor();
 
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+                        if (ImGui::Button("METEOR STRIKE", ImVec2(-1.0f, 35.0f))) {
+                            normalPhase->AddPooledAttack(std::make_unique<AttackMeteor>(AttackParamManager::Instance().GetMeteorParams()));
+                        }
+                        ImGui::PopStyleColor();
+
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.3f, 0.0f, 1.0f));
                         if (ImGui::Button("RAIN (LEFT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRain(RainMode::VerticalSweep, false); ImGui::SameLine();
                         if (ImGui::Button("RAIN (RIGHT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRain(RainMode::VerticalSweep, true);
@@ -1402,6 +1408,17 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         ImGui::ColorEdit4("Color", (float*)&p.ballColor);
                         ImGui::SliderFloat("Laser Duration", &p.laserDuration, 0.5f, 4.0f);
                         ImGui::SliderFloat("Shoot Speed", &p.shootSpeed, 10.0f, 120.0f);
+                    }
+
+                    if (ImGui::CollapsingHeader("Meteor Strike Config")) {
+                        auto& p = AttackParamManager::Instance().GetMeteorParams();
+                        ImGui::SliderInt("Count", &p.count, 1, 20);
+                        ImGui::SliderFloat("Spawn Delay", &p.spawnDelay, 0.05f, 2.0f);
+                        ImGui::SliderFloat("Speed", &p.speed, 10.0f, 80.0f);
+                        ImGui::SliderFloat("Visual Scale", &p.visualScale, 0.5f, 10.0f);
+                        ImGui::SliderFloat("Spawn X", &p.spawnX, 10.0f, 50.0f);
+                        ImGui::SliderFloat("Spawn Z", &p.spawnZ, 10.0f, 50.0f);
+                        ImGui::SliderFloat("Spread Offset", &p.spreadOffset, 0.0f, 10.0f);
                     }
 
                     if (ImGui::CollapsingHeader("Asgore Rain (Area Denial)")) {

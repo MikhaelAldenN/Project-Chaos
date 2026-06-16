@@ -9,6 +9,7 @@
 #include "AttackRain.h"
 #include "AttackUltimate.h"
 #include "AttackWave.h"
+#include "AttackMeteor.h"
 
 // --- Phase 2 Attacks ---
 #include "AttackBouncing.h"
@@ -39,6 +40,7 @@ public:
     RainParams& GetRainParams() { return m_rain; }
     UltimateParams& GetUltimateParams() { return m_ultimate; }
 	WaveParams& GetWaveParams() { return m_wave; }
+	MeteorParams& GetMeteorParams() { return m_meteor; }
 
     // ========================================================
     // GETTER: PHASE 02 (WINDOWKILL)
@@ -58,6 +60,7 @@ private:
     void ParseRainParams(const json& j, RainParams& outParams);
     void ParseUltimateParams(const json& j, UltimateParams& outParams);
 	void ParseWaveParams(const json& j, WaveParams& outParams);
+	void ParseMeteorParams(const json& j, MeteorParams& outParams);
 
     void ParseBouncingParams(const json& j, BouncingBulletParams& outParams);
     void ParseBoomerangParams(const json& j, BoomerangParams& outParams);
@@ -73,6 +76,7 @@ private:
     RainParams     m_rain;
     UltimateParams m_ultimate;
 	WaveParams	   m_wave;
+	MeteorParams   m_meteor;
 
     // Data Storage (Phase 02)
     BouncingBulletParams m_bouncing;

@@ -29,6 +29,7 @@ bool AttackParamManager::Load(const std::string& filepath) {
         if (p1.contains("Rain"))             ParseRainParams(p1["Rain"], m_rain);
         if (p1.contains("Ultimate"))         ParseUltimateParams(p1["Ultimate"], m_ultimate);
         if (p1.contains("Wave"))             ParseWaveParams(p1["Wave"], m_wave);
+		if (p1.contains("Meteor"))           ParseMeteorParams(p1["Meteor"], m_meteor);
     }
 
     // --- PARSE PHASE 02 ---
@@ -117,6 +118,21 @@ void AttackParamManager::ParseWaveParams(const json& j, WaveParams& out) {
     if (j.contains("trackSpacing")) out.trackSpacing = j["trackSpacing"];
     if (j.contains("startZ")) out.startZ = j["startZ"];
     if (j.contains("spawnX")) out.spawnX = j["spawnX"];
+    if (j.contains("damage")) out.damage = j["damage"];
+    if (j.contains("sfxVolume")) out.sfxVolume = j["sfxVolume"];
+}
+
+void AttackParamManager::ParseMeteorParams(const json& j, MeteorParams& out) {
+    if (j.contains("count")) out.count = j["count"];
+    if (j.contains("spawnDelay")) out.spawnDelay = j["spawnDelay"];
+    if (j.contains("speed")) out.speed = j["speed"];
+    if (j.contains("radius")) out.radius = j["radius"];
+    if (j.contains("visualScale")) out.visualScale = j["visualScale"];
+    if (j.contains("spawnX")) out.spawnX = j["spawnX"];
+    if (j.contains("spawnZ")) out.spawnZ = j["spawnZ"];
+    if (j.contains("spreadOffset")) out.spreadOffset = j["spreadOffset"];
+    if (j.contains("dirX")) out.dirX = j["dirX"];
+    if (j.contains("dirZ")) out.dirZ = j["dirZ"];
     if (j.contains("damage")) out.damage = j["damage"];
     if (j.contains("sfxVolume")) out.sfxVolume = j["sfxVolume"];
 }
