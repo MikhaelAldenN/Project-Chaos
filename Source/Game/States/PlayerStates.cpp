@@ -18,7 +18,7 @@
 namespace {
     // [[nodiscard]] forces the caller to check if a state transition actually happened.
     // Passed by raw pointer because the state machine doesn't own the player.
-    [[nodiscard]] bool TryExecuteCombatAction(Player* player)
+    [[nodiscard]] bool TryExecuteCombatAction(Player* player, bool allowShoot = true)
     {
         // 1. Anticipate Nullptr Bug: Always validate pointers before dereferencing.
         if (!player || !player->IsInputEnabled()) return false;
@@ -28,9 +28,7 @@ namespace {
         // Using GetKeyboard() to check a mouse click is semantically dangerous.
         auto& input{ Input::Instance().GetKeyboard() };
 
-        const bool isShootInput{ player->IsPowerUncapped() ?
-            input.IsPress(VK_LBUTTON) :
-            input.IsTriggered(VK_LBUTTON) };
+        const bool isShootInput{ input.IsPress(VK_LBUTTON) };
 
         if (!isShootInput) return false;
 
@@ -127,7 +125,7 @@ namespace {
         }
 
         // --- Default: Shoot ---
-        if (!player->GetAnimator()->IsUpperPlaying())
+        if (allowShoot && !player->GetAnimator()->IsUpperPlaying())
         {
             player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerShoot>());
             player->FireProjectile();
@@ -359,39 +357,91 @@ void PlayerParry::Exit(Player* player)
 
 void PlayerShoot::Enter(Player* player)
 {
-
-    std::string dashSounds[] = {
-        "Data/Sound/SE_Player_Shoot_01.wav",
-        "Data/Sound/SE_Player_Shoot_02.wav",
-        "Data/Sound/SE_Player_Shoot_02.wav"
-    };
-
-    // 2. Pilih index secara acak (0, 1, atau 2)
-    int randomIndex = rand() % 3;
-
-    // 3. Mainkan suaranya lewat AudioManager
-    // Kita gunakan volume 0.5f agar tidak terlalu memekakkan telinga
-    AudioManager::Instance().PlaySFX(dashSounds[randomIndex], 0.1f);
-
-    float currentDelay = player->GetShootDelay();
-    if (currentDelay > 0.0f && player->IsPowerUncapped()) {
-        currentDelay = 0.05f;
-    }
-
-    timer = currentDelay;
+    // The first shot was already fired by TryExecuteCombatAction before entering.
+    // We pass 'false' because this is the initial trigger, not a held loop.
+    PerformShootInternal(player, false);
 }
 
 void PlayerShoot::Update(Player* player, float dt)
 {
+    // 1. Dash Lockout Prevention
+    if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && (player->canDash || player->IsPowerUncapped()))
+    {
+        player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerDash>());
+        return;
+    }
+
     timer -= dt;
 
     if (timer <= 0.0f)
     {
-        if (player->IsMoving())
-            player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerMoving>());
+        auto& input{ Input::Instance().GetKeyboard() };
+
+        if (input.IsPress(VK_LBUTTON))
+        {
+            // 2. Melee Proximity Override
+            if (TryExecuteCombatAction(player, false)) return;
+
+            // 3. Lower-Body Animation Sync
+            if (player->IsMoving()) {
+                player->GetAnimator()->SetPlaybackSpeed(player->IsBackpedaling() ? -1.0f : 1.0f);
+                if (!player->GetAnimator()->IsPlaying("RunPistol")) {
+                    player->GetAnimator()->Play("RunPistol", true, PlayerConst::AnimBlendDefault);
+                }
+            }
+            else {
+                player->GetAnimator()->SetPlaybackSpeed(1.0f);
+                if (!player->GetAnimator()->IsPlaying("Idle")) {
+                    player->GetAnimator()->Play("Idle", true, PlayerConst::AnimBlendDefault);
+                }
+            }
+
+            // 4. Fire and loop internally
+            player->FireProjectile();
+
+            // [MODIFIED] We are now looping, so we flag isHeld as true
+            PerformShootInternal(player, true);
+        }
         else
-            player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerIdle>());
+        {
+            if (player->IsMoving())
+                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerMoving>());
+            else
+                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerIdle>());
+        }
     }
+}
+
+void PlayerShoot::PerformShootInternal(Player* player, bool isHeld)
+{
+    // Zero-overhead array initialization
+    const std::string shootSounds[]{
+        "Data/Sound/SE_Player_Shoot_01.wav",
+        "Data/Sound/SE_Player_Shoot_02.wav",
+        "Data/Sound/SE_Player_Shoot_03.wav"
+    };
+
+    const int randomIndex{ rand() % 3 };
+    AudioManager::Instance().PlaySFX(shootSounds[randomIndex], 0.1f);
+
+    float currentDelay{ player->GetShootDelay() };
+
+    // --- FIRE RATE LOGIC TREE ---
+    if (player->IsPowerUncapped())
+    {
+        // Absolute Priority: Overdrive bypasses all penalties
+        currentDelay = 0.05f;
+    }
+    else if (isHeld)
+    {
+        // Compile-time constant for the penalty multiplier.
+        // A value of 1.5f means firing is 50% slower when holding the button.
+        // Adjust this variable to tune the game feel.
+        constexpr float HOLD_PENALTY_MULTIPLIER{ 2.5f };
+        currentDelay *= HOLD_PENALTY_MULTIPLIER;
+    }
+
+    timer = currentDelay;
 }
 
 void PlayerShoot::Exit(Player* player)
