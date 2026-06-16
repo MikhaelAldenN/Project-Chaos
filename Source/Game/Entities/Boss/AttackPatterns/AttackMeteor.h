@@ -11,22 +11,25 @@
 // ============================================================
 
 struct MeteorParams {
-    int   count = 5;            // Jumlah meteor dalam satu serangan
-    float spawnDelay = 0.4f;    // Jeda antar tembakan meteor
-    float speed = 35.0f;        // Kecepatan jatuh meteor
-    float radius = 1.0f;        // Ukuran hitbox (0.25f normal, 1.0f = besar)
-    float visualScale = 4.0f;   // Ukuran visual (setengah dari bounce yang biasanya raksasa)
-    float spawnX = 35.0f;       // Posisi awal X (Kanan)
-    float spawnZ = 25.0f;       // Posisi awal Z (Atas)
-    float spreadOffset = 4.0f;  // Jarak sebar antar meteor agar tidak menumpuk di 1 garis
-    float dirX = -1.0f;         // Arah X (ke Kiri)
-    float dirZ = -1.0f;         // Arah Z (ke Bawah)
+    int   count = 5;
+    float spawnDelay = 0.4f;
+    float speed = 35.0f;
+    float speedVariance = 10.0f; // <--- TAMBAHKAN INI (Rentang acak kecepatan)
+    float radius = 0.8f;
+    float visualScale = 3.0f;
+
+    float startX = 24.0f;
+    float startZ = 15.0f;
+    float targetX = -24.0f;
+    float targetZ = -15.0f;
+
+    float spreadOffset = 4.0f;
     int   damage = 3;
     float sfxVolume = 1.0f;
 
-    int   triggerCount = 1;     // Untuk AI Combo
+    int   triggerCount = 1;
     float triggerDelay = 1.0f;
-};
+}; 
 
 class AttackMeteor : public IPooledAttackPattern {
 public:

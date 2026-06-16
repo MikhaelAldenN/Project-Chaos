@@ -126,13 +126,17 @@ void AttackParamManager::ParseMeteorParams(const json& j, MeteorParams& out) {
     if (j.contains("count")) out.count = j["count"];
     if (j.contains("spawnDelay")) out.spawnDelay = j["spawnDelay"];
     if (j.contains("speed")) out.speed = j["speed"];
+    if (j.contains("speedVariance")) out.speedVariance = j["speedVariance"];
     if (j.contains("radius")) out.radius = j["radius"];
     if (j.contains("visualScale")) out.visualScale = j["visualScale"];
-    if (j.contains("spawnX")) out.spawnX = j["spawnX"];
-    if (j.contains("spawnZ")) out.spawnZ = j["spawnZ"];
+
+    // Konfigurasi Anchor
+    if (j.contains("startX")) out.startX = j["startX"];
+    if (j.contains("startZ")) out.startZ = j["startZ"];
+    if (j.contains("targetX")) out.targetX = j["targetX"];
+    if (j.contains("targetZ")) out.targetZ = j["targetZ"];
+
     if (j.contains("spreadOffset")) out.spreadOffset = j["spreadOffset"];
-    if (j.contains("dirX")) out.dirX = j["dirX"];
-    if (j.contains("dirZ")) out.dirZ = j["dirZ"];
     if (j.contains("damage")) out.damage = j["damage"];
     if (j.contains("sfxVolume")) out.sfxVolume = j["sfxVolume"];
 }

@@ -73,37 +73,57 @@ void AttackMeteor::FireMeteor() {
     for (auto& bullet : *m_pool) {
         if (!bullet->IsActive()) {
 
-            float length = sqrtf((m_params.dirX * m_params.dirX) + (m_params.dirZ * m_params.dirZ));
-            float normX = m_params.dirX / length;
-            float normZ = m_params.dirZ / length;
+            // 1. Hitung arah lintasan utama (Dari Start ke Target Anchor)
+            float dx = m_params.targetX - m_params.startX;
+            float dz = m_params.targetZ - m_params.startZ;
+            float dist = sqrtf((dx * dx) + (dz * dz));
+
+            float dirX = 0.0f;
+            float dirZ = 1.0f; // Fallback jika jarak 0
+            if (dist > 0.0001f) {
+                dirX = dx / dist;
+                dirZ = dz / dist;
+            }
+
+            // 2. Cari vektor tegak lurus (Perpendicular) untuk garis sebar
+            float perpX = -dirZ;
+            float perpZ = dirX;
 
             // ========================================================
-            // LOGIKA SCATTER (MENYEBAR SELURUH LAYAR & TIDAK URUT)
+            // PERUBAHAN 1: TIDAK URUT (SCATTER INDEX)
             // ========================================================
-
-            // 1. Prime Jump: Gunakan bilangan prima (misal 7) agar indeks melompat secara "acak"
-            // Namun urutannya 100% SAMA (deterministik) setiap kali boss menggunakan serangan ini!
-            int primeJump = 7;
+            // Gunakan Prime Jump agar urutan jatuhnya melompat-lompat
+            // Contoh untuk count=5: urutan yang jatuh adalah indeks 0, 2, 4, 1, 3
+            int primeJump = 5;
             int scatterIndex = (m_spawnedCount * primeJump) % m_params.count;
 
-            // 2. Ubah indeks menjadi persentase posisi dari 0.0 (Kanan) ke 1.0 (Kiri)
-            float fraction = (m_params.count > 1) ? (float)scatterIndex / (m_params.count - 1) : 0.5f;
+            // 3. Kalkulasi jarak offset menggunakan scatterIndex
+            float centerIndex = (m_params.count - 1) / 2.0f;
+            float currentOffset = (scatterIndex - centerIndex) * m_params.spreadOffset;
 
-            // 3. Rentangkan posisi X layar dari Kanan (spawnX) hingga Kiri.
-            // Kita kurangi batas kirinya (+ 10.0f) agar peluru paling kiri tidak langsung hilang ditebas Garbage Collector
-            float startX = m_params.spawnX;               // Pojok Kanan Atas
-            float endX = -m_params.spawnX + 10.0f;        // Kiri Atas
+            // ========================================================
+            // PERUBAHAN 2: RANDOM OFFSET X (JITTER)
+            // ========================================================
+            // Menghasilkan angka acak antara -2.5f hingga 2.5f
+            float randomOffsetX = ((rand() % 100) / 50.0f - 1.0f) * 8.0f;
 
-            // 4. Hitung X final berdasarkan urutan acak yang didapat
-            float xPos = startX - (fraction * (startX - endX));
-
+            // 4. Set Titik Spawn final untuk meteor ini
             DirectX::XMFLOAT3 spawnPos = {
-                xPos,
+                m_params.startX + (perpX * currentOffset) + randomOffsetX,  // <--- Ditambah jitter X
                 1.0f,
-                m_params.spawnZ // Z tetap sama (selalu mulai dari atas layar)
+                m_params.startZ + (perpZ * currentOffset)
             };
 
-            DirectX::XMFLOAT3 direction = { normX, 0.0f, normZ };
+            DirectX::XMFLOAT3 direction = { dirX, 0.0f, dirZ };
+            // ========================================================
+            // PERUBAHAN 3: RANDOM SPEED OFFSET (VARIANCE)
+            // ========================================================
+            // Menghasilkan angka acak antara -1.0 hingga 1.0, lalu dikali batas variance
+            float randomSpeedOffset = ((rand() % 100) / 50.0f - 1.0f) * m_params.speedVariance;
+            float finalSpeed = m_params.speed + randomSpeedOffset;
+
+            // Pastikan kecepatan tidak pernah 0 atau negatif (minimal 5.0f)
+            if (finalSpeed < 5.0f) finalSpeed = 5.0f;
 
             bullet->SetRadius(m_params.radius);
             bullet->scale = { m_params.visualScale, m_params.visualScale, m_params.visualScale };
@@ -114,7 +134,8 @@ void AttackMeteor::FireMeteor() {
             bullet->SetTurnSpeed(8.0f);
             bullet->SetDamage(m_params.damage);
 
-            bullet->Fire(spawnPos, direction, m_params.speed);
+            // [PERBAIKAN] Gunakan finalSpeed, bukan m_params.speed
+            bullet->Fire(spawnPos, direction, finalSpeed);
             break;
         }
     }

@@ -1414,11 +1414,17 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         auto& p = AttackParamManager::Instance().GetMeteorParams();
                         ImGui::SliderInt("Count", &p.count, 1, 20);
                         ImGui::SliderFloat("Spawn Delay", &p.spawnDelay, 0.05f, 2.0f);
-                        ImGui::SliderFloat("Speed", &p.speed, 10.0f, 80.0f);
+                        ImGui::SliderFloat("Base Speed", &p.speed, 10.0f, 80.0f);
+                        ImGui::SliderFloat("Speed Variance (+/-)", &p.speedVariance, 0.0f, 40.0f); //                        
                         ImGui::SliderFloat("Visual Scale", &p.visualScale, 0.5f, 10.0f);
-                        ImGui::SliderFloat("Spawn X", &p.spawnX, 10.0f, 50.0f);
-                        ImGui::SliderFloat("Spawn Z", &p.spawnZ, 10.0f, 50.0f);
                         ImGui::SliderFloat("Spread Offset", &p.spreadOffset, 0.0f, 10.0f);
+
+                        ImGui::Separator();
+                        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "[ Anchor Path ]");
+                        ImGui::SliderFloat("Start X", &p.startX, -50.0f, 50.0f);
+                        ImGui::SliderFloat("Start Z", &p.startZ, -50.0f, 50.0f);
+                        ImGui::SliderFloat("Target X", &p.targetX, -50.0f, 50.0f);
+                        ImGui::SliderFloat("Target Z", &p.targetZ, -50.0f, 50.0f);
                     }
 
                     if (ImGui::CollapsingHeader("Asgore Rain (Area Denial)")) {

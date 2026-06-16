@@ -95,16 +95,19 @@
     },
 
     "Meteor": {
-      "count": 5,
+      "count": 8,
       "spawnDelay": 0.4,
       "speed": 20.0,
+      "speedVariance": 5.0,
       "radius": 0.8,
-      "visualScale": 5.0,
-      "spawnX": 24.0,
-      "spawnZ": 15.0,
+      "visualScale": 6.0,
+
+      "startX": 24.0,
+      "startZ": 15.0,
+      "targetX": -15.0,
+      "targetZ": -15.0,
+
       "spreadOffset": 4.0,
-      "dirX": -1.0,
-      "dirZ": -1.0,
       "damage": 3,
       "sfxVolume": 1.0
     }
