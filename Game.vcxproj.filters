@@ -336,6 +336,9 @@
     <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackMeteor.cpp">
       <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Game\Entities\Boss\AttackPatterns\AttackDirect.cpp">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -694,6 +697,9 @@
       <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
     </ClInclude>
     <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackMeteor.h">
+      <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Game\Entities\Boss\AttackPatterns\AttackDirect.h">
       <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
     </ClInclude>
   </ItemGroup>

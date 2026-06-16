@@ -30,6 +30,7 @@ bool AttackParamManager::Load(const std::string& filepath) {
         if (p1.contains("Ultimate"))         ParseUltimateParams(p1["Ultimate"], m_ultimate);
         if (p1.contains("Wave"))             ParseWaveParams(p1["Wave"], m_wave);
 		if (p1.contains("Meteor"))           ParseMeteorParams(p1["Meteor"], m_meteor);
+        if (p1.contains("Direct"))           ParseDirectParams(p1["Direct"], m_direct);
     }
 
     // --- PARSE PHASE 02 ---
@@ -139,6 +140,18 @@ void AttackParamManager::ParseMeteorParams(const json& j, MeteorParams& out) {
     if (j.contains("spreadOffset")) out.spreadOffset = j["spreadOffset"];
     if (j.contains("damage")) out.damage = j["damage"];
     if (j.contains("sfxVolume")) out.sfxVolume = j["sfxVolume"];
+}
+
+void AttackParamManager::ParseDirectParams(const json& j, DirectParams& out) {
+    if (j.contains("count")) out.count = j["count"];
+    if (j.contains("spawnDelay")) out.spawnDelay = j["spawnDelay"];
+    if (j.contains("speed")) out.speed = j["speed"];
+    if (j.contains("radius")) out.radius = j["radius"];
+    if (j.contains("visualScale")) out.visualScale = j["visualScale"];
+    if (j.contains("damage")) out.damage = j["damage"];
+    if (j.contains("sfxVolume")) out.sfxVolume = j["sfxVolume"];
+    if (j.contains("triggerCount")) out.triggerCount = j["triggerCount"];
+    if (j.contains("triggerDelay")) out.triggerDelay = j["triggerDelay"];
 }
 
 // ========================================================

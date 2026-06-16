@@ -110,6 +110,18 @@
       "spreadOffset": 4.0,
       "damage": 3,
       "sfxVolume": 1.0
+    },
+
+    "Direct": {
+      "count": 12,
+      "spawnDelay": 0.15,
+      "speed": 45.0,
+      "radius": 0.35,
+      "visualScale": 1.5,
+      "damage": 2,
+      "sfxVolume": 1.0,
+      "triggerCount": 1,
+      "triggerDelay": 1.0
     }
   }
 }

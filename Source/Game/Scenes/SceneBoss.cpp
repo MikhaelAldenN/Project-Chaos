@@ -1362,10 +1362,25 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         }
                         ImGui::PopStyleColor();
 
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.5f, 0.5f, 0.0f, 1.0f));
+                        if (ImGui::Button("DIRECT TRACKING STREAM", ImVec2(-1.0f, 35.0f))) {
+                            if (m_player) {
+                                normalPhase->AddPooledAttack(std::make_unique<AttackDirect>(AttackParamManager::Instance().GetDirectParams(), m_player.get()));
+                            }
+                        }
+                        ImGui::PopStyleColor();
+
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.3f, 0.0f, 1.0f));
                         if (ImGui::Button("RAIN (LEFT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRain(RainMode::VerticalSweep, false); ImGui::SameLine();
                         if (ImGui::Button("RAIN (RIGHT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRain(RainMode::VerticalSweep, true);
                         ImGui::PopStyleColor();
+                    }
+
+                    if (ImGui::CollapsingHeader("Direct Tracking Config")) {
+                        auto& p = AttackParamManager::Instance().GetDirectParams();
+                        ImGui::SliderInt("Count", &p.count, 1, 50);
+                        ImGui::SliderFloat("Spawn Delay", &p.spawnDelay, 0.05f, 1.0f);
+                        ImGui::SliderFloat("Speed", &p.speed, 10.0f, 100.0f);
                     }
 
                     if (ImGui::CollapsingHeader("Radial Burst (Triple)")) {
