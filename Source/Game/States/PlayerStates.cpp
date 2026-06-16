@@ -440,12 +440,12 @@ void PlayerShoot::PerformShootInternal(Player* player, bool isHeld)
     else
     {
         // Always store the strict minimum delay to prevent spam exploits
-        m_minTapCooldown = baseDelay;
+        m_minTapCooldown = baseDelay; 
 
         if (isHeld)
         {
             // Compile-time constant ensures zero runtime cost for the multiplier
-            constexpr float HOLD_PENALTY_MULTIPLIER{ 2.5f };
+            constexpr float HOLD_PENALTY_MULTIPLIER{ 1.5f };
             m_timer = baseDelay * HOLD_PENALTY_MULTIPLIER;
         }
         else
@@ -456,4 +456,5 @@ void PlayerShoot::PerformShootInternal(Player* player, bool isHeld)
 }
 
 void PlayerShoot::Exit(Player* player)
-{}
+{
+}

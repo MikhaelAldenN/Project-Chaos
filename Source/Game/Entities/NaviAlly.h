@@ -72,6 +72,7 @@ private:
     float m_fireTimer{ 0.0f };
     float m_reactionTimer{ 0.0f };
     DirectX::XMFLOAT4 m_color{ 1.0f, 1.0f, 1.0f, 1.0f };
+    float m_lazyHoverYaw{ 0.0f };
 
     // True Object Pool for Navi's Bullets
     std::deque<std::unique_ptr<Bullet>> m_projectiles{};
@@ -100,6 +101,11 @@ private:
     static constexpr float FLOAT_AMP{ 0.25f };
     static constexpr float FOLLOW_SPEED{ 15.0f };
     static constexpr float HOVER_HEIGHT{ 2.0f };
+
+    static constexpr float HOVER_RIGHT_OFFSET{ 1.2f }; 
+    static constexpr float HOVER_BACK_OFFSET{ 0.4f };
+
+    static constexpr float LAZY_ROTATION_SPEED{ 4.0f };
 
     static constexpr float REACTION_DELAY{ 2.0f };
     static constexpr float FIRE_RATE{ 0.5f }; 

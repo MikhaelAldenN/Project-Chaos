@@ -127,9 +127,71 @@ void NaviAlly::UpdateHoverLogic(float elapsedTime)
     }
     else
     {
-        // Normal hover
-        XMFLOAT3 playerPos{ m_targetPlayer->GetPosition() };
-        targetPos = { playerPos.x + 1.0f, playerPos.y + HOVER_HEIGHT, playerPos.z + 0.5f };
+        // --- DEFENSIVE CHECK: Prevent Null Dereference ---
+        const CharacterMovement* const pMovement{ m_targetPlayer->GetMovement() };
+        const std::shared_ptr<Model> pModel{ m_targetPlayer->GetModel() };
+        if (!pMovement || !pModel) return;
+
+        // 1. EXTRACT BONE POSITION (Zero-Cost Animation Sync)
+        // By pulling translation directly from the "body" matrix, Navi will naturally 
+        // sway with the player's idle breathing and run cycles!
+        DirectX::XMFLOAT3 anchorPos{ pMovement->GetPosition() }; // Safe fallback
+        const int bodyIndex{ pModel->GetNodeIndex("body") };
+
+        if (bodyIndex != -1)
+        {
+            const auto& nodes{ pModel->GetNodes() };
+            // Bug Anticipation: Always bounds-check vector arrays before indexing.
+            if (bodyIndex < nodes.size())
+            {
+                const DirectX::XMFLOAT4X4& bodyMatrix{ nodes[bodyIndex].worldTransform };
+                // Extract pure translation (_41 = x, _42 = y, _43 = z)
+                anchorPos = { bodyMatrix._41, bodyMatrix._42, bodyMatrix._43 };
+            }
+        }
+
+        // 2. EXTRACT TARGET TORSO ROTATION 
+        const DirectX::XMFLOAT3 aimPos{ m_targetPlayer->GetAimTarget() };
+        const float aimDx{ aimPos.x - anchorPos.x };
+        const float aimDz{ aimPos.z - anchorPos.z };
+
+        float targetYaw{ DirectX::XMConvertToRadians(pMovement->GetRotation().y) };
+        if ((aimDx * aimDx + aimDz * aimDz) > 0.0001f)
+        {
+            targetYaw = std::atan2f(aimDx, aimDz);
+        }
+
+        // --- BUG PREVENTION: THE SHORTEST-PATH ANGLE WRAP ---
+        // If Navi is at -179deg and target is +179deg, this forces the delta to be 
+        // 2deg instead of forcing Navi to orbit 358deg the wrong way.
+        float angleDiff{ targetYaw - m_lazyHoverYaw };
+        while (angleDiff > DirectX::XM_PI)  angleDiff -= DirectX::XM_2PI;
+        while (angleDiff < -DirectX::XM_PI) angleDiff += DirectX::XM_2PI;
+
+        // --- APPLY LAZY LAG (Frame-Rate Independent) ---
+        const float lazyLerp{ 1.0f - std::expf(-LAZY_ROTATION_SPEED * elapsedTime) };
+        m_lazyHoverYaw += angleDiff * lazyLerp;
+
+        // --- BUG PREVENTION: FLOAT PRECISION DEGRADATION ---
+        // Keep our internal angle normalized between -PI and PI so spinning 
+        // in circles doesn't eventually break the float memory limits.
+        while (m_lazyHoverYaw > DirectX::XM_PI)  m_lazyHoverYaw -= DirectX::XM_2PI;
+        while (m_lazyHoverYaw < -DirectX::XM_PI) m_lazyHoverYaw += DirectX::XM_2PI;
+
+        // --- OPTIMIZATION: Use float-specific trig on the LAZY yaw ---
+        const float sinYaw{ std::sinf(m_lazyHoverYaw) };
+        const float cosYaw{ std::cosf(m_lazyHoverYaw) };
+
+        // --- RELATIVE VECTOR MATH ---
+        const float offsetX{ (cosYaw * HOVER_RIGHT_OFFSET) - (sinYaw * HOVER_BACK_OFFSET) };
+        const float offsetZ{ (-sinYaw * HOVER_RIGHT_OFFSET) - (cosYaw * HOVER_BACK_OFFSET) };
+
+        // 3. APPLY TARGET POSITION
+        targetPos = {
+            anchorPos.x + offsetX,
+            anchorPos.y + (HOVER_HEIGHT * 0.25f),
+            anchorPos.z + offsetZ
+        };
     }
 
     // SMOOTH MOVEMENT
