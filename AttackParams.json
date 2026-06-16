@@ -5,10 +5,10 @@
   "Phase01": {
 
     "RadialNormal": {
-      "count": 55, // Bullet count per burst
-      "speed": 22.14,
-      "burstDelay": 0.156,
-      "burstCount": 3,
+      "count": 20, // Bullet count per burst
+      "speed": 13.0,
+      "burstDelay": 0.4,
+      "burstCount": 7,
       "damage": 1,
       "sfxVolume": 1.0,
       "color": [ 1.0, 0.2, 0.2, 1.0 ],

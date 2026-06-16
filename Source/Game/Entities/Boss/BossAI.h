@@ -67,7 +67,7 @@ private:
     bool m_isNextMainAttack = true; // Karena Direct adalah filler, selanjutnya pasti Main Attack
 
     // Sistem Antrean (Sequence) - [DIUBAH] Start dengan Direct!
-    AttackSequence m_currentAttack = AttackSequence::Direct;
+    AttackSequence m_currentAttack = AttackSequence::Radial;
     float m_cooldownTimer = 2.0f;
 };
 

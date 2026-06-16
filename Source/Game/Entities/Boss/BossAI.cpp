@@ -29,9 +29,9 @@ BossAI_Phase01::AttackSequence BossAI_Phase01::GetNextTacticianAttack() {
     else {
         // Giliran Filler Attack
         switch (m_fillerAttackIndex) {
-        case 0: nextAttack = AttackSequence::Direct; break;
-        case 1: nextAttack = AttackSequence::Fan; break;
-        case 2: nextAttack = AttackSequence::Radial; break;
+        case 0: nextAttack = AttackSequence::Radial; break;
+        case 1: nextAttack = AttackSequence::Direct; break;
+        case 2: nextAttack = AttackSequence::FanContinuos; break;
         }
         m_fillerAttackIndex = (m_fillerAttackIndex + 1) % 3; // Ulangi ke 0 jika sudah mencapai 3
     }

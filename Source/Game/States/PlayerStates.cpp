@@ -437,7 +437,7 @@ void PlayerShoot::PerformShootInternal(Player* player, bool isHeld)
         // Compile-time constant for the penalty multiplier.
         // A value of 1.5f means firing is 50% slower when holding the button.
         // Adjust this variable to tune the game feel.
-        constexpr float HOLD_PENALTY_MULTIPLIER{ 2.5f };
+        constexpr float HOLD_PENALTY_MULTIPLIER{ 1.5f };
         currentDelay *= HOLD_PENALTY_MULTIPLIER;
     }
 
