@@ -357,9 +357,9 @@ void PlayerParry::Exit(Player* player)
 
 void PlayerShoot::Enter(Player* player)
 {
-    // The first shot was already fired by TryExecuteCombatAction before entering.
-    // We pass 'false' because this is the initial trigger, not a held loop.
-    PerformShootInternal(player, false);
+    // Fix the visual gap: We initialize assuming the player WILL hold the button.
+    // This ensures the gap between Shot 1 and Shot 2 matches Shot 2 and Shot 3.
+    PerformShootInternal(player, true);
 }
 
 void PlayerShoot::Update(Player* player, float dt)
@@ -371,18 +371,33 @@ void PlayerShoot::Update(Player* player, float dt)
         return;
     }
 
-    timer -= dt;
+    m_timer -= dt;
+    m_minTapCooldown -= dt;
 
-    if (timer <= 0.0f)
+    auto& input{ Input::Instance().GetKeyboard() };
+    const bool isHolding{ input.IsPress(VK_LBUTTON) };
+
+    // 2. The Tap-Fire Reward Logic (Early Exit)
+    // If the player releases the button, we abort the hold penalty.
+    // However, we MUST wait for the minimum tap cooldown to prevent a spam-click exploit!
+    if (!isHolding && m_minTapCooldown <= 0.0f)
     {
-        auto& input{ Input::Instance().GetKeyboard() };
+        if (player->IsMoving())
+            player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerMoving>());
+        else
+            player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerIdle>());
+        return;
+    }
 
-        if (input.IsPress(VK_LBUTTON))
+    // 3. The Continuous Hold Logic
+    if (m_timer <= 0.0f)
+    {
+        if (isHolding)
         {
-            // 2. Melee Proximity Override
+            // Melee Proximity Override
             if (TryExecuteCombatAction(player, false)) return;
 
-            // 3. Lower-Body Animation Sync
+            // Lower-Body Animation Sync
             if (player->IsMoving()) {
                 player->GetAnimator()->SetPlaybackSpeed(player->IsBackpedaling() ? -1.0f : 1.0f);
                 if (!player->GetAnimator()->IsPlaying("RunPistol")) {
@@ -396,25 +411,14 @@ void PlayerShoot::Update(Player* player, float dt)
                 }
             }
 
-            // 4. Fire and loop internally
             player->FireProjectile();
-
-            // [MODIFIED] We are now looping, so we flag isHeld as true
             PerformShootInternal(player, true);
-        }
-        else
-        {
-            if (player->IsMoving())
-                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerMoving>());
-            else
-                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerIdle>());
         }
     }
 }
 
 void PlayerShoot::PerformShootInternal(Player* player, bool isHeld)
 {
-    // Zero-overhead array initialization
     const std::string shootSounds[]{
         "Data/Sound/SE_Player_Shoot_01.wav",
         "Data/Sound/SE_Player_Shoot_02.wav",
@@ -424,26 +428,32 @@ void PlayerShoot::PerformShootInternal(Player* player, bool isHeld)
     const int randomIndex{ rand() % 3 };
     AudioManager::Instance().PlaySFX(shootSounds[randomIndex], 0.1f);
 
-    float currentDelay{ player->GetShootDelay() };
+    const float baseDelay{ player->GetShootDelay() };
 
     // --- FIRE RATE LOGIC TREE ---
     if (player->IsPowerUncapped())
     {
         // Absolute Priority: Overdrive bypasses all penalties
-        currentDelay = 0.05f;
+        m_minTapCooldown = 0.05f;
+        m_timer = 0.05f;
     }
-    else if (isHeld)
+    else
     {
-        // Compile-time constant for the penalty multiplier.
-        // A value of 1.5f means firing is 50% slower when holding the button.
-        // Adjust this variable to tune the game feel.
-        constexpr float HOLD_PENALTY_MULTIPLIER{ 2.5f };
-        currentDelay *= HOLD_PENALTY_MULTIPLIER;
-    }
+        // Always store the strict minimum delay to prevent spam exploits
+        m_minTapCooldown = baseDelay;
 
-    timer = currentDelay;
+        if (isHeld)
+        {
+            // Compile-time constant ensures zero runtime cost for the multiplier
+            constexpr float HOLD_PENALTY_MULTIPLIER{ 2.5f };
+            m_timer = baseDelay * HOLD_PENALTY_MULTIPLIER;
+        }
+        else
+        {
+            m_timer = baseDelay;
+        }
+    }
 }
 
 void PlayerShoot::Exit(Player* player)
-{
-}
+{}
