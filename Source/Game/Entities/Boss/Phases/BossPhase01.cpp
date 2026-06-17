@@ -290,32 +290,42 @@ void BossPhase01::AddPooledAttack(std::unique_ptr<IPooledAttackPattern> attack) 
     attack->StartPooled(m_bossRef, &m_bulletPool);
 
     if (auto* phalanx = dynamic_cast<AttackPhalanx*>(attack.get())) {
-
         float bossDestX = phalanx->GetTargetPosition().x;
         float sweepDir = (bossDestX < 0.0f) ? 1.0f : -1.0f;
         bool randomSide = (rand() % 2 == 0);
 
-        TriggerRain(RainMode::HorizontalSweep, randomSide, sweepDir, 3.5f);
+        RainParams p = AttackParamManager::Instance().GetRainParams();
+        p.activeDuration = 3.5f;
+        TriggerRain(p, RainMode::HorizontalSweep, randomSide, sweepDir);
     }
     else if (dynamic_cast<AttackUltimate*>(attack.get())) {
-        TriggerRain(RainMode::DualPillar, true, 1.0f, 4.0f);
+        RainParams p = AttackParamManager::Instance().GetRainParams();
+        p.activeDuration = 4.0f;
+        TriggerRain(p, RainMode::DualPillar, true, 1.0f);
     }
 
     m_activeAttacks.push_back(std::move(attack));
 }
 
-void BossPhase01::TriggerRain(RainMode mode, bool isPositiveSide, float sweepDir, float customDuration) {
+// Implementasi fungsi TriggerRain baru
+void BossPhase01::TriggerRain(const RainParams& params, RainMode mode, bool isPositiveSide, float sweepDir) {
     if (HasRainActive() || !m_ai) return;
-
-    RainParams params = AttackParamManager::Instance().GetRainParams();
-
-    if (customDuration > 0.0f) {
-        params.activeDuration = customDuration;
-    }
-
     m_rainAttack = std::make_unique<AttackRain>(params, mode, isPositiveSide, sweepDir, m_aiTarget);
     m_rainAttack->StartPooled(m_bossRef, &m_bulletPool);
 }
+
+//void BossPhase01::TriggerRain(RainMode mode, bool isPositiveSide, float sweepDir, float customDuration) {
+//    if (HasRainActive() || !m_ai) return;
+//
+//    RainParams params = AttackParamManager::Instance().GetRainParams();
+//
+//    if (customDuration > 0.0f) {
+//        params.activeDuration = customDuration;
+//    }
+//
+//    m_rainAttack = std::make_unique<AttackRain>(params, mode, isPositiveSide, sweepDir, m_aiTarget);
+//    m_rainAttack->StartPooled(m_bossRef, &m_bulletPool);
+//}
 
 void BossPhase01::OnBijuudamaParried(XMFLOAT3 parryPos, Boss* boss) {
     for (auto& attack : m_activeAttacks) {

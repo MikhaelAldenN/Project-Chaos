@@ -6,16 +6,6 @@
 
 // ============================================================
 // AttackRain - Phase 1 attack pattern.
-//
-// Area-denial attack. Marks a zone with a blinking warning,
-// then bombards it with falling/sweeping bullets.
-//
-// Supports three modes:
-//   - Horizontal sweep (left or right across the arena)
-//   - Vertical sweep (top-down through a lane)
-//   - Dual pillar (two synchronized vertical pillars, L+R)
-//
-// States: 0=Off, 1=Warning, 2=Active, 3=Dissipating
 // ============================================================
 
 struct RainParams {
@@ -27,18 +17,20 @@ struct RainParams {
     float depth = 40.0f;
     float damage = 1.0f;
     float sfxVolume = 1.0f;
+
+    int   triggerCount = 1;     // Berapa kali hujan turun
+    float triggerDelay = 0.5f;
 };
 
 enum class RainMode {
-    HorizontalSweep,  // Bullets sweep L or R across a horizontal zone
-    VerticalSweep,    // Bullets fall top-down through a vertical lane
-    DualPillar        // Two synchronized vertical pillar zones
+    HorizontalSweep,
+    VerticalSweep,
+    DualPillar,
+    Targeted
 };
 
 class AttackRain : public IPooledAttackPattern {
 public:
-    // sweepDir: +1 = right/down, -1 = left/up (only relevant for HorizontalSweep)
-    // isPositiveSide: which side of arena to place zone (for Horizontal/Vertical)
     AttackRain(const RainParams& params, RainMode mode, bool isPositiveSide, float sweepDir, Player* target);
     ~AttackRain() override = default;
 
@@ -50,14 +42,22 @@ public:
     bool IsFinished() const override;
     std::vector<Bullet*> GetActiveProjectiles() const override { return {}; }
 
-    // State query — used by the phase for collision logic
-    int               GetState()   const { return m_state; }
-    DirectX::XMFLOAT3 GetCenter()  const { return m_center; }
-    DirectX::XMFLOAT3 GetCenter2() const { return m_center2; }
+    // State query — disesuaikan agar membaca dari zona pertama (Aman untuk BossPhase01)
+    int               GetState()   const { return m_zones.empty() ? 0 : m_zones[0].state; }
+    DirectX::XMFLOAT3 GetCenter()  const { return m_zones.empty() ? DirectX::XMFLOAT3(0, 0, 0) : m_zones[0].center1; }
+    DirectX::XMFLOAT3 GetCenter2() const { return m_zones.empty() ? DirectX::XMFLOAT3(0, 0, 0) : m_zones[0].center2; }
     float             GetActualWidth() const;
     float             GetActualDepth() const;
 
 private:
+    struct RainZone {
+        int state = 0;
+        float stateTimer = 0.0f;
+        float waitTimer = 0.0f;
+        DirectX::XMFLOAT3 center1 = { 0.0f, 0.0f, 0.0f };
+        DirectX::XMFLOAT3 center2 = { 0.0f, 0.0f, 0.0f };
+    };
+
     void ClearVFX();
 
     RainParams                            m_params;
@@ -65,17 +65,14 @@ private:
     bool                                  m_isPositiveSide;
     float                                 m_sweepDir;
 
+    std::vector<RainZone>                 m_zones;
     Player* m_target = nullptr;
-
     std::vector<std::unique_ptr<Bullet>>* m_pool = nullptr;
+    Boss* m_boss = nullptr;
 
-    int               m_state = 0;
-    float             m_timer = 0.0f;
+    bool              m_active = false;
     float             m_sfxTimer = 0.0f;
     const float       SFX_LOOP = 0.8f;
-
-    DirectX::XMFLOAT3 m_center = {};
-    DirectX::XMFLOAT3 m_center2 = {};
 
     std::vector<int>  m_vfxHandles;
     std::unique_ptr<Primitive> m_zonePrimitive;

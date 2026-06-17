@@ -81,6 +81,19 @@
       "sfxVolume": 1.0
     },
 
+    "RainTargeted": {
+      "minSpeed": 50.0,
+      "maxSpeed": 90.0,
+      "warningDuration": 0.7,
+      "activeDuration": 1.0,
+      "width": 12.0,
+      "depth": 45.0,
+      "damage": 1.0,
+      "sfxVolume": 1.0,
+      "triggerCount": 4,
+      "triggerDelay": 1.5
+    },
+
     "Wave": {
       "trackCount": 10,
       "bulletsPerWave": 5,

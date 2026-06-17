@@ -27,6 +27,7 @@ bool AttackParamManager::Load(const std::string& filepath) {
         if (p1.contains("FanContinuous"))    ParseFanParams(p1["FanContinuous"], m_fanContinuous);
         if (p1.contains("Phalanx"))          ParsePhalanxParams(p1["Phalanx"], m_phalanx);
         if (p1.contains("Rain"))             ParseRainParams(p1["Rain"], m_rain);
+        if (p1.contains("RainTargeted"))     ParseRainParams(p1["RainTargeted"], m_rainTargeted); // <-- TAMBAH INI
         if (p1.contains("Ultimate"))         ParseUltimateParams(p1["Ultimate"], m_ultimate);
         if (p1.contains("Wave"))             ParseWaveParams(p1["Wave"], m_wave);
 		if (p1.contains("Meteor"))           ParseMeteorParams(p1["Meteor"], m_meteor);
@@ -99,6 +100,9 @@ void AttackParamManager::ParseRainParams(const json& j, RainParams& out) {
     if (j.contains("depth")) out.depth = j["depth"];
     if (j.contains("damage")) out.damage = j["damage"];
     if (j.contains("sfxVolume")) out.sfxVolume = j["sfxVolume"];
+
+    if (j.contains("triggerCount")) out.triggerCount = j["triggerCount"];
+    if (j.contains("triggerDelay")) out.triggerDelay = j["triggerDelay"];
 }
 
 void AttackParamManager::ParseUltimateParams(const json& j, UltimateParams& out) {

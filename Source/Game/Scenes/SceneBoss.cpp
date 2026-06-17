@@ -1371,9 +1371,14 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         ImGui::PopStyleColor();
 
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.3f, 0.0f, 1.0f));
-                        if (ImGui::Button("RAIN (LEFT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRain(RainMode::VerticalSweep, false); ImGui::SameLine();
-                        if (ImGui::Button("RAIN (RIGHT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRain(RainMode::VerticalSweep, true);
+                        if (ImGui::Button("RAIN (LEFT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRain(AttackParamManager::Instance().GetRainParams(), RainMode::VerticalSweep, false); ImGui::SameLine();
+                        if (ImGui::Button("RAIN (RIGHT)", ImVec2(105.0f, 30.0f))) normalPhase->TriggerRain(AttackParamManager::Instance().GetRainParams(), RainMode::VerticalSweep, true);
+
+                        // Tambahkan Tombol Baru:
+                        if (ImGui::Button("RAIN TARGETED", ImVec2(-1.0f, 30.0f))) normalPhase->TriggerRain(AttackParamManager::Instance().GetRainTargetedParams(), RainMode::Targeted, true);                        
                         ImGui::PopStyleColor();
+
+
                     }
 
                     if (ImGui::CollapsingHeader("Direct Tracking Config")) {
@@ -1448,6 +1453,27 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                         ImGui::SliderFloat("Max Fall Speed", &p.maxSpeed, 10.0f, 150.0f);
                         ImGui::SliderFloat("Active Duration", &p.activeDuration, 0.5f, 10.0f);
                         ImGui::SliderFloat("Damage", &p.damage, 0.0f, 50.0f);
+                    }
+
+                    if (ImGui::CollapsingHeader("Targeted Rain (Player Tracking)")) {
+                        auto& p = AttackParamManager::Instance().GetRainTargetedParams();
+
+                        ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "[ Drop Pattern ]");
+                        ImGui::SliderFloat("Targeted Min Speed", &p.minSpeed, 10.0f, 150.0f);
+                        ImGui::SliderFloat("Targeted Max Speed", &p.maxSpeed, 10.0f, 150.0f);
+
+                        ImGui::Separator();
+                        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "[ Zone Size & Timing ]");
+                        ImGui::SliderFloat("Warning Duration", &p.warningDuration, 0.1f, 3.0f);
+                        ImGui::SliderFloat("Active Duration", &p.activeDuration, 0.1f, 5.0f);
+                        ImGui::SliderFloat("Zone Width (X)", &p.width, 2.0f, 50.0f);
+                        ImGui::SliderFloat("Zone Depth (Z)", &p.depth, 10.0f, 80.0f); // 45.0 adalah full screen
+
+                        ImGui::Separator();
+                        ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.8f, 1.0f), "[ Burst Logic ]");
+                        ImGui::SliderInt("Trigger Count", &p.triggerCount, 1, 10);
+                        ImGui::SliderFloat("Trigger Delay", &p.triggerDelay, 0.1f, 3.0f);
+                        ImGui::SliderFloat("Targeted Damage", &p.damage, 0.0f, 50.0f);
                     }
                 }
 

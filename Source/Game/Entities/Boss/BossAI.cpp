@@ -111,14 +111,18 @@ void BossAI_Phase01::Update(float dt, Boss* boss) {
             // SHARED & CHAOS MODE (HP <= 50%)
             // ========================================================
         case AttackSequence::Rain:
-            m_phase->TriggerRain(RainMode::VerticalSweep, m_target->GetPosition().x > 0);
-            m_cooldownTimer = 0.5f;
-
             if (isEnraged) {
+                m_phase->TriggerRain(AttackParamManager::Instance().GetRainParams(), RainMode::VerticalSweep, m_target->GetPosition().x > 0);
+                m_cooldownTimer = 0.5f;
                 m_currentAttack = AttackSequence::Ultimate; // Rute Chaos
             }
             else {
-                m_currentAttack = GetNextTacticianAttack(); // Rute Tactician
+                // RUTE TACTICIAN BARU (RainTargeted)
+                m_phase->TriggerRain(AttackParamManager::Instance().GetRainTargetedParams(), RainMode::Targeted, true);
+
+                // Beri cooldown cepat agar Boss langsung menembak serangan "Filler" selagi hujan masih berjatuhan!
+                m_cooldownTimer = 1.0f;
+                m_currentAttack = GetNextTacticianAttack();
             }
             break;
 

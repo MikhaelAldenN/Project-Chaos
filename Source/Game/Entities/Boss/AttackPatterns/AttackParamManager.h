@@ -39,6 +39,7 @@ public:
     FanParams& GetFanContinuousParams() { return m_fanContinuous; }
     PhalanxParams& GetPhalanxParams() { return m_phalanx; }
     RainParams& GetRainParams() { return m_rain; }
+    RainParams& GetRainTargetedParams() { return m_rainTargeted; } // <--- TAMBAH INI
     UltimateParams& GetUltimateParams() { return m_ultimate; }
 	WaveParams& GetWaveParams() { return m_wave; }
 	MeteorParams& GetMeteorParams() { return m_meteor; }
@@ -77,10 +78,11 @@ private:
     FanParams      m_fanContinuous;
     PhalanxParams  m_phalanx;
     RainParams     m_rain;
+    RainParams     m_rainTargeted;
     UltimateParams m_ultimate;
 	WaveParams	   m_wave;
 	MeteorParams   m_meteor;
-    DirectParams m_direct;
+    DirectParams   m_direct;
 
     // Data Storage (Phase 02)
     BouncingBulletParams m_bouncing;
