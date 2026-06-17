@@ -6,34 +6,42 @@
 #include "AttackParamManager.h" // <--- JANGAN LUPA INCLUDE INI
 #include <cmath>
 
+#include "BossAI.h"
+#include "BossPhase01.h"
+#include "BossPhase02.h"
+#include "Player.h"
+#include "Boss.h"
+#include "AttackParamManager.h"
+#include <cmath>
+
 // ========================================================
 // IMPLEMENTASI AI PHASE 01
 // ========================================================
 BossAI_Phase01::BossAI_Phase01(BossPhase01* phase, Player* target)
     : m_phase(phase), m_target(target) {}
 
-// [BARU] Mesin Pengatur Giliran Selang-Seling
+// [DIUBAH] Mesin Pengatur Giliran Selang-Seling (Tactician Mode)
 BossAI_Phase01::AttackSequence BossAI_Phase01::GetNextTacticianAttack() {
     AttackSequence nextAttack;
 
     if (m_isNextMainAttack) {
-        // Giliran Main Attack
+        // Giliran Main Attack (Wave -> Phalanx -> Meteor -> Targeted Rain)
         switch (m_mainAttackIndex) {
-        case 0: nextAttack = AttackSequence::Phalanx; break;
-        case 1: nextAttack = AttackSequence::Rain; break;
-        case 2: nextAttack = AttackSequence::Wave; break;
-        case 3: nextAttack = AttackSequence::Meteor; break;
+        case 0: nextAttack = AttackSequence::Wave; break;
+        case 1: nextAttack = AttackSequence::Phalanx; break;
+        case 2: nextAttack = AttackSequence::Meteor; break;
+        case 3: nextAttack = AttackSequence::Rain; break;
         }
-        m_mainAttackIndex = (m_mainAttackIndex + 1) % 4; // Ulangi ke 0 jika sudah mencapai 4
+        m_mainAttackIndex = (m_mainAttackIndex + 1) % 4; // Ulangi ke 0 jika mencapai 4
     }
     else {
-        // Giliran Filler Attack
+        // Giliran Filler Attack (Radial -> Direct -> Fan)
         switch (m_fillerAttackIndex) {
         case 0: nextAttack = AttackSequence::Radial; break;
         case 1: nextAttack = AttackSequence::Direct; break;
-        case 2: nextAttack = AttackSequence::FanContinuos; break;
+        case 2: nextAttack = AttackSequence::Fan; break;
         }
-        m_fillerAttackIndex = (m_fillerAttackIndex + 1) % 3; // Ulangi ke 0 jika sudah mencapai 3
+        m_fillerAttackIndex = (m_fillerAttackIndex + 1) % 3; // Ulangi ke 0 jika mencapai 3
     }
 
     // Tukar status agar serangan berikutnya bergantian
@@ -45,6 +53,7 @@ BossAI_Phase01::AttackSequence BossAI_Phase01::GetNextTacticianAttack() {
 void BossAI_Phase01::Update(float dt, Boss* boss) {
     if (!m_enabled || !m_target || !m_phase) return;
 
+    // Tunggu sampai serangan utama dan hujan selesai sebelum melancarkan serangan berikutnya
     if (m_phase->HasActiveAttacks() || m_phase->HasRainActive()) return;
 
     m_cooldownTimer -= dt;
@@ -53,13 +62,10 @@ void BossAI_Phase01::Update(float dt, Boss* boss) {
         float hpPercent = static_cast<float>(m_phase->GetHP()) / static_cast<float>(m_phase->GetMaxHP());
         bool isEnraged = (hpPercent <= 0.5f);
 
-        // Kunci Pengaman Chaos Mode
-        if (isEnraged && (m_currentAttack != AttackSequence::RadialContinuos &&
-            m_currentAttack != AttackSequence::FanContinuos &&
-            m_currentAttack != AttackSequence::Ultimate &&
-            m_currentAttack != AttackSequence::Rain))
-        {
-            m_currentAttack = AttackSequence::RadialContinuos;
+        // [BARU] Transisi mulus saat boss masuk Chaos Mode (HP < 50%)
+        if (isEnraged && !m_isEnraged) {
+            m_isEnraged = true;
+            m_currentAttack = AttackSequence::Phalanx; // Memulai combo pertama dari Phalanx
         }
 
         DirectX::XMFLOAT3 pPos = m_target->GetPosition();
@@ -69,7 +75,7 @@ void BossAI_Phase01::Update(float dt, Boss* boss) {
         switch (m_currentAttack) {
 
             // ========================================================
-            // TACTICIAN MODE (HP > 50%)
+            // FILLER ATTACK (Tactician Mode)
             // ========================================================
         case AttackSequence::Direct:
             m_phase->AddPooledAttack(std::make_unique<AttackDirect>(AttackParamManager::Instance().GetDirectParams(), m_target));
@@ -89,59 +95,71 @@ void BossAI_Phase01::Update(float dt, Boss* boss) {
             m_currentAttack = GetNextTacticianAttack();
             break;
 
+            // ========================================================
+            // SHARED MAIN ATTACKS (Tactician = Single, Enraged = Combo + Rain)
+            // ========================================================
         case AttackSequence::Phalanx:
             m_phase->AddPooledAttack(std::make_unique<AttackPhalanx>(AttackParamManager::Instance().GetPhalanxParams(), m_target));
-            m_cooldownTimer = 2.0f;
-            m_currentAttack = GetNextTacticianAttack();
+            if (isEnraged) {
+                // Eksekusi Combo Rain secara bersamaan
+                m_phase->TriggerRain(AttackParamManager::Instance().GetRainParams(), RainMode::VerticalSweep, m_target->GetPosition().x > 0);
+                m_currentAttack = AttackSequence::Wave; // Siklus Chaos berikutnya
+            }
+            else {
+                m_currentAttack = GetNextTacticianAttack();
+            }
+            m_cooldownTimer = 1.0f;
             break;
 
         case AttackSequence::Wave:
             m_phase->AddPooledAttack(std::make_unique<AttackWave>(AttackParamManager::Instance().GetWaveParams()));
-            m_cooldownTimer = 2.0f;
-            m_currentAttack = GetNextTacticianAttack();
+            if (isEnraged) {
+                m_phase->TriggerRain(AttackParamManager::Instance().GetRainParams(), RainMode::VerticalSweep, m_target->GetPosition().x > 0);
+                m_currentAttack = AttackSequence::Meteor;
+            }
+            else {
+                m_currentAttack = GetNextTacticianAttack();
+            }
+            m_cooldownTimer = 1.0f;
             break;
 
         case AttackSequence::Meteor:
             m_phase->AddPooledAttack(std::make_unique<AttackMeteor>(AttackParamManager::Instance().GetMeteorParams()));
-            m_cooldownTimer = 2.0f;
-            m_currentAttack = GetNextTacticianAttack();
-            break;
-
-            // ========================================================
-            // SHARED & CHAOS MODE (HP <= 50%)
-            // ========================================================
-        case AttackSequence::Rain:
             if (isEnraged) {
                 m_phase->TriggerRain(AttackParamManager::Instance().GetRainParams(), RainMode::VerticalSweep, m_target->GetPosition().x > 0);
-                m_cooldownTimer = 0.5f;
-                m_currentAttack = AttackSequence::Ultimate; // Rute Chaos
+                m_currentAttack = AttackSequence::Ultimate;
             }
             else {
-                // RUTE TACTICIAN BARU (RainTargeted)
-                m_phase->TriggerRain(AttackParamManager::Instance().GetRainTargetedParams(), RainMode::Targeted, true);
-
-                // Beri cooldown cepat agar Boss langsung menembak serangan "Filler" selagi hujan masih berjatuhan!
-                m_cooldownTimer = 1.0f;
                 m_currentAttack = GetNextTacticianAttack();
             }
-            break;
-
-        case AttackSequence::RadialContinuos:
-            m_phase->AddPooledAttack(std::make_unique<AttackRadial>(AttackParamManager::Instance().GetRadialContinuousParams()));
-            m_cooldownTimer = 3.5f;
-            m_currentAttack = AttackSequence::FanContinuos;
-            break;
-
-        case AttackSequence::FanContinuos:
-            m_phase->AddPooledAttack(std::make_unique<AttackFan>(AttackParamManager::Instance().GetFanContinuousParams(), lockedAngle, m_target));
             m_cooldownTimer = 1.0f;
-            m_currentAttack = AttackSequence::Rain;
             break;
 
         case AttackSequence::Ultimate:
             m_phase->AddPooledAttack(std::make_unique<AttackUltimate>(AttackParamManager::Instance().GetUltimateParams(), m_target));
+            if (isEnraged) {
+                m_phase->TriggerRain(AttackParamManager::Instance().GetRainParams(), RainMode::VerticalSweep, m_target->GetPosition().x > 0);
+                m_currentAttack = AttackSequence::Phalanx; // Kembali ke awal siklus Chaos
+            }
+            else {
+                m_currentAttack = GetNextTacticianAttack();
+            }
             m_cooldownTimer = 2.5f;
-            m_currentAttack = AttackSequence::RadialContinuos;
+            break;
+
+            // ========================================================
+            // THE RAIN MANAGER (Tactician = Targeted)
+            // ========================================================
+        case AttackSequence::Rain:
+            // Karena Rain Vertical Sweep sudah jadi Combo, state ini hanya dipanggil oleh Tactician Mode
+            m_phase->TriggerRain(AttackParamManager::Instance().GetRainTargetedParams(), RainMode::Targeted, true);
+            m_cooldownTimer = 1.0f;
+            m_currentAttack = GetNextTacticianAttack();
+            break;
+
+        case AttackSequence::RadialContinuos:
+        case AttackSequence::FanContinuos:
+            // Kosongkan atau biarkan jika sewaktu-waktu ingin dipakai lagi
             break;
         }
     }

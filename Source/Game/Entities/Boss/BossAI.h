@@ -29,19 +29,10 @@ class Player;
 // ========================================================
 class BossAI_Phase01 {
 public:
-
-    // [TAMBAHAN] Masukkan Wave, Meteor, dan Direct ke dalam Enum
+    // Enum tetap dipertahankan
     enum class AttackSequence {
-        Radial,
-        RadialContinuos,
-        Fan,
-        FanContinuos,
-        Phalanx,
-        Rain,
-        Ultimate,
-        Wave,
-        Meteor,
-        Direct
+        Radial, RadialContinuos, Fan, FanContinuos,
+        Phalanx, Rain, Ultimate, Wave, Meteor, Direct
     };
 
     BossAI_Phase01(BossPhase01* phase, Player* target);
@@ -52,21 +43,26 @@ public:
     void SetTarget(Player* target) { m_target = target; }
 
 private:
-    // [BARU] Fungsi pintar pengatur giliran selang-seling
     AttackSequence GetNextTacticianAttack();
 
     BossPhase01* m_phase = nullptr;
     Player* m_target = nullptr;
-    bool          m_enabled = false;
+    bool         m_enabled = false;
 
     // ========================================================
-    // [BARU] Tracker untuk Tactician Mode (HP > 50%)
+    // [DIUBAH] Tracker untuk Tactician Mode (HP > 50%)
     // ========================================================
-    int  m_mainAttackIndex = 0;     // 0: Phalanx, 1: Rain, 2: Wave, 3: Meteor
-    int  m_fillerAttackIndex = 1;   // Mulai dari 1 karena 0 (Direct) dipakai pertama kali
-    bool m_isNextMainAttack = true; // Karena Direct adalah filler, selanjutnya pasti Main Attack
+    int  m_mainAttackIndex = 0;     // 0: Wave, 1: Phalanx, 2: Meteor, 3: Rain (Targeted)
+    int  m_fillerAttackIndex = 1;   // Mulai dari 1 karena 0 (Radial) dipakai pertama kali
+    bool m_isNextMainAttack = true; // Karena dimulai dari Radial (Filler), next = Main Attack
 
-    // Sistem Antrean (Sequence) - [DIUBAH] Start dengan Direct!
+    // ========================================================
+    // [BARU] Tracker untuk Chaos Mode (HP <= 50%)
+    // ========================================================
+    bool m_isEnraged = false;       // Flag untuk mendeteksi awal transisi Phase 2
+    int  m_enragedMainIndex = 1;    // 0: Phalanx, 1: Wave, 2: Meteor, 3: Ultimate
+
+    // Default mulai dari filler Radial
     AttackSequence m_currentAttack = AttackSequence::Radial;
     float m_cooldownTimer = 2.0f;
 };
