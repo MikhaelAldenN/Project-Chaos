@@ -15,7 +15,7 @@ struct RainParams {
     float activeDuration = 2.0f;
     float width = 25.0f;
     float depth = 40.0f;
-    float damage = 1.0f;
+    float damage = 0.2f;
     float sfxVolume = 1.0f;
 
     int   triggerCount = 1;     // Berapa kali hujan turun

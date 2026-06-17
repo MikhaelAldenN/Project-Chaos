@@ -146,10 +146,12 @@ public:
     float dashCooldownTimer = 0.0f;
 
 	// --- Health ---
-    void TakeDamage(int damage);
-    void SetMaxHP(int hp) { m_hp = hp; }
+    void TakeDamage(float damage);
+    void SetMaxHP(float maxHp) { m_maxHp = maxHp; m_hp = maxHp; } // [DIUBAH] Set batas maksimal & isi penuh
+    void Heal(float amount);
     void Heal(int amount);
-    [[nodiscard]] int GetHP() const { return m_hp; }
+    [[nodiscard]] float GetHP() const { return m_hp; }      // [DIUBAH]
+    [[nodiscard]] float GetMaxHP() const { return m_maxHp; } // [BARU]
 
 	// --- Invincibility (used by PlayerDash and PlayerHit states) ---
     void TriggerInvincibility(float duration) { m_invincibilityTimer = duration; }
@@ -213,8 +215,9 @@ private:
     float dashDuration = PlayerConst::DashDuration;
     float dashCooldown = PlayerConst::DashCooldown;
 
-	// --- Health ---
-    int m_hp = 100;
+    // --- Health ---
+    float m_hp = 30.0f;      // [DIUBAH]
+    float m_maxHp = 30.0f;   // [BARU] Menyimpan kapasitas asli
 
 	// --- Invincibility timer (counts down when active, prevents damage) ---
     float m_invincibilityTimer = 0.0f;
@@ -242,7 +245,7 @@ private:
     float m_shootDelay = PlayerConst::ShootDuration;
 
     // [BARU] Tambahkan ini untuk menyimpan damage peluru player
-    int m_bulletDamage = 10;
+    int m_bulletDamage = 5;
 
     // [BARU] Tambahkan ini agar kecepatan peluru bisa diatur via GUI
 
@@ -259,7 +262,7 @@ private:
     float m_uncapMoveSpeed = 30.0f;
     float m_uncapDashSpeed = 80.0f;
     float m_uncapHealthRegenPerSecond = 3.0f;
-    int   m_uncapMaxRegenHP = 100;
+    float m_uncapMaxRegenHP = 50.0f; // [DIUBAH] Jadi float agar sejajar dengan m_hp
     float m_uncapRegenAccumulator = 0.0f;
     DirectX::XMFLOAT4 m_uncapColor = { 1.5f, 1.5f, 1.5f, 1.0f };
 

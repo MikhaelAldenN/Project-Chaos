@@ -3,7 +3,7 @@
 #include "BossPhase02.h"
 #include "Player.h"
 #include "Boss.h"
-#include "AttackParamManager.h" // <--- JANGAN LUPA INCLUDE INI
+#include "AttackParamManager.h"
 #include <cmath>
 
 #include "BossAI.h"

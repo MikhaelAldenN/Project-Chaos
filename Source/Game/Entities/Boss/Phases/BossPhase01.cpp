@@ -91,7 +91,7 @@ void BossPhase01::Enter(Boss* boss) {
     // ----- Reset player -----
     if (m_aiTarget) {
         m_aiTarget->SetPosition({ 0.0f, 0.0f, -10.0f });
-        m_aiTarget->SetMaxHP(100);
+        m_aiTarget->SetMaxHP(m_aiTarget->GetMaxHP());
         m_aiTarget->scale = { 1.0f, 1.0f, 1.0f };
         m_aiTarget->RestorePowerCap();
         m_aiTarget->RestoreShootDelay();

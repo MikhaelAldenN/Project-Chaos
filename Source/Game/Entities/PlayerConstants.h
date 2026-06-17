@@ -43,7 +43,7 @@ namespace PlayerConst
     inline constexpr float MaxTorsoAngle = 1.5707963f; // XM_PIDIV2 — max upper-body twist (rad)
 
     // --- Projectile (player-fired) ---
-    inline constexpr float BulletSpeed = 25.0f;  // Speed of player bullets (units/s)
+    inline constexpr float BulletSpeed = 50.0f;  // Speed of player bullets (units/s)
     inline constexpr float BulletSpawnFwd = 1.5f;   // Spawn offset forward from player center
     inline constexpr float BulletSpawnY = 1.0f;   // Spawn height offset (chest level)
     inline constexpr int   MaxBullets = 150;      // Hard cap on active player projectiles

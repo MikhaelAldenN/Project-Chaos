@@ -803,34 +803,6 @@ void SceneBoss::Render(float elapsedTime, Camera* camera)
         dc, targetCam->GetView(), targetCam->GetProjection());
 
     // =========================================================
-    // HUD (health bars) — main camera pass only, skip transparent windows
-    // =========================================================
-    //if (!isTransparentWindow && targetCam == m_mainCamera.get() && m_hud && m_player)
-    //{
-    //    // Gather HP values
-    //    int playerHP = m_player->GetHP();
-    //    int playerMaxHP = 100; // Player max HP は固定 100
-
-    //    int bossHP = 0;
-    //    int bossMaxHP = 0;
-    //    if (m_navi)
-    //    {
-    //        if (auto* np = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase()))
-    //        {
-    //            bossHP = np->GetHP();
-    //            bossMaxHP = np->GetMaxHP();
-    //        }
-    //        else if (auto* wk = dynamic_cast<BossPhase02*>(m_navi->GetCurrentPhase()))
-    //        {
-    //            bossHP = wk->GetHP();
-    //            bossMaxHP = wk->GetMaxHP();
-    //        }
-    //    }
-
-    //    m_hud->Render(dc, playerHP, playerMaxHP, bossHP, bossMaxHP);
-    //}
-
-    // =========================================================
     // FADE SPRITE OVERLAY 
     // =========================================================
     if (m_fadeAlpha > 0.001f && m_fadeSprite)
@@ -1199,10 +1171,11 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                 ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "=== BOSS MASTER CONTROLS ===");
 
                 // 1. Health Bar Player
-                int pHP = m_player->GetHP();
-                float pHpProgress = pHP / 100.0f;
+                float pHP = m_player->GetHP();
+                float pMaxHP = m_player->GetMaxHP();
+                float pHpProgress = (pMaxHP > 0.0f) ? (pHP / pMaxHP) : 0.0f;
+                ImGui::Text("Player HP: %.1f / %.1f", pHP, pMaxHP);
                 ImVec4 pBarColor = { (1.0f - pHpProgress), pHpProgress, 0.0f, 1.0f };
-                ImGui::Text("Player HP: %d / 100", pHP);
                 ImGui::PushStyleColor(ImGuiCol_PlotHistogram, pBarColor);
                 ImGui::ProgressBar(pHpProgress, ImVec2(-1.0f, 18.0f));
                 ImGui::PopStyleColor();
@@ -1700,14 +1673,14 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
                 ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "=== MASTER HEALTH STATUS ===");
 
             // 1. Health Bar Player
-            int pHP = m_player->GetHP();
-            float pHpProgress = pHP / 100.0f;
-            ImVec4 pBarColor = { (1.0f - pHpProgress), pHpProgress, 0.0f, 1.0f };
-            ImGui::Text("Player HP: %d / 100", pHP);
-            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, pBarColor);
-            ImGui::ProgressBar(pHpProgress, ImVec2(-1.0f, 18.0f));
-            ImGui::PopStyleColor();
-
+                float pHP = m_player->GetHP();
+                float pMaxHP = m_player->GetMaxHP();
+                float pHpProgress = (pMaxHP > 0.0f) ? (pHP / pMaxHP) : 0.0f;
+                ImVec4 pBarColor = { (1.0f - pHpProgress), pHpProgress, 0.0f, 1.0f };
+                ImGui::Text("Player HP: %.1f / %.1f", pHP, pMaxHP);
+                ImGui::PushStyleColor(ImGuiCol_PlotHistogram, pBarColor);
+                ImGui::ProgressBar(pHpProgress, ImVec2(-1.0f, 18.0f));
+                ImGui::PopStyleColor();
                 // 2. Health Bar Boss
                 if (m_navi) {
                     if (auto* normalPhase = dynamic_cast<BossPhase01*>(m_navi->GetCurrentPhase())) {
@@ -1739,12 +1712,12 @@ void SceneBoss::RenderScene(float elapsedTime, Camera* camera, bool isTransparen
             // --- TOMBOL HEAL & RESPAWN PLAYER ---
             ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "[ Quick Actions ]");
             if (ImGui::Button("Heal Player to Full", ImVec2(180.0f, 30.0f))) {
-                m_player->SetMaxHP(100);
+                m_player->SetMaxHP(m_player->GetMaxHP());
                 AddLog("Player healed to full HP.");
             }
             ImGui::SameLine();
             if (ImGui::Button("Respawn Player", ImVec2(180.0f, 30.0f))) {
-                m_player->SetMaxHP(100);
+                m_player->SetMaxHP(m_player->GetMaxHP());
                 m_player->scale = { 1.0f, 1.0f, 1.0f };
                 m_player->SetPosition(0.0f, 0.0f, -8.0f);
 
@@ -1806,7 +1779,7 @@ void SceneBoss::AddLog(const std::string& message)
         {
             m_player->SetPosition(0.0f, 0.0f, -8.0f);
             m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
-            m_player->SetMaxHP(100);
+            m_player->SetMaxHP(m_player->GetMaxHP());
             m_player->SetInputEnabled(false);
             m_player->scale = { 1.0f, 1.0f, 1.0f };
 
@@ -1923,7 +1896,7 @@ void SceneBoss::AddLog(const std::string& message)
     m_navi->ChangePhase(std::make_unique<BossPhase01>());
     // =========================================================
 
-    m_player->SetMaxHP(100); // Reset darah player
+    m_player->SetMaxHP(m_player->GetMaxHP());
     m_player->scale = { 1.0f, 1.0f, 1.0f }; // Kembalikan badan player jika tadi mati
 
     if (m_collisionManager) m_collisionManager->SetBoss(m_navi.get());

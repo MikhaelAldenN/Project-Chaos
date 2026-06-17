@@ -785,34 +785,36 @@ void Player::StopAllVFX()
 // ============================================================
 // DAMAGE SYSTEM
 // ============================================================
-void Player::TakeDamage(int damage)
+void Player::TakeDamage(float damage) 
 {
-    if (m_hp <= 0 || IsInvincible()) return;
+    if (m_hp <= 0.0f || IsInvincible()) return;
 
     m_hp -= damage;
 
-    // [修正] トグルがONの時だけ無敵時間（指定秒数）を付与する
     if (m_enableIFrames) {
         TriggerInvincibility(m_iFrameDuration);
     }
     m_damageGlitchTimer = DAMAGE_GLITCH_DURATION;
 
-    if (m_hp <= 0)
+    if (m_hp <= 0.0f)
     {
-        m_hp = 0;
+        m_hp = 0.0f;
         StopAllVFX();
     }
 }
 
-void Player::Heal(int amount)
-{
-    if (amount <= 0 || m_hp <= 0) return;
+void Player::Heal(float amount) {
+    if (amount <= 0.0f || m_hp <= 0.0f) return;
     m_hp += amount;
-    if (m_hp > m_uncapMaxRegenHP) {
-        m_hp = m_uncapMaxRegenHP;
-    }
+    if (m_hp > m_maxHp) m_hp = m_maxHp; // FIXED
 }
 
+void Player::Heal(int amount) {
+    if (amount <= 0 || m_hp <= 0) return;
+    m_hp += static_cast<float>(amount);
+    if (m_hp > m_maxHp) m_hp = m_maxHp; // FIXED
+
+}
 // ============================================================
 // GAME FEEL & JUICE
 // ============================================================
@@ -903,8 +905,10 @@ void Player::DrawDebugGUI()
     if (ImGui::CollapsingHeader("Combat & Projectiles", ImGuiTreeNodeFlags_DefaultOpen))
     {
         ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "[ General Combat ]");
-        int hp = GetHP();
-        if (ImGui::InputInt("Player HP", &hp)) SetMaxHP(hp);
+        float hp = m_hp;
+        if (ImGui::DragFloat("Player HP", &hp, 1.0f, 0.0f, m_maxHp)) m_hp = hp;
+        float maxHp = m_maxHp;
+        if (ImGui::DragFloat("Player Max HP", &maxHp, 1.0f, 1.0f, 9999.0f)) SetMaxHP(maxHp);
 
         // --- 無敵時間 (I-Frames) のコントロール ---
         ImGui::Checkbox("Enable I-Frames (Invincibility on hit)", &m_enableIFrames);
@@ -931,7 +935,7 @@ void Player::DrawDebugGUI()
             if (ImGui::DragFloat("Uncap Walk Speed", &m_uncapMoveSpeed, 0.1f, 10.0f, 100.0f, "%.1f")) moveSpeed = m_uncapMoveSpeed;
             if (ImGui::DragFloat("Uncap Dash Speed", &m_uncapDashSpeed, 0.5f, 10.0f, 200.0f, "%.1f")) dashSpeed = m_uncapDashSpeed;
             ImGui::DragFloat("Uncap HP Regen / Sec", &m_uncapHealthRegenPerSecond, 0.1f, 0.0f, 100.0f, "%.1f");
-            ImGui::DragInt("Uncap Regen Max HP", &m_uncapMaxRegenHP, 1.0f, 1, 9999);
+            ImGui::DragFloat("Uncap Regen Max HP", &m_uncapMaxRegenHP, 1.0f, 1.0f, 9999.0f);
             if (ImGui::ColorEdit4("Uncap Glow Color", (float*)&m_uncapColor)) color = m_uncapColor;
 
             ImGui::Unindent();

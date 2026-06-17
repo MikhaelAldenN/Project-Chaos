@@ -156,7 +156,7 @@ void AttackRain::Update(float dt, Boss* boss) {
 
         // Terapkan damage HANYA 1 KALI per update meskipun banyak area hujan menumpuk
         if (isHit && m_target && m_target->GetHP() > 0) {
-            m_target->TakeDamage((int)m_params.damage);
+            m_target->TakeDamage(m_params.damage);
             CameraController::Instance().AddTrauma(0.15f);
         }
     }
