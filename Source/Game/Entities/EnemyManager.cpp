@@ -203,3 +203,35 @@ void EnemyManager::RespawnEnemyAs(size_t index, AttackType attack, MoveDir dir, 
     std::swap(m_enemies[index], m_enemies.back());
     m_enemies.pop_back();
 }
+
+void EnemyManager::ReviveKamikazes()
+{
+    // Search the graveyard pool for the Kamikaze that killed the player
+    for (auto it = m_enemyPool.begin(); it != m_enemyPool.end(); )
+    {
+        if ((*it)->HasKilledPlayer())
+        {
+            // Reset the killer tag
+            (*it)->SetKilledPlayer(false);
+
+            // Fully heal it and revive it
+            (*it)->SetMaxHP(70);
+            (*it)->SetActive(true);
+
+            // Snap it back to its original spawn position
+            (*it)->SetPosition((*it)->GetOriginalPosition());
+            (*it)->SetRotation((*it)->GetOriginalRotation());
+            (*it)->GetProjectiles().clear(); // Wipe any old bullets
+
+            // Move it from the graveyard back to the active enemies list
+            m_enemies.push_back(std::move(*it));
+
+            // Erase the empty shell from the pool
+            it = m_enemyPool.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}

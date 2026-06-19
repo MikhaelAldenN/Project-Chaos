@@ -497,6 +497,8 @@ void CollisionManager::CheckPlayerVsEnemies()
                 // 3. Kill the kamikaze enemy so it doesn't survive the explosion
                 enemy->TakeDamage(9999);
 
+                enemy->SetKilledPlayer(true);
+
                 // 4. INSTANT EXIT: Player is dead, absolutely zero need to check other enemies!
                 return;
             }
@@ -541,27 +543,30 @@ void CollisionManager::CheckPlayerVsEnemies()
 
 void CollisionManager::CheckPlayerVsCheckpointLines()
 {
-    //if (!m_player || !m_stage) return;
-    //if (m_player->IsFalling()) return;
+    if (!m_player || !m_stage || m_player->GetHP() <= 0) return;
 
-    //const float TRIGGER_RANGE_Z = 2.0f;
+    const float TRIGGER_RANGE_Z = 2.0f;
 
-    //for (const auto& line : m_stage->m_linesCheckpoint)
-    //{
-    //    XMVECTOR vLocalPos = TransformToLocalLine(m_player->GetMovement()->GetPosition(), line);
-    //    XMFLOAT3 localPos;
-    //    XMStoreFloat3(&localPos, vLocalPos);
-    //    float lineHalfLength = line.Scale.x * 0.5f;
+    for (const auto& line : m_stage->m_linesCheckpoint)
+    {
+        DirectX::XMVECTOR vLocalPos = TransformToLocalLine(m_player->GetMovement()->GetPosition(), line);
+        DirectX::XMFLOAT3 localPos;
+        DirectX::XMStoreFloat3(&localPos, vLocalPos);
+        float lineHalfLength = line.Scale.x * 0.5f;
 
-    //    if (localPos.x < -lineHalfLength || localPos.x > lineHalfLength) continue;
-    //    if (localPos.z > -TRIGGER_RANGE_Z && localPos.z < TRIGGER_RANGE_Z)
-    //    {
-    //        if (m_onCheckpointReachCallback)
-    //        {
-    //            m_onCheckpointReachCallback(line.Position);
-    //        }
-    //    }
-    //}
+        // Check if player is between the left/right ends of the line
+        if (localPos.x < -lineHalfLength || localPos.x > lineHalfLength) continue;
+
+        // Check if player crosses the Z-depth of the line
+        if (localPos.z > -TRIGGER_RANGE_Z && localPos.z < TRIGGER_RANGE_Z)
+        {
+            if (m_onCheckpointReachCallback)
+            {
+                // line.Position is the exact center 
+                m_onCheckpointReachCallback(line.Position);
+            }
+        }
+    }
 }
 
 void CollisionManager::CheckPlayerVsTriggerLines()

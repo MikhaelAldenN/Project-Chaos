@@ -79,6 +79,9 @@ public:
     void SetInvincible(bool invincible) { m_isInvincible = invincible; }
     [[nodiscard]] bool IsInvincible() const { return m_isInvincible; }
 
+    void SetKilledPlayer(bool k) { m_killedPlayer = k; }
+    bool HasKilledPlayer() const { return m_killedPlayer; }
+
 private:
     void UpdateAttackLogic(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack);
 
@@ -127,6 +130,8 @@ private:
     DirectX::XMFLOAT4 m_projectileColor = { 1.0f, 1.0f, 1.0f, 1.0f };
     DirectX::XMFLOAT3 m_scale = { 1.0f, 1.0f, 1.0f };
     bool m_isHighlighted = false;
+
+    bool m_killedPlayer = false;
 
     int m_hp = 30;
 };

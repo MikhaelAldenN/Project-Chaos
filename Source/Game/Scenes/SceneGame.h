@@ -7,7 +7,8 @@
 #include <wrl/client.h> 
 #include <PxPhysicsAPI.h> 
 #include <SDL3/SDL.h>
-
+#include <imgui.h>
+#include <cstdio>
 #include <vector>
 #include "BeyondWindow.h"
 #include "PhysXUtils.h"
@@ -128,6 +129,8 @@ private:
     bool m_isNaviDefeatSequenceActive{ false };
     float m_naviDefeatTimer{ 0.0f };
     bool m_isNaviDefeatReadyForNextScene{ false };
+    DirectX::XMFLOAT3 m_currentCheckpointPos{ 0.0f, 0.0f, 0.0f };
+    bool m_hasCheckpoint{ false };
 
     bool m_hasIntroDialogueTestStarted{ false };
     bool m_hasTriggeredMushroomDialogue{ false };
