@@ -10,6 +10,7 @@
 // Forward Declarations for fast compilation
 class Player;
 class EnemyManager;
+class Enemy;
 class Camera;
 class ModelRenderer;
 class AnimationController;
@@ -66,6 +67,7 @@ private:
     // Safe Observer Pointers
     Player* m_targetPlayer{ nullptr };
     EnemyManager* m_enemyManager{ nullptr };
+    Enemy* m_currentTarget{ nullptr };
 
     // State Variables 
     float m_animTime{ 0.0f };

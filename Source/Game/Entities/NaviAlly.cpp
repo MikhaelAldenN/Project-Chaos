@@ -321,12 +321,10 @@ void NaviAlly::UpdateShootingLogic(float elapsedTime, Camera* camera)
     Enemy* bestTarget{ nullptr };
     float closestDistSq{ ATTACK_RANGE_SQ };
 
-    // SELECT TARGET (With filter)
+    // Target Selection (Scanning logic)
     for (const auto& enemy : m_enemyManager->GetEnemies())
     {
         if (!enemy || !enemy->IsActive()) continue;
-
-        // FILTER: Only shoot aggressive enemies 
         if (enemy->GetAttackType() == AttackType::None) continue;
 
         XMFLOAT3 ePos{ enemy->GetPosition() };
@@ -336,7 +334,7 @@ void NaviAlly::UpdateShootingLogic(float elapsedTime, Camera* camera)
 
         if (distSq < closestDistSq)
         {
-            float dynamicRadius = 1.5f * enemy->GetScale().x;
+            float dynamicRadius{ 1.5f * enemy->GetScale().x };
             if (camera->CheckSphere(ePos.x, ePos.y, ePos.z, dynamicRadius))
             {
                 closestDistSq = distSq;
@@ -345,8 +343,17 @@ void NaviAlly::UpdateShootingLogic(float elapsedTime, Camera* camera)
         }
     }
 
-    // REACTION & SHOOTING LOGIC
-    if (bestTarget)
+    // TARGET SWITCH DETECTION 
+    // If the target has changed (or was lost), reset the timers to enforce a fresh reaction delay.
+    if (bestTarget != m_currentTarget)
+    {
+        m_currentTarget = bestTarget;
+        m_reactionTimer = 0.0f;
+        m_fireTimer = 0.0f;
+    }
+
+    // Reaction & Shooting Execution
+    if (m_currentTarget)
     {
         m_reactionTimer += elapsedTime;
 
@@ -356,15 +363,9 @@ void NaviAlly::UpdateShootingLogic(float elapsedTime, Camera* camera)
             if (m_fireTimer >= FIRE_RATE)
             {
                 m_fireTimer = 0.0f;
-                FireAtTarget(bestTarget->GetPosition());
+                FireAtTarget(m_currentTarget->GetPosition());
             }
         }
-    }
-    else
-    {
-        // No target? Reset the timer so next detection feels natural.
-        m_reactionTimer = 0.0f;
-        m_fireTimer = 0.0f;
     }
 }
 
