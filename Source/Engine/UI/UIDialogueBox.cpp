@@ -86,7 +86,7 @@ void UIDialogueBox::Update(float dt)
     //bool isConfirmPressed = false;
     //if (!m_autoAdvance)
     //    isConfirmPressed = Input::Instance().GetKeyboard().IsTriggered(VK_SPACE);
-    bool isConfirmPressed = Input::Instance().GetKeyboard().IsTriggered(VK_RETURN);
+    bool isConfirmPressed = Input::Instance().GetKeyboard().IsTriggered(VK_SPACE);
 
     if (m_state == State::Typing)
     {
