@@ -728,7 +728,7 @@ void SceneGame::StartIntroDialogueTest()
     {
         // Masukkan dialog per halaman/tekanan tombol
         std::vector<std::string> dialogPages = {
-            u8"目を覚まして。戦いの時間が来たわ。\n「Space」で攻撃よ。遠くの敵は撃ち抜き、\n近づけばその刃で斬り裂くの。",
+            u8"目を覚まして。戦いの時間が来たわ。\n「左クリック」で攻撃よ。遠くの敵は撃ち抜き、\n近づけばその刃で斬り裂くの。",
             u8"そして、よく覚えておいて。\nいずれそのキーは、敵の牙を弾き返す\n「Parry」の要にもなるわ。魂に刻み込んで。",
             u8"次は「Shift」を試して。\n風のように「Dash」して、敵の弾幕をすり抜けるのよ。\n\nさあ、あなたの力を見せて。"
         };
