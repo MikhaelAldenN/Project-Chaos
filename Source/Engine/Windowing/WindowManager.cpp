@@ -72,7 +72,9 @@ void WindowManager::RenderAll(float dt, Scene* scene)
         // Jika ini Sub Window (Windowkill, dsb)
         else
         {
-            if (scene) scene->Render(dt, win->GetCamera());
+            if (scene && win->ShouldRenderScene()) {
+                scene->Render(dt, win->GetCamera());
+            }
         }
 
         // Pengaturan V-Sync (Biarkan window pertama atau transparan yang mengatur pacing)

@@ -199,4 +199,6 @@ private:
     std::vector<std::unique_ptr<IBossAttackPattern>> m_activeAttacks;
 
     std::unique_ptr<BossAI_Phase02> m_ai;
+
+    Beyond::Window* m_blockerWindow = nullptr;
 };

@@ -50,6 +50,9 @@ namespace Beyond
         void SetClickThrough(bool clickThrough);
         bool IsClickThrough() const { return m_isClickThrough; }
 
+		void SetRenderScene(bool render) { m_shouldRenderScene = render; }
+		bool ShouldRenderScene() const { return m_shouldRenderScene; }
+
     private:
         bool SetupDirectX();
 
@@ -64,6 +67,8 @@ namespace Beyond
 
         float m_bgAlpha = 0.0f;
         bool m_borderVisible = false;
+
+		bool m_shouldRenderScene = true;
 
         Camera* m_targetCamera = nullptr;
         std::function<void()> m_tickCallback;

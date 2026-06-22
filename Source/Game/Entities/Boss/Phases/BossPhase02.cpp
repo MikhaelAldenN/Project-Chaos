@@ -187,6 +187,37 @@ void BossPhase02::Enter(Boss* boss) {
 
     m_cageFirstHitTriggered = false;
     m_overdriveDialogueTriggered = false;
+
+    // =========================================================
+    // [BARU] INVISIBLE CLICK BLOCKER WINDOW
+    // =========================================================
+    // Window ini selebar layar untuk menangkap klik nyasar ke OS
+    TrackedWindowConfig blockerCfg;
+    blockerCfg.name = "click_blocker";
+    blockerCfg.title = "Invisible_Blocker";
+    blockerCfg.width = (int)m_screenW;
+    blockerCfg.height = (int)m_screenH;
+    blockerCfg.role = WindowRole::SUB_VIEWPORT;
+
+    // Priority 99 menjamin window ini berada di z-order tertinggi 
+    // (di atas dialog, cage, dan fx) karena WindowManager me-raise priority secara ascending (< 100).
+    blockerCfg.priority = 99;
+    blockerCfg.isTransparent = true;
+
+    windowSystem->AddTrackedWindow(blockerCfg,
+        []() { return DirectX::XMFLOAT3(0, 0, 0); },
+        [this]() { return DirectX::XMFLOAT2(m_screenW, m_screenH); }
+    );
+
+    if (auto* blockerWin = windowSystem->GetTrackedWindow("click_blocker")) {
+        if (blockerWin->window) {
+            blockerWin->window->SetBackgroundAlpha(0.0f); // 100% tembus pandang
+            blockerWin->window->SetClickThrough(false);   // Tangkap semua klik OS!
+            blockerWin->window->SetBorderVisible(false);
+            blockerWin->window->SetDraggable(false);
+            blockerWin->window->SetRenderScene(false);
+        }
+    }
 }
 
 void BossPhase02::Exit(Boss* boss) {
@@ -232,6 +263,13 @@ void BossPhase02::Exit(Boss* boss) {
         WindowManager::Instance().MarkPriorityDirty();
     }
     m_deathWindowRaised = false;
+
+    if (boss && boss->GetWindowSystem()) {
+        boss->GetWindowSystem()->RemoveTrackedWindow("navi_fx");
+        boss->GetWindowSystem()->RemoveTrackedWindow(m_dialogueWindowName);
+        boss->GetWindowSystem()->RemoveTrackedWindow(m_cageWindowName);
+        boss->GetWindowSystem()->RemoveTrackedWindow("click_blocker"); // <-- [BARU] Hapus Blocker
+    }
 }
 
 // =========================================================
@@ -300,6 +338,14 @@ void BossPhase02::AddAttack(std::unique_ptr<IBossAttackPattern> attack) {
 void BossPhase02::Update(float dt, Boss* boss) {
     m_glitchTimer += dt;
     
+    if (boss && boss->GetWindowSystem()) {
+        if (auto* blockerWin = boss->GetWindowSystem()->GetTrackedWindow("click_blocker")) {
+            if (blockerWin->window && blockerWin->window->GetSDLWindow()) {
+                SDL_RaiseWindow(blockerWin->window->GetSDLWindow());
+            }
+        }
+    }
+
     if (m_aiTarget && m_aiTarget->GetHP() <= 0) {
         // Hentikan semua BGM yang sedang berjalan
         AudioManager::Instance().StopMusic();
