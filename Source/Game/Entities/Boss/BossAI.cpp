@@ -35,13 +35,8 @@ BossAI_Phase01::AttackSequence BossAI_Phase01::GetNextTacticianAttack() {
         m_mainAttackIndex = (m_mainAttackIndex + 1) % 4; // Ulangi ke 0 jika mencapai 4
     }
     else {
-        // Giliran Filler Attack (Radial -> Direct -> Fan)
-        switch (m_fillerAttackIndex) {
-        case 0: nextAttack = AttackSequence::Radial; break;
-        case 1: nextAttack = AttackSequence::Direct; break;
-        case 2: nextAttack = AttackSequence::Fan; break;
-        }
-        m_fillerAttackIndex = (m_fillerAttackIndex + 1) % 3; // Ulangi ke 0 jika mencapai 3
+        // [DIUBAH] Filler kini selalu Radial (Direct & Fan dipensiunkan dari rotasi filler)
+        nextAttack = AttackSequence::Radial;
     }
 
     // Tukar status agar serangan berikutnya bergantian
@@ -76,6 +71,10 @@ void BossAI_Phase01::Update(float dt, Boss* boss) {
 
             // ========================================================
             // FILLER ATTACK (Tactician Mode)
+            // [DIUBAH] Direct & Fan dipensiunkan dari rotasi filler aktif.
+            // Case di bawah dipertahankan (bukan dihapus) untuk kemungkinan
+            // dipakai sebagai layer tambahan di kombinasi Fase 2 nanti.
+            // Tidak lagi reachable dari GetNextTacticianAttack() atau default state.
             // ========================================================
         case AttackSequence::Direct:
             m_phase->AddPooledAttack(std::make_unique<AttackDirect>(AttackParamManager::Instance().GetDirectParams(), m_target));

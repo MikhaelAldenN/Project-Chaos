@@ -53,8 +53,8 @@ private:
     // [DIUBAH] Tracker untuk Tactician Mode (HP > 50%)
     // ========================================================
     int  m_mainAttackIndex = 0;     // 0: Wave, 1: Phalanx, 2: Meteor, 3: Rain (Targeted)
-    int  m_fillerAttackIndex = 1;   // Mulai dari 1 karena 0 (Radial) dipakai pertama kali
     bool m_isNextMainAttack = true; // Karena dimulai dari Radial (Filler), next = Main Attack
+    // [DIUBAH] Filler kini hanya Radial; m_fillerAttackIndex & rotasi Direct/Fan dihapus dari pemakaian aktif
 
     // ========================================================
     // [BARU] Tracker untuk Chaos Mode (HP <= 50%)
