@@ -196,20 +196,20 @@ void SceneTitle::Render(float dt, Camera * targetCamera)
 
     if (logoSprite)
     {
-        logoSprite->Render(dc, 461.5f, 200.0f, 0.0f, 997.0f, 547.0f, 0.0f, 0.0f, 997.0f, 547.0f, 0.0f, 1.0f, 1.0f, 1.0f, bootAlpha);
+        logoSprite->Render(dc, 461.5f, 200.0f, 0.0f, 957.0f, 547.0f, 0.0f, 0.0f, 997.0f, 547.0f, 0.0f, 1.0f, 1.0f, 1.0f, bootAlpha);
     }
 
     float finalCopyrightAlpha = (m_bootTimer > 0.0f) ? bootAlpha : m_copyrightAlpha;
 
     if (copyrightSprite && finalCopyrightAlpha > 0.0f)
     {
-        copyrightSprite->Render(dc, 327.5f, 867.0f, 0.0f, 1265.0f, 105.0f, 0.0f, 0.0f, 1265.0f, 105.0f, 0.0f, 1.0f, 1.0f, 1.0f, finalCopyrightAlpha);
+        copyrightSprite->Render(dc, 327.5f, 867.0f, 0.0f, 1245.0f, 105.0f, 0.0f, 0.0f, 1265.0f, 105.0f, 0.0f, 1.0f, 1.0f, 1.0f, finalCopyrightAlpha);
     }
 
     // RENDER START
     if (startSprite && m_startAlpha > 0.0f)
     {
-        startSprite->Render(dc, 739.5f, 906.5f, 0.0f, 441.0f, 26.0f, 0.0f, 0.0f, 441.0f, 26.0f, 0.0f, 1.0f, 1.0f, 1.0f, m_startAlpha);
+        startSprite->Render(dc, 739.5f, 906.5f, 0.0f, 431.0f, 26.0f, 0.0f, 0.0f, 441.0f, 26.0f, 0.0f, 1.0f, 1.0f, 1.0f, m_startAlpha);
     }
 
     if (m_fadeAlpha > 0.001f && m_fadeSprite)
