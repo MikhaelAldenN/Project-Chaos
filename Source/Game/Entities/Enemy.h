@@ -30,6 +30,7 @@ public:
 
     void Update(float elapsedTime, Camera* camera) override;
     void UpdateTracking(float elapsedTime, Camera* camera, const DirectX::XMFLOAT3& playerPos, bool allowAttack = true);
+    void UpdateProjectiles(float elapsedTime, Camera* camera);
     void SetActive(bool active) { m_isActive = active; }
     void SetHighlight(bool highlight) { m_isHighlighted = highlight; }
     void UpdateOriginalTransform(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& rot);
