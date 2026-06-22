@@ -458,9 +458,9 @@ void SceneGame::Update(const float elapsedTime)
             // FASE 2: Kamera sampai. Munculin dialog dan STOP Timer!
             m_bossDialogueStarted = true;
             std::vector<std::string> dialogPages = {
-                u8"えっ…？ 何あのキノコ…。\n他のやつらより、ずっと大きい……？",
-                u8"ちょっと待って、様子がおかしいわ。\nなんか…膨らんでない！？",
-                u8"きゃあああああっ！？\n毒ガス！？ ごほっ、げほっ…！"
+                u8"えっ...？ 何あのキノコ...。\n他のやつらより、ずっと大きい...？",
+                u8"ちょっと待って、様子がおかしいわ。\nなんか...膨らんでない！？",
+                u8"きゃあああああっ！？\n毒ガス！？ ごほっ、げほっ...！"
             };
             // Terjemahan kasarnya:
             // 1. Eh...? Jamur apa itu... Jauh lebih besar dari yang lain?
