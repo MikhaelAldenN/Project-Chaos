@@ -1,5 +1,13 @@
 #include "SceneTitle.h"
 
+namespace {
+    [[nodiscard]] constexpr float CustomLerp(float a, float b, float t) noexcept
+    {
+        // Precise formula which guarantees CustomLerp(a, b, 1.0f) == b
+        return (1.0f - t) * a + t * b;
+    }
+}
+
 SceneTitle::SceneTitle()
 {
     if (auto window{ Framework::Instance()->GetMainWindow() }) {
@@ -156,6 +164,9 @@ void SceneTitle::Update(float elapsedTime)
         }
     }
 
+    // Visual simulation interpolation
+    AnimateMenu(elapsedTime);
+
     m_uberParams.smoothness = FX_BASE_SMOOTHNESS;
     m_uberParams.intensity = FX_BASE_INTENSITY;
 }
@@ -218,7 +229,7 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
     // RENDER START
     if (startSprite && m_startAlpha > 0.0f)
     {
-        startSprite->Render(dc, 739.5f, 906.5f, 0.0f, 431.0f, 26.0f, 0.0f, 0.0f, 441.0f, 26.0f, 0.0f, 1.0f, 1.0f, 1.0f, m_startAlpha);
+        startSprite->Render(dc, 669.5f, 906.5f, 0.0f, 545.0f, 34.0f, 0.0f, 0.0f, 545.0f, 34.0f, 0.0f, 1.0f, 1.0f, 1.0f, m_startAlpha);
     }
 
     // RENDER MENU 
@@ -227,23 +238,13 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
         // Outsource processing to our highly optimized sub-render routine
         RenderMenuOptions(dc);
 
-        // Render Cursor using the Primitive class
+        // Render Cursor smoothly using the Primitive class
         if (m_primitive)
         {
-            // Find the exact vertical center of the currently selected text
-            float targetY{ 0.0f };
-            switch (m_currentSelection)
-            {
-            case MenuOption::NewGame: targetY = Y_NEW_GAME + (25.0f * 0.5f); break;
-            case MenuOption::Option:  targetY = Y_OPTION + (32.0f * 0.5f); break;
-            case MenuOption::Exit:    targetY = Y_EXIT + (23.0f * 0.5f); break;
-            default: break;
-            }
-
-            // Define the starting X position
+            // Directly consumes the naturally interpolated visual track
+            const float targetY = m_visualCursorY;
             const float curX{ MENU_START_X - CURSOR_OFFSET_X };
 
-            // Calculate the 3 points of a right-pointing triangle
             const float x1{ curX };
             const float y1{ targetY - (CURSOR_HEIGHT * 0.5f) };
             const float x2{ curX + CURSOR_WIDTH };
@@ -251,7 +252,6 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
             const float x3{ curX };
             const float y3{ targetY + (CURSOR_HEIGHT * 0.5f) };
 
-            // Queue and execute the triangle primitive batch
             m_primitive->Triangle(x1, y1, x2, y2, x3, y3, 1.0f, 1.0f, 1.0f, m_menuAlpha);
             m_primitive->Render(dc);
         }
@@ -275,29 +275,29 @@ void SceneTitle::RenderMenuOptions(ID3D11DeviceContext* dc)
         float yPos{ 0.0f };
         float width{ 0.0f };
         float height{ 0.0f };
-        bool isSelected{ false };
+        float colorWeight{ 0.0f };
     };
 
     struct ColorRGB { float r{ 0.0f }, g{ 0.0f }, b{ 0.0f }; };
 
-    static constexpr std::array<ColorRGB, 2> menuColors{ {
-        { 0.75f, 0.75f, 0.75f }, // Crisp Silver / Light White (Unselected) - ADJUSTED HERE
-        { 1.0f,  1.0f,  1.0f  }  // Pure Radiant White (Selected)
-    } };
+    static constexpr ColorRGB unselectedColor{ 0.75f, 0.75f, 0.75f }; // Soft crisp silver white
+    static constexpr ColorRGB selectedColor{ 1.0f, 1.0f, 1.0f };     // Glowing direct white
 
-    // Data-driven array mapping your options
+    // Zero-overhead local matrix mappings utilizing reference wrappers
     const std::array<MenuItem, 3> items{ {
-        { m_newGameSprite.get(), Y_NEW_GAME, 173.0f, 25.0f, m_currentSelection == MenuOption::NewGame },
-        { m_optionSprite.get(),  Y_OPTION,   118.0f, 32.0f, m_currentSelection == MenuOption::Option  },
-        { m_exitSprite.get(),    Y_EXIT,     51.0f,  23.0f, m_currentSelection == MenuOption::Exit    }
+        { m_newGameSprite.get(), Y_NEW_GAME, 173.0f, 25.0f, m_optionWeights[0] },
+        { m_optionSprite.get(),  Y_OPTION,   118.0f, 32.0f, m_optionWeights[1] },
+        { m_exitSprite.get(),    Y_EXIT,     51.0f,  23.0f, m_optionWeights[2] }
     } };
 
-    // Prevent object slicing or heavy copying by utilizing const auto& references
     for (const auto& item : items)
     {
         if (item.sprite)
         {
-            const auto& color = menuColors[static_cast<std::size_t>(item.isSelected)];
+            // Execute linear color palette spectrum shifts smoothly across frame updates
+            const float r = CustomLerp(unselectedColor.r, selectedColor.r, item.colorWeight);
+            const float g = CustomLerp(unselectedColor.g, selectedColor.g, item.colorWeight);
+            const float b = CustomLerp(unselectedColor.b, selectedColor.b, item.colorWeight);
 
             item.sprite->Render(
                 dc,
@@ -306,9 +306,53 @@ void SceneTitle::RenderMenuOptions(ID3D11DeviceContext* dc)
                 0.0f, 0.0f,
                 item.width, item.height,
                 0.0f,
-                color.r, color.g, color.b,
+                r, g, b,
                 m_menuAlpha
             );
+        }
+    }
+}
+
+void SceneTitle::AnimateMenu(float elapsedTime)
+{
+    // Resolve exactly where the cursor is structurally headed
+    float targetY{ 0.0f };
+    switch (m_currentSelection)
+    {
+    case MenuOption::NewGame: targetY = Y_NEW_GAME + (25.0f * 0.5f); break;
+    case MenuOption::Option:  targetY = Y_OPTION + (32.0f * 0.5f); break;
+    case MenuOption::Exit:    targetY = Y_EXIT + (23.0f * 0.5f); break;
+    default: return;
+    }
+
+    if (!m_isCursorInitialized)
+    {
+        m_visualCursorY = targetY;
+        m_isCursorInitialized = true;
+    }
+
+    // Process Frame-Rate Independent Exponential Decay for the Cursor Position
+    const float cursorAlpha = 1.0f - std::exp(-CURSOR_SMOOTH_SPEED * elapsedTime);
+    m_visualCursorY = CustomLerp(m_visualCursorY, targetY, cursorAlpha);
+
+    // Clamp boundary protection to block endless micro-tail updates
+    if (std::abs(m_visualCursorY - targetY) < 0.05f)
+    {
+        m_visualCursorY = targetY;
+    }
+
+    // 4. Smooth out highlighting colors across every text menu item
+    const float colorAlpha = 1.0f - std::exp(-COLOR_SMOOTH_SPEED * elapsedTime);
+    const auto currentSelectionIndex = static_cast<std::size_t>(m_currentSelection);
+
+    for (std::size_t i = 0; i < m_optionWeights.size(); ++i)
+    {
+        const float targetWeight = (i == currentSelectionIndex) ? 1.0f : 0.0f;
+        m_optionWeights[i] = CustomLerp(m_optionWeights[i], targetWeight, colorAlpha);
+
+        if (std::abs(m_optionWeights[i] - targetWeight) < 0.01f)
+        {
+            m_optionWeights[i] = targetWeight;
         }
     }
 }

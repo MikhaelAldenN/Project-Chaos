@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+#include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
@@ -112,7 +114,18 @@ private:
     static constexpr float CURSOR_HEIGHT = 16.0f;
     static constexpr float CURSOR_OFFSET_X = 25.0f; // Gap between cursor and text
 
+    static constexpr float CURSOR_SMOOTH_SPEED{ 16.0f }; // Higher value = snappier, Lower = smoother
+    static constexpr float COLOR_SMOOTH_SPEED{ 12.0f };
+
+    // --- Modern Frame-Rate Independent Animation Tracks ---
+    float m_visualCursorY{ 0.0f };
+    bool  m_isCursorInitialized{ false };
+
+    // Smooth interpolators for option text colors (0.0f = Gray, 1.0f = White)
+    std::array<float, 3> m_optionWeights{ 1.0f, 0.0f, 0.0f };
+
     // --- Private Render Helpers ---
+    void AnimateMenu(float elapsedTime);
     void RenderMenuOptions(ID3D11DeviceContext* dc);
 
     // --- Debug GUI Helpers ---
