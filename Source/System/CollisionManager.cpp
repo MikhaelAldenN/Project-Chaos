@@ -803,40 +803,43 @@ void CollisionManager::CheckNaviProjectilesVsEnemies(float elapsedTime)
     }
 }
 
-void CollisionManager::CheckPlayerProjectilesVsNavi(float elapsedTime)
+void CollisionManager::CheckPlayerProjectilesVsNavi(const float elapsedTime)
 {
+    // Fast fail: Early exit prevents unnecessary pointer dereferencing
     if (!m_player || !m_navi || !m_navi->IsAlive() || !m_navi->IsPotioned()) return;
 
-    auto& projectiles = m_player->GetProjectiles();
-    DirectX::XMFLOAT3 naviPos = m_navi->GetMovement()->GetPosition();
+    // Reference binding to avoid copying the container
+    const auto& projectiles{ m_player->GetProjectiles() };
+    const DirectX::XMFLOAT3 naviPos{ m_navi->GetMovement()->GetPosition() };
 
-    constexpr float NAVI_HITBOX_RADIUS_XZ = 0.8f;
-    constexpr float NAVI_HITBOX_RADIUS_Y = 1.9f;
-    constexpr int PLAYER_BULLET_DAMAGE = 10; 
+    constexpr float NAVI_HITBOX_RADIUS_XZ{ 0.8f };
+    constexpr int PLAYER_BULLET_DAMAGE{ 10 };
 
-    for (auto& bullet : projectiles)
+    // CPU Optimization: Range-based for loop
+    for (const auto& bullet : projectiles)
     {
+        // Null and active state guard
         if (!bullet || !bullet->IsActive()) continue;
 
-        DirectX::XMFLOAT3 currentPos = bullet->GetMovement()->GetPosition();
-        DirectX::XMFLOAT3 vel = bullet->GetVelocity();
-        DirectX::XMFLOAT3 prevPos = {
+        // Brace initialization for zero-cost abstraction and preventing narrowing conversions
+        const DirectX::XMFLOAT3 currentPos{ bullet->GetMovement()->GetPosition() };
+        const DirectX::XMFLOAT3 vel{ bullet->GetVelocity() };
+
+        const DirectX::XMFLOAT3 prevPos{
             currentPos.x - (vel.x * elapsedTime),
             currentPos.y - (vel.y * elapsedTime),
             currentPos.z - (vel.z * elapsedTime)
         };
 
-        float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, naviPos);
-        float verticalDist = std::abs(currentPos.y - naviPos.y);
+        // Anti-tunneling CCD (Continuous Collision Detection) 
+        const float distToPath{ DistancePointToLineSegment2D(prevPos, currentPos, naviPos) };
 
-        if (distToPath <= NAVI_HITBOX_RADIUS_XZ && verticalDist < NAVI_HITBOX_RADIUS_Y)
+        // 2D Cylinder Collision: Completely ignore the Y-axis vertical distance
+        if (distToPath <= NAVI_HITBOX_RADIUS_XZ)
         {
-            // Trigger proper OOP damage
             m_navi->TakeDamage(PLAYER_BULLET_DAMAGE);
-            EffectManager::Instance().Play("Data/Effect/Hit.efk", m_navi->GetMovement()->GetPosition(), 1.0f);
-            bullet->SetActive(false); // Return bullet to pool
-
-            continue;
+            EffectManager::Instance().Play("Data/Effect/Hit.efk", naviPos, 1.0f);
+            bullet->SetActive(false); // Instantly recycle the bullet into the object pool
         }
     }
 }

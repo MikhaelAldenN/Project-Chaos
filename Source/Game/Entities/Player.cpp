@@ -651,65 +651,43 @@ void Player::FireProjectile()
 {
     if (!isInputEnabled) return;
 
-    DirectX::XMFLOAT3 myPos = movement->GetPosition();
-    DirectX::XMFLOAT3 aimPos = m_aimTarget;
+    const DirectX::XMFLOAT3 myPos{ movement->GetPosition() };
 
-    if (m_collisionManager && m_collisionManager->GetNavi())
-    {
-        NaviAlly* navi = m_collisionManager->GetNavi();
-        DirectX::XMFLOAT3 nPos = navi->GetMovement()->GetPosition();
-
-        // Define how "sticky" the auto-aim is
-        constexpr float AUTO_AIM_RADIUS_SQ = 2.0f * 2.0f;
-
-        float distSq = (nPos.x - aimPos.x) * (nPos.x - aimPos.x) +
-            (nPos.z - aimPos.z) * (nPos.z - aimPos.z);
-
-        if (distSq < AUTO_AIM_RADIUS_SQ)
-        {
-            // SNAP Y: Ask Navi where to aim instead of guessing
-            aimPos.y = navi->GetAimPoint().y;
-        }
-    }
-
-    float dx = m_aimTarget.x - myPos.x;
-    float dz = m_aimTarget.z - myPos.z;
-    float angleToMouse = atan2f(dx, dz);
-    DirectX::XMFLOAT3 fwd = { sinf(angleToMouse), 0.0f, cosf(angleToMouse) };
+    // Calculate purely on the XZ plane
+    const float dx{ m_aimTarget.x - myPos.x };
+    const float dz{ m_aimTarget.z - myPos.z };
+    const float angleToMouse{ std::atan2f(dx, dz) };
+    const DirectX::XMFLOAT3 fwd{ std::sinf(angleToMouse), 0.0f, std::cosf(angleToMouse) };
 
     // Spawn slightly ahead of the player at chest height
-    DirectX::XMFLOAT3 spawnPos =
-    {
+    const DirectX::XMFLOAT3 spawnPos{
         myPos.x + fwd.x * PlayerConst::BulletSpawnFwd,
         myPos.y + PlayerConst::BulletSpawnY,
         myPos.z + fwd.z * PlayerConst::BulletSpawnFwd
     };
 
     // --------------------------------------------------------
-    // ---> BUG PREVENTION: THE TRUE OBJECT POOL <---
+    // TRUE OBJECT POOL (Zero Allocation on normal fire)
     // --------------------------------------------------------
-
-    // Search our pool for an inactive (dead/invisible) bullet
-    for (auto& bullet : m_projectiles)
+    for (const auto& bullet : m_projectiles)
     {
         if (!bullet->IsActive())
         {
             bullet->Fire(spawnPos, fwd, m_bulletSpeed);
-            bullet->SetDamage(m_bulletDamage); // [BARU] Terapkan damage dinamis di sini
+            bullet->SetDamage(m_bulletDamage);
             return;
         }
     }
 
-    // If we get here, it means EVERY bullet we own is currently flying on-screen.
-    // ONLY THEN do we allocate new memory.
-    auto newBullet = std::make_unique<Bullet>();
+    // Only allocate memory if EVERY bullet is currently flying on-screen.
+    auto newBullet{ std::make_unique<Bullet>() };
     newBullet->Fire(spawnPos, fwd, m_bulletSpeed);
-    newBullet->SetDamage(m_bulletDamage); // [BARU] Terapkan damage dinamis di sini
+    newBullet->SetDamage(m_bulletDamage);
     m_projectiles.push_back(std::move(newBullet));
 
-    // Prevent memory leaks. If the pool gets ridiculously large, pop the oldest.
+    // Prevent memory leak compounding if the pool gets ridiculously large.
     for (int i = 0; i < PlayerConst::MaxBullets; ++i) {
-        auto b = std::make_unique<Bullet>();
+        auto b{ std::make_unique<Bullet>() };
         b->SetActive(false);
         m_projectiles.push_back(std::move(b));
     }
