@@ -229,7 +229,7 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
     // RENDER START
     if (startSprite && m_startAlpha > 0.0f)
     {
-        startSprite->Render(dc, 669.5f, 906.5f, 0.0f, 545.0f, 34.0f, 0.0f, 0.0f, 545.0f, 34.0f, 0.0f, 1.0f, 1.0f, 1.0f, m_startAlpha);
+        startSprite->Render(dc, 679.5f, 906.5f, 0.0f, 545.0f, 34.0f, 0.0f, 0.0f, 545.0f, 34.0f, 0.0f, 1.0f, 1.0f, 1.0f, m_startAlpha);
     }
 
     // RENDER MENU 
