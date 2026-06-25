@@ -844,31 +844,33 @@ void CollisionManager::CheckPlayerProjectilesVsNavi(const float elapsedTime)
     }
 }
 
-void CollisionManager::CheckNaviAllyProjectilesVsPlayer(float elapsedTime)
+void CollisionManager::CheckNaviAllyProjectilesVsPlayer(const float elapsedTime)
 {
-    // Validate pointers
-    if (!m_player || !m_navi || m_player->GetHP() <= 0 || !m_navi->IsPotioned()) return;
+    // If the player is dead, Navi isn't potioned, OR the player is currently Dashing (Invincible),
+    if (!m_player || !m_navi || m_player->GetHP() <= 0 || !m_navi->IsPotioned() || m_player->IsInvincible()) return;
 
-    auto& projectiles = m_navi->GetProjectiles();
-    DirectX::XMFLOAT3 playerPos = m_player->GetMovement()->GetPosition();
+    // Reference bindings (No copying)
+    const auto& projectiles{ m_navi->GetProjectiles() };
+    const DirectX::XMFLOAT3 playerPos{ m_player->GetMovement()->GetPosition() };
 
-    constexpr float PLAYER_HURTBOX_RADIUS = 0.3f;
-    constexpr int NAVI_BULLET_DAMAGE = 10; // Match standard enemy damage
+    constexpr float PLAYER_HURTBOX_RADIUS{ 0.3f };
+    constexpr int NAVI_BULLET_DAMAGE{ 10 };
 
-    for (auto& bullet : projectiles)
+    for (const auto& bullet : projectiles)
     {
         if (!bullet || !bullet->IsActive()) continue;
 
-        DirectX::XMFLOAT3 currentPos = bullet->GetMovement()->GetPosition();
-        DirectX::XMFLOAT3 vel = bullet->GetVelocity();
-        DirectX::XMFLOAT3 prevPos = {
+        const DirectX::XMFLOAT3 currentPos{ bullet->GetMovement()->GetPosition() };
+        const DirectX::XMFLOAT3 vel{ bullet->GetVelocity() };
+
+        const DirectX::XMFLOAT3 prevPos{
             currentPos.x - (vel.x * elapsedTime),
             currentPos.y - (vel.y * elapsedTime),
             currentPos.z - (vel.z * elapsedTime)
         };
 
-        float distToPath = DistancePointToLineSegment2D(prevPos, currentPos, playerPos);
-        float combinedRadius = PLAYER_HURTBOX_RADIUS + bullet->GetRadius();
+        const float distToPath{ DistancePointToLineSegment2D(prevPos, currentPos, playerPos) };
+        const float combinedRadius{ PLAYER_HURTBOX_RADIUS + bullet->GetRadius() };
 
         if (distToPath <= combinedRadius)
         {
@@ -886,7 +888,7 @@ void CollisionManager::CheckNaviAllyProjectilesVsPlayer(float elapsedTime)
                 m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
                 m_player->GetStateMachine()->ChangeState(m_player, std::make_unique<PlayerDead>());
 
-                // Trigger Fade via Callback (Ensures SceneGame manages the UI transition)
+                // Trigger Fade via Callback
                 if (m_onPlayerDeathCallback)
                 {
                     m_onPlayerDeathCallback();
