@@ -118,7 +118,12 @@ void SceneTitle::Update(float elapsedTime)
             current = (current + 1) % maxOptions;
             m_currentSelection = static_cast<MenuOption>(current);
         }
-        // (Enter key to actually execute menu choices will go here later)
+        // EXECUTE SELECTION
+        else if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN) ||
+            Input::Instance().GetKeyboard().IsTriggered(VK_SPACE))
+        {
+            ExecuteMenuSelection();
+        }
     }
     // Transition State: Fading out Start, Fading in Menu
     else if (m_isTransitioningMenu)
@@ -354,6 +359,44 @@ void SceneTitle::AnimateMenu(float elapsedTime)
         {
             m_optionWeights[i] = targetWeight;
         }
+    }
+}
+
+void SceneTitle::ExecuteMenuSelection() noexcept
+{
+    switch (m_currentSelection)
+    {
+    case MenuOption::NewGame:
+        // Bug Prevention: We check !m_isExiting to ensure that if a user 
+        // mashes the Enter key, we don't continuously reset the timer to 0.0f.
+        if (!m_isExiting)
+        {
+            m_isExiting = true;
+            m_exitTimer = 0.0f;
+
+            // Optional: Play a confirmation sound effect here
+            // AudioManager::Instance().PlaySFX("Data/Sound/SE_Confirm.wav", 0.5f);
+        }
+        break;
+
+    case MenuOption::Option:
+        // TODO: Map to an options sub-menu state later
+        break;
+
+    case MenuOption::Exit:
+        // Zero-cost exit trigger. Since your Framework uses SDL beneath the hood, 
+        // pushing an SDL_QUIT event is the safest, standard way to cleanly 
+        // shut down the window and break the main loop without memory leaks.
+        if (!m_isExiting)
+        {
+            SDL_Event quitEvent{}; // Brace initialization guarantees zeroed memory
+            quitEvent.type = SDL_EVENT_QUIT;
+            SDL_PushEvent(&quitEvent);
+        }
+        break;
+
+    default:
+        break;
     }
 }
 

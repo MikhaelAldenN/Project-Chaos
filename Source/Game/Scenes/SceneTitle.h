@@ -127,6 +127,7 @@ private:
     // --- Private Render Helpers ---
     void AnimateMenu(float elapsedTime);
     void RenderMenuOptions(ID3D11DeviceContext* dc);
+    void ExecuteMenuSelection() noexcept;
 
     // --- Debug GUI Helpers ---
     void GUIPostProcessTab();
