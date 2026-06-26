@@ -4,11 +4,13 @@
 #include <vector>
 #include <memory>
 #include <d3d11.h>
-#include <cstdint> // Required for std::uint8_t
+#include <cstdint> 
 
 #include "System/Sprite.h"
 #include "BitmapFont.h"
 #include "FontTTF.h"
+
+enum class InputDevice : std::uint8_t;
 
 class UIDialogueBox
 {
@@ -47,14 +49,34 @@ public:
 private:
     void AdvanceDialogue();
 
+    // --- AAA Inline Glyph Rendering Helpers ---
+    // Parses a raw string containing {ATK} and {DASH} tags into a renderable string
+    [[nodiscard]] std::string ParseDialogueTags(const std::string& rawLine);
+
+    struct InlineSprite {
+        Sprite* sprite{ nullptr };
+        int triggerByteIndex{ 0 }; // The exact typewriter byte when this should appear
+        float offsetX{ 0.0f };
+        float offsetY{ 0.0f };
+        float scaleW{ 1.0f };
+        float scaleH{ 1.0f };
+    };
+
 private:
     // --- Sprites ---
     std::unique_ptr<Sprite> m_panelSpriteKB{}; // Keyboard/Mouse Sprite
     std::unique_ptr<Sprite> m_panelSpriteGP{}; // Gamepad Controller Sprite
     std::unique_ptr<FontTTF> m_font{};
 
+    // --- Inline Button Sprites ---
+    std::unique_ptr<Sprite> m_spriteRT{};
+    std::unique_ptr<Sprite> m_spriteLB{};
+    std::vector<InlineSprite> m_activeInlineSprites{};
+
     // --- State Tracking ---
     State m_state{ State::Hidden };
+
+    InputDevice m_lockedDeviceForLine;
 
     std::vector<std::string> m_dialogues{};
     int m_currentIndex{ -1 };

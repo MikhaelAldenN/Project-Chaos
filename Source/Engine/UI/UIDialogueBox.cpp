@@ -4,15 +4,119 @@
 #include <windows.h>
 #include <cmath> 
 
-UIDialogueBox::UIDialogueBox() {}
+UIDialogueBox::UIDialogueBox() : m_lockedDeviceForLine(InputDevice::Keyboard) {}
+
+std::string UIDialogueBox::ParseDialogueTags(const std::string& rawLine)
+{
+    std::string processedLine;
+    m_activeInlineSprites.clear();
+
+    constexpr float FONT_SIZE = 32.0f;
+    constexpr float FULL_WIDTH = FONT_SIZE;
+    constexpr float HALF_WIDTH = FONT_SIZE * 0.5f;
+    constexpr float LINE_HEIGHT = FONT_SIZE + 10.0f;
+
+    float cursorX = 0.0f;
+    float cursorY = 0.0f;
+
+    size_t i = 0;
+    while (i < rawLine.length())
+    {
+        // 1. Process {ATK} Tag
+        if (rawLine.compare(i, 5, "{ATK}") == 0)
+        {
+            if (m_lockedDeviceForLine == InputDevice::Gamepad) {
+                constexpr float w = 40.0f;
+                constexpr float h = 38.0f;
+                constexpr float RT_Y_OFFSET = 7.0f;
+				constexpr float RT_X_OFFSET = 1.0f;
+
+                m_activeInlineSprites.push_back({
+                    m_spriteRT.get(),
+                    static_cast<int>(processedLine.length()),
+                    cursorX + RT_X_OFFSET, cursorY + RT_Y_OFFSET, w, h
+                    });
+
+                // LEVER 1: Added an extra half-width space (1 Full, 2 Half) to push "で" to the right
+                processedLine += u8"   ";
+
+                // Keep the math tracker in sync with the new string length
+                cursorX += (FULL_WIDTH + (HALF_WIDTH * 2.0f));
+            }
+            else {
+                std::string kbText = u8"「左クリック」";
+                processedLine += kbText;
+                cursorX += FULL_WIDTH * 7;
+            }
+            i += 5;
+            continue;
+        }
+
+        // 2. Process {DASH} Tag
+        if (rawLine.compare(i, 6, "{DASH}") == 0)
+        {
+            if (m_lockedDeviceForLine == InputDevice::Gamepad) {
+                // FIX 1: Perfect Integer Scaling (14x7 * 4.0 = 56x28)
+                // Prevents DirectX from blurring the pixel art!
+                constexpr float w = 42.0f;
+                constexpr float h = 37.0f;
+                constexpr float LB_Y_OFFSET = 7.0f;
+				constexpr float LB_X_OFFSET = 6.0f;
+
+                m_activeInlineSprites.push_back({
+                    m_spriteLB.get(),
+                    static_cast<int>(processedLine.length()),
+                    // 64px gap - 56px sprite = 8px remainder. (4px padding on each side)
+                    cursorX - LB_X_OFFSET, cursorY + LB_Y_OFFSET, w, h
+                    });
+
+                // FIX 2: Only use Full-Width Japanese spaces (U+3000). 
+                // Normal spaces ' ' have unpredictable widths in TTF, causing text overlap!
+                // 2 Full Spaces = Exactly 64px gap.
+                processedLine += u8"   ";
+                cursorX += (FULL_WIDTH * 2.0f);
+            }
+            else {
+                std::string kbText = u8"「Shift」";
+                processedLine += kbText;
+                cursorX += (FULL_WIDTH * 2.0f) + (HALF_WIDTH * 5.0f);
+            }
+            i += 6;
+            continue;
+        }
+
+        // 3. Process normal text & simulate cursor
+        unsigned char c = rawLine[i];
+        if (c == '\n') {
+            cursorX = 0.0f;
+            cursorY += LINE_HEIGHT;
+            processedLine += rawLine[i++];
+            continue;
+        }
+
+        int charLength = 1;
+        bool isFullWidth = false;
+        if ((c & 0xE0) == 0xC0) { charLength = 2; }
+        else if ((c & 0xF0) == 0xE0) { charLength = 3; isFullWidth = true; }
+        else if ((c & 0xF8) == 0xF0) { charLength = 4; isFullWidth = true; }
+
+        for (int j = 0; j < charLength && i < rawLine.length(); ++j) {
+            processedLine += rawLine[i++];
+        }
+        cursorX += (isFullWidth ? FULL_WIDTH : HALF_WIDTH);
+    }
+
+    return processedLine;
+}
 
 void UIDialogueBox::Initialize()
 {
     auto device = Graphics::Instance().GetDevice();
 
-    // Pre-load both sprites to prevent mid-gameplay disk I/O stuttering
     m_panelSpriteKB = std::make_unique<Sprite>(device, "Data/Sprite/UI/Sprite_DialogueBox.png");
     m_panelSpriteGP = std::make_unique<Sprite>(device, "Data/Sprite/UI/Sprite_DialogueBoxController.png");
+    m_spriteRT = std::make_unique<Sprite>(device, "Data/Sprite/UI/Sprite_DialogueRT.png");
+    m_spriteLB = std::make_unique<Sprite>(device, "Data/Sprite/UI/Sprite_DialogueLB.png");
 
     std::vector<uint32_t> requiredKanji = {
        0x76EE, 0x899A, 0x6226, 0x6642, 0x9593, 0x6765, 0x653B, 0x6483,
@@ -52,7 +156,8 @@ void UIDialogueBox::AdvanceDialogue()
         return;
     }
 
-    m_currentLine = m_dialogues[m_currentIndex];
+    m_lockedDeviceForLine = Input::Instance().GetLastUsedDevice();
+    m_currentLine = ParseDialogueTags(m_dialogues[m_currentIndex]);
     m_displayedText.clear();
     m_charIndex = 0;
     m_typeTimer = 0.0f;
@@ -146,24 +251,38 @@ void UIDialogueBox::Render(ID3D11DeviceContext* dc)
     float panelX = m_useCustomPos ? m_posX : (screenW - panelW) * 0.5f;
     float panelY = m_useCustomPos ? m_posY : (screenH - panelH - 60.0f);
 
-    // ZERO-COST GLOBAL OBSERVING POINTER
-    // Instantly retrieves the active device recorded during SceneTitle!
+    // Use the ACTIVE GLOBAL DEVICE to determine the background panel
     InputDevice currentDevice = Input::Instance().GetLastUsedDevice();
     Sprite* activePanel = (currentDevice == InputDevice::Gamepad) ? m_panelSpriteGP.get() : m_panelSpriteKB.get();
 
     if (m_showBackground && activePanel) {
-        activePanel->Render(dc,
-            panelX, panelY, 0.0f,     
-            panelW, panelH,           
-            0.0f,                     
-            1.0f, 1.0f, 1.0f, 1.0f    
-        );
+        activePanel->Render(dc, panelX, panelY, 0.0f, panelW, panelH, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     float textMarginX = 40.0f;
     float textMarginY = 40.0f;
 
+    // Draw the text (Which contains invisible spaces if using a Gamepad)
     m_font->Draw(m_displayedText, panelX + textMarginX, panelY + textMarginY, 1.0f, { 1.0f, 1.0f, 1.0f, 1.0f });
+
+    // Constants to fix the Baseline vs Top-Left rendering mismatch
+    constexpr float FONT_BASELINE_SHIFT = -32.0f;
+    constexpr float OPTICAL_Y_TWEAK = -2.0f;
+
+    // Draw Inline Sprites
+    for (const auto& inlineIcon : m_activeInlineSprites)
+    {
+        if (m_charIndex >= inlineIcon.triggerByteIndex && inlineIcon.sprite)
+        {
+            inlineIcon.sprite->Render(dc,
+                panelX + textMarginX + inlineIcon.offsetX,
+                panelY + textMarginY + inlineIcon.offsetY + FONT_BASELINE_SHIFT + OPTICAL_Y_TWEAK,
+                0.0f,
+                inlineIcon.scaleW, inlineIcon.scaleH,
+                0.0f, 1.0f, 1.0f, 1.0f, 1.0f
+            );
+        }
+    }
 }
 
 void UIDialogueBox::Render3D(ID3D11DeviceContext* dc, class Camera* camera)
@@ -200,5 +319,25 @@ void UIDialogueBox::RenderToWindow(ID3D11DeviceContext* dc, float windowW, float
 
     const float marginX = 14.0f;
     const float marginY = 30.0f;
+
+    // Draw the Base Text (Which safely contains the invisible padding spaces)
     m_font->Draw(m_displayedText, marginX, marginY, 1.0f, { 1.0f, 1.0f, 1.0f, 1.0f });
+
+    constexpr float FONT_BASELINE_SHIFT = -32.0f;
+    constexpr float OPTICAL_Y_TWEAK = -2.0f;
+
+    // AAA Inline Sprite Injection
+    for (const auto& inlineIcon : m_activeInlineSprites)
+    {
+        if (m_charIndex >= inlineIcon.triggerByteIndex && inlineIcon.sprite)
+        {
+            inlineIcon.sprite->Render(dc,
+                marginX + inlineIcon.offsetX,
+                marginY + inlineIcon.offsetY + FONT_BASELINE_SHIFT + OPTICAL_Y_TWEAK,
+                0.0f,
+                inlineIcon.scaleW, inlineIcon.scaleH,
+                0.0f, 1.0f, 1.0f, 1.0f, 1.0f
+            );
+        }
+    }
 }
