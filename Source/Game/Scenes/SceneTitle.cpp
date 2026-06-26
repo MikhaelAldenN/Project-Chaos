@@ -61,7 +61,7 @@ bool SceneTitle::IsUpTriggered() noexcept
     // Keyboard Check
     const bool isKeyboardUp = keyboard.IsTriggered('W') || keyboard.IsTriggered(VK_UP);
 
-    // GamePad D-Pad Check (Using your framework's bitmask logic)
+    // GamePad D-Pad Check 
     const bool isGamepadDpadUp = (gamePad.GetButtonDown() & GamePad::BTN_UP) != 0;
 
     // GamePad Analog Stick Check & Debouncing
@@ -70,7 +70,11 @@ bool SceneTitle::IsUpTriggered() noexcept
 
     // The critical Debounce logic: Only true if pushed NOW, but wasn't pushed LAST frame.
     const bool analogUpTriggered = (isAnalogPushedUp && !m_analogUpWasPressed);
-    m_analogUpWasPressed = isAnalogPushedUp; // Save state for next frame
+    m_analogUpWasPressed = isAnalogPushedUp; 
+
+    // --- UPDATE GLOBAL STATE ---
+    if (isKeyboardUp) input.SetLastUsedDevice(InputDevice::Keyboard);
+    if (isGamepadDpadUp || analogUpTriggered) input.SetLastUsedDevice(InputDevice::Gamepad);
 
     return isKeyboardUp || isGamepadDpadUp || analogUpTriggered;
 }
@@ -90,10 +94,14 @@ bool SceneTitle::IsDownTriggered() noexcept
     const bool analogDownTriggered = (isAnalogPushedDown && !m_analogDownWasPressed);
     m_analogDownWasPressed = isAnalogPushedDown;
 
+    // --- UPDATE GLOBAL STATE ---
+    if (isKeyboardDown) input.SetLastUsedDevice(InputDevice::Keyboard);
+    if (isGamepadDpadDown || analogDownTriggered) input.SetLastUsedDevice(InputDevice::Gamepad);
+
     return isKeyboardDown || isGamepadDpadDown || analogDownTriggered;
 }
 
-bool SceneTitle::IsConfirmTriggered() const noexcept
+bool SceneTitle::IsConfirmTriggered() noexcept
 {
     // natively handle single-frame trigger isolation.
     auto& input = Input::Instance();
@@ -102,6 +110,10 @@ bool SceneTitle::IsConfirmTriggered() const noexcept
         input.GetKeyboard().IsTriggered(VK_SPACE);
 
     const bool isGamepadConfirm = (input.GetGamePad().GetButtonDown() & GamePad::BTN_A) != 0;
+
+    // --- UPDATE GLOBAL STATE ---
+    if (isKeyboardConfirm) input.SetLastUsedDevice(InputDevice::Keyboard);
+    if (isGamepadConfirm) input.SetLastUsedDevice(InputDevice::Gamepad);
 
     return isKeyboardConfirm || isGamepadConfirm;
 }
