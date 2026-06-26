@@ -12,6 +12,7 @@
 
 #include "Scene.h"
 #include "Camera.h"
+#include "System/Gamepad.h"
 #include "System/AudioManager.h"
 #include "System/Sprite.h" 
 #include "PostProcessManager.h"
@@ -128,6 +129,20 @@ private:
     void AnimateMenu(float elapsedTime);
     void RenderMenuOptions(ID3D11DeviceContext* dc);
     void ExecuteMenuSelection() noexcept;
+
+    // --- Input Abstraction Helpers ---
+    // Evaluates Keyboard, D-Pad, and Debounced Analog Stick natively
+    [[nodiscard]] bool IsUpTriggered() noexcept;
+    [[nodiscard]] bool IsDownTriggered() noexcept;
+    [[nodiscard]] bool IsConfirmTriggered() const noexcept;
+
+    // --- Analog Stick State Tracking (Debounce) ---
+    // Prevents "hyper-scrolling" when holding the analog stick
+    bool m_analogUpWasPressed{ false };
+    bool m_analogDownWasPressed{ false };
+
+    // Deadzone threshold for the thumbstick to register as an intentional push
+    static constexpr float THUMBSTICK_THRESHOLD{ 0.5f };
 
     // --- Debug GUI Helpers ---
     void GUIPostProcessTab();

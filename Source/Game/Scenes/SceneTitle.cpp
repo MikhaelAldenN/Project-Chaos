@@ -52,6 +52,60 @@ SceneTitle::SceneTitle()
     m_primitive = std::make_unique<Primitive>(device);
 }
 
+bool SceneTitle::IsUpTriggered() noexcept
+{
+    auto& input = Input::Instance();
+    auto& keyboard = input.GetKeyboard();
+    auto& gamePad = input.GetGamePad();
+
+    // Keyboard Check
+    const bool isKeyboardUp = keyboard.IsTriggered('W') || keyboard.IsTriggered(VK_UP);
+
+    // GamePad D-Pad Check (Using your framework's bitmask logic)
+    const bool isGamepadDpadUp = (gamePad.GetButtonDown() & GamePad::BTN_UP) != 0;
+
+    // GamePad Analog Stick Check & Debouncing
+    const float leftY = gamePad.GetAxisLY();
+    const bool isAnalogPushedUp = (leftY > THUMBSTICK_THRESHOLD);
+
+    // The critical Debounce logic: Only true if pushed NOW, but wasn't pushed LAST frame.
+    const bool analogUpTriggered = (isAnalogPushedUp && !m_analogUpWasPressed);
+    m_analogUpWasPressed = isAnalogPushedUp; // Save state for next frame
+
+    return isKeyboardUp || isGamepadDpadUp || analogUpTriggered;
+}
+
+bool SceneTitle::IsDownTriggered() noexcept
+{
+    auto& input = Input::Instance();
+    auto& keyboard = input.GetKeyboard();
+    auto& gamePad = input.GetGamePad();
+
+    const bool isKeyboardDown = keyboard.IsTriggered('S') || keyboard.IsTriggered(VK_DOWN);
+    const bool isGamepadDpadDown = (gamePad.GetButtonDown() & GamePad::BTN_DOWN) != 0;
+
+    const float leftY = gamePad.GetAxisLY();
+    const bool isAnalogPushedDown = (leftY < -THUMBSTICK_THRESHOLD);
+
+    const bool analogDownTriggered = (isAnalogPushedDown && !m_analogDownWasPressed);
+    m_analogDownWasPressed = isAnalogPushedDown;
+
+    return isKeyboardDown || isGamepadDpadDown || analogDownTriggered;
+}
+
+bool SceneTitle::IsConfirmTriggered() const noexcept
+{
+    // natively handle single-frame trigger isolation.
+    auto& input = Input::Instance();
+
+    const bool isKeyboardConfirm = input.GetKeyboard().IsTriggered(VK_RETURN) ||
+        input.GetKeyboard().IsTriggered(VK_SPACE);
+
+    const bool isGamepadConfirm = (input.GetGamePad().GetButtonDown() & GamePad::BTN_A) != 0;
+
+    return isKeyboardConfirm || isGamepadConfirm;
+}
+
 void SceneTitle::Update(float elapsedTime)
 {
     // 1. EXIT PHASE
@@ -103,24 +157,20 @@ void SceneTitle::Update(float elapsedTime)
         int current = static_cast<int>(m_currentSelection);
 
         // UP NAVIGATION
-        if (Input::Instance().GetKeyboard().IsTriggered('W') ||
-            Input::Instance().GetKeyboard().IsTriggered(VK_UP))
+        if (IsUpTriggered())
         {
-            // Bug Prevention: (current - 1) % maxOptions fails in C++ if negative.
-            // Adding maxOptions before modulo guarantees safe, positive wrap-around.
+            // Bug Prevention: Adding maxOptions guarantees positive wrap-around.
             current = (current + maxOptions - 1) % maxOptions;
             m_currentSelection = static_cast<MenuOption>(current);
         }
         // DOWN NAVIGATION
-        else if (Input::Instance().GetKeyboard().IsTriggered('S') ||
-            Input::Instance().GetKeyboard().IsTriggered(VK_DOWN))
+        else if (IsDownTriggered())
         {
             current = (current + 1) % maxOptions;
             m_currentSelection = static_cast<MenuOption>(current);
         }
         // EXECUTE SELECTION
-        else if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN) ||
-            Input::Instance().GetKeyboard().IsTriggered(VK_SPACE))
+        else if (IsConfirmTriggered())
         {
             ExecuteMenuSelection();
         }
@@ -162,10 +212,10 @@ void SceneTitle::Update(float elapsedTime)
         m_startAlpha = 0.6f + 0.4f * sinf(m_pulseTimer * 3.0f);
 
         // ONLY TRIGGER ONCE. Setting flag locks out further presses automatically.
-        if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN))
+        if (IsConfirmTriggered()) 
         {
             m_isTransitioningMenu = true;
-            // Play SE here if needed
+            // Play SE here if needed: AudioManager::Instance().PlaySFX(...)
         }
     }
 
