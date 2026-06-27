@@ -3,6 +3,7 @@
 #include "System/Graphics.h"
 #include "AnimationController.h"
 #include "Camera.h"
+#include "Framework.h"
 #include "NaviAlly.h"
 #include "Player.h"
 #include "PlayerConstants.h"
@@ -155,7 +156,11 @@ void Player::Update(float elapsedTime, Camera* camera)
     UpdateDashCooldown(elapsedTime);
 
     SetCamera(camera);
-    if (isInputEnabled) HandleMovementInput(elapsedTime);
+    if (isInputEnabled)
+    {
+        HandleMovementInput(elapsedTime);
+        HandleAimInput(camera); 
+    }
     else currentSmoothInput = { 0.0f, 0.0f };
 
     UpdateHorizontalMovement(elapsedTime);
@@ -426,6 +431,87 @@ void Player::HandleMovementInput(float dt)
     if (std::abs(targetX) > inputEpsilon || std::abs(targetZ) > inputEpsilon)
     {
         lastValidInput = { targetX, targetZ };
+    }
+}
+
+void Player::HandleAimInput(Camera* camera)
+{
+    // Anticipate Nullptr Bug: If no camera is provided, we cannot calculate 3D aim.
+    if (!camera) return;
+
+    // Zero-Cost Branching: Only execute the math for the currently active device.
+    const InputDevice activeDevice{ Input::Instance().GetLastUsedDevice() };
+
+    if (activeDevice == InputDevice::Gamepad)
+    {
+        const GamePad& gamePad{ Input::Instance().GetGamePad() };
+        const float rx{ gamePad.GetAxisRX() };
+        const float ry{ gamePad.GetAxisRY() };
+
+        constexpr float aimDeadzoneSq{ 0.04f };
+        const float sqLength{ (rx * rx) + (ry * ry) };
+
+        if (sqLength > aimDeadzoneSq)
+        {
+            const float invLength{ 1.0f / std::sqrt(sqLength) };
+
+            const float dirX{ rx * invLength };
+            const float dirZ{ ry * invLength }; // Change to -ry if Y-axis is inverted in your world
+
+            const DirectX::XMFLOAT3 pPos{ movement->GetPosition() };
+            constexpr float aimDistance{ 1000.0f };
+
+            DirectX::XMFLOAT3 trueGamepadWorldPos{
+                pPos.x + (dirX * aimDistance),
+                pPos.y,
+                pPos.z + (dirZ * aimDistance)
+            };
+
+            RotateModelToPoint(trueGamepadWorldPos);
+        }
+    }
+    else
+    {
+        // Keyboard & Mouse Raycast Logic
+        float mouseX, mouseY;
+        SDL_GetMouseState(&mouseX, &mouseY);
+
+        // Safely fetch dynamic screen size
+        float screenW{ 1920.0f };
+        float screenH{ 1080.0f };
+        if (auto window{ Framework::Instance()->GetMainWindow() }) {
+            screenW = static_cast<float>(window->GetWidth());
+            screenH = static_cast<float>(window->GetHeight());
+        }
+
+        DirectX::XMMATRIX view{ DirectX::XMLoadFloat4x4(&camera->GetView()) };
+        DirectX::XMMATRIX proj{ DirectX::XMLoadFloat4x4(&camera->GetProjection()) };
+        DirectX::XMMATRIX world{ DirectX::XMMatrixIdentity() };
+
+        DirectX::XMVECTOR nearPoint{ DirectX::XMVectorSet(mouseX, mouseY, 0.0f, 0.0f) };
+        DirectX::XMVECTOR farPoint{ DirectX::XMVectorSet(mouseX, mouseY, 1.0f, 0.0f) };
+
+        nearPoint = DirectX::XMVector3Unproject(nearPoint, 0, 0, screenW, screenH, 0.0f, 1.0f, proj, view, world);
+        farPoint = DirectX::XMVector3Unproject(farPoint, 0, 0, screenW, screenH, 0.0f, 1.0f, proj, view, world);
+
+        DirectX::XMVECTOR rayDir{ DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(farPoint, nearPoint)) };
+        DirectX::XMFLOAT3 origin, dir;
+        DirectX::XMStoreFloat3(&origin, nearPoint);
+        DirectX::XMStoreFloat3(&dir, rayDir);
+
+        if (std::abs(dir.y) > 0.001f) {
+            // Defends against the "Floating Gun" bug by using the player's dynamic Y position
+            const float gunHeight{ movement->GetPosition().y + PlayerConst::BulletSpawnY };
+            const float t{ (gunHeight - origin.y) / dir.y };
+
+            DirectX::XMFLOAT3 trueMouseWorldPos{
+                origin.x + dir.x * t,
+                gunHeight,
+                origin.z + dir.z * t
+            };
+
+            RotateModelToPoint(trueMouseWorldPos);
+        }
     }
 }
 

@@ -370,47 +370,6 @@ void SceneGame::Update(const float elapsedTime)
     Camera* activeCam{ CameraController::Instance().GetActiveCamera().get() };
 
     if (m_player) {
-        if (m_mainCamera)
-        {
-            float mouseX, mouseY;
-            SDL_GetMouseState(&mouseX, &mouseY);
-
-            float screenW = Config::DEFAULT_SCREEN_W;
-            float screenH = Config::DEFAULT_SCREEN_H;
-            if (auto window = Framework::Instance()->GetMainWindow()) {
-                screenW = static_cast<float>(window->GetWidth());
-                screenH = static_cast<float>(window->GetHeight());
-            }
-
-            DirectX::XMMATRIX view = DirectX::XMLoadFloat4x4(&m_mainCamera->GetView());
-            DirectX::XMMATRIX proj = DirectX::XMLoadFloat4x4(&m_mainCamera->GetProjection());
-            DirectX::XMMATRIX world = DirectX::XMMatrixIdentity();
-
-            DirectX::XMVECTOR nearPoint = DirectX::XMVectorSet(mouseX, mouseY, 0.0f, 0.0f);
-            DirectX::XMVECTOR farPoint = DirectX::XMVectorSet(mouseX, mouseY, 1.0f, 0.0f);
-
-            nearPoint = DirectX::XMVector3Unproject(nearPoint, 0, 0, screenW, screenH, 0.0f, 1.0f, proj, view, world);
-            farPoint = DirectX::XMVector3Unproject(farPoint, 0, 0, screenW, screenH, 0.0f, 1.0f, proj, view, world);
-
-            DirectX::XMVECTOR rayDir = DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(farPoint, nearPoint));
-            DirectX::XMFLOAT3 origin, dir;
-            DirectX::XMStoreFloat3(&origin, nearPoint);
-            DirectX::XMStoreFloat3(&dir, rayDir);
-
-            if (abs(dir.y) > 0.001f) {
-                float gunHeight = m_player->GetPosition().y + PlayerConst::BulletSpawnY;
-                float t = (gunHeight - origin.y) / dir.y;
-
-                DirectX::XMFLOAT3 trueMouseWorldPos = {
-                    origin.x + dir.x * t,
-                    gunHeight,
-                    origin.z + dir.z * t
-                };
-
-                m_player->RotateModelToPoint(trueMouseWorldPos);
-            }
-        }
-
         m_player->Update(elapsedTime, activeCam);
         if (m_navi) m_navi->Update(elapsedTime, activeCam);
     }

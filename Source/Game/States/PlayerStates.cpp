@@ -16,26 +16,50 @@
 #include "EffectManager.h"
 
 namespace {
-    // [[nodiscard]] forces the caller to check if a state transition actually happened.
-    // Passed by raw pointer because the state machine doesn't own the player.
+    [[nodiscard]] bool IsDashInputTriggered() noexcept
+    {
+        auto& input{ Input::Instance() };
+
+        // Keyboard Check
+        const bool isKeyboardDash{ input.GetKeyboard().IsTriggered(VK_SHIFT) };
+
+        // Gamepad Check (LB = Left Shoulder)
+        // Use GetButtonDown() so it only triggers exactly on the frame it is pressed.
+        const bool isGamepadDash{ (input.GetGamePad().GetButtonDown() & GamePad::BTN_LEFT_SHOULDER) != 0 };
+
+        return isKeyboardDash || isGamepadDash;
+    }
+
+    [[nodiscard]] bool IsShootInputPressed() noexcept
+    {
+        auto& input{ Input::Instance() };
+
+        // Keyboard/Mouse Check (Left Click)
+        const bool isMouseShoot{ input.GetKeyboard().IsPress(VK_LBUTTON) };
+
+        // Gamepad Check (RT = Right Trigger)
+        // BUG ANTICIPATION: The "Hair Trigger" Bug. 
+        // Triggers are analog (0.0f to 1.0f). If we check > 0.0f, resting a finger will fire the gun.
+        // We use a 50% deadzone threshold so it acts like a confident, digital button press.
+        constexpr float triggerThreshold{ 0.5f };
+        const bool isGamepadShoot{ input.GetGamePad().GetTriggerR() > triggerThreshold };
+
+        return isMouseShoot || isGamepadShoot;
+    }
+
+    // --- COMBAT ACTION ROUTINE ---
+
     [[nodiscard]] bool TryExecuteCombatAction(Player* player, bool allowShoot = true)
     {
-        // 1. Anticipate Nullptr Bug: Always validate pointers before dereferencing.
+        // Anticipate Nullptr Bug
         if (!player || !player->IsInputEnabled()) return false;
 
-        // 2. The Input Bug Fix: We use VK_LBUTTON for Left Mouse Button.
-        // NOTE: If your Input::Instance() separates Keyboard and Mouse, change GetKeyboard() to GetMouse()!
-        // Using GetKeyboard() to check a mouse click is semantically dangerous.
-        auto& input{ Input::Instance().GetKeyboard() };
-
-        const bool isShootInput{ input.IsPress(VK_LBUTTON) };
-
-        if (!isShootInput) return false;
+        // Centralized Input Check
+        if (!IsShootInputPressed()) return false;
 
         CollisionManager* const colMgr{ player->GetCollisionManager() };
         if (colMgr)
         {
-            // 3. Brace Initialization prevents narrowing conversions and garbage data.
             const DirectX::XMFLOAT3 pPos{ player->GetMovement()->GetPosition() };
             const DirectX::XMFLOAT3 aimPos{ player->GetAimTarget() };
 
@@ -45,7 +69,7 @@ namespace {
 
             DirectX::XMFLOAT3 aimDir{ 0.0f, 0.0f, 1.0f }; // Fallback forward direction
 
-            // 4. Anticipate Math Error: Prevent Divide-by-Zero
+            // Anticipate Math Error: Prevent Divide-by-Zero
             if (aimDistSq > 0.0001f)
             {
                 const float aimDist{ std::sqrt(aimDistSq) };
@@ -95,7 +119,6 @@ namespace {
                 if (parryTarget) {
                     parryBullet->SetHomingTarget(parryTarget);
                     tPos = parryTarget->GetPosition();
-                    // Avoid unnecessary vector copies; use XMLoadFloat3 safely.
                     speed = DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
                     if (speed < 10.0f) speed = 30.0f;
                 }
@@ -151,17 +174,17 @@ void PlayerIdle::Update(Player* player, float dt)
 {
     if (!player->IsInputEnabled()) return;
 
-    // 1. Dash Priority
-    if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && (player->canDash || player->IsPowerUncapped()))
+    // Dash Priority (Seamlessly checks Keyboard and Gamepad LB)
+    if (IsDashInputTriggered() && (player->canDash || player->IsPowerUncapped()))
     {
         player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerDash>());
         return;
     }
 
-    // 2. Combat Priority (Handled by our DRY helper!)
+    // Combat Priority
     if (TryExecuteCombatAction(player)) return;
 
-    // 3. Movement Fallback
+    // Movement Fallback
     if (player->IsMoving())
     {
         player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerMoving>());
@@ -183,24 +206,23 @@ void PlayerMoving::Update(Player* player, float dt)
 
     if (player->IsInputEnabled())
     {
-        // 1. Dash Priority
-        if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && (player->canDash || player->IsPowerUncapped()))
+        // Dash Priority
+        if (IsDashInputTriggered() && (player->canDash || player->IsPowerUncapped()))
         {
             player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerDash>());
             return;
         }
 
-        // 2. Combat Priority (Perfectly synchronized with Idle!)
+        // Combat Priority
         if (TryExecuteCombatAction(player)) return;
     }
 
-    // 3. Idle Fallback
+    // Idle Fallback
     if (!player->IsMoving())
     {
         player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerIdle>());
     }
 }
-
 // ============================================================
 // DASH
 // ============================================================
@@ -364,8 +386,8 @@ void PlayerShoot::Enter(Player* player)
 
 void PlayerShoot::Update(Player* player, float dt)
 {
-    // 1. Dash Lockout Prevention
-    if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && (player->canDash || player->IsPowerUncapped()))
+    // Dash Lockout Prevention
+    if (IsDashInputTriggered() && (player->canDash || player->IsPowerUncapped()))
     {
         player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerDash>());
         return;
@@ -374,12 +396,10 @@ void PlayerShoot::Update(Player* player, float dt)
     m_timer -= dt;
     m_minTapCooldown -= dt;
 
-    auto& input{ Input::Instance().GetKeyboard() };
-    const bool isHolding{ input.IsPress(VK_LBUTTON) };
+    // Use our new global tracker instead of hardcoding VK_LBUTTON
+    const bool isHolding{ IsShootInputPressed() };
 
-    // 2. The Tap-Fire Reward Logic (Early Exit)
-    // If the player releases the button, we abort the hold penalty.
-    // However, we MUST wait for the minimum tap cooldown to prevent a spam-click exploit!
+    // The Tap-Fire Reward Logic (Early Exit)
     if (!isHolding && m_minTapCooldown <= 0.0f)
     {
         if (player->IsMoving())
@@ -389,7 +409,7 @@ void PlayerShoot::Update(Player* player, float dt)
         return;
     }
 
-    // 3. The Continuous Hold Logic
+    // The Continuous Hold Logic
     if (m_timer <= 0.0f)
     {
         if (isHolding)

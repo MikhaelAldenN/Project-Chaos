@@ -475,38 +475,6 @@ void SceneBoss::Update(float elapsedTime)
     // --- Player update ---
     if (m_player)
     {
-        const DirectX::XMFLOAT3 floorPos = Beyond::InputHelper::GetMouseWorldPos(m_mainCamera->GetPosition());
-        const DirectX::XMFLOAT3 camPos = m_mainCamera->GetPosition();
-
-        // Reconstruct the 3D ray going from the camera down to that floor point
-        DirectX::XMFLOAT3 rayDir = {
-            floorPos.x - camPos.x,
-            floorPos.y - camPos.y,
-            floorPos.z - camPos.z
-        };
-
-        // Find where that ray intersects the gun's exact height instead of the floor
-        float gunHeight = m_player->GetPosition().y + PlayerConst::BulletSpawnY;
-
-        if (std::abs(rayDir.y) > 0.001f)
-        {
-            // Calculate the distance along the ray to the chest-height plane
-            float t = (gunHeight - camPos.y) / rayDir.y;
-
-            DirectX::XMFLOAT3 trueMouseWorldPos = {
-                camPos.x + rayDir.x * t,
-                gunHeight,
-                camPos.z + rayDir.z * t
-            };
-
-            m_player->RotateModelToPoint(trueMouseWorldPos);
-        }
-        else
-        {
-            // Safety fallback
-            m_player->RotateModelToPoint(floorPos);
-        }
-
         m_player->Update(scaledDt, activeCam);
     }
 
