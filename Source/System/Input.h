@@ -1,7 +1,10 @@
 #pragma once
 
+#include <algorithm>
 #include <memory>
+#include <cmath>
 #include <cstdint> 
+#include <windows.h>
 #include "System/GamePad.h"
 #include "System/Mouse.h"
 #include "System/Keyboard.h"
@@ -43,4 +46,11 @@ private:
 
     // Will hold its state across all scene changes
     InputDevice m_lastUsedDevice{ InputDevice::Keyboard };
+
+	// Hardware sync state 
+    bool m_isCursorVisible{ true };
+    POINT m_lastMousePos{};
+
+    // Hardware sync routine
+    void UpdateCursorVisibility() noexcept;
 };
