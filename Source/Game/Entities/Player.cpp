@@ -359,38 +359,74 @@ void Player::UpdateDashCooldown(float dt)
 
 void Player::HandleMovementInput(float dt)
 {
-    float targetX = 0.0f;
-    float targetZ = 0.0f;
-
-    if (isInputEnabled) {
-        if (GetAsyncKeyState('W') & 0x8000) targetZ = 1.0f;
-        if (GetAsyncKeyState('S') & 0x8000) targetZ = -1.0f;
-        if (GetAsyncKeyState('A') & 0x8000) targetX = -1.0f;
-        if (GetAsyncKeyState('D') & 0x8000) targetX = 1.0f;
-    }
-    if (invertControls) { targetX = -targetX; targetZ = -targetZ; }
-
-    // Normalize diagonal input
-    if (targetX != 0.0f && targetZ != 0.0f)
+    // 1. Fast early exit (Zero runtime cost for subsequent logic if disabled)
+    if (!isInputEnabled)
     {
-        float len = std::sqrt(targetX * targetX + targetZ * targetZ);
-        targetX /= len;
-        targetZ /= len;
+        currentSmoothInput = { 0.0f, 0.0f };
+        return;
     }
 
-    // Smooth acceleration / deceleration
-    float smoothX = (targetX != 0.0f) ? acceleration : deceleration;
-    float smoothZ = (targetZ != 0.0f) ? acceleration : deceleration;
+    // 2. Fetch Analog Stick Data (Uniform Brace Initialization to prevent narrowing)
+    const GamePad& gamePad{ Input::Instance().GetGamePad() };
+    float targetX{ gamePad.GetAxisLX() };
+    float targetZ{ gamePad.GetAxisLY() };
+
+    // 3. Epsilon check (Defends against analog stick hardware drift)
+    constexpr float inputEpsilon{ 0.01f };
+    const bool isGamepadIdle{ std::abs(targetX) < inputEpsilon && std::abs(targetZ) < inputEpsilon };
+
+    // 4. Fallback to Keyboard if Gamepad is idle (Clean input hierarchy)
+    if (isGamepadIdle)
+    {
+        targetX = 0.0f;
+        targetZ = 0.0f;
+        if (GetAsyncKeyState('W') & 0x8000) targetZ += 1.0f;
+        if (GetAsyncKeyState('S') & 0x8000) targetZ -= 1.0f;
+        if (GetAsyncKeyState('A') & 0x8000) targetX -= 1.0f;
+        if (GetAsyncKeyState('D') & 0x8000) targetX += 1.0f;
+    }
+
+    // 5. Apply Inversion cleanly
+    if (invertControls)
+    {
+        targetX = -targetX;
+        targetZ = -targetZ;
+    }
+
+    // 6. Vector Math & Normalization Guard (Defends against the "Diagonal Speed" Bug)
+    const float sqLength{ (targetX * targetX) + (targetZ * targetZ) };
+    if (sqLength > 1.0f)
+    {
+        // Clamp magnitude to 1.0f using reciprocal multiplication (Optimized for compiler fast-math)
+        const float invLength{ 1.0f / std::sqrt(sqLength) };
+        targetX *= invLength;
+        targetZ *= invLength;
+    }
+    else if (sqLength > 0.0f && isGamepadIdle)
+    {
+        // Keyboard inputs are purely digital; normalize them perfectly to 1.0
+        const float invLength{ 1.0f / std::sqrt(sqLength) };
+        targetX *= invLength;
+        targetZ *= invLength;
+    }
+    // (Note: If it's a gamepad and sqLength <= 1.0f, we KEEP the magnitude to allow analog "slow walking")
+
+    // 7. Smooth acceleration / deceleration
+    const float smoothX{ (std::abs(targetX) > inputEpsilon) ? acceleration : deceleration };
+    const float smoothZ{ (std::abs(targetZ) > inputEpsilon) ? acceleration : deceleration };
+
     currentSmoothInput.x += (targetX - currentSmoothInput.x) * smoothX * dt;
     currentSmoothInput.y += (targetZ - currentSmoothInput.y) * smoothZ * dt;
 
-    // Snap to zero below threshold to avoid float drift
-    if (std::abs(currentSmoothInput.x) < 0.01f) currentSmoothInput.x = 0.0f;
-    if (std::abs(currentSmoothInput.y) < 0.01f) currentSmoothInput.y = 0.0f;
+    // 8. Snap to zero below threshold (Defends against creeping floating-point drift over time)
+    if (std::abs(currentSmoothInput.x) < inputEpsilon) currentSmoothInput.x = 0.0f;
+    if (std::abs(currentSmoothInput.y) < inputEpsilon) currentSmoothInput.y = 0.0f;
 
-    // Track last non-zero input direction (used by dash for launch direction)
-    if (targetX != 0.0f || targetZ != 0.0f)
+    // 9. Track last non-zero input direction (Vital for your Dash mechanic)
+    if (std::abs(targetX) > inputEpsilon || std::abs(targetZ) > inputEpsilon)
+    {
         lastValidInput = { targetX, targetZ };
+    }
 }
 
 void Player::UpdateHorizontalMovement(float dt)
