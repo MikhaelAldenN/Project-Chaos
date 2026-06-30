@@ -179,14 +179,13 @@ void UIDialogueBox::Update(float dt)
     {
         input.SetLastUsedDevice(InputDevice::Gamepad);
     }
-    else if (keyboard.IsTriggered(VK_SPACE) || keyboard.IsTriggered(VK_RETURN))
+    else if (keyboard.IsTriggered(VK_SPACE))
     {
         input.SetLastUsedDevice(InputDevice::Keyboard);
     }
 
     // Bug Fix: Check both devices simultaneously
     const bool isConfirmPressed = keyboard.IsTriggered(VK_SPACE) ||
-        keyboard.IsTriggered(VK_RETURN) ||
         ((gamepad.GetButtonDown() & GamePad::BTN_A) != 0);
 
     if (m_state == State::Typing)
