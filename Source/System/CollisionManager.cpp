@@ -908,57 +908,70 @@ bool CollisionManager::CheckSphereCollision(const DirectX::XMFLOAT3& posA, const
     return distSq < thresholdSq;
 }
 
-Enemy* CollisionManager::GetTargetInSlashCone(const DirectX::XMFLOAT3& playerPos, const DirectX::XMFLOAT3& aimDir, float reach, float minDotProduct) const
+Enemy* CollisionManager::GetTargetInSlashCone(const DirectX::XMFLOAT3& playerPos, const DirectX::XMFLOAT3& aimDir, float baseReach, float minDotProduct) const
 {
     if (!m_enemyManager) return nullptr;
 
     Enemy* bestTarget{ nullptr };
     float closestDistSq{ (std::numeric_limits<float>::max)() };
 
-    // Range-based for loop. Using const auto& prevents unnecessary deep copies of smart pointers.
     for (const auto& enemy : m_enemyManager->GetEnemies())
     {
         if (!enemy || !enemy->IsActive()) continue;
 
-        DirectX::XMFLOAT3 ePos{ enemy->GetPosition() };
-        float enemyScale{ enemy->GetScale().x };
+        const DirectX::XMFLOAT3 ePos{ enemy->GetPosition() };
+        const float enemyScale{ enemy->GetScale().x };
         float enemyRadius{ 1.0f * enemyScale };
 
         if (enemy->GetType() == EnemyType::Pentagon) enemyRadius = 4.0f * enemyScale;
         else if (enemy->GetType() == EnemyType::Paddle) enemyRadius = 1.2f * enemyScale;
 
-        float exactSlashDistance{ 0.5f + enemyRadius + reach };
-        float exactSlashDistSq{ exactSlashDistance * exactSlashDistance };
+        // =========================================================
+        // DYNAMIC HITBOX & TERNARY OPTIMIZATION
+        // Kamikazes get a 3.5x reach multiplier to combat tunneling.
+        // Using const initialization ensures zero mutation overhead.
+        // =========================================================
+        const bool isKamikaze{ enemy->GetAttackType() == AttackType::Tracking };
+        const float dynamicReach{ isKamikaze ? (baseReach * 3.5f) : baseReach };
 
-        float dx{ ePos.x - playerPos.x };
-        float dz{ ePos.z - playerPos.z };
-        float distSq{ (dx * dx) + (dz * dz) };
+        const float exactSlashDistance{ 0.5f + enemyRadius + dynamicReach };
+        const float exactSlashDistSq{ exactSlashDistance * exactSlashDistance };
 
-        // BUG ANTICIPATION 1: Fast fail. Check squared distance first to avoid heavy CPU math (sqrt).
+        const float dx{ ePos.x - playerPos.x };
+        const float dz{ ePos.z - playerPos.z };
+        const float distSq{ (dx * dx) + (dz * dz) };
+
+        // Fast fail distance check before expensive sqrt
         if (distSq < exactSlashDistSq && distSq > 0.0001f)
         {
-            // It is near us! Now we do the heavy math to see if we are aiming AT it.
-            float dist{ std::sqrt(distSq) };
-            float dirX{ dx / dist };
-            float dirZ{ dz / dist };
+            const float dist{ std::sqrt(distSq) };
+            const float dirX{ dx / dist };
+            const float dirZ{ dz / dist };
 
-            // Dot Product calculates the angle between our cursor and the enemy.
-            // 1.0 means looking dead at them. 0.0 means they are 90 degrees to our side.
-            float dot{ (dirX * aimDir.x) + (dirZ * aimDir.z) };
+            const float dot{ (dirX * aimDir.x) + (dirZ * aimDir.z) };
 
+            // STRICT FACING CHECK: If the dot product is less than the threshold 
+            // (e.g. Kamikaze is behind the player), this fails entirely. Player dies.
             if (dot >= minDotProduct)
             {
-                // BUG ANTICIPATION 2: If 3 enemies are stacked, only hit the closest one!
-                if (distSq < closestDistSq)
+                // =========================================================
+                // TARGET PRIORITIZATION (SHIELDING BUG PREVENTION)
+                // If it's a Kamikaze, we artificially multiply its distance
+                // by 0.1f during the comparison. This guarantees the Kamikaze
+                // wins the `bestTarget` check over standard enemies.
+                // =========================================================
+                const float prioritizationDistSq{ isKamikaze ? (distSq * 0.1f) : distSq };
+
+                if (prioritizationDistSq < closestDistSq)
                 {
-                    closestDistSq = distSq;
+                    closestDistSq = prioritizationDistSq;
                     bestTarget = enemy.get();
                 }
             }
         }
     }
 
-    return bestTarget; // Returns nullptr if nothing was aimed at
+    return bestTarget;
 }
 
 bool CollisionManager::GetParryableProjectile(const XMFLOAT3& playerPos, float threshold, Bullet** outBullet, Enemy** outNearestEnemy)

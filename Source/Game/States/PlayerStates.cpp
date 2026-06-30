@@ -84,7 +84,19 @@ namespace {
                 player->SetAimLocked(true);
 
                 player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerSlash>());
-                slashTarget->TakeDamage(30);
+
+                // =========================================================
+                // THE FIX: EXECUTION SCALING
+                // Standard enemies take normal damage. Kamikazes take fatal 
+                // damage (9999) to ensure they cannot survive the counter-attack 
+                // and revenge-kill the player. Ternary evaluation ensures zero branching overhead.
+                // =========================================================
+                constexpr int MELEE_DAMAGE{ 30 };
+                const bool isKamikaze{ slashTarget->GetAttackType() == AttackType::Tracking };
+                const int finalDamage{ isKamikaze ? 9999 : MELEE_DAMAGE };
+
+                slashTarget->TakeDamage(finalDamage);
+
                 return true;
             }
 
@@ -312,13 +324,22 @@ void PlayerSlash::Enter(Player* player)
     player->SetActiveWeapon(Player::WeaponType::Sword);
     player->GetAnimator()->PlayUpper("Parry", false);
 
-    float yawRad = XMConvertToRadians(player->GetMovement()->GetRotation().y);
+    // Brace initialization to prevent narrowing conversions
+    const float yawRad{ DirectX::XMConvertToRadians(player->GetMovement()->GetRotation().y) };
 
     player->GetMovement()->SetVelocity({
-        sinf(yawRad) * PlayerConst::SlashLungeForce,
+        std::sin(yawRad) * PlayerConst::SlashLungeForce,
         0.0f,
-        cosf(yawRad) * PlayerConst::SlashLungeForce
+        std::cos(yawRad) * PlayerConst::SlashLungeForce
         });
+
+    // =========================================================
+    // THE FIX: MELEE ARMOR (I-FRAMES)
+    // Grant brief invulnerability during the forward lunge.
+    // If the Kamikaze explodes on contact, the player is immune.
+    // =========================================================
+    constexpr float SLASH_IFRAME_DURATION{ 0.3f };
+    player->TriggerInvincibility(SLASH_IFRAME_DURATION);
 }
 
 void PlayerSlash::Update(Player* player, float dt)
@@ -396,8 +417,19 @@ void PlayerShoot::Update(Player* player, float dt)
     m_timer -= dt;
     m_minTapCooldown -= dt;
 
-    // Use our new global tracker instead of hardcoding VK_LBUTTON
     const bool isHolding{ IsShootInputPressed() };
+
+    // =========================================================
+    // BUG FIX: DECOUPLE MELEE FROM FIRE RATE
+    // By checking this outside the m_timer block, the player can 
+    // instantly snap into a slash animation the exact frame a 
+    // Kamikaze enters the danger zone, bypassing gun cooldowns.
+    // =========================================================
+    if (isHolding)
+    {
+        // allowShoot = false ensures we only check for slashes/parries here
+        if (TryExecuteCombatAction(player, false)) return;
+    }
 
     // The Tap-Fire Reward Logic (Early Exit)
     if (!isHolding && m_minTapCooldown <= 0.0f)
@@ -409,14 +441,11 @@ void PlayerShoot::Update(Player* player, float dt)
         return;
     }
 
-    // The Continuous Hold Logic
+    // The Continuous Hold Logic (For Bullets Only)
     if (m_timer <= 0.0f)
     {
         if (isHolding)
         {
-            // Melee Proximity Override
-            if (TryExecuteCombatAction(player, false)) return;
-
             // Lower-Body Animation Sync
             if (player->IsMoving()) {
                 player->GetAnimator()->SetPlaybackSpeed(player->IsBackpedaling() ? -1.0f : 1.0f);
