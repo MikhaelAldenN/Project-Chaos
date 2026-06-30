@@ -175,6 +175,11 @@ SceneGame::SceneGame()
         }
         });
 
+    m_collisionManager->SetOnCheckpointReachCallback([this](DirectX::XMFLOAT3 pos) {
+        m_currentCheckpointPos = pos;
+        m_hasCheckpoint = true;
+    });
+
     m_director = std::make_unique<CinematicDirector>();
 
     m_postProcess = std::make_unique<PostProcessManager>();
@@ -365,47 +370,6 @@ void SceneGame::Update(const float elapsedTime)
     Camera* activeCam{ CameraController::Instance().GetActiveCamera().get() };
 
     if (m_player) {
-        if (m_mainCamera)
-        {
-            float mouseX, mouseY;
-            SDL_GetMouseState(&mouseX, &mouseY);
-
-            float screenW = Config::DEFAULT_SCREEN_W;
-            float screenH = Config::DEFAULT_SCREEN_H;
-            if (auto window = Framework::Instance()->GetMainWindow()) {
-                screenW = static_cast<float>(window->GetWidth());
-                screenH = static_cast<float>(window->GetHeight());
-            }
-
-            DirectX::XMMATRIX view = DirectX::XMLoadFloat4x4(&m_mainCamera->GetView());
-            DirectX::XMMATRIX proj = DirectX::XMLoadFloat4x4(&m_mainCamera->GetProjection());
-            DirectX::XMMATRIX world = DirectX::XMMatrixIdentity();
-
-            DirectX::XMVECTOR nearPoint = DirectX::XMVectorSet(mouseX, mouseY, 0.0f, 0.0f);
-            DirectX::XMVECTOR farPoint = DirectX::XMVectorSet(mouseX, mouseY, 1.0f, 0.0f);
-
-            nearPoint = DirectX::XMVector3Unproject(nearPoint, 0, 0, screenW, screenH, 0.0f, 1.0f, proj, view, world);
-            farPoint = DirectX::XMVector3Unproject(farPoint, 0, 0, screenW, screenH, 0.0f, 1.0f, proj, view, world);
-
-            DirectX::XMVECTOR rayDir = DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(farPoint, nearPoint));
-            DirectX::XMFLOAT3 origin, dir;
-            DirectX::XMStoreFloat3(&origin, nearPoint);
-            DirectX::XMStoreFloat3(&dir, rayDir);
-
-            if (abs(dir.y) > 0.001f) {
-                float gunHeight = m_player->GetPosition().y + PlayerConst::BulletSpawnY;
-                float t = (gunHeight - origin.y) / dir.y;
-
-                DirectX::XMFLOAT3 trueMouseWorldPos = {
-                    origin.x + dir.x * t,
-                    gunHeight,
-                    origin.z + dir.z * t
-                };
-
-                m_player->RotateModelToPoint(trueMouseWorldPos);
-            }
-        }
-
         m_player->Update(elapsedTime, activeCam);
         if (m_navi) m_navi->Update(elapsedTime, activeCam);
     }
@@ -453,9 +417,9 @@ void SceneGame::Update(const float elapsedTime)
             // FASE 2: Kamera sampai. Munculin dialog dan STOP Timer!
             m_bossDialogueStarted = true;
             std::vector<std::string> dialogPages = {
-                u8"えっ…？ 何あのキノコ…。\n他のやつらより、ずっと大きい……？",
-                u8"ちょっと待って、様子がおかしいわ。\nなんか…膨らんでない！？",
-                u8"きゃあああああっ！？\n毒ガス！？ ごほっ、げほっ…！"
+                u8"えっ...？ 何あのキノコ...。\n他のやつらより、ずっと大きい...？",
+                u8"ちょっと待って、様子がおかしいわ。\nなんか...膨らんでない！？",
+                u8"きゃあああああっ！？\n毒ガス！？ ごほっ、げほっ...！"
             };
             // Terjemahan kasarnya:
             // 1. Eh...? Jamur apa itu... Jauh lebih besar dari yang lain?
@@ -723,9 +687,9 @@ void SceneGame::StartIntroDialogueTest()
     {
         // Masukkan dialog per halaman/tekanan tombol
         std::vector<std::string> dialogPages = {
-            u8"目を覚まして。戦いの時間が来たわ。\n「Space」で攻撃よ。遠くの敵は撃ち抜き、\n近づけばその刃で斬り裂くの。",
+            u8"目を覚まして。戦いの時間が来たわ。\n{ATK}で攻撃よ。遠くの敵は撃ち抜き、\n近づけばその刃で斬り裂くの。",
             u8"そして、よく覚えておいて。\nいずれそのキーは、敵の牙を弾き返す\n「Parry」の要にもなるわ。魂に刻み込んで。",
-            u8"次は「Shift」を試して。\n風のように「Dash」して、敵の弾幕をすり抜けるのよ。\n\nさあ、あなたの力を見せて。"
+            u8"次は{DASH}を試して。\n風のように「Dash」して、敵の弾幕をすり抜けるのよ。\n\nさあ、あなたの力を見せて。"
         };
 
         m_dialogueBox->SetPosition(536.0f, 750.0f);
@@ -776,16 +740,27 @@ void SceneGame::StartPoisonDialogue()
         m_dialogueBox->StartDialogue(dialogPages);
     }
 }
+
 void SceneGame::ResetLevel()
 {
     const bool isBossStage = m_bossCinematicTriggered;
 
     // 1. Calculate Respawn Position
     DirectX::XMFLOAT3 respawnPos = m_playerSpawnPos;
-    if (isBossStage && m_stage && !m_stage->m_linesEnable.empty())
+
+    if (isBossStage)
     {
-        const auto& line = m_stage->m_linesEnable[0];
-        respawnPos = { line.Position.x, m_playerSpawnPos.y, line.Position.z };
+        // If Navi is poisoned / Boss stage is active, respawn exactly where you died
+        if (m_player)
+        {
+            respawnPos = m_player->GetPosition(); 
+            respawnPos.y = m_playerSpawnPos.y; 
+        }
+    }
+    else if (m_hasCheckpoint)
+    {
+        // Normal stage progression still uses your checkpoint lines
+        respawnPos = { m_currentCheckpointPos.x, m_playerSpawnPos.y, m_currentCheckpointPos.z };
     }
 
     // 2. Reset Player State
@@ -805,13 +780,8 @@ void SceneGame::ResetLevel()
     {
         if (m_enemyManager)
         {
-            m_enemyManager->GetEnemies().clear();
-            m_enemyManager->Initialize(Graphics::Instance().GetDevice());
-        }
-        if (m_itemManager)
-        {
-            m_itemManager->GetItems().clear();
-            m_itemManager->Initialize(Graphics::Instance().GetDevice());
+           // Revive Kamikazes that successfully hit and killed the player.
+            m_enemyManager->ReviveKamikazes();
         }
     }
 
@@ -824,7 +794,6 @@ void SceneGame::ResetLevel()
         // Position Navi near Player
         m_navi->SetPosition({ respawnPos.x + 1.0f, respawnPos.y + 2.0f, respawnPos.z + 0.5f });
 
-        // --- NEW: TRIGGER DELAY ON RESPAWN ---
         if (isBossStage)
         {
             m_navi->StartAttackDelay(3.0f);
@@ -930,6 +899,8 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
         m_postProcess->EndCapture(elapsedTime);
     }
 
+    DrawGUI();
+
     if (m_dialogueBox)
     {
         m_dialogueBox->Render(dc);
@@ -1024,7 +995,112 @@ void SceneGame::RenderScene(const float elapsedTime, Camera* camera)
 
 void SceneGame::DrawGUI()
 {
-    //GameBreakerGUI::Draw(this); 
+    if (!m_stage) return;
+
+    // --- FIX: Create the actual ImGui Window ---
+    ImGui::Begin("Stage Debug Inspector");
+
+    ImGui::Spacing();
+    if (ImGui::CollapsingHeader("Debug Line Transform", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        // Clear highlights every frame; they will be set to true below if a node is open
+        m_stage->ClearLineHighlight();
+
+        ImGui::Indent();
+        ImGui::TextDisabled("Lines are X-Axis aligned. Scale.X = Length.");
+        ImGui::TextDisabled("Yellow = Currently Editing");
+
+        // Reusable Lambda function for rendering each line category
+        auto DrawLineCategory = [&](const char* categoryName, std::vector<DebugLineData>& lines,
+            const char* codePrefix, DebugLineType type, int idSeed)
+            {
+                ImGui::PushID(idSeed);
+
+                if (ImGui::CollapsingHeader(categoryName))
+                {
+                    ImGui::Indent();
+                    for (int i = 0; i < lines.size(); ++i)
+                    {
+                        auto& line = lines[i];
+                        char label[64];
+                        snprintf(label, 64, "%s #%d", codePrefix, i + 1);
+
+                        ImGui::PushID(i);
+
+                        bool isNodeOpen = ImGui::TreeNode(label);
+
+                        if (isNodeOpen)
+                        {
+                            // Send highlight trigger back to Stage renderer
+                            m_stage->SetLineHighlight(type, i);
+
+                            ImGui::DragFloat3("Pos", &line.Position.x, 0.1f);
+                            ImGui::DragFloat3("Rot", &line.Rotation.x, 0.1f);
+                            ImGui::DragFloat("Length", &line.Scale.x, 0.1f);
+
+                            if (ImGui::Button("Copy Value"))
+                            {
+                                char buffer[256];
+                                snprintf(buffer, sizeof(buffer),
+                                    "// Line %s %d\n{ {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g}, {%.6g,%.6g,%.6g} },",
+                                    codePrefix, i + 1,
+                                    line.Position.x, line.Position.y, line.Position.z,
+                                    line.Rotation.x, line.Rotation.y, line.Rotation.z,
+                                    line.Scale.x, line.Scale.y, line.Scale.z);
+                                ImGui::SetClipboardText(buffer);
+                            }
+
+                            ImGui::SameLine();
+                            if (ImGui::Button("Delete")) {
+                                lines.erase(lines.begin() + i);
+                                ImGui::TreePop();
+                                ImGui::PopID();
+                                break; // Break to avoid iterator invalidation crash
+                            }
+
+                            ImGui::TreePop();
+                        }
+                        ImGui::PopID();
+                    }
+
+                    if (ImGui::Button("+ Add Line"))
+                    {
+                        m_stage->AddDebugLine(type);
+                    }
+                    ImGui::Unindent();
+                }
+                ImGui::PopID();
+            };
+
+        // ==========================================
+        // RENDER LINE CATEGORIES WITH COLOR CODING
+        // ==========================================
+
+        // VOID LINES (Cyan)
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 1.0f, 1.0f));
+        DrawLineCategory("Line Void", m_stage->m_linesVoid, "Void", DebugLineType::Void, 2000);
+        ImGui::PopStyleColor();
+
+        // DISABLE LINES (Red)
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+        DrawLineCategory("Line Disable", m_stage->m_linesDisable, "Disable", DebugLineType::Disable, 3000);
+        ImGui::PopStyleColor();
+
+        // ENABLE LINES (Green)
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 1.0f, 0.4f, 1.0f));
+        DrawLineCategory("Line Enable", m_stage->m_linesEnable, "Enable", DebugLineType::Enable, 4000);
+        ImGui::PopStyleColor();
+
+        // CHECKPOINT LINES (Blue)
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 0.6f, 1.0f, 1.0f));
+        DrawLineCategory("Line Checkpoint", m_stage->m_linesCheckpoint, "CheckPoint", DebugLineType::Checkpoint, 5000);
+        ImGui::PopStyleColor();
+
+        ImGui::Unindent();
+    }
+
+    // --- FIX: End the ImGui Window ---
+    ImGui::End(); 
 }
 
 void SceneGame::OnResize(int width, int height)

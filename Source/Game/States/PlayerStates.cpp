@@ -16,26 +16,50 @@
 #include "EffectManager.h"
 
 namespace {
-    // [[nodiscard]] forces the caller to check if a state transition actually happened.
-    // Passed by raw pointer because the state machine doesn't own the player.
+    [[nodiscard]] bool IsDashInputTriggered() noexcept
+    {
+        auto& input{ Input::Instance() };
+
+        // Keyboard Check
+        const bool isKeyboardDash{ input.GetKeyboard().IsTriggered(VK_SHIFT) };
+
+        // Gamepad Check (LB = Left Shoulder)
+        // Use GetButtonDown() so it only triggers exactly on the frame it is pressed.
+        const bool isGamepadDash{ (input.GetGamePad().GetButtonDown() & GamePad::BTN_LEFT_SHOULDER) != 0 };
+
+        return isKeyboardDash || isGamepadDash;
+    }
+
+    [[nodiscard]] bool IsShootInputPressed() noexcept
+    {
+        auto& input{ Input::Instance() };
+
+        // Keyboard/Mouse Check (Left Click)
+        const bool isMouseShoot{ input.GetKeyboard().IsPress(VK_LBUTTON) };
+
+        // Gamepad Check (RT = Right Trigger)
+        // BUG ANTICIPATION: The "Hair Trigger" Bug. 
+        // Triggers are analog (0.0f to 1.0f). If we check > 0.0f, resting a finger will fire the gun.
+        // We use a 50% deadzone threshold so it acts like a confident, digital button press.
+        constexpr float triggerThreshold{ 0.5f };
+        const bool isGamepadShoot{ input.GetGamePad().GetTriggerR() > triggerThreshold };
+
+        return isMouseShoot || isGamepadShoot;
+    }
+
+    // --- COMBAT ACTION ROUTINE ---
+
     [[nodiscard]] bool TryExecuteCombatAction(Player* player, bool allowShoot = true)
     {
-        // 1. Anticipate Nullptr Bug: Always validate pointers before dereferencing.
+        // Anticipate Nullptr Bug
         if (!player || !player->IsInputEnabled()) return false;
 
-        // 2. The Input Bug Fix: We use VK_LBUTTON for Left Mouse Button.
-        // NOTE: If your Input::Instance() separates Keyboard and Mouse, change GetKeyboard() to GetMouse()!
-        // Using GetKeyboard() to check a mouse click is semantically dangerous.
-        auto& input{ Input::Instance().GetKeyboard() };
-
-        const bool isShootInput{ input.IsPress(VK_LBUTTON) };
-
-        if (!isShootInput) return false;
+        // Centralized Input Check
+        if (!IsShootInputPressed()) return false;
 
         CollisionManager* const colMgr{ player->GetCollisionManager() };
         if (colMgr)
         {
-            // 3. Brace Initialization prevents narrowing conversions and garbage data.
             const DirectX::XMFLOAT3 pPos{ player->GetMovement()->GetPosition() };
             const DirectX::XMFLOAT3 aimPos{ player->GetAimTarget() };
 
@@ -45,7 +69,7 @@ namespace {
 
             DirectX::XMFLOAT3 aimDir{ 0.0f, 0.0f, 1.0f }; // Fallback forward direction
 
-            // 4. Anticipate Math Error: Prevent Divide-by-Zero
+            // Anticipate Math Error: Prevent Divide-by-Zero
             if (aimDistSq > 0.0001f)
             {
                 const float aimDist{ std::sqrt(aimDistSq) };
@@ -60,7 +84,19 @@ namespace {
                 player->SetAimLocked(true);
 
                 player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerSlash>());
-                slashTarget->TakeDamage(30);
+
+                // =========================================================
+                // THE FIX: EXECUTION SCALING
+                // Standard enemies take normal damage. Kamikazes take fatal 
+                // damage (9999) to ensure they cannot survive the counter-attack 
+                // and revenge-kill the player. Ternary evaluation ensures zero branching overhead.
+                // =========================================================
+                constexpr int MELEE_DAMAGE{ 30 };
+                const bool isKamikaze{ slashTarget->GetAttackType() == AttackType::Tracking };
+                const int finalDamage{ isKamikaze ? 9999 : MELEE_DAMAGE };
+
+                slashTarget->TakeDamage(finalDamage);
+
                 return true;
             }
 
@@ -95,7 +131,6 @@ namespace {
                 if (parryTarget) {
                     parryBullet->SetHomingTarget(parryTarget);
                     tPos = parryTarget->GetPosition();
-                    // Avoid unnecessary vector copies; use XMLoadFloat3 safely.
                     speed = DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMLoadFloat3(&parryBullet->GetVelocity()))) * 2.5f;
                     if (speed < 10.0f) speed = 30.0f;
                 }
@@ -151,17 +186,17 @@ void PlayerIdle::Update(Player* player, float dt)
 {
     if (!player->IsInputEnabled()) return;
 
-    // 1. Dash Priority
-    if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && (player->canDash || player->IsPowerUncapped()))
+    // Dash Priority (Seamlessly checks Keyboard and Gamepad LB)
+    if (IsDashInputTriggered() && (player->canDash || player->IsPowerUncapped()))
     {
         player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerDash>());
         return;
     }
 
-    // 2. Combat Priority (Handled by our DRY helper!)
+    // Combat Priority
     if (TryExecuteCombatAction(player)) return;
 
-    // 3. Movement Fallback
+    // Movement Fallback
     if (player->IsMoving())
     {
         player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerMoving>());
@@ -183,24 +218,23 @@ void PlayerMoving::Update(Player* player, float dt)
 
     if (player->IsInputEnabled())
     {
-        // 1. Dash Priority
-        if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && (player->canDash || player->IsPowerUncapped()))
+        // Dash Priority
+        if (IsDashInputTriggered() && (player->canDash || player->IsPowerUncapped()))
         {
             player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerDash>());
             return;
         }
 
-        // 2. Combat Priority (Perfectly synchronized with Idle!)
+        // Combat Priority
         if (TryExecuteCombatAction(player)) return;
     }
 
-    // 3. Idle Fallback
+    // Idle Fallback
     if (!player->IsMoving())
     {
         player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerIdle>());
     }
 }
-
 // ============================================================
 // DASH
 // ============================================================
@@ -290,13 +324,22 @@ void PlayerSlash::Enter(Player* player)
     player->SetActiveWeapon(Player::WeaponType::Sword);
     player->GetAnimator()->PlayUpper("Parry", false);
 
-    float yawRad = XMConvertToRadians(player->GetMovement()->GetRotation().y);
+    // Brace initialization to prevent narrowing conversions
+    const float yawRad{ DirectX::XMConvertToRadians(player->GetMovement()->GetRotation().y) };
 
     player->GetMovement()->SetVelocity({
-        sinf(yawRad) * PlayerConst::SlashLungeForce,
+        std::sin(yawRad) * PlayerConst::SlashLungeForce,
         0.0f,
-        cosf(yawRad) * PlayerConst::SlashLungeForce
+        std::cos(yawRad) * PlayerConst::SlashLungeForce
         });
+
+    // =========================================================
+    // THE FIX: MELEE ARMOR (I-FRAMES)
+    // Grant brief invulnerability during the forward lunge.
+    // If the Kamikaze explodes on contact, the player is immune.
+    // =========================================================
+    constexpr float SLASH_IFRAME_DURATION{ 0.3f };
+    player->TriggerInvincibility(SLASH_IFRAME_DURATION);
 }
 
 void PlayerSlash::Update(Player* player, float dt)
@@ -357,32 +400,53 @@ void PlayerParry::Exit(Player* player)
 
 void PlayerShoot::Enter(Player* player)
 {
-    // The first shot was already fired by TryExecuteCombatAction before entering.
-    // We pass 'false' because this is the initial trigger, not a held loop.
-    PerformShootInternal(player, false);
+    // Fix the visual gap: We initialize assuming the player WILL hold the button.
+    // This ensures the gap between Shot 1 and Shot 2 matches Shot 2 and Shot 3.
+    PerformShootInternal(player, true);
 }
 
 void PlayerShoot::Update(Player* player, float dt)
 {
-    // 1. Dash Lockout Prevention
-    if (Input::Instance().GetKeyboard().IsTriggered(VK_SHIFT) && (player->canDash || player->IsPowerUncapped()))
+    // Dash Lockout Prevention
+    if (IsDashInputTriggered() && (player->canDash || player->IsPowerUncapped()))
     {
         player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerDash>());
         return;
     }
 
-    timer -= dt;
+    m_timer -= dt;
+    m_minTapCooldown -= dt;
 
-    if (timer <= 0.0f)
+    const bool isHolding{ IsShootInputPressed() };
+
+    // =========================================================
+    // BUG FIX: DECOUPLE MELEE FROM FIRE RATE
+    // By checking this outside the m_timer block, the player can 
+    // instantly snap into a slash animation the exact frame a 
+    // Kamikaze enters the danger zone, bypassing gun cooldowns.
+    // =========================================================
+    if (isHolding)
     {
-        auto& input{ Input::Instance().GetKeyboard() };
+        // allowShoot = false ensures we only check for slashes/parries here
+        if (TryExecuteCombatAction(player, false)) return;
+    }
 
-        if (input.IsPress(VK_LBUTTON))
+    // The Tap-Fire Reward Logic (Early Exit)
+    if (!isHolding && m_minTapCooldown <= 0.0f)
+    {
+        if (player->IsMoving())
+            player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerMoving>());
+        else
+            player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerIdle>());
+        return;
+    }
+
+    // The Continuous Hold Logic (For Bullets Only)
+    if (m_timer <= 0.0f)
+    {
+        if (isHolding)
         {
-            // 2. Melee Proximity Override
-            if (TryExecuteCombatAction(player, false)) return;
-
-            // 3. Lower-Body Animation Sync
+            // Lower-Body Animation Sync
             if (player->IsMoving()) {
                 player->GetAnimator()->SetPlaybackSpeed(player->IsBackpedaling() ? -1.0f : 1.0f);
                 if (!player->GetAnimator()->IsPlaying("RunPistol")) {
@@ -396,25 +460,14 @@ void PlayerShoot::Update(Player* player, float dt)
                 }
             }
 
-            // 4. Fire and loop internally
             player->FireProjectile();
-
-            // [MODIFIED] We are now looping, so we flag isHeld as true
             PerformShootInternal(player, true);
-        }
-        else
-        {
-            if (player->IsMoving())
-                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerMoving>());
-            else
-                player->GetStateMachine()->ChangeState(player, std::make_unique<PlayerIdle>());
         }
     }
 }
 
 void PlayerShoot::PerformShootInternal(Player* player, bool isHeld)
 {
-    // Zero-overhead array initialization
     const std::string shootSounds[]{
         "Data/Sound/SE_Player_Shoot_01.wav",
         "Data/Sound/SE_Player_Shoot_02.wav",
@@ -424,24 +477,31 @@ void PlayerShoot::PerformShootInternal(Player* player, bool isHeld)
     const int randomIndex{ rand() % 3 };
     AudioManager::Instance().PlaySFX(shootSounds[randomIndex], 0.1f);
 
-    float currentDelay{ player->GetShootDelay() };
+    const float baseDelay{ player->GetShootDelay() };
 
     // --- FIRE RATE LOGIC TREE ---
     if (player->IsPowerUncapped())
     {
         // Absolute Priority: Overdrive bypasses all penalties
-        currentDelay = 0.05f;
+        m_minTapCooldown = 0.05f;
+        m_timer = 0.05f;
     }
-    else if (isHeld)
+    else
     {
-        // Compile-time constant for the penalty multiplier.
-        // A value of 1.5f means firing is 50% slower when holding the button.
-        // Adjust this variable to tune the game feel.
-        constexpr float HOLD_PENALTY_MULTIPLIER{ 1.5f };
-        currentDelay *= HOLD_PENALTY_MULTIPLIER;
-    }
+        // Always store the strict minimum delay to prevent spam exploits
+        m_minTapCooldown = baseDelay; 
 
-    timer = currentDelay;
+        if (isHeld)
+        {
+            // Compile-time constant ensures zero runtime cost for the multiplier
+            constexpr float HOLD_PENALTY_MULTIPLIER{ 1.5f };
+            m_timer = baseDelay * HOLD_PENALTY_MULTIPLIER;
+        }
+        else
+        {
+            m_timer = baseDelay;
+        }
+    }
 }
 
 void PlayerShoot::Exit(Player* player)

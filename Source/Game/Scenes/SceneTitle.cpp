@@ -1,23 +1,28 @@
 #include "SceneTitle.h"
 
+namespace {
+    [[nodiscard]] constexpr float CustomLerp(float a, float b, float t) noexcept
+    {
+        // Precise formula which guarantees CustomLerp(a, b, 1.0f) == b
+        return (1.0f - t) * a + t * b;
+    }
+}
+
 SceneTitle::SceneTitle()
 {
     if (auto window{ Framework::Instance()->GetMainWindow() }) {
         SDL_Window* sdlWin = window->GetSDLWindow();
 
         SDL_ShowWindow(sdlWin);
-        // Disable window borders and the ability to resize
         SDL_SetWindowBordered(sdlWin, false);
         SDL_SetWindowResizable(sdlWin, false);
 
-        // Grab monitor size and force the window to match it perfectly
         int fullW = GetSystemMetrics(SM_CXSCREEN);
         int fullH = GetSystemMetrics(SM_CYSCREEN);
         SDL_SetWindowSize(sdlWin, fullW, fullH);
         SDL_SetWindowPosition(sdlWin, 0, 0);
     }
 
-    // 1. Initialize Core Systems
     camera = std::make_unique<Camera>();
     camera->SetOrthographic(1920.0f, 1080.0f, 0.1f, 1000.0f);
     camera->SetPosition(0.0f, 0.0f, -10.0f);
@@ -25,122 +30,224 @@ SceneTitle::SceneTitle()
     postProcess = std::make_unique<PostProcessManager>();
     postProcess->Initialize(1920, 1080);
 
-    m_uberParams.center = { 0.5f, 0.5f };     
-    m_uberParams.roundness = 1.0f;            
-
-    // Standar Resolusi PSX (Bisa diturunin misal ke 640x480 kalo mau lebih retro)
+    m_uberParams.center = { 0.5f, 0.5f };
+    m_uberParams.roundness = 1.0f;
     m_uberParams.psxResWidth = 1920.0f;
     m_uberParams.psxResHeight = 1080.0f;
-    m_uberParams.psxColorDepth = 256.0f;      
+    m_uberParams.psxColorDepth = 256.0f;
     m_uberParams.psxDitherStrength = 1.0f;
 
-    // Load Assets & Finalize Setup
-    bgSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Back_Title.png");
-    logoSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Sprite_Title_Logo.png");
-    copyrightSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Sprite_Title_Copyright.png");
-    startSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Title/Sprite_Title_Start.png");
-    m_fadeSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Game/Black.png");
+    // Load Assets
+    auto device = Graphics::Instance().GetDevice();
+    bgSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Title/Back_Title.png");
+    logoSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Title/Sprite_Title_Logo.png");
+    copyrightSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Title/Sprite_Title_Copyright.png");
+    startSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Title/Sprite_Title_Start.png");
+    m_fadeSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Game/Black.png");
+
+    // Load New Menu Assets
+    m_newGameSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Title/Sprite_Title_Newgame.png");
+    m_optionSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Title/Sprite_Title_Option.png");
+    m_exitSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Title/Sprite_Title_Exit.png");
+    m_primitive = std::make_unique<Primitive>(device);
 }
 
-// =========================================================
-// CORE LOOP
-// =========================================================
+bool SceneTitle::IsUpTriggered() noexcept
+{
+    auto& input = Input::Instance();
+    auto& keyboard = input.GetKeyboard();
+    auto& gamePad = input.GetGamePad();
+
+    // Keyboard Check
+    const bool isKeyboardUp = keyboard.IsTriggered('W') || keyboard.IsTriggered(VK_UP);
+
+    // GamePad D-Pad Check 
+    const bool isGamepadDpadUp = (gamePad.GetButtonDown() & GamePad::BTN_UP) != 0;
+
+    // GamePad Analog Stick Check & Debouncing
+    const float leftY = gamePad.GetAxisLY();
+    const bool isAnalogPushedUp = (leftY > THUMBSTICK_THRESHOLD);
+
+    // The critical Debounce logic: Only true if pushed NOW, but wasn't pushed LAST frame.
+    const bool analogUpTriggered = (isAnalogPushedUp && !m_analogUpWasPressed);
+    m_analogUpWasPressed = isAnalogPushedUp; 
+
+    // --- UPDATE GLOBAL STATE ---
+    if (isKeyboardUp) input.SetLastUsedDevice(InputDevice::Keyboard);
+    if (isGamepadDpadUp || analogUpTriggered) input.SetLastUsedDevice(InputDevice::Gamepad);
+
+    return isKeyboardUp || isGamepadDpadUp || analogUpTriggered;
+}
+
+bool SceneTitle::IsDownTriggered() noexcept
+{
+    auto& input = Input::Instance();
+    auto& keyboard = input.GetKeyboard();
+    auto& gamePad = input.GetGamePad();
+
+    const bool isKeyboardDown = keyboard.IsTriggered('S') || keyboard.IsTriggered(VK_DOWN);
+    const bool isGamepadDpadDown = (gamePad.GetButtonDown() & GamePad::BTN_DOWN) != 0;
+
+    const float leftY = gamePad.GetAxisLY();
+    const bool isAnalogPushedDown = (leftY < -THUMBSTICK_THRESHOLD);
+
+    const bool analogDownTriggered = (isAnalogPushedDown && !m_analogDownWasPressed);
+    m_analogDownWasPressed = isAnalogPushedDown;
+
+    // --- UPDATE GLOBAL STATE ---
+    if (isKeyboardDown) input.SetLastUsedDevice(InputDevice::Keyboard);
+    if (isGamepadDpadDown || analogDownTriggered) input.SetLastUsedDevice(InputDevice::Gamepad);
+
+    return isKeyboardDown || isGamepadDpadDown || analogDownTriggered;
+}
+
+bool SceneTitle::IsConfirmTriggered() noexcept
+{
+    // natively handle single-frame trigger isolation.
+    auto& input = Input::Instance();
+
+    const bool isKeyboardConfirm = input.GetKeyboard().IsTriggered(VK_RETURN) ||
+        input.GetKeyboard().IsTriggered(VK_SPACE);
+
+    const bool isGamepadConfirm = (input.GetGamePad().GetButtonDown() & GamePad::BTN_A) != 0;
+
+    // --- UPDATE GLOBAL STATE ---
+    if (isKeyboardConfirm) input.SetLastUsedDevice(InputDevice::Keyboard);
+    if (isGamepadConfirm) input.SetLastUsedDevice(InputDevice::Gamepad);
+
+    return isKeyboardConfirm || isGamepadConfirm;
+}
 
 void SceneTitle::Update(float elapsedTime)
 {
-    // =========================================================
-    // 1. EXIT PHASE (Triggered by Enter key)
-    // =========================================================
+    // 1. EXIT PHASE
     if (m_isExiting)
     {
         m_exitTimer += elapsedTime;
-
-        // Fade to black smoothly over BOOT_FADE_DURATION
         m_fadeAlpha = std::clamp(m_exitTimer / BOOT_FADE_DURATION, 0.0f, 1.0f);
 
-        // Once fully black, change the scene!
         if (m_exitTimer >= BOOT_FADE_DURATION)
         {
             Framework::Instance()->ChangeScene(std::make_unique<SceneGame>());
         }
-
-        return; // Stop updating the menu while fading out
+        return;
     }
 
-    // =========================================================
-    // 2. NORMAL BOOT & TITLE PHASE
-    // =========================================================
+    // 2. BOOT PHASE
     if (m_bootTimer > 0.0f)
     {
         m_bootTimer -= elapsedTime;
         m_fadeAlpha = std::clamp(m_bootTimer / BOOT_FADE_DURATION, 0.0f, 1.0f);
+        return;
     }
-    // SHOW COPYRIGHT (Wait Phase)
-    else if (m_copyrightTimer > 0.0f)
-    {
-        m_fadeAlpha = 0.0f; // Screen is fully visible
-        m_copyrightTimer -= elapsedTime;
-    }
-    else
+
+    // 3. COPYRIGHT WAIT PHASE
+    if (m_copyrightTimer > 0.0f)
     {
         m_fadeAlpha = 0.0f;
+        m_copyrightTimer -= elapsedTime;
+        return;
+    }
 
-        // Fade out Copyright
-        if (m_copyrightAlpha > 0.0f)
-        {
-            m_copyrightAlpha = std::clamp(m_copyrightAlpha - (elapsedTime * 0.8f), 0.0f, 1.0f);
-        }
+    // 4. MAIN TITLE & MENU PHASE
+    m_fadeAlpha = 0.0f;
 
-        else if (m_gapTimer < GAP_DURATION)
-        {
-            m_gapTimer += elapsedTime;
-        }
+    // Fade out Copyright
+    if (m_copyrightAlpha > 0.0f)
+    {
+        m_copyrightAlpha = (std::max)(m_copyrightAlpha - (elapsedTime * 0.8f), 0.0f);
+    }
+    // Wait for Gap
+    else if (m_gapTimer < GAP_DURATION)
+    {
+        m_gapTimer += elapsedTime;
+    }
+    // Idle Menu State & Navigation
+    else if (m_isMenuPhase)
+    {
+        constexpr int maxOptions = static_cast<int>(MenuOption::Count);
+        int current = static_cast<int>(m_currentSelection);
 
-        // Phase 1: Fade In (Only runs while pulseTimer is 0)
-        else if (m_pulseTimer == 0.0f)
+        // UP NAVIGATION
+        if (IsUpTriggered())
         {
-            m_startAlpha += elapsedTime * 2.0f;
-            if (m_startAlpha >= 1.0f)
-            {
-                m_startAlpha = 1.0f;
-                m_pulseTimer = 0.5236f;
-            }
+            // Bug Prevention: Adding maxOptions guarantees positive wrap-around.
+            current = (current + maxOptions - 1) % maxOptions;
+            m_currentSelection = static_cast<MenuOption>(current);
         }
-        // Phase 2: Pulse Effect
+        // DOWN NAVIGATION
+        else if (IsDownTriggered())
+        {
+            current = (current + 1) % maxOptions;
+            m_currentSelection = static_cast<MenuOption>(current);
+        }
+        // EXECUTE SELECTION
+        else if (IsConfirmTriggered())
+        {
+            ExecuteMenuSelection();
+        }
+    }
+    // Transition State: Fading out Start, Fading in Menu
+    else if (m_isTransitioningMenu)
+    {
+        if (m_startAlpha > 0.0f)
+        {
+            m_startAlpha = (std::max)(m_startAlpha - (elapsedTime * 2.0f), 0.0f);
+        }
+        else if (m_menuGapTimer < GAP_DURATION)
+        {
+            m_menuGapTimer += elapsedTime;
+        }
         else
         {
-            m_pulseTimer += elapsedTime;
-            m_startAlpha = 0.6f + 0.4f * sinf(m_pulseTimer * 3.0f);
-
-            // ALLOW INPUT ONLY WHEN START TEXT IS PULSING
-            if (Input::Instance().GetKeyboard().IsTriggered(VK_RETURN))
+            m_menuAlpha = (std::min)(m_menuAlpha + (elapsedTime * 2.0f), 1.0f);
+            if (m_menuAlpha >= 1.0f)
             {
-                m_isExiting = true;
-                m_exitTimer = 0.0f;
-
-                // You can play your Enter SFX here if you have one!
-                // AudioManager::Instance().PlaySFX("Data/Sound/SE_Start.wav");
+                m_isMenuPhase = true;
+                m_isTransitioningMenu = false;
             }
         }
     }
+    // Start Fade In
+    else if (m_pulseTimer == 0.0f)
+    {
+        m_startAlpha = (std::min)(m_startAlpha + (elapsedTime * 2.0f), 1.0f);
+        if (m_startAlpha >= 1.0f)
+        {
+            m_pulseTimer = 0.5236f;
+        }
+    }
+    // Start Pulse & Input Listening
+    else
+    {
+        m_pulseTimer += elapsedTime;
+        m_startAlpha = 0.6f + 0.4f * sinf(m_pulseTimer * 3.0f);
+
+        // ONLY TRIGGER ONCE. Setting flag locks out further presses automatically.
+        if (IsConfirmTriggered()) 
+        {
+            m_isTransitioningMenu = true;
+            // Play SE here if needed: AudioManager::Instance().PlaySFX(...)
+        }
+    }
+
+    // Visual simulation interpolation
+    AnimateMenu(elapsedTime);
+
     m_uberParams.smoothness = FX_BASE_SMOOTHNESS;
     m_uberParams.intensity = FX_BASE_INTENSITY;
 }
 
-void SceneTitle::Render(float dt, Camera * targetCamera)
+void SceneTitle::Render(float dt, Camera* targetCamera)
 {
     auto dc = Graphics::Instance().GetDeviceContext();
     auto rs = Graphics::Instance().GetRenderState();
 
-    // ==============================================================
-    // --- STEP 1: Sinkronisasi Data Post-Process (Harus di Atas!) ---
-    // ==============================================================
     postProcess->SetEnabled(m_fxState.MasterEnabled);
 
     UberShader::UberData& activeData = postProcess->GetData();
-    activeData = this->m_uberParams; // <-- Pastikan pakai m_uberParams
+    activeData = this->m_uberParams;
 
-    // Evaluasi Flags & Masking Efek
     activeData.psxEnabled = (m_fxState.MasterEnabled && m_fxState.EnablePSX);
     if (!m_fxState.EnableVignette)   activeData.intensity = 0.0f;
     if (!m_fxState.EnableLens) { activeData.glitchStrength = 0.0f; activeData.distortion = 0.0f; activeData.blurStrength = 0.0f; }
@@ -148,9 +255,6 @@ void SceneTitle::Render(float dt, Camera * targetCamera)
     if (!m_fxState.EnableCRT) { activeData.scanlineStrength = 0.0f; activeData.fineOpacity = 0.0f; }
     if (!m_fxState.EnableBloom)      activeData.bloomIntensity = 0.0f;
 
-    // ==============================================================
-    // --- STEP 2: Mulai Capture ---
-    // ==============================================================
     if (m_fxState.MasterEnabled)
     {
         postProcess->BeginCapture();
@@ -158,7 +262,6 @@ void SceneTitle::Render(float dt, Camera * targetCamera)
     }
     else
     {
-        // Fallback: Manually clear the active BackBuffer
         ID3D11RenderTargetView* currentRTV = nullptr;
         ID3D11DepthStencilView* currentDSV = nullptr;
         dc->OMGetRenderTargets(1, &currentRTV, &currentDSV);
@@ -174,64 +277,188 @@ void SceneTitle::Render(float dt, Camera * targetCamera)
         }
     }
 
-    // ==============================================================
-    // --- STEP 3: UI & Background Pass ---
-    // ==============================================================
     dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
     dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
     dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullNone));
 
     float t = 1.0f - std::clamp(m_bootTimer / BOOT_FADE_DURATION, 0.0f, 1.0f);
-
-    // 2. Apply a curve to the alpha. 
-    // t * t creates an "Ease-In" effect (starts very slow).
-    // If you want it even slower, use t * t * t
     float bootAlpha = t * t;
 
-    // 3. Render your background, logo, and copyright with this alpha
-    if (bgSprite)
-    {
-        bgSprite->Render(dc, camera.get(), 0, 0, 0, 1920.0f, 1080.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, bootAlpha);
-    }
-
-    if (logoSprite)
-    {
-        logoSprite->Render(dc, 461.5f, 200.0f, 0.0f, 997.0f, 547.0f, 0.0f, 0.0f, 997.0f, 547.0f, 0.0f, 1.0f, 1.0f, 1.0f, bootAlpha);
-    }
+    if (bgSprite) bgSprite->Render(dc, camera.get(), 0, 0, 0, 1920.0f, 1080.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, bootAlpha);
+    if (logoSprite) logoSprite->Render(dc, 461.5f, 200.0f, 0.0f, 957.0f, 547.0f, 0.0f, 0.0f, 997.0f, 547.0f, 0.0f, 1.0f, 1.0f, 1.0f, bootAlpha);
 
     float finalCopyrightAlpha = (m_bootTimer > 0.0f) ? bootAlpha : m_copyrightAlpha;
-
     if (copyrightSprite && finalCopyrightAlpha > 0.0f)
     {
-        copyrightSprite->Render(dc, 327.5f, 867.0f, 0.0f, 1265.0f, 105.0f, 0.0f, 0.0f, 1265.0f, 105.0f, 0.0f, 1.0f, 1.0f, 1.0f, finalCopyrightAlpha);
+        copyrightSprite->Render(dc, 327.5f, 867.0f, 0.0f, 1245.0f, 105.0f, 0.0f, 0.0f, 1265.0f, 105.0f, 0.0f, 1.0f, 1.0f, 1.0f, finalCopyrightAlpha);
     }
 
     // RENDER START
     if (startSprite && m_startAlpha > 0.0f)
     {
-        startSprite->Render(dc, 739.5f, 906.5f, 0.0f, 441.0f, 26.0f, 0.0f, 0.0f, 441.0f, 26.0f, 0.0f, 1.0f, 1.0f, 1.0f, m_startAlpha);
+        startSprite->Render(dc, 679.5f, 906.5f, 0.0f, 545.0f, 34.0f, 0.0f, 0.0f, 545.0f, 34.0f, 0.0f, 1.0f, 1.0f, 1.0f, m_startAlpha);
+    }
+
+    // RENDER MENU 
+    if (m_menuAlpha > 0.0f)
+    {
+        // Outsource processing to our highly optimized sub-render routine
+        RenderMenuOptions(dc);
+
+        // Render Cursor smoothly using the Primitive class
+        if (m_primitive)
+        {
+            // Directly consumes the naturally interpolated visual track
+            const float targetY = m_visualCursorY;
+            const float curX{ MENU_START_X - CURSOR_OFFSET_X };
+
+            const float x1{ curX };
+            const float y1{ targetY - (CURSOR_HEIGHT * 0.5f) };
+            const float x2{ curX + CURSOR_WIDTH };
+            const float y2{ targetY };
+            const float x3{ curX };
+            const float y3{ targetY + (CURSOR_HEIGHT * 0.5f) };
+
+            m_primitive->Triangle(x1, y1, x2, y2, x3, y3, 1.0f, 1.0f, 1.0f, m_menuAlpha);
+            m_primitive->Render(dc);
+        }
     }
 
     if (m_fadeAlpha > 0.001f && m_fadeSprite)
     {
-        // Get screen size
-        float screenW = 1920.0f; 
-        float screenH = 1080.0f;
-
-        m_fadeSprite->Render(
-            dc,
-            0.0f, 0.0f, 0.0f,          // x, y, z
-            screenW, screenH,          // width, height
-            0.0f, 0.0f,                // sx, sy
-            1920.0f, 1080.0f,          // sw, sh
-            0.0f,                      // angle
-            0.0f, 0.0f, 0.0f, m_fadeAlpha // r, g, b, a (Fade alpha here)
-        );
+        m_fadeSprite->Render(dc, 0.0f, 0.0f, 0.0f, 1920.0f, 1080.0f, 0.0f, 0.0f, 1920.0f, 1080.0f, 0.0f, 0.0f, 0.0f, 0.0f, m_fadeAlpha);
     }
 
     if (m_fxState.MasterEnabled)
     {
         postProcess->EndCapture(dt);
+    }
+}
+
+void SceneTitle::RenderMenuOptions(ID3D11DeviceContext* dc)
+{
+    struct MenuItem {
+        Sprite* sprite{ nullptr };
+        float yPos{ 0.0f };
+        float width{ 0.0f };
+        float height{ 0.0f };
+        float colorWeight{ 0.0f };
+    };
+
+    struct ColorRGB { float r{ 0.0f }, g{ 0.0f }, b{ 0.0f }; };
+
+    static constexpr ColorRGB unselectedColor{ 0.75f, 0.75f, 0.75f }; // Soft crisp silver white
+    static constexpr ColorRGB selectedColor{ 1.0f, 1.0f, 1.0f };     // Glowing direct white
+
+    // Zero-overhead local matrix mappings utilizing reference wrappers
+    const std::array<MenuItem, 3> items{ {
+        { m_newGameSprite.get(), Y_NEW_GAME, 173.0f, 25.0f, m_optionWeights[0] },
+        { m_optionSprite.get(),  Y_OPTION,   118.0f, 32.0f, m_optionWeights[1] },
+        { m_exitSprite.get(),    Y_EXIT,     51.0f,  23.0f, m_optionWeights[2] }
+    } };
+
+    for (const auto& item : items)
+    {
+        if (item.sprite)
+        {
+            // Execute linear color palette spectrum shifts smoothly across frame updates
+            const float r = CustomLerp(unselectedColor.r, selectedColor.r, item.colorWeight);
+            const float g = CustomLerp(unselectedColor.g, selectedColor.g, item.colorWeight);
+            const float b = CustomLerp(unselectedColor.b, selectedColor.b, item.colorWeight);
+
+            item.sprite->Render(
+                dc,
+                MENU_START_X, item.yPos, 0.0f,
+                item.width, item.height,
+                0.0f, 0.0f,
+                item.width, item.height,
+                0.0f,
+                r, g, b,
+                m_menuAlpha
+            );
+        }
+    }
+}
+
+void SceneTitle::AnimateMenu(float elapsedTime)
+{
+    // Resolve exactly where the cursor is structurally headed
+    float targetY{ 0.0f };
+    switch (m_currentSelection)
+    {
+    case MenuOption::NewGame: targetY = Y_NEW_GAME + (25.0f * 0.5f); break;
+    case MenuOption::Option:  targetY = Y_OPTION + (32.0f * 0.5f); break;
+    case MenuOption::Exit:    targetY = Y_EXIT + (23.0f * 0.5f); break;
+    default: return;
+    }
+
+    if (!m_isCursorInitialized)
+    {
+        m_visualCursorY = targetY;
+        m_isCursorInitialized = true;
+    }
+
+    // Process Frame-Rate Independent Exponential Decay for the Cursor Position
+    const float cursorAlpha = 1.0f - std::exp(-CURSOR_SMOOTH_SPEED * elapsedTime);
+    m_visualCursorY = CustomLerp(m_visualCursorY, targetY, cursorAlpha);
+
+    // Clamp boundary protection to block endless micro-tail updates
+    if (std::abs(m_visualCursorY - targetY) < 0.05f)
+    {
+        m_visualCursorY = targetY;
+    }
+
+    // 4. Smooth out highlighting colors across every text menu item
+    const float colorAlpha = 1.0f - std::exp(-COLOR_SMOOTH_SPEED * elapsedTime);
+    const auto currentSelectionIndex = static_cast<std::size_t>(m_currentSelection);
+
+    for (std::size_t i = 0; i < m_optionWeights.size(); ++i)
+    {
+        const float targetWeight = (i == currentSelectionIndex) ? 1.0f : 0.0f;
+        m_optionWeights[i] = CustomLerp(m_optionWeights[i], targetWeight, colorAlpha);
+
+        if (std::abs(m_optionWeights[i] - targetWeight) < 0.01f)
+        {
+            m_optionWeights[i] = targetWeight;
+        }
+    }
+}
+
+void SceneTitle::ExecuteMenuSelection() noexcept
+{
+    switch (m_currentSelection)
+    {
+    case MenuOption::NewGame:
+        // Bug Prevention: We check !m_isExiting to ensure that if a user 
+        // mashes the Enter key, we don't continuously reset the timer to 0.0f.
+        if (!m_isExiting)
+        {
+            m_isExiting = true;
+            m_exitTimer = 0.0f;
+
+            // Optional: Play a confirmation sound effect here
+            // AudioManager::Instance().PlaySFX("Data/Sound/SE_Confirm.wav", 0.5f);
+        }
+        break;
+
+    case MenuOption::Option:
+        // TODO: Map to an options sub-menu state later
+        break;
+
+    case MenuOption::Exit:
+        // Zero-cost exit trigger. Since your Framework uses SDL beneath the hood, 
+        // pushing an SDL_QUIT event is the safest, standard way to cleanly 
+        // shut down the window and break the main loop without memory leaks.
+        if (!m_isExiting)
+        {
+            SDL_Event quitEvent{}; // Brace initialization guarantees zeroed memory
+            quitEvent.type = SDL_EVENT_QUIT;
+            SDL_PushEvent(&quitEvent);
+        }
+        break;
+
+    default:
+        break;
     }
 }
 

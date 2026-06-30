@@ -76,6 +76,8 @@ void Enemy::Update(float elapsedTime, Camera* camera)
         movement->SetPosition(pos);
     }
 
+    UpdateProjectiles(elapsedTime, camera);
+
     XMFLOAT3 pos = movement->GetPosition();
     XMFLOAT3 rot = movement->GetRotation();
 
@@ -373,6 +375,29 @@ void Enemy::Reinitialize(ID3D11Device* device, const char* filePath, const Direc
     m_hp = 30; // Or whatever default/config HP you want
     m_isHighlighted = false;
     m_isActive = true;
+}
+
+void Enemy::UpdateProjectiles(float elapsedTime, Camera* camera)
+{
+    // UPDATE IN-FLIGHT PROJECTILES (Zero-cost Despawn)
+    const float despawnDistSq{ m_despawnDistance * m_despawnDistance };
+
+    for (auto& bullet : m_projectiles)
+    {
+        if (!bullet->IsActive()) continue;
+
+        bullet->Update(elapsedTime, camera);
+
+        const DirectX::XMFLOAT3 myPos{ movement->GetPosition() };
+        const DirectX::XMFLOAT3 bPos{ bullet->GetMovement()->GetPosition() };
+        const float bDx{ myPos.x - bPos.x };
+        const float bDz{ myPos.z - bPos.z };
+
+        if ((bDx * bDx + bDz * bDz) > despawnDistSq)
+        {
+            bullet->SetActive(false);
+        }
+    }
 }
 
 void Enemy::RenderProjectiles(ModelRenderer* renderer)

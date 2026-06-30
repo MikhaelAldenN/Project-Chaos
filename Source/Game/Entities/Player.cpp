@@ -3,6 +3,7 @@
 #include "System/Graphics.h"
 #include "AnimationController.h"
 #include "Camera.h"
+#include "Framework.h"
 #include "NaviAlly.h"
 #include "Player.h"
 #include "PlayerConstants.h"
@@ -155,7 +156,11 @@ void Player::Update(float elapsedTime, Camera* camera)
     UpdateDashCooldown(elapsedTime);
 
     SetCamera(camera);
-    if (isInputEnabled) HandleMovementInput(elapsedTime);
+    if (isInputEnabled)
+    {
+        HandleMovementInput(elapsedTime);
+        HandleAimInput(camera); 
+    }
     else currentSmoothInput = { 0.0f, 0.0f };
 
     UpdateHorizontalMovement(elapsedTime);
@@ -359,38 +364,155 @@ void Player::UpdateDashCooldown(float dt)
 
 void Player::HandleMovementInput(float dt)
 {
-    float targetX = 0.0f;
-    float targetZ = 0.0f;
-
-    if (isInputEnabled) {
-        if (GetAsyncKeyState('W') & 0x8000) targetZ = 1.0f;
-        if (GetAsyncKeyState('S') & 0x8000) targetZ = -1.0f;
-        if (GetAsyncKeyState('A') & 0x8000) targetX = -1.0f;
-        if (GetAsyncKeyState('D') & 0x8000) targetX = 1.0f;
-    }
-    if (invertControls) { targetX = -targetX; targetZ = -targetZ; }
-
-    // Normalize diagonal input
-    if (targetX != 0.0f && targetZ != 0.0f)
+    // 1. Fast early exit (Zero runtime cost for subsequent logic if disabled)
+    if (!isInputEnabled)
     {
-        float len = std::sqrt(targetX * targetX + targetZ * targetZ);
-        targetX /= len;
-        targetZ /= len;
+        currentSmoothInput = { 0.0f, 0.0f };
+        return;
     }
 
-    // Smooth acceleration / deceleration
-    float smoothX = (targetX != 0.0f) ? acceleration : deceleration;
-    float smoothZ = (targetZ != 0.0f) ? acceleration : deceleration;
+    // 2. Fetch Analog Stick Data (Uniform Brace Initialization to prevent narrowing)
+    const GamePad& gamePad{ Input::Instance().GetGamePad() };
+    float targetX{ gamePad.GetAxisLX() };
+    float targetZ{ gamePad.GetAxisLY() };
+
+    // 3. Epsilon check (Defends against analog stick hardware drift)
+    constexpr float inputEpsilon{ 0.01f };
+    const bool isGamepadIdle{ std::abs(targetX) < inputEpsilon && std::abs(targetZ) < inputEpsilon };
+
+    // 4. Fallback to Keyboard if Gamepad is idle (Clean input hierarchy)
+    if (isGamepadIdle)
+    {
+        targetX = 0.0f;
+        targetZ = 0.0f;
+        if (GetAsyncKeyState('W') & 0x8000) targetZ += 1.0f;
+        if (GetAsyncKeyState('S') & 0x8000) targetZ -= 1.0f;
+        if (GetAsyncKeyState('A') & 0x8000) targetX -= 1.0f;
+        if (GetAsyncKeyState('D') & 0x8000) targetX += 1.0f;
+    }
+
+    // 5. Apply Inversion cleanly
+    if (invertControls)
+    {
+        targetX = -targetX;
+        targetZ = -targetZ;
+    }
+
+    // 6. Vector Math & Normalization Guard (Defends against the "Diagonal Speed" Bug)
+    const float sqLength{ (targetX * targetX) + (targetZ * targetZ) };
+    if (sqLength > 1.0f)
+    {
+        // Clamp magnitude to 1.0f using reciprocal multiplication (Optimized for compiler fast-math)
+        const float invLength{ 1.0f / std::sqrt(sqLength) };
+        targetX *= invLength;
+        targetZ *= invLength;
+    }
+    else if (sqLength > 0.0f && isGamepadIdle)
+    {
+        // Keyboard inputs are purely digital; normalize them perfectly to 1.0
+        const float invLength{ 1.0f / std::sqrt(sqLength) };
+        targetX *= invLength;
+        targetZ *= invLength;
+    }
+    // (Note: If it's a gamepad and sqLength <= 1.0f, we KEEP the magnitude to allow analog "slow walking")
+
+    // 7. Smooth acceleration / deceleration
+    const float smoothX{ (std::abs(targetX) > inputEpsilon) ? acceleration : deceleration };
+    const float smoothZ{ (std::abs(targetZ) > inputEpsilon) ? acceleration : deceleration };
+
     currentSmoothInput.x += (targetX - currentSmoothInput.x) * smoothX * dt;
     currentSmoothInput.y += (targetZ - currentSmoothInput.y) * smoothZ * dt;
 
-    // Snap to zero below threshold to avoid float drift
-    if (std::abs(currentSmoothInput.x) < 0.01f) currentSmoothInput.x = 0.0f;
-    if (std::abs(currentSmoothInput.y) < 0.01f) currentSmoothInput.y = 0.0f;
+    // 8. Snap to zero below threshold (Defends against creeping floating-point drift over time)
+    if (std::abs(currentSmoothInput.x) < inputEpsilon) currentSmoothInput.x = 0.0f;
+    if (std::abs(currentSmoothInput.y) < inputEpsilon) currentSmoothInput.y = 0.0f;
 
-    // Track last non-zero input direction (used by dash for launch direction)
-    if (targetX != 0.0f || targetZ != 0.0f)
+    // 9. Track last non-zero input direction (Vital for your Dash mechanic)
+    if (std::abs(targetX) > inputEpsilon || std::abs(targetZ) > inputEpsilon)
+    {
         lastValidInput = { targetX, targetZ };
+    }
+}
+
+void Player::HandleAimInput(Camera* camera)
+{
+    // Anticipate Nullptr Bug: If no camera is provided, we cannot calculate 3D aim.
+    if (!camera) return;
+
+    // Zero-Cost Branching: Only execute the math for the currently active device.
+    const InputDevice activeDevice{ Input::Instance().GetLastUsedDevice() };
+
+    if (activeDevice == InputDevice::Gamepad)
+    {
+        const GamePad& gamePad{ Input::Instance().GetGamePad() };
+        const float rx{ gamePad.GetAxisRX() };
+        const float ry{ gamePad.GetAxisRY() };
+
+        constexpr float aimDeadzoneSq{ 0.04f };
+        const float sqLength{ (rx * rx) + (ry * ry) };
+
+        if (sqLength > aimDeadzoneSq)
+        {
+            const float invLength{ 1.0f / std::sqrt(sqLength) };
+
+            const float dirX{ rx * invLength };
+            const float dirZ{ ry * invLength }; // Change to -ry if Y-axis is inverted in your world
+
+            const DirectX::XMFLOAT3 pPos{ movement->GetPosition() };
+            constexpr float aimDistance{ 1000.0f };
+
+            DirectX::XMFLOAT3 trueGamepadWorldPos{
+                pPos.x + (dirX * aimDistance),
+                pPos.y,
+                pPos.z + (dirZ * aimDistance)
+            };
+
+            RotateModelToPoint(trueGamepadWorldPos);
+        }
+    }
+    else
+    {
+        // Keyboard & Mouse Raycast Logic
+        float mouseX, mouseY;
+        SDL_GetMouseState(&mouseX, &mouseY);
+
+        // Safely fetch dynamic screen size
+        float screenW{ 1920.0f };
+        float screenH{ 1080.0f };
+        if (auto window{ Framework::Instance()->GetMainWindow() }) {
+            screenW = static_cast<float>(window->GetWidth());
+            screenH = static_cast<float>(window->GetHeight());
+        }
+
+        DirectX::XMMATRIX view{ DirectX::XMLoadFloat4x4(&camera->GetView()) };
+        DirectX::XMMATRIX proj{ DirectX::XMLoadFloat4x4(&camera->GetProjection()) };
+        DirectX::XMMATRIX world{ DirectX::XMMatrixIdentity() };
+
+        DirectX::XMVECTOR nearPoint{ DirectX::XMVectorSet(mouseX, mouseY, 0.0f, 0.0f) };
+        DirectX::XMVECTOR farPoint{ DirectX::XMVectorSet(mouseX, mouseY, 1.0f, 0.0f) };
+
+        nearPoint = DirectX::XMVector3Unproject(nearPoint, 0, 0, screenW, screenH, 0.0f, 1.0f, proj, view, world);
+        farPoint = DirectX::XMVector3Unproject(farPoint, 0, 0, screenW, screenH, 0.0f, 1.0f, proj, view, world);
+
+        DirectX::XMVECTOR rayDir{ DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(farPoint, nearPoint)) };
+        DirectX::XMFLOAT3 origin, dir;
+        DirectX::XMStoreFloat3(&origin, nearPoint);
+        DirectX::XMStoreFloat3(&dir, rayDir);
+
+        if (std::abs(dir.y) > 0.001f) {
+            // Defends against the "Floating Gun" bug by using the player's dynamic Y position
+            const float gunHeight{ movement->GetPosition().y + PlayerConst::BulletSpawnY };
+            const float t{ (gunHeight - origin.y) / dir.y };
+
+            DirectX::XMFLOAT3 trueMouseWorldPos{
+                origin.x + dir.x * t,
+                gunHeight,
+                origin.z + dir.z * t
+            };
+
+            RotateModelToPoint(trueMouseWorldPos);
+        }
+    }
 }
 
 void Player::UpdateHorizontalMovement(float dt)
@@ -651,65 +773,43 @@ void Player::FireProjectile()
 {
     if (!isInputEnabled) return;
 
-    DirectX::XMFLOAT3 myPos = movement->GetPosition();
-    DirectX::XMFLOAT3 aimPos = m_aimTarget;
+    const DirectX::XMFLOAT3 myPos{ movement->GetPosition() };
 
-    if (m_collisionManager && m_collisionManager->GetNavi())
-    {
-        NaviAlly* navi = m_collisionManager->GetNavi();
-        DirectX::XMFLOAT3 nPos = navi->GetMovement()->GetPosition();
-
-        // Define how "sticky" the auto-aim is
-        constexpr float AUTO_AIM_RADIUS_SQ = 2.0f * 2.0f;
-
-        float distSq = (nPos.x - aimPos.x) * (nPos.x - aimPos.x) +
-            (nPos.z - aimPos.z) * (nPos.z - aimPos.z);
-
-        if (distSq < AUTO_AIM_RADIUS_SQ)
-        {
-            // SNAP Y: Ask Navi where to aim instead of guessing
-            aimPos.y = navi->GetAimPoint().y;
-        }
-    }
-
-    float dx = m_aimTarget.x - myPos.x;
-    float dz = m_aimTarget.z - myPos.z;
-    float angleToMouse = atan2f(dx, dz);
-    DirectX::XMFLOAT3 fwd = { sinf(angleToMouse), 0.0f, cosf(angleToMouse) };
+    // Calculate purely on the XZ plane
+    const float dx{ m_aimTarget.x - myPos.x };
+    const float dz{ m_aimTarget.z - myPos.z };
+    const float angleToMouse{ std::atan2f(dx, dz) };
+    const DirectX::XMFLOAT3 fwd{ std::sinf(angleToMouse), 0.0f, std::cosf(angleToMouse) };
 
     // Spawn slightly ahead of the player at chest height
-    DirectX::XMFLOAT3 spawnPos =
-    {
+    const DirectX::XMFLOAT3 spawnPos{
         myPos.x + fwd.x * PlayerConst::BulletSpawnFwd,
         myPos.y + PlayerConst::BulletSpawnY,
         myPos.z + fwd.z * PlayerConst::BulletSpawnFwd
     };
 
     // --------------------------------------------------------
-    // ---> BUG PREVENTION: THE TRUE OBJECT POOL <---
+    // TRUE OBJECT POOL (Zero Allocation on normal fire)
     // --------------------------------------------------------
-
-    // Search our pool for an inactive (dead/invisible) bullet
-    for (auto& bullet : m_projectiles)
+    for (const auto& bullet : m_projectiles)
     {
         if (!bullet->IsActive())
         {
             bullet->Fire(spawnPos, fwd, m_bulletSpeed);
-            bullet->SetDamage(m_bulletDamage); // [BARU] Terapkan damage dinamis di sini
+            bullet->SetDamage(m_bulletDamage);
             return;
         }
     }
 
-    // If we get here, it means EVERY bullet we own is currently flying on-screen.
-    // ONLY THEN do we allocate new memory.
-    auto newBullet = std::make_unique<Bullet>();
+    // Only allocate memory if EVERY bullet is currently flying on-screen.
+    auto newBullet{ std::make_unique<Bullet>() };
     newBullet->Fire(spawnPos, fwd, m_bulletSpeed);
-    newBullet->SetDamage(m_bulletDamage); // [BARU] Terapkan damage dinamis di sini
+    newBullet->SetDamage(m_bulletDamage);
     m_projectiles.push_back(std::move(newBullet));
 
-    // Prevent memory leaks. If the pool gets ridiculously large, pop the oldest.
+    // Prevent memory leak compounding if the pool gets ridiculously large.
     for (int i = 0; i < PlayerConst::MaxBullets; ++i) {
-        auto b = std::make_unique<Bullet>();
+        auto b{ std::make_unique<Bullet>() };
         b->SetActive(false);
         m_projectiles.push_back(std::move(b));
     }

@@ -129,7 +129,8 @@ void GamePad::Update()
 #endif
 	}
 
-	// キーボードでエミュレーション
+#if 0	
+	// キーボードでエミュレーション (Keyboard Emulation Disabled)
 	{
 		float lx = 0.0f;
 		float ly = 0.0f;
@@ -173,6 +174,7 @@ void GamePad::Update()
 			axisRy = ry / power;
 		}
 	}
+#endif
 
 
 

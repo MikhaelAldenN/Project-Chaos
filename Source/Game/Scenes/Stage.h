@@ -175,7 +175,8 @@ namespace StageConfig
     // =========================================================
     static const std::vector<DebugLineData> DEBUG_LINES_CHECKPOINT =
     {
-        
+        // Line CheckPoint 1
+        { {20.7,1.2,42.1}, {0,0,0}, {15.3,0,0} },
     };
 }
 

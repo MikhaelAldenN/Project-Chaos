@@ -48,6 +48,7 @@ private:
     SDL_AudioStream* m_musicStream = nullptr;
     SoundData* m_currentMusicData = nullptr;
 
+    float m_currentMusicVolume = 1.0f;
     bool m_isMusicLooping = false;
     float m_musicLoopStart = 0.0f;
 

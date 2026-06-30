@@ -122,6 +122,7 @@ public:
     void Render(ModelRenderer* renderer, Camera* camera = nullptr);
     void RenderDebug(ShapeRenderer* renderer);
     void RespawnEnemyAs(size_t index, AttackType attack, MoveDir dir = MoveDir::None, float minX = 0, float maxX = 0, float minZ = 0, float maxZ = 0);
+    void ReviveKamikazes();
     void SpawnEnemy(const EnemySpawnConfig& config);
 
     std::vector<std::unique_ptr<Enemy>>& GetEnemies() { return m_enemies; }

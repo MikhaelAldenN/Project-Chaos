@@ -35,6 +35,10 @@ public:
     void Circle(float x, float y, float radius,
         float r, float g, float b, float a, int segments = 32);
 
+    // Menggambar Segitiga  
+    void Triangle(float x1, float y1, float x2, float y2, float x3, float y3,
+        float r, float g, float b, float a);
+
     // --- Core Rendering (Dipanggil di Scene::Render) ---
     // PENTING: Panggil fungsi ini untuk menggambar batch primitive ke layar
     void Render(ID3D11DeviceContext* context);

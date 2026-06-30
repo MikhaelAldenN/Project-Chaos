@@ -18,6 +18,7 @@ Bullet::Bullet()
 void Bullet::Fire(const DirectX::XMFLOAT3& startPos, const DirectX::XMFLOAT3& direction, float projectileSpeed)
 {
     isActive = true;
+    m_lifeTime = 0.0f;
     movement->SetPosition(startPos);
 
     XMVECTOR vDir = XMLoadFloat3(&direction);

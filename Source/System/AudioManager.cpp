@@ -51,8 +51,10 @@ void AudioManager::Update(float elapsedTime) {
         }
         else 
         {
-            float volume = m_fadeTimer / m_fadeDuration;
-            SDL_SetAudioStreamGain(m_musicStream, volume);
+            float fadeRatio = m_fadeTimer / m_fadeDuration;
+            float currentVolume = fadeRatio * m_currentMusicVolume; 
+
+            SDL_SetAudioStreamGain(m_musicStream, currentVolume);
         }
     }
 
@@ -154,6 +156,7 @@ void AudioManager::PlayMusic(const std::string& filePath, float volume, bool loo
     // [FIX] Gunakan parameter volume, bukan angka baku 1.0f
     SDL_SetAudioStreamGain(m_musicStream, volume);
 
+    m_currentMusicVolume = volume;
     m_currentMusicData = data;
     m_isMusicLooping = loop;
     m_musicLoopStart = loopStartSeconds;
@@ -235,5 +238,6 @@ void AudioManager::SetMusicVolume(float volume) {
     if (m_musicStream) {
         // Ini akan secara instan mengubah volume musik yang sedang berputar di SDL3
         SDL_SetAudioStreamGain(m_musicStream, volume);
+        m_currentMusicVolume = volume;
     }
 }

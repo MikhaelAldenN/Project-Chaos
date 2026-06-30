@@ -67,7 +67,8 @@ public:
 private:
     void PerformShootInternal(Player* player, bool isHeld = false);
 
-    float timer{ 0.0f };
+    float m_timer{ 0.0f };
+    float m_minTapCooldown{ 0.0f };
 };
 
 // TODO: implement damage and death behaviour

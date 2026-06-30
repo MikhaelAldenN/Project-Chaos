@@ -52,7 +52,7 @@ bool FontTTF::Initialize(const std::string& ttfPath, float fontSize, const std::
     stbtt_PackEnd(&packContext);
 
     // 4. Konversi data hasil packing ke database Glyph lokal
-    m_lineHeight = fontSize;
+    m_lineHeight = fontSize + 10.0f;
     for (size_t i = 0; i < codepoints.size(); ++i) {
         uint32_t cp = codepoints[i];
         const auto& pc = packedChars[i];

@@ -99,6 +99,17 @@ void Primitive::Circle(float x, float y, float radius, float r, float g, float b
     // agar kamu bisa fokus ke Background Kotak Kuning dulu.
 }
 
+void Primitive::Triangle(float x1, float y1, float x2, float y2, float x3, float y3, float r, float g, float b, float a)
+{
+    // Use brace initialization for the color vector
+    const VECTOR4 color{ r, g, b, a };
+
+    // Push exactly 3 vertices to form one triangle in the batch
+    batchVertices.push_back({ {x1, y1, 0.0f}, color });
+    batchVertices.push_back({ {x2, y2, 0.0f}, color });
+    batchVertices.push_back({ {x3, y3, 0.0f}, color });
+}
+
 // --- INTERNAL LOGIC ---
 
 void Primitive::DrawRectInternal(const VECTOR2& pos, const VECTOR2& size, const VECTOR2& center, float angle, const VECTOR4& color)

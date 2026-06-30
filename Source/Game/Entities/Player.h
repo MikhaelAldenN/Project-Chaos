@@ -9,6 +9,7 @@
 #include <deque>
 #include <memory>
 #include <DirectXMath.h>
+#include <SDL3/SDL.h>
 #include <characterkinematic/PxController.h> 
 #include <characterkinematic/PxCapsuleController.h>
 #include <characterkinematic/PxControllerManager.h>
@@ -179,6 +180,7 @@ private:
     // --- Update pipeline (called in order from Update()) ---
     void UpdateDashCooldown(float dt);
     void HandleMovementInput(float dt);
+    void HandleAimInput(Camera* camera);
     void UpdateHorizontalMovement(float dt);
     void UpdateFootRotation(float dt, float& outSmoothedYaw);
     void UpdateAimConstraint(float dt, float& inOutSmoothedYaw, bool& outShouldAim, float& outRelativeAngle);
