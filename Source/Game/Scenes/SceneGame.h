@@ -120,6 +120,12 @@ private:
     std::unique_ptr<physx::PxMaterial, PhysXDeleter> m_defaultMaterial{};
     std::unique_ptr<physx::PxRigidStatic, PhysXDeleter> m_groundPlane{};
 
+	// HEALTH MANAGEMENT
+    static constexpr float BOSS_MAX_HP{ 150.0f };
+    static constexpr float NORMAL_MAX_HP{ 100.0f };
+
+    bool m_hasHealedForBoss{ false };
+
     // DEATH & RESPAWN SEQUENCE
     bool m_isDying{ false };
     float m_deathTimer{ 0.0f };

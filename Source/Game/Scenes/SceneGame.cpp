@@ -145,6 +145,8 @@ SceneGame::SceneGame()
     m_player->InitPhysics(m_controllerManager.get(), m_defaultMaterial.get());
     m_stage->InitPhysics(m_physics.get(), m_scene.get(), m_defaultMaterial.get());
 
+    m_player->SetMaxHP(100);
+
     PlayerConfig gameConfig{};
     gameConfig.moveSpeed = 8.0f;
     gameConfig.dashSpeed = 28.0f;
@@ -482,6 +484,14 @@ void SceneGame::Update(const float elapsedTime)
                 else if (timeInFade < WHITEOUT_FADE_DURATION + WHITEOUT_HOLD_DURATION)
                 {
                     m_whiteAlpha = 1.0f;
+                    if (!m_hasHealedForBoss)
+                    {
+                        if (m_player)
+                        {
+                            m_player->SetMaxHP(BOSS_MAX_HP);
+                        }
+                        m_hasHealedForBoss = true;
+                    }
                 }
                 else
                 {
@@ -768,7 +778,7 @@ void SceneGame::ResetLevel()
     {
         m_player->SetPosition(respawnPos);
         m_player->GetMovement()->SetVelocity({ 0.0f, 0.0f, 0.0f });
-        m_player->SetMaxHP(isBossStage ? 150 : 100);
+        m_player->SetMaxHP(isBossStage ? BOSS_MAX_HP : NORMAL_MAX_HP);
         m_player->SetInputEnabled(false);
         m_player->scale = { 1.0f, 1.0f, 1.0f };
         m_player->GetStateMachine()->ChangeState(m_player.get(), std::make_unique<PlayerIdle>());
