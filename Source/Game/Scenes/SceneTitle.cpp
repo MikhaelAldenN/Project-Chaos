@@ -101,13 +101,16 @@ bool SceneTitle::IsDownTriggered() noexcept
     return isKeyboardDown || isGamepadDpadDown || analogDownTriggered;
 }
 
-bool SceneTitle::IsConfirmTriggered() noexcept
+bool SceneTitle::IsConfirmTriggered(bool allowSpace) noexcept
 {
     // natively handle single-frame trigger isolation.
     auto& input = Input::Instance();
 
-    const bool isKeyboardConfirm = input.GetKeyboard().IsTriggered(VK_RETURN) ||
-        input.GetKeyboard().IsTriggered(VK_SPACE);
+    bool isKeyboardConfirm = input.GetKeyboard().IsTriggered(VK_RETURN);
+    if (allowSpace)
+    {
+        isKeyboardConfirm = isKeyboardConfirm || input.GetKeyboard().IsTriggered(VK_SPACE);
+    }
 
     const bool isGamepadConfirm = (input.GetGamePad().GetButtonDown() & GamePad::BTN_A) != 0;
 
@@ -224,7 +227,7 @@ void SceneTitle::Update(float elapsedTime)
         m_startAlpha = 0.6f + 0.4f * sinf(m_pulseTimer * 3.0f);
 
         // ONLY TRIGGER ONCE. Setting flag locks out further presses automatically.
-        if (IsConfirmTriggered()) 
+        if (IsConfirmTriggered(false))
         {
             m_isTransitioningMenu = true;
             // Play SE here if needed: AudioManager::Instance().PlaySFX(...)

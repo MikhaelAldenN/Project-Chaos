@@ -134,7 +134,7 @@ private:
     // Evaluates Keyboard, D-Pad, and Debounced Analog Stick natively
     [[nodiscard]] bool IsUpTriggered() noexcept;
     [[nodiscard]] bool IsDownTriggered() noexcept;
-    [[nodiscard]] bool IsConfirmTriggered() noexcept;
+    [[nodiscard]] bool IsConfirmTriggered(bool allowSpace = true) noexcept;
 
     // --- Analog Stick State Tracking (Debounce) ---
     // Prevents "hyper-scrolling" when holding the analog stick
