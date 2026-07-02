@@ -149,7 +149,7 @@ private:
     static constexpr float DEATH_FADE_DURATION{ 3.0f };
     static constexpr float NAVI_DEFEAT_FADE_DURATION{ 3.0f };
     static constexpr float RESPAWN_FADE_DURATION{ 3.0f };
-    static constexpr float WHITEOUT_HOLD_DURATION{ 15.0f };
+    static constexpr float WHITEOUT_HOLD_DURATION{ 7.0f };
     static constexpr float FADE_BACK_DURATION{ 2.0f };
     static constexpr float DIALOG_CHARACTERS_PER_SECOND{ 18.0f };
 
@@ -180,6 +180,7 @@ private:
     bool m_isBossCinematicActive{ false };
     float m_bossCinematicTimer{ 0.0f };
     bool m_bossEffectTriggered{ false };
+    int m_poisonEffectHandle{ -1 };
 
     // Configurable: 4 seconds for a slow, dramatic pan
     static constexpr float BOSS_CINEMATIC_DURATION{ 4.0f };

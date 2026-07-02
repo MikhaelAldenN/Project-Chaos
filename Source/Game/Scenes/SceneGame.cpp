@@ -450,18 +450,18 @@ void SceneGame::Update(const float elapsedTime)
                     spawnPos.x += m_fakeBossEffectOffset.x;
                     spawnPos.y += m_fakeBossEffectOffset.y;
                     spawnPos.z += m_fakeBossEffectOffset.z;
-
-                    Effekseer::Handle effHandle = EffectManager::Instance().Play(
+                    
+                    m_poisonEffectHandle = EffectManager::Instance().Play(
                         "Data/Effect/FakeBossPoison.efk", spawnPos, m_fakeBossEffectScale
                     );
 
-                    if (effHandle >= 0) {
+                    if (m_poisonEffectHandle >= 0) {
                         DirectX::XMFLOAT3 rotRad{
                             DirectX::XMConvertToRadians(m_fakeBossEffectRotation.x),
                             DirectX::XMConvertToRadians(m_fakeBossEffectRotation.y),
                             DirectX::XMConvertToRadians(m_fakeBossEffectRotation.z)
                         };
-                        EffectManager::Instance().SetRotation(effHandle, rotRad);
+                        EffectManager::Instance().SetRotation(m_poisonEffectHandle, rotRad);
                     }
                 }
             }
@@ -484,6 +484,12 @@ void SceneGame::Update(const float elapsedTime)
                 else if (timeInFade < WHITEOUT_FADE_DURATION + WHITEOUT_HOLD_DURATION)
                 {
                     m_whiteAlpha = 1.0f;
+
+                    if (m_poisonEffectHandle >= 0)
+                    {
+                        EffectManager::Instance().Stop(m_poisonEffectHandle);
+                        m_poisonEffectHandle = -1; 
+                    }
                     if (!m_hasHealedForBoss)
                     {
                         if (m_player)
