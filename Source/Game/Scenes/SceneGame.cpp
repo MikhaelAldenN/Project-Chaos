@@ -207,8 +207,10 @@ SceneGame::SceneGame()
     m_postProcess->Initialize(static_cast<int>(screenW), static_cast<int>(screenH));
 
     m_dialogueBox = std::make_unique<UIDialogueBox>();
-
     m_dialogueBox->Initialize();
+
+    m_uiPause = std::make_unique<UIPause>();
+    m_uiPause->Initialize();
 
     m_fadeSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Game/Black.png");
     m_whiteSprite = std::make_unique<Sprite>(Graphics::Instance().GetDevice(), "Data/Sprite/Scene Game/White.png");
@@ -1032,6 +1034,12 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
             0.0f,                  // Rotation Angle
             0.0f, 0.0f, 0.0f, 0.6f // R, G, B, Alpha (0.6f = Dark, but translucent)
         );
+
+		// Render the pause menu UI on top of the darkened screen
+        if (m_uiPause)
+        {
+            m_uiPause->Render(dc);
+        }
     }
 }
 

@@ -17,6 +17,7 @@
 #include "System/Sprite.h"
 #include "UberShader.h"
 #include "UIDialogueBox.h"
+#include "UIPause.h"
 
 // ==========================================
 // FORWARD DECLARATIONS
@@ -32,6 +33,7 @@ class Player;
 class PostProcessManager;
 class Primitive;
 class Stage;
+class UIPause;
 
 // ==========================================
 // MAIN CLASS
@@ -90,6 +92,7 @@ private:
     std::unique_ptr<Stage> m_stage{};
     std::shared_ptr<Camera> m_mainCamera{};
     std::unique_ptr<UIDialogueBox> m_dialogueBox{};
+    std::unique_ptr<UIPause> m_uiPause{};
 
     DirectX::XMFLOAT3 m_cameraPosition{ 0.0f, 18.0f, 0.0f };
     DirectX::XMFLOAT3 m_cameraTarget{ 0.0f, 0.0f, 0.0f };
