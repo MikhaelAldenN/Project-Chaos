@@ -66,6 +66,25 @@ namespace
     }
 }
 
+[[nodiscard]] bool SceneGame::CheckPauseToggleTriggered() const noexcept
+{
+    // BUG PREVENTION: Do not allow pausing during death, respawn, or boot transitions.
+    // This prevents soft-locks where timers freeze during critical system states.
+    if (m_isDying || m_isNaviDefeatSequenceActive || m_bootTimer > 0.0f)
+    {
+        return false;
+    }
+
+    auto& input = Input::Instance();
+
+    // BUG PREVENTION: Use IsTriggered / GetButtonDown (not IsPressed).
+    // This guarantees the pause only fires once per physical key press, even if held.
+    const bool isEscTriggered = input.GetKeyboard().IsTriggered(VK_ESCAPE);
+    const bool isStartTriggered = (input.GetGamePad().GetButtonDown() & GamePad::BTN_START) != 0;
+
+    return isEscTriggered || isStartTriggered;
+}
+
 SceneGame::SceneGame()
 {
     float screenW{ Config::DEFAULT_SCREEN_W };
@@ -210,6 +229,20 @@ SceneGame::~SceneGame()
 
 void SceneGame::Update(const float elapsedTime)
 {
+    if (CheckPauseToggleTriggered())
+    {
+        m_isPaused = !m_isPaused;
+
+        // Optional: If you want to pause/resume audio later, do it here:
+        // if (m_isPaused) AudioManager::Instance().PauseAll();
+        // else AudioManager::Instance().ResumeAll();
+    }
+
+    if (m_isPaused)
+    {
+        return;
+    }
+
     m_globalTime += elapsedTime;
     if (m_globalTime > Config::TIME_LOOP_MAX) m_globalTime -= Config::TIME_LOOP_MAX;
 
@@ -827,6 +860,7 @@ void SceneGame::ResetLevel()
 
 void SceneGame::Render(float elapsedTime, Camera* camera)
 {
+    const float renderTime = m_isPaused ? 0.0f : elapsedTime;
     Camera* targetCam{ camera ? camera : m_mainCamera.get() };
     auto dc{ Graphics::Instance().GetDeviceContext() };
     auto rs{ Graphics::Instance().GetRenderState() };
@@ -870,7 +904,7 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
     dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::TestAndWrite), 0);
     dc->RSSetState(rs->GetRasterizerState(RasterizerState::SolidCullBack));
 
-    RenderScene(elapsedTime, targetCam);
+    RenderScene(renderTime, targetCam);
 
     if (targetCam == m_mainCamera.get()) {
         auto shapeRenderer{ Graphics::Instance().GetShapeRenderer() };
@@ -912,7 +946,7 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
     }
 
     if (m_fxState.MasterEnabled) {
-        m_postProcess->EndCapture(elapsedTime);
+        m_postProcess->EndCapture(renderTime);
     }
 
     DrawGUI();
@@ -970,6 +1004,33 @@ void SceneGame::Render(float elapsedTime, Camera* camera)
             1920.0f, 1080.0f,      // sw, sh (texture size)
             0.0f,                  // angle
             1.0f, 1.0f, 1.0f, m_whiteAlpha // Apply fading alpha
+        );
+    }
+
+    if (m_isPaused && m_fadeSprite)
+    {
+        float screenW{ Config::DEFAULT_SCREEN_W };
+        float screenH{ Config::DEFAULT_SCREEN_H };
+
+        // Safely extract current window dimensions
+        if (auto window{ Framework::Instance()->GetMainWindow() }) {
+            screenW = static_cast<float>(window->GetWidth());
+            screenH = static_cast<float>(window->GetHeight());
+        }
+
+        // Enable 2D Transparency pipeline state
+        dc->OMSetBlendState(rs->GetBlendState(BlendState::Transparency), nullptr, 0xFFFFFFFF);
+        dc->OMSetDepthStencilState(rs->GetDepthStencilState(DepthState::NoTestNoWrite), 0);
+
+        // Render the black sprite over the whole screen with 60% opacity 
+        m_fadeSprite->Render(
+            dc,
+            0.0f, 0.0f, 0.0f,      // Target X, Y, Z
+            screenW, screenH,      // Dynamic Screen Width/Height
+            0.0f, 0.0f,            // Source X, Y (Top left of image)
+            1920.0f, 1080.0f,      // Source Width/Height (Native texture size)
+            0.0f,                  // Rotation Angle
+            0.0f, 0.0f, 0.0f, 0.6f // R, G, B, Alpha (0.6f = Dark, but translucent)
         );
     }
 }

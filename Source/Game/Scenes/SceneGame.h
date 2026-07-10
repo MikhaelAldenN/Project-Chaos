@@ -120,6 +120,10 @@ private:
     std::unique_ptr<physx::PxMaterial, PhysXDeleter> m_defaultMaterial{};
     std::unique_ptr<physx::PxRigidStatic, PhysXDeleter> m_groundPlane{};
 
+    // SYSTEM STATE
+    bool m_isPaused{ false };
+    [[nodiscard]] bool CheckPauseToggleTriggered() const noexcept;
+
 	// HEALTH MANAGEMENT
     static constexpr float BOSS_MAX_HP{ 150.0f };
     static constexpr float NORMAL_MAX_HP{ 100.0f };
