@@ -3,7 +3,6 @@
 namespace {
     [[nodiscard]] constexpr float CustomLerp(float a, float b, float t) noexcept
     {
-        // Precise formula which guarantees CustomLerp(a, b, 1.0f) == b
         return (1.0f - t) * a + t * b;
     }
 }

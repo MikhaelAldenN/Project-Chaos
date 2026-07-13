@@ -125,6 +125,9 @@ private:
 
     // SYSTEM STATE
     bool m_isPaused{ false };
+    bool m_isExitingToTitle{ false };
+    float m_exitToTitleTimer{ 0.0f };
+
     [[nodiscard]] bool CheckPauseToggleTriggered() const noexcept;
 
 	// HEALTH MANAGEMENT
