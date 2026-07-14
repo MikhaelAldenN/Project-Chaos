@@ -12,6 +12,7 @@
 
 #include "Scene.h"
 #include "Camera.h"
+#include "UIOption.h"
 #include "System/Gamepad.h"
 #include "System/AudioManager.h"
 #include "System/Sprite.h" 
@@ -68,6 +69,9 @@ private:
     std::unique_ptr<Sprite> m_optionSprite{};
     std::unique_ptr<Sprite> m_exitSprite{};
 
+	// --- UI Option Panel ---
+    std::unique_ptr<UIOption> m_uiOption{};
+
     // --- Timers and Alphas ---
     float m_fadeAlpha{ 1.0f };
     float m_bootTimer{ 4.1f };
@@ -82,6 +86,9 @@ private:
     float m_menuAlpha{ 0.0f };
     bool  m_isTransitioningMenu{ false };
     bool  m_isMenuPhase{ false };
+
+	// --- Option Transition States ---
+    bool m_isOptionPhase{ false };
 
     static constexpr float BOOT_FADE_DURATION{ 3.0f };
     static constexpr float GAP_DURATION{ 1.0f };

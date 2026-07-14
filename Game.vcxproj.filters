@@ -342,6 +342,9 @@
     <ClCompile Include="Source\Engine\UI\UIPause.cpp">
       <Filter>Source\Engine\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Engine\UI\UIOption.cpp">
+      <Filter>Source\Engine\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\System\BasicShader.h">
@@ -706,6 +709,9 @@
       <Filter>Source\Game\Entities\Boss\AttackPatterns\PhaseOne</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\UI\UIPause.h">
+      <Filter>Source\Engine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\UI\UIOption.h">
       <Filter>Source\Engine\UI</Filter>
     </ClInclude>
   </ItemGroup>

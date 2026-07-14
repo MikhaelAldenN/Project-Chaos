@@ -56,7 +56,7 @@ private:
 
     const std::array<float, static_cast<std::size_t>(PauseOption::Count)> m_menuXOffsets{
         0.0f,   // "Resume" stays perfectly at MENU_POS_X
-        22.0f   // "Exit" is shorter, so we push it right to center it.
+        22.0f   // "Exit" is shorter, so we align it to center.
     };
 
     // Track current state

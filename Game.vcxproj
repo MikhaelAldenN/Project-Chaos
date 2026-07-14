@@ -157,6 +157,7 @@
     <ClInclude Include="Source\Engine\UI\UIDialogueBox.h" />
     <ClInclude Include="Source\Engine\UI\UIImpactDisplay.h" />
     <ClInclude Include="Source\Engine\UI\UILabel.h" />
+    <ClInclude Include="Source\Engine\UI\UIOption.h" />
     <ClInclude Include="Source\Engine\UI\UIPause.h" />
     <ClInclude Include="Source\Engine\VFX\AnimationController.h" />
     <ClInclude Include="Source\Engine\VFX\CinematicDirector.h" />
@@ -267,6 +268,7 @@
     <ClCompile Include="Source\Engine\UI\UIComponents.cpp" />
     <ClCompile Include="Source\Engine\UI\UIDialogueBox.cpp" />
     <ClCompile Include="Source\Engine\UI\UIImpactDisplay.cpp" />
+    <ClCompile Include="Source\Engine\UI\UIOption.cpp" />
     <ClCompile Include="Source\Engine\UI\UIPanel.cpp" />
     <ClCompile Include="Source\Engine\UI\UIPause.cpp" />
     <ClCompile Include="Source\Engine\VFX\AnimationController.cpp" />

@@ -49,6 +49,8 @@ SceneTitle::SceneTitle()
     m_optionSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Title/Sprite_Title_Option.png");
     m_exitSprite = std::make_unique<Sprite>(device, "Data/Sprite/Scene Title/Sprite_Title_Exit.png");
     m_primitive = std::make_unique<Primitive>(device);
+    m_uiOption = std::make_unique<UIOption>();
+    m_uiOption->Initialize(m_primitive.get());
 }
 
 bool SceneTitle::IsUpTriggered() noexcept
@@ -169,6 +171,17 @@ void SceneTitle::Update(float elapsedTime)
     {
         constexpr int maxOptions = static_cast<int>(MenuOption::Count);
         int current = static_cast<int>(m_currentSelection);
+
+		// Bug Prevention: If the user is in the Option Panel, we do not want to process main menu navigation.
+        if (m_isOptionPhase)
+        {
+            // Bug Prevention: Allow the user to press 'Confirm' or 'Exit' (e.g., ESC) to close the menu
+            if (IsConfirmTriggered() || Input::Instance().GetKeyboard().IsTriggered(VK_ESCAPE))
+            {
+                m_isOptionPhase = false;
+            }
+            return; // EXIT EARLY: Do not process main menu navigation
+        }
 
         // UP NAVIGATION
         if (IsUpTriggered())
@@ -326,6 +339,14 @@ void SceneTitle::Render(float dt, Camera* targetCamera)
         }
     }
 
+    // RENDER OPTION UI
+    // It uses its own logic to determine if it should render, but we pass m_menuAlpha 
+    // or a dedicated alpha if we want it to fade in smoothly. For now, we render if active.
+    if (m_isOptionPhase && m_uiOption)
+    {
+        m_uiOption->Render(dc, 1.0f);
+    }
+
     if (m_fadeAlpha > 0.001f && m_fadeSprite)
     {
         m_fadeSprite->Render(dc, 0.0f, 0.0f, 0.0f, 1920.0f, 1080.0f, 0.0f, 0.0f, 1920.0f, 1080.0f, 0.0f, 0.0f, 0.0f, 0.0f, m_fadeAlpha);
@@ -444,7 +465,11 @@ void SceneTitle::ExecuteMenuSelection() noexcept
         break;
 
     case MenuOption::Option:
-        // TODO: Map to an options sub-menu state later
+        if (!m_isExiting && !m_isOptionPhase)
+        {
+            m_isOptionPhase = true;
+            // Optionally play a sound here
+        }
         break;
 
     case MenuOption::Exit:
