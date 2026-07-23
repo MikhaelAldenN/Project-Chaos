@@ -180,6 +180,9 @@ void SceneTitle::Update(float elapsedTime)
             {
                 m_isOptionPhase = false;
             }
+
+            if (m_uiOption) m_uiOption->Update(elapsedTime);
+
             return; // EXIT EARLY: Do not process main menu navigation
         }
 
