@@ -3,7 +3,9 @@
 #include "FontTTF.h"
 #include "System/Graphics.h"
 #include "System/Input.h"
+#include "System/AudioManager.h"
 #include <algorithm>
+#include <cmath>
 
 void UIOption::Initialize(Primitive* primitive)
 {
@@ -16,6 +18,13 @@ void UIOption::Initialize(Primitive* primitive)
     {
         m_volumeStrings[i] = std::to_string(i);
     }
+
+    // Sync initial UI sliders with the core AudioManager settings 
+    m_volumes[static_cast<std::size_t>(OptionRow::Music)] =
+        static_cast<int>(std::round(AudioManager::Instance().GetGlobalMusicVolume() * 100.0f));
+
+    m_volumes[static_cast<std::size_t>(OptionRow::SoundEffects)] =
+        static_cast<int>(std::round(AudioManager::Instance().GetGlobalSFXVolume() * 100.0f));
 }
 
 int UIOption::GetVerticalInputTriggered() noexcept
@@ -79,24 +88,24 @@ int UIOption::GetHorizontalInputTriggered() noexcept
 
 void UIOption::Update(float elapsedTime) noexcept
 {
-    const int vDir = GetVerticalInputTriggered();
+    const int vDir{ GetVerticalInputTriggered() };
     if (vDir != 0)
     {
-        const int count = static_cast<int>(OptionRow::Count);
-        int current = static_cast<int>(m_selectedRow);
+        const int count{ static_cast<int>(OptionRow::Count) };
+        int current{ static_cast<int>(m_selectedRow) };
 
         current = (current + vDir + count) % count;
         m_selectedRow = static_cast<OptionRow>(current);
     }
 
-    const int hDir = GetHorizontalInputTriggered();
+    const int hDir{ GetHorizontalInputTriggered() };
     if (hDir == 0)
     {
         m_inputHoldTimer = 0.0f;
         return;
     }
 
-    bool shouldChangeVolume = false;
+    bool shouldChangeVolume{ false };
 
     if (hDir == 1 || hDir == -1)
     {
@@ -115,11 +124,31 @@ void UIOption::Update(float elapsedTime) noexcept
 
     if (shouldChangeVolume)
     {
-        const int step = (hDir > 0) ? 1 : -1;
-        const std::size_t targetIndex = static_cast<std::size_t>(m_selectedRow);
+        const int step{ (hDir > 0) ? 1 : -1 };
+        const std::size_t targetIndex{ static_cast<std::size_t>(m_selectedRow) };
 
         m_volumes[targetIndex] += step;
         m_volumes[targetIndex] = std::clamp(m_volumes[targetIndex], 0, 100);
+
+        // --- APPLY VOLUME TO ENGINE ---
+        const float normalizedVolume{ static_cast<float>(m_volumes[targetIndex]) / 100.0f };
+
+        if (m_selectedRow == OptionRow::Music)
+        {
+            AudioManager::Instance().SetGlobalMusicVolume(normalizedVolume);
+        }
+        else if (m_selectedRow == OptionRow::SoundEffects)
+        {
+            AudioManager::Instance().SetGlobalSFXVolume(normalizedVolume);
+
+            // Optional: Provide auditory feedback when clicking D-pad / A/D once
+            // (Skipped for continuous hold so it doesn't spam the ear)
+            if (hDir == 1 || hDir == -1)
+            {
+                // Un-comment this and use a valid UI click WAV file in your Data folder:
+                // AudioManager::Instance().PlaySFX("Data/Sound/SE_Hit.wav", 0.5f);
+            }
+        }
     }
 }
 
@@ -146,7 +175,7 @@ void UIOption::Render(ID3D11DeviceContext* dc, float alpha) const noexcept
     m_primitive->Rect(PANEL_POS_X, PANEL_POS_Y + BORDER_THICKNESS, BORDER_THICKNESS, PANEL_HEIGHT - (BORDER_THICKNESS * 2.0f), 0.0f, 0.0f, 0.0f, OUTLINE_R, OUTLINE_G, OUTLINE_B, alpha);
     m_primitive->Rect(PANEL_POS_X + PANEL_WIDTH - BORDER_THICKNESS, PANEL_POS_Y + BORDER_THICKNESS, BORDER_THICKNESS, PANEL_HEIGHT - (BORDER_THICKNESS * 2.0f), 0.0f, 0.0f, 0.0f, OUTLINE_R, OUTLINE_G, OUTLINE_B, alpha);
 
-    // Header Separator Line (Stretches perfectly from left border to right border)
+    // Header Separator Line
     m_primitive->Rect(
         innerX,
         PANEL_POS_Y + SEPARATOR_OFFSET_Y,

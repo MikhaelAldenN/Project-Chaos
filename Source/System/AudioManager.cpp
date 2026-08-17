@@ -40,19 +40,19 @@ void AudioManager::Finalize() {
 }
 
 void AudioManager::Update(float elapsedTime) {
-    
-    if (m_musicStream && m_isFadingOut) 
+
+    if (m_musicStream && m_isFadingOut)
     {
         m_fadeTimer -= elapsedTime;
 
-        if (m_fadeTimer <= 0.0f) 
+        if (m_fadeTimer <= 0.0f)
         {
             StopMusic();
         }
-        else 
+        else
         {
-            float fadeRatio = m_fadeTimer / m_fadeDuration;
-            float currentVolume = fadeRatio * m_currentMusicVolume; 
+            const float fadeRatio{ m_fadeTimer / m_fadeDuration };
+            const float currentVolume{ fadeRatio * (m_localMusicVolume * m_globalMusicVolume) };
 
             SDL_SetAudioStreamGain(m_musicStream, currentVolume);
         }
@@ -104,13 +104,13 @@ void AudioManager::Update(float elapsedTime) {
 
     if (m_ambientFadeState != 0 && m_ambientStream)
     {
-        if (m_ambientFadeState == 1) 
+        if (m_ambientFadeState == 1)
         {
             m_ambientVolume += m_ambientFadeSpeed * elapsedTime;
             if (m_ambientVolume >= m_ambientTargetVolume)
             {
                 m_ambientVolume = m_ambientTargetVolume;
-                m_ambientFadeState = 0; 
+                m_ambientFadeState = 0;
             }
         }
         else if (m_ambientFadeState == -1)
@@ -153,10 +153,9 @@ void AudioManager::PlayMusic(const std::string& filePath, float volume, bool loo
     SDL_BindAudioStream(m_deviceId, m_musicStream);
     SDL_PutAudioStreamData(m_musicStream, data->buffer, data->length);
 
-    // [FIX] Gunakan parameter volume, bukan angka baku 1.0f
-    SDL_SetAudioStreamGain(m_musicStream, volume);
+    m_localMusicVolume = volume;
+    SDL_SetAudioStreamGain(m_musicStream, m_localMusicVolume * m_globalMusicVolume);
 
-    m_currentMusicVolume = volume;
     m_currentMusicData = data;
     m_isMusicLooping = loop;
     m_musicLoopStart = loopStartSeconds;
@@ -189,7 +188,9 @@ void AudioManager::PlaySFX(const std::string& filePath, float volume) {
     if (stream) {
         SDL_BindAudioStream(m_deviceId, stream);
         SDL_PutAudioStreamData(stream, data->buffer, data->length);
-        SDL_SetAudioStreamGain(stream, volume);
+        
+        SDL_SetAudioStreamGain(stream, volume * m_globalSFXVolume);
+        
         m_activeSFXStreams.push_back(stream);
     }
 }
@@ -212,10 +213,19 @@ void AudioManager::PlayAmbientSFX(const std::string& filePath, float targetVolum
     SDL_BindAudioStream(m_deviceId, m_ambientStream);
     SDL_PutAudioStreamData(m_ambientStream, data->buffer, data->length);
 
-    m_ambientVolume = 0.0f; 
-    m_ambientTargetVolume = targetVolume;
-    m_ambientFadeSpeed = targetVolume / fadeDuration;
-    m_ambientFadeState = 1; // Flag Fading In
+    m_localAmbientVolume = targetVolume;
+    m_ambientVolume = 0.0f;
+    m_ambientTargetVolume = m_localAmbientVolume * m_globalSFXVolume;
+
+    // Anticipate divide-by-zero on instant fades
+    if (fadeDuration > 0.001f) {
+        m_ambientFadeSpeed = m_ambientTargetVolume / fadeDuration;
+        m_ambientFadeState = 1;
+    }
+    else {
+        m_ambientVolume = m_ambientTargetVolume;
+        m_ambientFadeState = 0;
+    }
 
     SDL_SetAudioStreamGain(m_ambientStream, m_ambientVolume);
 }
@@ -234,10 +244,30 @@ void AudioManager::PlaySFXDelayed(const std::string& filePath, float volume, flo
     m_delayedSounds.push_back({ filePath, volume, delaySeconds });
 }
 
-void AudioManager::SetMusicVolume(float volume) {
-    if (m_musicStream) {
-        // Ini akan secara instan mengubah volume musik yang sedang berputar di SDL3
-        SDL_SetAudioStreamGain(m_musicStream, volume);
-        m_currentMusicVolume = volume;
+void AudioManager::SetGlobalMusicVolume(float volume) noexcept {
+    m_globalMusicVolume = std::clamp(volume, 0.0f, 1.0f);
+    if (m_musicStream && !m_isFadingOut) {
+        SDL_SetAudioStreamGain(m_musicStream, m_localMusicVolume * m_globalMusicVolume);
     }
+}
+
+float AudioManager::GetGlobalMusicVolume() const noexcept {
+    return m_globalMusicVolume;
+}
+
+void AudioManager::SetGlobalSFXVolume(float volume) noexcept {
+    m_globalSFXVolume = std::clamp(volume, 0.0f, 1.0f);
+
+    // Live update ambient stream if it's currently active and not fading
+    if (m_ambientStream) {
+        m_ambientTargetVolume = m_localAmbientVolume * m_globalSFXVolume;
+        if (m_ambientFadeState == 0) {
+            m_ambientVolume = m_ambientTargetVolume;
+            SDL_SetAudioStreamGain(m_ambientStream, m_ambientVolume);
+        }
+    }
+}
+
+float AudioManager::GetGlobalSFXVolume() const noexcept {
+    return m_globalSFXVolume;
 }

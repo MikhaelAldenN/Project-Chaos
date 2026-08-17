@@ -21,8 +21,11 @@ public:
     void FadeOutMusic(float duration);
     void PlayAmbientSFX(const std::string& filePath, float targetVolume = 1.0f, float fadeDuration = 1.0f);
     void FadeOutAmbientSFX(float duration);
+    void SetGlobalMusicVolume(float volume) noexcept;
+    [[nodiscard]] float GetGlobalMusicVolume() const noexcept;
+    void SetGlobalSFXVolume(float volume) noexcept;
+    [[nodiscard]] float GetGlobalSFXVolume() const noexcept;
 
-    void SetMusicVolume(float volume);
 private:
     AudioManager() = default;
 
@@ -48,16 +51,21 @@ private:
     SDL_AudioStream* m_musicStream = nullptr;
     SoundData* m_currentMusicData = nullptr;
 
-    float m_currentMusicVolume = 1.0f;
-    bool m_isMusicLooping = false;
-    float m_musicLoopStart = 0.0f;
+    // --- VOLUME TRACKING ---
+    float m_globalMusicVolume{ 0.5f }; 
+    float m_globalSFXVolume{ 0.5f };   
+
+    float m_localMusicVolume{ 1.0f };
+    bool m_isMusicLooping{ false };
+    float m_musicLoopStart{ 0.0f };
 
     // Fading Variables
-    bool m_isFadingOut = false;
-    float m_fadeTimer = 0.0f;
-    float m_fadeDuration = 0.0f;
+    bool m_isFadingOut{ false };
+    float m_fadeTimer{ 0.0f };
+    float m_fadeDuration{ 0.0f };
 
     SDL_AudioStream* m_ambientStream{ nullptr };
+    float m_localAmbientVolume{ 1.0f };
     float m_ambientVolume{ 0.0f };
     float m_ambientTargetVolume{ 0.0f };
     float m_ambientFadeSpeed{ 0.0f };
