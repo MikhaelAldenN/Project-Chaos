@@ -3,3 +3,5 @@ C:\Users\2240823\Documents\学校用\ゲーム製作プロジェクト演習\Bey
 C:\Users\2240763\Desktop\Beyond Breaker\External\DirectXTex\Bin\Desktop_2022\x64\Release\DirectXTex.lib
 C:\Users\2240763\source\repos\Project-Chaos\External\DirectXTex\Bin\Desktop_2022\x64\Release\DirectXTex.lib
 C:\Users\2240823\Documents\School\GameDev\Chroconicle of Chaos\External\DirectXTex\Bin\Desktop_2022\x64\Release\DirectXTex.lib
+C:\Users\2240763\Desktop\Projecft-Chaos\External\DirectXTex\Bin\Desktop_2022\x64\Release\DirectXTex.lib
+C:\TEAM PROJECT\Projecft-Chaos\External\DirectXTex\Bin\Desktop_2022\x64\Release\DirectXTex.lib
